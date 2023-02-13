@@ -1,22 +1,18 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <section class="slogan-section text-center">
-        <h3>{{ slogan_title }}</h3>
-        <p>{{ slogan_text }}</p>
+    <section class="slogan-section text-center text-[#333] p-5 mb-10">
+        <h2 class="text-x1 font-bold">{{ slogan_title }}</h2>
+        <p class="text-lg">{{ slogan_text }}</p>
     </section>
 
-    <div class="main-content">
-        <div class="container-fluid mt-3">
-            <div class="row justify-content-center">
-                <div class="col-md-9" id="map-container">
-                    <div id="mapid" style="height: 400px;"></div>
+    <div class="container-fluid mt-3">
+        <div class="flex justify-center">
+            <div class="w-4/5 mb-5">
+                <div id="map-container" class="w-full mb-5" style="height: 400px;">
+                    <div id="mapid" class="h-full w-full"></div>
                 </div>
-                <div class="row justify-content-center"></div>
-                    <div class="col-md-9">
-                        <div id="sidebar" class="sidebar-container border-top pl-2">
-                        </div>
-                    </div>
+                <div id="sidebar" class="grid grid-cols-3 gap-5">
                 </div>
             </div>
         </div>
@@ -32,7 +28,6 @@
         var mymap = L.map('mapid').setView([52.231, 21.004], 7); //  default location and zoom level
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
     attribution: '© OpenStreetMap contributors'
 }).addTo(mymap);
 
