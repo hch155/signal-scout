@@ -63,6 +63,9 @@ def populate_database(combined_df):
             db.session.add(station)
         db.session.commit()
 
+def find_nearest_stations(user_lat, user_lon, limit=5):
+    
+
 def main():
     directory = 'base_station_data'
     combined_df = read_and_process_excel(directory)

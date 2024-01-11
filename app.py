@@ -1,9 +1,9 @@
-from flask import Flask, render_template, request
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, render_template, request, jsonify
+from queries import get_all_stations, find_nearest_stations
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
-db = SQLAlchemy(app)
+db.init_app(app)
 
 @app.route('/')
 def index():
@@ -17,12 +17,21 @@ def submit_location():
     # Process the location data...
     return 'Location Received', 200
 
-class BaseStation(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    latitude = db.Column(db.Float, nullable=False)
-    longitude = db.Column(db.Float, nullable=False)
-    frequency_band = db.Column(db.String, nullable=False)
-    # +.. other necessary fields for the future
+
+def submit_location():
+    data = request.json
+    nearest_stations = find_nearest_stations(data['lat'], data['lng'])
+
+def stations():
+    all_stations = get_all_stations()
+    stations_data = [{'id': station.id, 'latitude': station.latitude, 'longitude': station.longitude, 'frequency_band': station.frequency_band} for station in all_stations]
+    return jsonify(stations_data)
+
+@app.route('/stations', methods=['GET'])
+def stations():
+    all_stations = get_all_stations()
+    stations_data = [{'id': station.id, 'latitude': station.latitude, 'longitude': station.longitude, 'frequency_band': station.frequency_band} for station in all_stations]
+    return jsonify(stations_data)
 
 
 if __name__ == '__main__':
