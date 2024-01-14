@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, jsonify
+from models import db
 from queries import get_all_stations, find_nearest_stations
+
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
@@ -11,11 +13,42 @@ def index():
 
 @app.route('/submit_location', methods=['POST'])
 def submit_location():
-    data = request.json
-    latitude = data['lat']
-    longitude = data['lng']
-    # Process the location data...
-    return 'Location Received', 200
+    try:
+        data = request.json
+
+        # Validating input data
+        if not data or 'lat' not in data or 'lng' not in data:
+            abort(400, description="Missing latitude or longitude data.")
+
+        latitude = data['lat']
+        longitude = data['lng']
+
+        # Additional validation for latitude and longitude
+        if not isinstance(latitude, (float, int)) or not isinstance(longitude, (float, int)):
+            abort(400, description="Invalid latitude or longitude format.")
+
+        # Database query wrapped in try-except for error handling
+        try:
+            nearest_stations = find_nearest_stations(latitude, longitude)
+        except Exception as e:
+            # Log this exception for debugging
+            print(f"Database query error: {e}")
+            abort(500, description="Internal server error.")
+
+        # Format and return the response data
+        stations_data = [{
+            'id': station.id,
+            'latitude': station.latitude,
+            'longitude': station.longitude,
+            'frequency_band': station.frequency_band
+        } for station in nearest_stations]
+
+        return jsonify(stations_data)
+
+    except Exception as e:
+        # Log unexpected exceptions for debugging
+        print(f"Unexpected error: {e}")
+        abort(500, description="Internal server error.")
 
 
 def submit_location():
