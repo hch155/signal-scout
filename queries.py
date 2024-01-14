@@ -1,4 +1,4 @@
-from models import BaseStation
+from models import BaseStation, db
 
 def find_nearest_stations(user_lat, user_lon, limit=5):
     # find and return the nearest stations
