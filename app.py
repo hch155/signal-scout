@@ -51,10 +51,7 @@ def submit_location():
         abort(500, description="Internal server error.")
 
 
-def submit_location():
-    data = request.json
-    nearest_stations = find_nearest_stations(data['lat'], data['lng'])
-    processed_stations = process_stations(nearest_stations)
+
 
 def stations():
     all_stations = get_all_stations()
