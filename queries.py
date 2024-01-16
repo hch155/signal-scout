@@ -14,8 +14,25 @@ def haversine(lat1, lon1, lat2, lon2):
     return c * r
 
 def find_nearest_stations(user_lat, user_lon, limit=5):
-    stations = BaseStation.query.all()
-    stations_with_distance = []
+    try:
+        stations = BaseStation.query.all()
+        stations_with_distance = []
+
+        for station in stations:
+            distance = haversine(user_lat, user_lon, station.latitude, station.longitude)
+            stations_with_distance.append((station, distance))
+
+        # sorting stations by distance, reorders the tuples in the stations_with_distance list so that they are sorted from the nearest station 
+        stations_with_distance.sort(key=lambda x: x[1])
+
+        # getting the closest limit no. of stations
+        closest_stations = [station for station, distance in stations_with_distance[:limit]]
+
+        return closest_stations
+    except Exception as e:
+        print(f"Error in find_nearest_stations: {e}")
+        return []  # Return an empty list in case of an error
+
 
     # Assuming nearest_stations is a list of station objects
 def process_stations(stations):
