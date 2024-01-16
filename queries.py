@@ -22,19 +22,37 @@ def find_nearest_stations(user_lat, user_lon, limit=5):
             distance = haversine(user_lat, user_lon, station.latitude, station.longitude)
             stations_with_distance.append((station, distance))
 
-        # sorting stations by distance, reorders the tuples in the stations_with_distance list so that they are sorted from the nearest station 
+        # Sort stations by distance, reorders the tuples in the stations_with_distance list so that they are sorted from the nearest station 
         stations_with_distance.sort(key=lambda x: x[1])
 
-        # getting the closest limit no. of stations
-        closest_stations = [station for station, distance in stations_with_distance[:limit]]
+        # Group by location and aggregate frequency bands
+        grouped_stations = {}
+        for station, _ in stations_with_distance:
+            key = (station.latitude, station.longitude)
+            if key not in grouped_stations:
+                grouped_stations[key] = {
+                    'basestation_id': station.basestation_id,  
+                    'city': station.city,
+                    'service_provider': station.service_provider,                      
+                    'location': station.location,              
+                    'latitude': station.latitude,
+                    'longitude': station.longitude,
+                    'frequency_bands': set()
+                }
+            grouped_stations[key]['frequency_bands'].add(station.frequency_band)
+
+        # Convert to list and limit the results
+        closest_stations = list(grouped_stations.values())[:limit]
+
+        # Convert sets to lists for JSON serialization
+        for station in closest_stations:
+            station['frequency_bands'] = list(station['frequency_bands'])
 
         return closest_stations
     except Exception as e:
         print(f"Error in find_nearest_stations: {e}")
         return []  # Return an empty list in case of an error
 
-
-    # Assuming nearest_stations is a list of station objects
 def process_stations(stations):
     grouped_stations = {}
 
@@ -42,6 +60,10 @@ def process_stations(stations):
         key = (station.latitude, station.longitude)
         if key not in grouped_stations:
             grouped_stations[key] = {
+                'basestation_id': station.basestation_id,  
+                'city': station.city,
+                'service_provider': station.service_provider,                      
+                'location': station.location,
                 'latitude': station.latitude,
                 'longitude': station.longitude,
                 'frequency_bands': set()

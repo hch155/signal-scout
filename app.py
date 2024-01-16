@@ -1,11 +1,12 @@
 from flask import Flask, render_template, request, jsonify
-from models import db
+from models import db, BaseStation
 from queries import get_all_stations, find_nearest_stations
 
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
 db.init_app(app)
+
 
 @app.route('/')
 def index():
@@ -21,11 +22,15 @@ def submit_location():
             return jsonify({'error': 'No stations found or an error occurred'}), 500
 
         stations_data = [{
-            'id': station.id,
-            'latitude': station.latitude,
-            'longitude': station.longitude,
-            'frequency_band': station.frequency_band
+            'basestation_id': station['basestation_id'],
+            'city': station['city'],
+            'location': station['location'],
+            'service_provider': station['service_provider'],
+            'latitude': station['latitude'],
+            'longitude': station['longitude'],
+            'frequency_bands': station['frequency_bands']
         } for station in nearest_stations]
+
         return jsonify(stations_data)
 
     except Exception as e:
@@ -36,13 +41,31 @@ def submit_location():
 
 def stations():
     all_stations = get_all_stations()
-    stations_data = [{'id': station.id, 'latitude': station.latitude, 'longitude': station.longitude, 'frequency_band': station.frequency_band} for station in all_stations]
+    stations_data = [{ 
+                      'basestation_id': station.basestation_id, 
+                      'latitude': station.latitude,              
+                      'longitude': station.longitude,            
+                      'frequency_bands': station.frequency_band, 
+                      'city': station.city,                     
+                      'location': station.location,              
+                      'service_provider': station.service_provider  
+                    } for station in all_stations]
+
     return jsonify(stations_data)
 
 @app.route('/stations', methods=['GET'])
 def get_stations():
     all_stations = get_all_stations()
-    stations_data = [{'id': station.id, 'latitude': station.latitude, 'longitude': station.longitude, 'frequency_band': station.frequency_band} for station in all_stations]
+    stations_data = [{
+                      'basestation_id': station.basestation_id, 
+                      'latitude': station.latitude,              
+                      'longitude': station.longitude,            
+                      'frequency_bands': station.frequency_band, 
+                      'city': station.city,                     
+                      'location': station.location,              
+                      'service_provider': station.service_provider 
+                    } for station in all_stations]
+
     return jsonify(stations_data)
 
 
