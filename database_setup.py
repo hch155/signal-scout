@@ -1,5 +1,6 @@
 # database_setup.py
-from app import db, BaseStation, app
+from app import app
+from models import db, BaseStation
 import pandas as pd
 import os
 import re
@@ -51,20 +52,27 @@ def populate_database(combined_df):
             try:
                 latitude_decimal = dms_to_decimal(row['Szer geogr stacji'])
                 longitude_decimal = dms_to_decimal(row['Dł geogr stacji'])
-            except ValueError:
-                # Handle or log the error
-                continue
 
-            station = BaseStation(
-                latitude=latitude_decimal,
-                longitude=longitude_decimal,
-                frequency_band=row['frequency_band']
-            )
-            db.session.add(station)
+                station = BaseStation(
+                    latitude=latitude_decimal,
+                    longitude=longitude_decimal,
+                    frequency_band=row['frequency_band'],
+                    basestation_id=row.get('IdStacji'),             # Real base station ID
+                    city=row.get('Miejscowość'),         
+                    service_provider=row.get('Nazwa Operatora'),    # name of ISP
+                    location=row.get('Lokalizacja')  
+                )
+                db.session.add(station)
+
+            except ValueError as e:
+                # Handle or log the error
+                print(f"Error processing row: {e}")
+                continue 
         db.session.commit()
 
-def find_nearest_stations(user_lat, user_lon, limit=5):
-    
+'''def find_nearest_stations(user_lat, user_lon, limit=5):
+    pass
+'''
 
 def main():
     directory = 'base_station_data'
