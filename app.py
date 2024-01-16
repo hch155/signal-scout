@@ -15,41 +15,22 @@ def index():
 def submit_location():
     try:
         data = request.json
+        nearest_stations = find_nearest_stations(data['lat'], data['lng'])
+        if nearest_stations is None:
+            print("No stations found or an error occurred")
+            return jsonify({'error': 'No stations found or an error occurred'}), 500
 
-        # Validating input data
-        if not data or 'lat' not in data or 'lng' not in data:
-            abort(400, description="Missing latitude or longitude data.")
-
-        latitude = data['lat']
-        longitude = data['lng']
-
-        # Additional validation for latitude and longitude
-        if not isinstance(latitude, (float, int)) or not isinstance(longitude, (float, int)):
-            abort(400, description="Invalid latitude or longitude format.")
-
-        # Database query wrapped in try-except for error handling
-        try:
-            nearest_stations = find_nearest_stations(latitude, longitude)
-        except Exception as e:
-            # Log this exception for debugging
-            print(f"Database query error: {e}")
-            abort(500, description="Internal server error.")
-
-        # Format and return the response data
         stations_data = [{
             'id': station.id,
             'latitude': station.latitude,
             'longitude': station.longitude,
             'frequency_band': station.frequency_band
         } for station in nearest_stations]
-
         return jsonify(stations_data)
 
     except Exception as e:
-        # Log unexpected exceptions for debugging
-        print(f"Unexpected error: {e}")
-        abort(500, description="Internal server error.")
-
+        print(f"Error in submit_location: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 
@@ -59,7 +40,7 @@ def stations():
     return jsonify(stations_data)
 
 @app.route('/stations', methods=['GET'])
-def stations():
+def get_stations():
     all_stations = get_all_stations()
     stations_data = [{'id': station.id, 'latitude': station.latitude, 'longitude': station.longitude, 'frequency_band': station.frequency_band} for station in all_stations]
     return jsonify(stations_data)
