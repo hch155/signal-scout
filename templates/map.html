@@ -16,6 +16,20 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
 }).addTo(mymap);
 
+/*
+Leaflet doesn't provide a direct way to change the color of the default marker,
+Leaflet's GitHub repository contains images for markers in different colors.
+*/
+var greenIcon = new L.Icon({ 
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.4/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+var stationMarkers = [];
 var marker;
 
 mymap.on('click', function(e) {
@@ -29,7 +43,7 @@ mymap.on('click', function(e) {
     }
 
     // Add a marker to show where you clicked.
-    marker = L.marker([lat, lng]).addTo(mymap);
+    marker = L.marker([lat, lng], {icon: greenIcon}).addTo(mymap);
 
     // (Optional) Send the coordinates to your Flask backend
     sendLocation(lat, lng);
@@ -44,14 +58,55 @@ function sendLocation(lat, lng) {
         },
         body: JSON.stringify({lat: lat, lng: lng})
     })
-    .then(response => response.text())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();                                     // Ensure JSON parsing
+    })
     .then(data => {
-        console.log('Success:', data);
+        console.log('Parsed data:', data);                          // Verify the parsed data
+        displayStations(data);                                      // Function to display stations on the map
     })
     .catch((error) => {
         console.error('Error:', error);
     });
 }
+
+function clearStationMarkers() {                                    // clearing markers when new location is submitted
+    for (var i = 0; i < stationMarkers.length; i++) {
+        mymap.removeLayer(stationMarkers[i]);
+    }
+    stationMarkers = []; // Reset the array
+} 
+
+function displayStations(stations) {
+    clearStationMarkers();                                          // Clear existing markers
+
+    console.log('Stations:', stations);                             // Debugging the received data
+    if (Array.isArray(stations)) {
+        stations.forEach(station => {
+            
+        });
+    } else {
+        console.error('Received data is not an array:', stations);
+    }
+
+    stations.forEach(station => {
+        var stationMarker = L.marker([station.latitude, station.longitude]).addTo(mymap);
+
+        // Creating a popup with station information
+        var popupContent = `<b>Base Station ID:</b> ${station.basestation_id}<br>
+                            <b>Frequency Bands:</b> ${station.frequency_bands.join(", ")}<br>
+                            <b>City:</b> ${station.city}<br>
+                            <b>Location:</b> ${station.location}<br>
+                            <b>Service Provider:</b> ${station.service_provider}`;
+        
+        stationMarker.bindPopup(popupContent);
+        stationMarkers.push(stationMarker);                         // Store the marker
+    });
+}
+
 
     </script>
 </body>
