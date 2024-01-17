@@ -48,7 +48,29 @@ mymap.on('click', function(e) {
     // (Optional) Send the coordinates to your Flask backend
     sendLocation(lat, lng);
     
-});       
+});
+
+var providerColors = {
+    'P4 Sp. z o.o.': 'violet', // purple/violet marker for Play
+    'Orange Polska S.A.': 'orange', // orange marker for Orange Polska
+    'T-Mobile Polska S.A.': 'red', // red marker for T-Mobile
+    'POLKOMTEL Sp. z o.o.': 'blue', // blue marker for Polkomtel
+    'AERO 2 Sp. z o.o.': 'blue' // same color for aero as polkomtel
+};
+
+function getProviderIcon(providerName) {
+    var color = providerColors[providerName] || 'gray'; // Default color if provider not found
+    var iconUrl = `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`;
+
+    return new L.Icon({
+        iconUrl: iconUrl,
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.4/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+}
 
 function sendLocation(lat, lng) {
     fetch('/submit_location', {
@@ -93,7 +115,8 @@ function displayStations(stations) {
     }
 
     stations.forEach(station => {
-        var stationMarker = L.marker([station.latitude, station.longitude]).addTo(mymap);
+        var providerIcon = getProviderIcon(station.service_provider)
+        var stationMarker = L.marker([station.latitude, station.longitude], {icon: providerIcon}).addTo(mymap);
 
         // Creating a popup with station information
         var popupContent = `<b>Base Station ID:</b> ${station.basestation_id}<br>

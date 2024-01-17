@@ -1,0 +1,12 @@
+console.log('Stations:', stations);  // Debugging the received data
+    if (Array.isArray(stations)) {
+        stations.forEach(station => {
+            // Existing marker code...
+        });
+    } else {
+        console.error('Received data is not an array:', stations);
+    }
+
+    stations.forEach(station => {
+
+///
