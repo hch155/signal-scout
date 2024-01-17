@@ -1,15 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Location Picker</title>
+    <title>Signal-Scout</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
 </head>
 <body>
     <div id="mapid" style="width: 600px; height: 400px;"></div>
+    <div id="mapid" style="width: 600px; height: 400px;"></div>
+    <div id="coordinates" style="position: absolute; bottom: 10px; left: 10px; background: rgba(255, 255, 255, 0.8); padding: 5px; border-radius: 4px;"></div>
     <script>
 
-var mymap = L.map('mapid').setView([52.231, 21.004], 7); //  default location and zoom level
+var mymap = L.map('mapid').setView([52.231, 21.004], 7);                  //  default location and zoom level
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -34,8 +39,10 @@ var marker;
 
 mymap.on('click', function(e) {
     var coord = e.latlng;
-    var lat = coord.lat;
-    var lng = coord.lng;
+    var lat = coord.lat.toFixed(5);
+    var lng = coord.lng.toFixed(5);
+    var { latHemisphere, lngHemisphere } = getHemisphere(coord.lat, coord.lng);
+    document.getElementById('coordinates').innerHTML = `Lat: ${lat}°${latHemisphere}, Lng: ${lng}°${lngHemisphere}`;
 
     // Clear existing marker,
     if (marker) {
@@ -51,15 +58,15 @@ mymap.on('click', function(e) {
 });
 
 var providerColors = {
-    'P4 Sp. z o.o.': 'violet', // purple/violet marker for Play
-    'Orange Polska S.A.': 'orange', // orange marker for Orange Polska
-    'T-Mobile Polska S.A.': 'red', // red marker for T-Mobile
-    'POLKOMTEL Sp. z o.o.': 'blue', // blue marker for Polkomtel
-    'AERO 2 Sp. z o.o.': 'blue' // same color for aero as polkomtel
+    'P4 Sp. z o.o.': 'violet',                                       // purple/violet marker for Play
+    'Orange Polska S.A.': 'orange',                                  // orange marker for Orange Polska
+    'T-Mobile Polska S.A.': 'red',                                   // red marker for T-Mobile
+    'POLKOMTEL Sp. z o.o.': 'blue',                                  // blue marker for Polkomtel
+    'AERO 2 Sp. z o.o.': 'blue'                                      // same color for aero as polkomtel
 };
 
 function getProviderIcon(providerName) {
-    var color = providerColors[providerName] || 'gray'; // Default color if provider not found
+    var color = providerColors[providerName] || 'gray';              // Default color if provider not found
     var iconUrl = `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`;
 
     return new L.Icon({
@@ -100,7 +107,13 @@ function clearStationMarkers() {                                    // clearing 
         mymap.removeLayer(stationMarkers[i]);
     }
     stationMarkers = []; // Reset the array
-} 
+}
+
+function getHemisphere(lat, lng) {                                  // hemisphere for latitude and longitude
+    var latHemisphere = lat >= 0 ? 'N' : 'S';
+    var lngHemisphere = lng >= 0 ? 'E' : 'W';
+    return { latHemisphere, lngHemisphere };
+}
 
 function displayStations(stations) {
     clearStationMarkers();                                          // Clear existing markers
@@ -117,13 +130,17 @@ function displayStations(stations) {
     stations.forEach(station => {
         var providerIcon = getProviderIcon(station.service_provider)
         var stationMarker = L.marker([station.latitude, station.longitude], {icon: providerIcon}).addTo(mymap);
+        var formattedLat = station.latitude.toFixed(5);             // cut down to 5 digits after decimal point
+        var formattedLng = station.longitude.toFixed(5);
 
         // Creating a popup with station information
-        var popupContent = `<b>Base Station ID:</b> ${station.basestation_id}<br>
-                            <b>Frequency Bands:</b> ${station.frequency_bands.join(", ")}<br>
-                            <b>City:</b> ${station.city}<br>
-                            <b>Location:</b> ${station.location}<br>
-                            <b>Service Provider:</b> ${station.service_provider}`;
+        var popupContent = `
+            <b>Service Provider:</b> ${station.service_provider}<br>
+            <b>Base Station ID:</b> ${station.basestation_id}<br>
+            <b>Frequency Bands:</b> ${station.frequency_bands.join(", ")}<br>
+            <b>City:</b> ${station.city}<br>
+            <b>Location:</b> ${station.location}<br>
+            <b>Coordinates:</b> ${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}`;;
         
         stationMarker.bindPopup(popupContent);
         stationMarkers.push(stationMarker);                         // Store the marker
