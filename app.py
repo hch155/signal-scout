@@ -12,6 +12,11 @@ db.init_app(app)
 def index():
     return render_template('map.html') # Render the map view
 
+@app.route('/favicon.ico')
+def favicon():
+    return app.send_static_file('favicon.ico')
+
+
 @app.route('/submit_location', methods=['POST'])
 def submit_location():
     try:
