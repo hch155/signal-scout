@@ -1,9 +1,15 @@
-/*#coordinates {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(255, 255, 255, 0.8);
-            padding: 5px;
-            border-radius: 4px;
-            z-index: 1000; /* Ensure it's above the map layers */
-        
+#sidebar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 45%;
+    height: 100%;
+    background-color: white;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.2);
+    overflow-y: auto;
+    transition: right 0.5s;
+}
+
+#sidebar.hidden {
+    right: -45%; /* Initially hide the sidebar off-screen */
+}
