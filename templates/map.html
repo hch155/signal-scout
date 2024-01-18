@@ -3,14 +3,16 @@
 <head>
     <title>Signal-Scout</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
 </head>
 <body>
     <div id="mapid" style="width: 600px; height: 400px;"></div>
-    
-
+    <div id="sidebar" class="hidden">
+        <button onclick="hideSidebar()">Close</button>
+    </div>
     <script>
 
 var mymap = L.map('mapid').setView([52.231, 21.004], 7); //  default location and zoom level
@@ -92,13 +94,28 @@ function sendLocation(lat, lng) {
         return response.json();                                     // Ensure JSON parsing
     })
     .then(data => {
-        console.log('Parsed data:', data);                          // Verify the parsed data
-        displayStations(data);                                      // Function to display stations on the map
+        console.log('Parsed data:', data);                          // verification of the parsed data
+        displayStations(data);                                      // function to display stations on the map
+        showSidebar();                                              // sidebar function
     })
     .catch((error) => {
         console.error('Error:', error);
     });
 }
+
+
+function showSidebar() {
+    var sidebar = document.getElementById('sidebar');
+    sidebar.classList.remove('hidden');
+}
+
+// Call this function on page load to initially hide the sidebar
+function hideSidebar() {
+    var sidebar = document.getElementById('sidebar');
+    sidebar.classList.add('hidden');
+}
+
+window.onload = hideSidebar; // Hide the sidebar initially
 
 function clearStationMarkers() {                                    // clearing markers when new location is submitted
     for (var i = 0; i < stationMarkers.length; i++) {
@@ -109,6 +126,8 @@ function clearStationMarkers() {                                    // clearing 
 
 function displayStations(stations) {
     clearStationMarkers();                                          // Clear existing markers
+    var sidebarContent = document.getElementById('sidebar');
+    sidebarContent.innerHTML = '';                                  // Clear existing sidebar content
 
     console.log('Stations:', stations);                             // Debugging the received data
     if (Array.isArray(stations)) {
@@ -118,6 +137,8 @@ function displayStations(stations) {
     } else {
         console.error('Received data is not an array:', stations);
     }
+
+    
 
     stations.forEach(station => {
         var providerIcon = getProviderIcon(station.service_provider)
@@ -140,8 +161,21 @@ function displayStations(stations) {
         
         stationMarker.bindPopup(popupContent);
         stationMarkers.push(stationMarker);                         // Store the marker
+
+        var stationInfo = `
+            <div>
+                <h3>${station.basestation_id}</h3>
+                <p>Service Provider: ${station.service_provider}</p>
+                <b>Frequency Bands:</b> ${station.frequency_bands.join(", ")}<br>
+                <b>City:</b> ${station.city}<br>
+                <b>Location:</b> ${station.location}<br>
+                <b>Coordinates: ${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}<br>
+                <!-- Add more details as needed -->
+            </div>`;
+        sidebarContent.innerHTML += stationInfo;
     });
 }
+
 
 
     </script>
