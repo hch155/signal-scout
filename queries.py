@@ -27,7 +27,7 @@ def find_nearest_stations(user_lat, user_lon, limit=5):
 
         # Group by location and aggregate frequency bands
         grouped_stations = {}
-        for station, _ in stations_with_distance:
+        for station, distance in stations_with_distance:
             key = (station.latitude, station.longitude)
             if key not in grouped_stations:
                 grouped_stations[key] = {
@@ -38,11 +38,14 @@ def find_nearest_stations(user_lat, user_lon, limit=5):
                     'latitude': station.latitude,
                     'longitude': station.longitude,
                     'frequency_bands': set()
+                    
                 }
             grouped_stations[key]['frequency_bands'].add(station.frequency_band)
+            grouped_stations[key]['distance'] = distance 
 
         # Convert to list and limit the results
         closest_stations = list(grouped_stations.values())[:limit]
+        
 
         # Convert sets to lists for JSON serialization
         for station in closest_stations:

@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from models import db, BaseStation
-from queries import get_all_stations, find_nearest_stations
+from queries import get_all_stations, find_nearest_stations, haversine
 
 
 app = Flask(__name__)
@@ -21,7 +21,10 @@ def favicon():
 def submit_location():
     try:
         data = request.json
-        nearest_stations = find_nearest_stations(data['lat'], data['lng'])
+        user_lat = data['lat']
+        user_lng = data['lng']
+        nearest_stations = find_nearest_stations(user_lat, user_lng)
+        
         if nearest_stations is None:
             print("No stations found or an error occurred")
             return jsonify({'error': 'No stations found or an error occurred'}), 500
