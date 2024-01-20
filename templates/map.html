@@ -9,7 +9,7 @@
 
 </head>
 <body>
-    <div id="mapid" style="width: 600px; height: 400px;"></div>
+    <div id="mapid" style="width: 800px; height: 600px;"></div>
     <div id="sidebar" class="hidden">
         <button onclick="hideSidebar()">Close</button>
     </div>
@@ -140,7 +140,8 @@ function displayStations(stations) {
 
     
 
-    stations.forEach(station => {
+    stations.forEach((station, index) => {
+        console.log(index, station);
         var providerIcon = getProviderIcon(station.service_provider)
         var stationMarker = L.marker([station.latitude, station.longitude], {icon: providerIcon}).addTo(mymap);
         var formattedLat = station.latitude.toFixed(5); // cut down to 5 digits after decimal point
@@ -149,29 +150,32 @@ function displayStations(stations) {
         // hemisphere for latitude and longitude
         var latHemisphere = station.latitude >= 0 ? 'N' : 'S';
         var lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
+        var googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
 
         // Creating a popup with station information
         var popupContent = `
-            <b>Service Provider:</b> ${station.service_provider}<br>
+            <b>${index + 1}. Service Provider:</b> ${station.service_provider}<br>
             <b>Distance:<b/> ${station.distance}km<br>
             <b>Base Station ID:</b> ${station.basestation_id}<br>
             <b>Frequency Bands:</b> ${station.frequency_bands.join(", ")}<br>
             <b>City:</b> ${station.city}<br>
             <b>Location:</b> ${station.location}<br>
-            <b>Coordinates:</b> ${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}`;
+            <b>Coordinates:</b> ${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}<br>
+            <a href="${googleMapsLink}" target="_blank">View on Google Maps</a>`;
         
         stationMarker.bindPopup(popupContent);
         stationMarkers.push(stationMarker);                         // Store the marker
 
         var stationInfo = `
             <div>
-                <h3>${station.basestation_id}</h3>
+                <h3>${index + 1}. ${station.basestation_id}</h3>
                 <b>Service Provider: ${station.service_provider}</br>
                 <b>Distance: ${station.distance}km</br>
                 <b>Frequency Bands:</b> ${station.frequency_bands.join(", ")}<br>
                 <b>City:</b> ${station.city}<br>
                 <b>Location:</b> ${station.location}<br>
                 <b>Coordinates: ${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}<br>
+                <a href="${googleMapsLink}" target="_blank">View on Google Maps</a>    
                 <!-- Add more details as needed -->
             </div>`;
         sidebarContent.innerHTML += stationInfo;
