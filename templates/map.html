@@ -128,6 +128,7 @@ function displayStations(stations) {
     clearStationMarkers();                                          // Clear existing markers
     var sidebarContent = document.getElementById('sidebar');
     sidebarContent.innerHTML = '';                                  // Clear existing sidebar content
+    var mapsLinksContent = '<h3>Base Station Location Links - View on Google Maps</h3>';            // Container for Google Maps links
 
     console.log('Stations:', stations);                             // Debugging the received data
     if (Array.isArray(stations)) {
@@ -175,11 +176,15 @@ function displayStations(stations) {
                 <b>City:</b> ${station.city}<br>
                 <b>Location:</b> ${station.location}<br>
                 <b>Coordinates: ${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}<br>
-                <a href="${googleMapsLink}" target="_blank">View on Google Maps</a>    
-                <!-- Add more details as needed -->
             </div>`;
         sidebarContent.innerHTML += stationInfo;
+
+        // Append Google Maps link to the container
+        mapsLinksContent += `<a href="${googleMapsLink}" target="_blank">${station.basestation_id}</a><br>`;
     });
+
+    // Append the Google Maps links container to the sidebar
+    sidebarContent.innerHTML += mapsLinksContent;
 }
 
 
