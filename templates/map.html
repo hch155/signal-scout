@@ -153,6 +153,7 @@ function displayStations(stations) {
         // Creating a popup with station information
         var popupContent = `
             <b>Service Provider:</b> ${station.service_provider}<br>
+            <b>Distance:<b/> ${station.distance}km<br>
             <b>Base Station ID:</b> ${station.basestation_id}<br>
             <b>Frequency Bands:</b> ${station.frequency_bands.join(", ")}<br>
             <b>City:</b> ${station.city}<br>
@@ -165,7 +166,8 @@ function displayStations(stations) {
         var stationInfo = `
             <div>
                 <h3>${station.basestation_id}</h3>
-                <b>Service Provider: ${station.service_provider}</p>
+                <b>Service Provider: ${station.service_provider}</br>
+                <b>Distance: ${station.distance}km</br>
                 <b>Frequency Bands:</b> ${station.frequency_bands.join(", ")}<br>
                 <b>City:</b> ${station.city}<br>
                 <b>Location:</b> ${station.location}<br>

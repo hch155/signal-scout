@@ -29,6 +29,9 @@ def find_nearest_stations(user_lat, user_lon, limit=5):
         grouped_stations = {}
         for station, distance in stations_with_distance:
             key = (station.latitude, station.longitude)
+            distance_rounded = round(distance, 2)
+
+
             if key not in grouped_stations:
                 grouped_stations[key] = {
                     'basestation_id': station.basestation_id,  
@@ -37,11 +40,15 @@ def find_nearest_stations(user_lat, user_lon, limit=5):
                     'location': station.location,              
                     'latitude': station.latitude,
                     'longitude': station.longitude,
-                    'frequency_bands': set()
-                    
+                    'frequency_bands': set(),
+                    'distance': distance_rounded
                 }
+            else:
+                if distance_rounded < grouped_stations[key]['distance']:
+                    grouped_stations[key]['distance'] = distance_rounded
+
             grouped_stations[key]['frequency_bands'].add(station.frequency_band)
-            grouped_stations[key]['distance'] = distance 
+            
 
         # Convert to list and limit the results
         closest_stations = list(grouped_stations.values())[:limit]

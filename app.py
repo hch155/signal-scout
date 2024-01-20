@@ -36,7 +36,8 @@ def submit_location():
             'service_provider': station['service_provider'],
             'latitude': station['latitude'],
             'longitude': station['longitude'],
-            'frequency_bands': station['frequency_bands']
+            'frequency_bands': station['frequency_bands'],
+            'distance': station['distance']
         } for station in nearest_stations]
 
         return jsonify(stations_data)
