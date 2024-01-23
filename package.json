@@ -1,0 +1,23 @@
+{
+  "name": "my_flask_app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hch155/signal-scout.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/hch155/signal-scout/issues"
+  },
+  "homepage": "https://github.com/hch155/signal-scout#readme",
+  "dependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}
