@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Signal-Scout</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
@@ -9,10 +11,31 @@
 
 </head>
 <body>
-    <div id="mapid" style="width: 800px; height: 600px;"></div>
+    <header>
+        <nav>
+            <h1>Signal-Scout</h1>
+            <ul>
+                <li><a href="#tips">Pro Tips</a></li>
+                <li><a href="#stats">Statistics</a></li>
+                <li><a href="#data">Data</a></li>
+                
+                
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+    <div id="mapid" style="width: 1100px; height: 500px;"></div>
     <div id="sidebar" class="hidden">
         <button onclick="hideSidebar()">Close</button>
     </div>
+    </main>
+
+    <footer>
+        <p>© 2024 Signal-Scout</p>
+        <p>Contact: <a href="mailto:your-email@example.com">your-email@example.com</a></p>
+    </footer>
+
     <script>
 
 var mymap = L.map('mapid').setView([52.231, 21.004], 7); //  default location and zoom level
@@ -153,6 +176,9 @@ function displayStations(stations) {
         var lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
         var googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
 
+        /* https://www.google.com/maps/search/?api=1&query=latitude,longitude <- to avoid entries in browser history*/
+
+        
         // Creating a popup with station information
         var popupContent = `
             <b>${index + 1}. Service Provider:</b> ${station.service_provider}<br>
@@ -168,8 +194,8 @@ function displayStations(stations) {
         stationMarkers.push(stationMarker);                         // Store the marker
 
         var stationInfo = `
-            <div>
-                <h3>${index + 1}. ${station.basestation_id}</h3>
+            <div class="sidebar-item">
+                <h4>${index + 1}. ${station.basestation_id}</h4>
                 <b>Service Provider: ${station.service_provider}</br>
                 <b>Distance: ${station.distance}km</br>
                 <b>Frequency Bands:</b> ${station.frequency_bands.join(", ")}<br>
@@ -186,7 +212,6 @@ function displayStations(stations) {
     // Append the Google Maps links container to the sidebar
     sidebarContent.innerHTML += mapsLinksContent;
 }
-
 
 
     </script>
