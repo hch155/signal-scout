@@ -7,10 +7,15 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
 db.init_app(app)
 
-
 @app.route('/')
-def index():
-    return render_template('map.html') # Render the map view
+def home():
+    return render_template('map.html')
+
+
+##@app.route('/')
+##def index():
+##   return render_template('map.html') # Render the map view
+
 
 @app.route('/favicon.ico')
 def favicon():
