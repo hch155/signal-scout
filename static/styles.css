@@ -1,5 +1,38 @@
-#sidebar {
-    padding: 10px;
-    border-top: 1px solid #ddd; /* Example styling */
-    border-bottom: 1px solid #ddd; /* Example styling */
+html, body {
+    height: 100%;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+.main {
+    flex: 1 0 auto;
+}
+
+.footer {
+    flex-shrink: 0;
+}
+
+.sidebar-columns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px; 
+    padding: 10px; 
+    max-height: calc(100vh - 120px); /* Adjust based on header and footer height */
+    overflow-y: auto; /* Allows scrolling within the sidebar if content overflows */
+}
+
+.sidebar-item {
+    flex-basis: calc(50% - 10px); 
+    background-color: #f8f9fa; 
+    padding: 10px; 
+    border-radius: 5px; /
+}
+
+@media (max-width: 768px) {
+    .sidebar-item {
+        flex: 0 0 100%; /* Full width for smaller screens */
+    }
 }
