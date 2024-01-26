@@ -13,7 +13,7 @@ def haversine(lat1, lon1, lat2, lon2):
     r = 6371  # Radius of earth in kilometers
     return c * r
 
-def find_nearest_stations(user_lat, user_lon, limit=5):
+def find_nearest_stations(user_lat, user_lon, limit=6):
     try:
         stations = BaseStation.query.all()
         stations_with_distance = []
