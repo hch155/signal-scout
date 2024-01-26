@@ -32,23 +32,24 @@
         </div>
     </nav>
 
-    <main class="flex-shrink-0">
+    <div class="main-content">
         <div class="container-fluid mt-3">
-            <div class="row">
+            <div class="row justify-content-center">
                 <div class="col-md-9" id="map-container">
                     <div id="mapid" style="height: 400px;"></div>
                 </div>
-
-                <div class="col-md-3">
-                    <div id="sidebar" class="sidebar-columns">
-                        <!-- Sidebar content will be here -->
+                <div class="row justify-content-center"></div>
+                    <div class="col-md-9">
+                        <div id="sidebar" class="sidebar-container border-top pl-2">
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </main>
+    </div>
+</body>
     
-    <footer class="footer mt-auto py-3 bg-light">
+    <footer class="footer">
         <div class="container text-center">
             © 2024 Signal-Scout | Contact: hcylwik@gmail.com
         </div>
@@ -94,20 +95,20 @@ mymap.on('click', function(e) {
         mymap.removeLayer(marker);
     }
 
-    // Add a marker to show where you clicked.
+    // marker to show where you clicked.
     marker = L.marker([lat, lng], {icon: greenIcon}).addTo(mymap);
 
-    // (Optional) Send the coordinates to your Flask backend
+    
     sendLocation(lat, lng);
     
 });
 
 var providerColors = {
     'P4 Sp. z o.o.': 'violet', // purple/violet marker for Play
-    'Orange Polska S.A.': 'orange', // orange marker for Orange Polska
-    'T-Mobile Polska S.A.': 'red', // red marker for T-Mobile
-    'POLKOMTEL Sp. z o.o.': 'blue', // blue marker for Polkomtel
-    'AERO 2 Sp. z o.o.': 'blue' // same color for aero as polkomtel
+    'Orange Polska S.A.': 'orange',
+    'T-Mobile Polska S.A.': 'red', 
+    'POLKOMTEL Sp. z o.o.': 'blue',
+    'AERO 2 Sp. z o.o.': 'blue' 
 };
 
 function getProviderIcon(providerName) {
@@ -136,12 +137,12 @@ function sendLocation(lat, lng) {
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
-        return response.json();                                     // Ensure JSON parsing
+        return response.json();                     // Ensure JSON parsing
     })
     .then(data => {
-        console.log('Parsed data:', data);                          // verification of the parsed data
-        displayStations(data);                                      // function to display stations on the map
-        showSidebar();                                              // sidebar function
+        console.log('Parsed data:', data);          // verification of the parsed data
+        displayStations(data);                      // function to display stations on the map
+        showSidebar();                              // sidebar function
     })
     .catch((error) => {
         console.error('Error:', error);
@@ -162,7 +163,7 @@ function hideSidebar() {
 
 window.onload = hideSidebar; // Hide the sidebar initially
 
-function clearStationMarkers() {                                    // clearing markers when new location is submitted
+function clearStationMarkers() { // clearing markers when new location is submitted
     for (var i = 0; i < stationMarkers.length; i++) {
         mymap.removeLayer(stationMarkers[i]);
     }
@@ -173,7 +174,8 @@ function displayStations(stations) {
     clearStationMarkers(); // Clear existing markers
     var sidebarContent = document.getElementById('sidebar');
     sidebarContent.innerHTML = ''; // Clear existing sidebar content
-    
+
+    var bounds = [];
     var mapsLinksContainer = document.createElement('div');
     var mapsLinksHeader = document.createElement('h3');
     mapsLinksHeader.textContent = 'Base Station Location Links - View on Google Maps';
@@ -187,9 +189,14 @@ function displayStations(stations) {
     stations.forEach((station, index) => {
         addStationMarker(station, index);
         addStationInfoToSidebar(station, index, sidebarContent, mapsLinksContainer);
+
+        var latLng = L.latLng(station.latitude, station.longitude);
+        bounds.push(latLng); 
     });
 
-    sidebarContent.appendChild(mapsLinksContainer);
+    if (bounds.length > 0) {
+        mymap.fitBounds(bounds, { padding: [50, 50] }); 
+    }
 }
 
 function addStationMarker(station, index) {
@@ -197,13 +204,13 @@ function addStationMarker(station, index) {
     var stationMarker = L.marker([station.latitude, station.longitude], {icon: providerIcon}).addTo(mymap);
     var popupContent = createPopupContent(station, index);
     stationMarker.bindPopup(popupContent);
-    stationMarkers.push(stationMarker); // Store the marker
+    stationMarkers.push(stationMarker);
 }
 
 function addStationInfoToSidebar(station, index, sidebarContent) {
     var stationInfo = createSidebarContent(station, index);
     var stationInfoDiv = document.createElement('div');
-    stationInfoDiv.className = 'sidebar-item-container';
+    stationInfoDiv.className = 'sidebar-item';
     stationInfoDiv.innerHTML = stationInfo;
     sidebarContent.appendChild(stationInfoDiv);
     
