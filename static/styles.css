@@ -1,6 +1,6 @@
 html, body {
     height: 100%;
-    margin: 0; 
+    margin: 0;
     padding: 0;
 }
 
@@ -8,7 +8,7 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100%;
-    margin: 0; 
+    margin: 0;
     background-color: #E0ECF3;
 }
 
@@ -22,24 +22,23 @@ body {
 
 #sidebar {
     display: grid;
-    grid-template-columns: repeat(3, 1fr); 
-    gap: 10px;
-    padding: 10px;
+    grid-template-columns: repeat(3, 1fr); /* 3 columns of equal width */
+    grid-gap: 10px; /* Space between grid items */
+    max-height: 500px; /* Adjust based on your layout */
+    overflow-y: auto; /* Adds scrollbar if content overflows */
 }
 
 .sidebar-item {
-    flex-basis: calc(33.333% - 10px); /* for 3 items per row */
     border: 1px solid #ddd;
     padding: 10px;
-    margin-bottom: 10px;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    min-height: 200px; /* Minimum height for each item */
 }
 
-.info {
-    margin-bottom: 5px; 
-}
-
-.google-maps-link {
-    margin-top: auto; 
+/* Optional: Adjustments for the map and footer */
+#map-container {
+    width: 70%; /* Adjust the width as needed */
+    margin-right: 10px; /* Spacing between map and sidebar */
 }
 
 .footer {
