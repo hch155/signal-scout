@@ -205,6 +205,9 @@ function addStationMarker(station, index) {
     var popupContent = createPopupContent(station, index);
     stationMarker.bindPopup(popupContent);
     stationMarkers.push(stationMarker);
+
+    var tooltipContent = `${index + 1}. ${station.basestation_id}`; // tooltip
+    stationMarker.bindTooltip(tooltipContent);
 }
 
 function addStationInfoToSidebar(station, index, sidebarContent) {
