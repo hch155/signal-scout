@@ -10,9 +10,6 @@
 
 (function (window, document, undefined) {
     "use strict";
-    /*
-     * Leaflet.AwesomeMarkers assumes that you have already included the Leaflet library.
-     */
 
     L.AwesomeMarkers = {};
 
