@@ -9,40 +9,59 @@ body {
     flex-direction: column;
     min-height: 100%;
     margin: 0;
+    padding: 0;
     background-color: #E0ECF3;
 }
 
 .main {
-    flex: 1 0 auto;
+    flex-grow: 1;
+    padding-bottom: 20px;
 }
 
 #mapid {
     margin: auto;
 }
 
+.slogan-section {
+    padding: 5px;
+    background-color: #E0ECF3; 
+    color: #333; 
+    margin-bottom: 10px;
+}   
+
+.slogan-section h2 {
+    font-size: 1.5em; 
+    font-weight: bold;
+}
+
+.slogan-section p {
+    font-size: 1.2em; 
+}
+
+#map-container {
+    width: 70%; /* Adjust the width as needed */
+    margin-right: 10px; /* Spacing between map and sidebar */
+    margin-bottom: 5px;
+}
+
 #sidebar {
     display: grid;
     grid-template-columns: repeat(3, 1fr); /* 3 columns of equal width */
-    grid-gap: 10px; /* Space between grid items */
-    max-height: 500px; /* Adjust based on your layout */
+    grid-gap: 5px; /* Space between grid items */
+    max-height: calc(100vh - 150px); /* Adjust based on your layout */
     overflow-y: auto; /* Adds scrollbar if content overflows */
 }
 
 .sidebar-item {
     border: 1px solid #ddd;
-    padding: 10px;
+    padding: 5px;
     box-sizing: border-box; /* Include padding and border in the element's total width and height */
     min-height: 200px; /* Minimum height for each item */
 }
 
-/* Optional: Adjustments for the map and footer */
-#map-container {
-    width: 70%; /* Adjust the width as needed */
-    margin-right: 10px; /* Spacing between map and sidebar */
-}
-
 .footer {
     position: fixed;
+    height: 25px;
     bottom: 0;
     left: 0;
     width: 100%;
