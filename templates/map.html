@@ -13,24 +13,25 @@
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="#">Signal-Scout</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+        <a class="navbar-brand" href="#" id="brandLink">Signal-Scout</a>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav">
-                <li class="nav-item active">
-                    <a class="nav-link" href="#">Data <span class="sr-only">(current)</span></a>
+                <li class="nav-item">
+                    <a class="nav-link" href="#data-section">Data</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">Stats</a>
+                    <a class="nav-link" href="#stats-section">Stats</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">Tips</a>
+                    <a class="nav-link" href="#tips-section">Tips</a>
                 </li>
             </ul>
         </div>
     </nav>
+
+    <div id="data-section" class="section">Data content...</div>
+    <div id="stats-section" class="section">Stats content...</div>
+    <div id="tips-section" class="section">Tips content...</div>
 
     <section class="slogan-section text-center">
         <h3>On the Move?</h3>
@@ -52,18 +53,22 @@
             </div>
         </div>
     </div>
-</body>
-    
+
+    <div id="data-section" class="overlay-section hidden">Data content...</div>
+    <div id="stats-section" class="overlay-section hidden">Stats content...</div>
+    <div id="tips-section" class="overlay-section hidden">Tips content...</div>
+
     <footer class="footer">
         <div class="container text-center">
             © 2024 Signal-Scout | Contact: hcylwik@gmail.com
         </div>
     </footer>
+</body>
+    
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-
     <script>
 
 var mymap = L.map('mapid').setView([52.231, 21.004], 7); //  default location and zoom level
@@ -262,6 +267,41 @@ function createSidebarContent(station, index) {
         </div>`;
 }
 
+// Function to hide all sections
+function hideSections() {
+    document.getElementById('data-section').style.display = 'none';
+    document.getElementById('stats-section').style.display = 'none';
+    document.getElementById('tips-section').style.display = 'none';
+    
+}
+document.getElementById('brandLink').addEventListener('click', hideSections);
+
+function hideAllSections() {
+        document.getElementById('data-section').classList.add('hidden');
+        document.getElementById('stats-section').classList.add('hidden');
+        document.getElementById('tips-section').classList.add('hidden');
+    }
+
+    // Function to show a specific section
+    function showSection(sectionId) {
+        hideAllSections();
+        document.getElementById(sectionId).classList.remove('hidden');
+    }
+
+    // Event listeners for nav links
+    document.getElementById('navbarNav').addEventListener('click', function(event) {
+        if (event.target.tagName === 'A') {
+            // Get href attribute value which contains the ID of the section
+            var sectionId = event.target.getAttribute('href').substring(1);
+            showSection(sectionId);
+            event.preventDefault(); // Prevent default anchor behavior
+        }
+    });
+
+    // Optionally, hide all sections on initial load
+    hideAllSections();
+
+    </script>
 
     </script>
 </body>
