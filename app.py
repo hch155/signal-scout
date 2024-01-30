@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from models import db, BaseStation
-from queries import get_all_stations, find_nearest_stations, haversine
+from queries import get_all_stations, find_nearest_stations, haversine, get_site_statistics
 
 
 app = Flask(__name__)
@@ -88,6 +88,10 @@ def get_stations():
 
     return jsonify(stations_data)
 
+@app.route('/get-stats')
+def get_stats():
+    stats = get_site_statistics()
+    return jsonify(stats)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0') # useful for development, remember to turn off debug mode in production as it can expose sensitive information.
