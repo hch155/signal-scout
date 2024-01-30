@@ -11,11 +11,17 @@ db.init_app(app)
 def home():
     return render_template('map.html')
 
+@app.route('/data')
+def data_page():
+    return render_template('data.html')
 
-##@app.route('/')
-##def index():
-##   return render_template('map.html') # Render the map view
+@app.route('/stats')
+def stats_page():
+    return render_template('stats.html')
 
+@app.route('/tips')
+def tips_page():
+    return render_template('tips.html')
 
 @app.route('/favicon.ico')
 def favicon():
