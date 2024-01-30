@@ -22,21 +22,6 @@ body {
     margin: auto;
 }
 
-.overlay-section {
-    position: absolute;
-    top: 0; /* Adjust as per your header's height */
-    left: 0;
-    right: 0;
-    bottom: 0; /* Adjust as per your footer's height */
-    background-color: rgba(255, 255, 255, 0.9); /* Semi-transparent white background */
-    z-index: 10; /* Higher than the map and sidebar */
-    display: none; /* Initially hidden */
-}
-
-.hidden {
-    display: none;
-}
-
 .slogan-section {
     padding: 5px;
     background-color: #E0ECF3; 
