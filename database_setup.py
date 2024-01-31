@@ -32,9 +32,12 @@ def read_and_process_excel(directory):
         if filename.endswith('.xlsx'):
             file_path = os.path.join(directory, filename)
             df = pd.read_excel(file_path)
+
+            # remove rows where all elements are NaN (entirely empty rows)
+            df = df.dropna(how='all')
             
             # Extract frequency band from filename and add it as a column
-            freq_band = extract_frequency_band(filename)
+            freq_band = extract_frequency_band(filename).upper()
             df['frequency_band'] = freq_band
 
             all_data.append(df)
@@ -69,10 +72,6 @@ def populate_database(combined_df):
                 print(f"Error processing row: {e}")
                 continue 
         db.session.commit()
-
-'''def find_nearest_stations(user_lat, user_lon, limit=5):
-    pass
-'''
 
 def main():
     directory = 'base_station_data'
