@@ -20,10 +20,6 @@ def data_page():
 def stats_page():
     return render_template('stats.html')
 
-'''@app.route('/tips')
-def tips_page():
-    return render_template('tips.html')'''
-
 @app.route('/tips')
 def tips_page():
     with open('content/tips.md', 'r') as file:
@@ -99,7 +95,13 @@ def get_stations():
 @app.route('/get-stats')
 def get_stats():
     stats = get_band_stats()
-    sorted_bands = sorted(stats['bands_data'].keys(), key=lambda x: ('5G', '4G', '2G').index(x[:2]) if x[:2] in ('5G', '4G', '2G') else 999)
+    band_order = ['5G3600', '5G2600', '5G2100', '5G1800', 'LTE2600', 'LTE2100', 'LTE1800', 'LTE900', 'LTE800', 'GSM900']
+    def band_sort_key(band):
+        if band in band_order:
+            return band_order.index(band)
+        return len(band_order)  # Place unknown bands at the end
+
+    sorted_bands = sorted(stats['bands_data'].keys(), key=band_sort_key)
 
     return jsonify({
         'physical_sites': stats['physical_sites'],
@@ -107,7 +109,6 @@ def get_stats():
         'providers': stats['providers'],
         'sorted_bands': sorted_bands
     })
-
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0') # useful for development, remember to turn off debug mode in production as it can expose sensitive information.
