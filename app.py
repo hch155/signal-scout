@@ -1,6 +1,9 @@
 from flask import Flask, render_template, request, jsonify
 from models import db, BaseStation
 from queries import get_all_stations, find_nearest_stations, haversine, get_band_stats
+import markdown
+import os
+
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
 db.init_app(app)
@@ -17,9 +20,16 @@ def data_page():
 def stats_page():
     return render_template('stats.html')
 
+'''@app.route('/tips')
+def tips_page():
+    return render_template('tips.html')'''
+
 @app.route('/tips')
 def tips_page():
-    return render_template('tips.html')
+    with open('content/tips.md', 'r') as file:
+        content = file.read()
+    html_content = markdown.markdown(content)
+    return render_template('tips.html', content=html_content)    
 
 @app.route('/favicon.ico')
 def favicon():
