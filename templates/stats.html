@@ -35,7 +35,7 @@
         <div id="sites-stats">
             
         </div>
-        <div id="bands-stats">
+        <div id="stats-container">
             <h3>Loading, please wait</h3>
         </div>
     </div>
@@ -47,76 +47,37 @@
     </footer>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function() {
     fetch('/get-stats')
         .then(response => response.json())
         .then(data => {
-            // Get a unique list of all bands across all providers
-            let allBands = new Set();
-            for (const bands of Object.values(data.bands_data)) {
-                Object.keys(bands).forEach(band => allBands.add(band));
-            }
-            allBands = Array.from(allBands);
-
-            // Custom sorting function for bands
-            function sortBands(a, b) {
-                // Define the order of bands
-                const order = ['5G', '4G', '2G'];
-
-                // Find the index of the band in the order array
-                const getOrderIndex = (band) => {
-                    const index = order.findIndex(item => band.toUpperCase().includes(item));
-                    return index === -1 ? 999 : index;
-                };
-
-                const aIndex = getOrderIndex(a);
-                const bIndex = getOrderIndex(b);
-
-                // Compare based on index, or alphabetically if both bands have the same index
-                if (aIndex !== bIndex) {
-                    return aIndex - bIndex;
-                } else {
-                    return a.localeCompare(b);
-                }
-            }
-
-            // Sort bands in the order of 5G, 4G, 2G
-            allBands.sort(sortBands);
-
-            // Prepare table for Frequency Bands Stats
-            const bandsStatsElement = document.getElementById('bands-stats');
-            let bandsTable = '<table class="table"><thead><tr><th>Category</th>';
-
-            // Add provider names as column headers
-            for (const provider of Object.keys(data.bands_data)) {
-                bandsTable += `<th>${provider}</th>`;
-            }
-            bandsTable += '</tr></thead><tbody>';
-
-            // Add a row for Physical Sites
-            bandsTable += '<tr><td>Physical Sites</td>';
-            for (const provider of Object.keys(data.sites_data)) {
-                const siteCount = data.sites_data[provider] || 0;
-                bandsTable += `<td>${siteCount}</td>`;
-            }
-            bandsTable += '</tr>';
-
-            // Add rows for each frequency band
-            allBands.forEach(band => {
-                bandsTable += `<tr><td>${band}</td>`;
-                for (const provider of Object.keys(data.bands_data)) {
-                    const bandCount = data.bands_data[provider][band] || 0;
-                    bandsTable += `<td>${bandCount}</td>`;
-                }
-                bandsTable += '</tr>';
+            let tableHTML = '<table class="table"><thead><tr><th>Band</th>';
+            data.providers.forEach(provider => {
+                tableHTML += `<th>${provider}</th>`;
             });
-            
-            bandsTable += '</tbody></table>';
-            bandsStatsElement.innerHTML = bandsTable;
+            tableHTML += '</tr></thead><tbody>';
+
+            data.sorted_bands.forEach(band => {
+                tableHTML += `<tr><td>${band}</td>`;
+                data.providers.forEach(provider => {
+                    let count = data.bands_data[band][provider] || 0;
+                    tableHTML += `<td>${count}</td>`;
+                });
+                tableHTML += '</tr>';
+            });
+
+            // Add row for physical sites
+            tableHTML += '<tr><td>Physical Sites</td>';
+            data.providers.forEach(provider => {
+                let count = data.physical_sites[provider] || 0;
+                tableHTML += `<td>${count}</td>`;
+            });
+            tableHTML += '</tr></tbody></table>';
+
+            document.getElementById('stats-container').innerHTML = tableHTML;
         })
         .catch(error => console.error('Error:', error));
 });
-
     </script>
 </body>
 </html>
