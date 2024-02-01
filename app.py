@@ -1,8 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from models import db, BaseStation
-from queries import get_all_stations, find_nearest_stations, haversine, get_site_statistics
-
-
+from queries import get_all_stations, find_nearest_stations, haversine, get_band_stats
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
 db.init_app(app)
@@ -90,8 +88,16 @@ def get_stations():
 
 @app.route('/get-stats')
 def get_stats():
-    stats = get_site_statistics()
-    return jsonify(stats)
+    stats = get_band_stats()
+    sorted_bands = sorted(stats['bands_data'].keys(), key=lambda x: ('5G', '4G', '2G').index(x[:2]) if x[:2] in ('5G', '4G', '2G') else 999)
+
+    return jsonify({
+        'physical_sites': stats['physical_sites'],
+        'bands_data': stats['bands_data'],
+        'providers': stats['providers'],
+        'sorted_bands': sorted_bands
+    })
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0') # useful for development, remember to turn off debug mode in production as it can expose sensitive information.

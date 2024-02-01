@@ -87,35 +87,36 @@ def process_stations(stations):
         grouped_stations[key]['frequency_bands'] = list(grouped_stations[key]['frequency_bands'])
 
     return list(grouped_stations.values())
-    
-def get_site_statistics():
-    # physical Sites per Provider
-    sites_query = db.session.query(
-        BaseStation.service_provider,
-        func.count(distinct(BaseStation.location)).label('total_physical_sites')
+
+def get_band_stats():
+    # Query for physical site counts per provider
+    physical_sites_query = db.session.query(
+        BaseStation.service_provider, 
+        func.count(distinct(BaseStation.location))
     ).group_by(BaseStation.service_provider).all()
 
-    # convert query result to dictionary for physical sites
-    sites_stats = {provider: count for provider, count in sites_query}
+    # Query for band counts per provider
+    band_counts_query = db.session.query(
+        BaseStation.service_provider, 
+        BaseStation.frequency_band,
+        func.count(BaseStation.frequency_band)
+    ).group_by(BaseStation.service_provider, BaseStation.frequency_band).all()
 
-    # initialize a dictionary for frequency bands per provider
-    bands_stats = defaultdict(Counter)
-
-    # query all stations
-    stations = BaseStation.query.all()
-
-    # iterate through each station and count frequency bands per provider
-    for station in stations:
-        bands = station.frequency_band.split(',')  # Assuming frequency bands are comma-separated
-        bands_stats[station.service_provider].update(bands)
-
-    # convert defaultdict of Counters to a regular dict for JSON serialization
-    bands_stats = {provider: dict(counts) for provider, counts in bands_stats.items()}
+    # Organize data
+    providers = set()
+    bands_data = {}
+    for provider, band, count in band_counts_query:
+        providers.add(provider)
+        if band not in bands_data:
+            bands_data[band] = {}
+        bands_data[band][provider] = count
 
     return {
-        'sites_data': sites_stats,
-        'bands_data': bands_stats
+        'physical_sites': dict(physical_sites_query),
+        'bands_data': bands_data,
+        'providers': sorted(providers)
     }
 
+    
 def get_all_stations():
     return BaseStation.query.all()
