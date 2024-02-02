@@ -55,6 +55,7 @@ def populate_database(combined_df):
             try:
                 latitude_decimal = dms_to_decimal(row['Szer geogr stacji'])
                 longitude_decimal = dms_to_decimal(row['Dł geogr stacji'])
+                rat = determine_rat(row['frequency_band'])
 
                 station = BaseStation(
                     latitude=latitude_decimal,
@@ -63,7 +64,8 @@ def populate_database(combined_df):
                     basestation_id=row.get('IdStacji'),             # Real base station ID
                     city=row.get('Miejscowość'),         
                     service_provider=row.get('Nazwa Operatora'),    # name of ISP
-                    location=row.get('Lokalizacja')  
+                    location=row.get('Lokalizacja')
+                    rat=rat,  
                 )
                 db.session.add(station)
 
