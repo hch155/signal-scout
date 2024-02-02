@@ -34,6 +34,6 @@ jobs:
       run: |
         pytest  # Add options here if needed.
 
-    - name: Force failure to test CI
-      run: |
-        exit 1
+    #- name: Force failure to test CI
+    #  run: |
+    #    exit 1
