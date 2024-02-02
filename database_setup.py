@@ -22,6 +22,20 @@ def extract_frequency_band(filename):
     """
     return filename.split('_')[0]
 
+def determine_rat(freq_band):
+    # Convert the frequency band to uppercase for case-insensitive comparison
+    freq_band_upper = freq_band.upper()
+
+    # Check the start of the string
+    if freq_band_upper.startswith('GSM'):
+        return '2G'
+    elif freq_band_upper.startswith('LTE'):
+        return '4G'
+    elif freq_band_upper.startswith('5G'):
+        return '5G'
+    else:
+        return 'Unknown'
+
 def read_and_process_excel(directory):
     """
     Read and process all Excel files in the specified directory.
