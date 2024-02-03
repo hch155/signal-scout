@@ -110,6 +110,11 @@ def get_stats():
         'sorted_bands': sorted_bands
     })
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0') # useful for development, remember to turn off debug mode in production as it can expose sensitive information.
+#if __name__ == '__main__':
+ #   app.run(debug=True, host='0.0.0.0') # useful for development, remember to turn off debug mode in production as it can expose sensitive information.
                                         # host='0.0.0.0' so it is accessible from your host machine or external requests.
+
+if __name__ == '__main__':
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() in ['true', '1', 't']
+    port = int(os.environ.get('PORT', 8080))
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)
