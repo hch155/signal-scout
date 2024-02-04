@@ -79,6 +79,14 @@ var greenIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
+var providerColors = {
+    'P4 Sp. z o.o.': 'violet', // purple/violet marker for Play
+    'Orange Polska S.A.': 'orange',
+    'T-Mobile Polska S.A.': 'red', 
+    'POLKOMTEL Sp. z o.o.': 'blue',
+    'AERO 2 Sp. z o.o.': 'blue' 
+};
+
 var stationMarkers = [];
 var marker;
 
@@ -97,16 +105,42 @@ mymap.on('click', function(e) {
 
     
     sendLocation(lat, lng);
-    
 });
 
-var providerColors = {
-    'P4 Sp. z o.o.': 'violet', // purple/violet marker for Play
-    'Orange Polska S.A.': 'orange',
-    'T-Mobile Polska S.A.': 'red', 
-    'POLKOMTEL Sp. z o.o.': 'blue',
-    'AERO 2 Sp. z o.o.': 'blue' 
+function requestAndSendGPSLocation() {
+    // Stop event propagation if called from an event listener
+    if (event) event.stopPropagation();
+
+    if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            var userLat = position.coords.latitude;
+            var userLng = position.coords.longitude;
+            mymap.setView([userLat, userLng], 6); 
+            sendLocation(userLat, userLng);
+        }, function(error) {
+            console.error('Geolocation error:', error);
+            alert('Error getting location.');
+        }, {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+        });
+    } else {
+        console.log("Geolocation is not supported by this browser.");
+    }
+}
+
+var gpsButton = L.control({position: 'topleft'});
+gpsButton.onAdd = function(map) {
+    var div = L.DomUtil.create('div', 'gps-location-control');
+    div.innerHTML = '<button id="useMyLocationBtn" title="Use My Location">📍</button>';
+    L.DomEvent.on(div, 'click', function(e) {
+        L.DomEvent.stop(e); // Prevent map click
+        requestAndSendGPSLocation(); 
+    });
+    return div;
 };
+gpsButton.addTo(mymap);
 
 function sendLocation(lat, lng) {
     fetch('/submit_location', {
