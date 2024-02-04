@@ -1,38 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Signal-Scout</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+{% extends "base.html" %}
 
-</head>
-
-<body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="/">Signal-Scout</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav">
-                <li class="nav-item">
-                    <a class="nav-link" href="/data">Data</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/stats">Stats</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/tips">Tips</a>
-                </li>
-            </ul>
-        </div>
-    </nav>
-
+{% block content %}
     <div class="container mt-4 text-center">
         <h2>Site Statistics</h2>
         <div id="sites-stats">
@@ -42,45 +10,45 @@
             <h3>Loading, please wait</h3>
         </div>
     </div>
+{% endblock %}
 
-    <footer class="footer">
-        <div class="container text-center">
-            © 2024 Signal-Scout | Contact: hcylwik@gmail.com
-        </div>
-    </footer>
+{% block scripts %}
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+{% endblock %}
 
-    <script>
-document.addEventListener("DOMContentLoaded", function() {
-    fetch('/get-stats')
-        .then(response => response.json())
-        .then(data => {
-            let tableHTML = '<table class="table"><thead><tr><th>Band</th>';
-            data.providers.forEach(provider => {
-                tableHTML += `<th>${provider}</th>`;
-            });
-            tableHTML += '</tr></thead><tbody>';
-
-            data.sorted_bands.forEach(band => {
-                tableHTML += `<tr><td>${band}</td>`;
+{% block code %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        fetch('/get-stats')
+            .then(response => response.json())
+            .then(data => {
+                let tableHTML = '<table class="table"><thead><tr><th>Band</th>';
                 data.providers.forEach(provider => {
-                    let count = data.bands_data[band][provider] || 0;
+                    tableHTML += `<th>${provider}</th>`;
+                });
+                tableHTML += '</tr></thead><tbody>';
+    
+                data.sorted_bands.forEach(band => {
+                    tableHTML += `<tr><td>${band}</td>`;
+                    data.providers.forEach(provider => {
+                        let count = data.bands_data[band][provider] || 0;
+                        tableHTML += `<td>${count}</td>`;
+                    });
+                    tableHTML += '</tr>';
+                });
+    
+                // Add row for physical sites
+                tableHTML += '<tr><td>Physical Sites</td>';
+                data.providers.forEach(provider => {
+                    let count = data.physical_sites[provider] || 0;
                     tableHTML += `<td>${count}</td>`;
                 });
-                tableHTML += '</tr>';
-            });
+                tableHTML += '</tr></tbody></table>';
+    
+                document.getElementById('stats-container').innerHTML = tableHTML;
+            })
+            .catch(error => console.error('Error:', error));
+    });
+        </script>
 
-            // Add row for physical sites
-            tableHTML += '<tr><td>Physical Sites</td>';
-            data.providers.forEach(provider => {
-                let count = data.physical_sites[provider] || 0;
-                tableHTML += `<td>${count}</td>`;
-            });
-            tableHTML += '</tr></tbody></table>';
-
-            document.getElementById('stats-container').innerHTML = tableHTML;
-        })
-        .catch(error => console.error('Error:', error));
-});
-    </script>
-</body>
-</html>
+{% endblock %}
