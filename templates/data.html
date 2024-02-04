@@ -1,50 +1,20 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Signal-Scout</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+{% extends "base.html" %}
 
-</head>
-
-<body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="/">Signal-Scout</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav">
-                <li class="nav-item">
-                    <a class="nav-link" href="/data">Data</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/stats">Stats</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/tips">Tips</a>
-                </li>
-            </ul>
-        </div>
-    </nav>
-
+{% block content %}
     <div class="container mt-4 text-center">
         <h2>Data Section</h2>
         <p>Information and details about data...</p>
         <!-- to be added   -->
     </div>
+{% endblock %}
 
-    <footer class="footer">
-        <div class="container text-center">
-            © 2024 Signal-Scout | Contact: hcylwik@gmail.com
-        </div>
-    </footer>
-</body>
+{% block scripts %}
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+{% endblock %}
+
+{% block code %}
+{% endblock %}
+    
 
 
 
