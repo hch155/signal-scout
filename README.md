@@ -20,24 +20,28 @@ Installation
 
     Clone the repository:
 
+    ```bash
     git clone https://github.com/hch155/signal-scout.git
     cd signal-scout
-
+    ```
 2. Create and activate a virtual environment:
 
+    ```bash
     python3 -m venv venv
     source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-
+    ```
 3. Install the required dependencies:
 
+    ```bash
     pip install -r requirements.txt
-
+    ```
 Running the Application
 
 To run Signal-Scout, execute:
 
+    ```bash
     python app.py    
-
+    ```
 Access the web application by navigating to http://localhost:8080 in your web browser.
 
 
@@ -45,9 +49,10 @@ Docker Deployment
 
 If you prefer to use Docker, you can build and run the application as a Docker container:
 
+    ```bash
     docker build -t signal-scout .
     docker run -p 8080:8080 signal-scout
-
+    ```
 Contact
 
 If you have any questions or suggestions, please contact me at hcylwik@gmail.com
