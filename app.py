@@ -1,16 +1,23 @@
 from flask import Flask, render_template, request, jsonify
 from models import db, BaseStation
 from queries import get_all_stations, find_nearest_stations, haversine, get_band_stats
-import markdown
-import os
+import markdown, os, random
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
 db.init_app(app)
 
+SLOGANS = [
+    ("On the Move?", "Navigate to the Nearest Base Stations for Uninterrupted Connectivity!"),
+    ("Seeking Signal?", "Discover the Closest Connectivity Points for Seamless Communication!"),
+    ("Chasing Coverage?", "Pinpoint the Best Signal Sources for Flawless Connections!"),
+    ("Stay Connected Everywhere", "Discover the Closest Base Stations for Optimal Signal Strength!")
+]
+
 @app.route('/')
 def home():
-    return render_template('map.html')
+    slogan_title, slogan_text = random.choice(SLOGANS)
+    return render_template('map.html', slogan_title=slogan_title, slogan_text=slogan_text)
 
 @app.route('/data')
 def data_page():
