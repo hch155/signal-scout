@@ -1,4 +1,3 @@
-# database_setup.py
 from app import app
 from models import db, BaseStation
 import pandas as pd
@@ -23,9 +22,7 @@ def extract_frequency_band(filename):
     return filename.split('_')[0]
 
 def determine_rat(freq_band):
-    # Convert the frequency band to uppercase for case-insensitive comparison
     freq_band_upper = freq_band.upper()
-
     # Check the start of the string
     if freq_band_upper.startswith('GSM'):
         return '2G'

@@ -1,4 +1,4 @@
-# Tips for Optimal Signal Strength
+## Tips for Optimal Signal Strength
 
 Ensuring a strong and stable signal for your Customer Premise Equipment (CPE)'s antennas, Mi-Fi routers, phones can significantly improve your online experience. Here are some tips to help you align your equipment and maximize signal strength:
 
@@ -26,6 +26,7 @@ Ensuring a strong and stable signal for your Customer Premise Equipment (CPE)'s 
 ## Devices mode
 
 NSA - Non-stand alone - current scenario - it is necessary for devices to first authenticate to 4G Network in order to attach 5G frequency
+
 SA - Stand Alone - planned, can access the network directly to 5G Network
 
 ## To achieve best throughput it is recommended to test various component carriers & carrier aggregation
@@ -44,18 +45,18 @@ Each operator has more or less similar network configuration
 
 - LTE800 - b20 - 5MHz
 - LTE900 - b40 - 5MHz
-- LTE1800 - b3 15MHz
-- LTE2100 - b1 20MHz
+- LTE1800 - b3 - 15MHz
+- LTE2100 - b1 - 20MHz
 - LTE2600 - b7 - 20MHz
 - NR2100 (DSS - Dynamic Spectrum Sharing - shared with LTE2100) - 20MHz
-- NR3600 (C-band) - 100MHHz
+- NR3600 (C-band) - 100MHz
 
-With 10MHz and 256QAM modulation it is possible to achieve around 150Mbps in the best conditions (the closer to base station the better), in reality we can assume it will be around 100MHz
+With 10MHz and 256QAM modulation it is possible to achieve around 150Mbps in the best conditions (the closer to base station the better), in reality we can assume it will be around 100Mbps
 
 For example, 
     I. device using LTE Mode only, 4 CA - LTE800 + LTE1800 + LTE2100 + LTE2600 = 60MHz, achieved DL throughput will be around 500-600Mbps, UL around 80Mbps
    
-    II. device in NSA mode, LTE2600 + NR3600 = 120MHz resulting in total around 1000-1200Mbps 
+    II. device in NSA mode, LTE2600 + NR3600 = 120MHz resulting in total around 1000-1200Mbps, UL up to 150Mbps  
 
 
 Mostly devices (minding their capabilities and network configuration priorities) tend to aggregate as most carriers as possible 

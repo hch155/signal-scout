@@ -68,22 +68,6 @@ def submit_location():
         print(f"Error in submit_location: {e}")
         return jsonify({'error': str(e)}), 500
 
-
-
-def stations():
-    all_stations = get_all_stations()
-    stations_data = [{ 
-                      'basestation_id': station.basestation_id, 
-                      'latitude': station.latitude,              
-                      'longitude': station.longitude,            
-                      'frequency_bands': station.frequency_band, 
-                      'city': station.city,                     
-                      'location': station.location,              
-                      'service_provider': station.service_provider  
-                    } for station in all_stations]
-
-    return jsonify(stations_data)
-
 @app.route('/stations', methods=['GET'])
 def get_stations():
     all_stations = get_all_stations()

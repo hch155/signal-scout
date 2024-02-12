@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div class="container mt-4 text-center">
-        <h2>Data Section</h2>
-        <p>Information and details about data...</p>
-        <!-- to be added   -->
+    <div class="container mt-4">
+        <div id="data-content">
+            {{ content|safe }}
+        </div>
     </div>
 {% endblock %}
 
