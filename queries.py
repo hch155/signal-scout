@@ -33,7 +33,6 @@ def find_nearest_stations(user_lat, user_lon, limit=6):
             key = (station.latitude, station.longitude)
             distance_rounded = round(distance, 2)
 
-
             if key not in grouped_stations:
                 grouped_stations[key] = {
                     'basestation_id': station.basestation_id,  
@@ -51,11 +50,9 @@ def find_nearest_stations(user_lat, user_lon, limit=6):
 
             grouped_stations[key]['frequency_bands'].add(station.frequency_band)
             
-
         # Convert to list and limit the results
         closest_stations = list(grouped_stations.values())[:limit]
         
-
         # Convert sets to lists for JSON serialization
         for station in closest_stations:
             station['frequency_bands'] = list(station['frequency_bands'])
@@ -117,6 +114,5 @@ def get_band_stats():
         'providers': sorted(providers)
     }
 
-    
 def get_all_stations():
     return BaseStation.query.all()
