@@ -6,4 +6,6 @@ https://bip.uke.gov.pl/pozwolenia-radiowe/wykaz-pozwolen-radiowych-tresci/stacje
 
 This publicly available dataset allows us to map out coverage areas accurately and provide insights into network availability across different regions.
 
+
 Last updated on 25th of January, 2024, this data is instrumental in helping us enhance your connectivity experience.
+

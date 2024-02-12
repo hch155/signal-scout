@@ -6,7 +6,7 @@ Features
     Information on service providers, frequency bands, and base station locations
     Tips for adjusting equipment to achieve the best signal strength
 
-Prerequisites
+I. Prerequisites
 
 Before you begin, ensure you have met the following requirements:
 
@@ -14,11 +14,9 @@ Before you begin, ensure you have met the following requirements:
     pip and virtualenv
     Docker (optional, for containerization)
 
-Installation
+II. Installation
 
-1. To install Signal-Scout, follow these steps:
-
-    Clone the repository:
+1. Clone the repository:
 
     git clone https://github.com/hch155/signal-scout.git
     cd signal-scout
@@ -31,15 +29,14 @@ Installation
 3. Install the required dependencies:
 
     pip install -r requirements.txt
-
-Running the Application
+    
+III. Running the Application
 
 To run Signal-Scout, execute:
 
     python app.py    
-
+    
 Access the web application by navigating to http://localhost:8080 in your web browser.
-
 
 Docker Deployment 
 
@@ -48,7 +45,6 @@ If you prefer to use Docker, you can build and run the application as a Docker c
     docker build -t signal-scout .
     docker run -p 8080:8080 signal-scout
 
-Contact
 
 If you have any questions or suggestions, please contact me at hcylwik@gmail.com
 
