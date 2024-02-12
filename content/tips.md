@@ -25,6 +25,7 @@ Ensuring a strong and stable signal for your Customer Premise Equipment (CPE)'s 
 
 ## Devices mode
 
+
 NSA - Non-stand alone - current scenario - it is necessary for devices to first authenticate to 4G Network in order to attach 5G frequency
 
 SA - Stand Alone - planned, can access the network directly to 5G Network
@@ -53,10 +54,10 @@ Each operator has more or less similar network configuration
 
 With 10MHz and 256QAM modulation it is possible to achieve around 150Mbps in the best conditions (the closer to base station the better), in reality we can assume it will be around 100Mbps
 
-For example, 
     I. device using LTE Mode only, 4 CA - LTE800 + LTE1800 + LTE2100 + LTE2600 = 60MHz, achieved DL throughput will be around 500-600Mbps, UL around 80Mbps
    
-    II. device in NSA mode, LTE2600 + NR3600 = 120MHz resulting in total around 1000-1200Mbps, UL up to 150Mbps  
+    II. device in NSA mode, LTE2600 + NR3600 = 120MHz, DL resulting in total around 1000-1200Mbps, UL up to 150Mbps 
+
 
 
 Mostly devices (minding their capabilities and network configuration priorities) tend to aggregate as most carriers as possible 

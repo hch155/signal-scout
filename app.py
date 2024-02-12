@@ -21,7 +21,10 @@ def home():
 
 @app.route('/data')
 def data_page():
-    return render_template('data.html')
+    with open('content/data.md', 'r') as file:
+        content = file.read()
+    html_content = markdown.markdown(content)
+    return render_template('data.html', content=html_content)
 
 @app.route('/stats')
 def stats_page():
