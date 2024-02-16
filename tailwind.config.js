@@ -18,13 +18,13 @@ module.exports = {
           h2: {
             textAlign: 'center',
             fontWeight: '700',
-            color: theme('colors.custom-blue-mid'),
+            color: theme('colors.gray.700'),
           },
           p: {
             marginBottom: '1em',
           },
           a: {
-            color: theme('colors.custom-blue-start'), 
+            color: theme('colors.gray.700'), 
             '&:hover': {
               color: theme('colors.custom-blue-end'), 
             },
