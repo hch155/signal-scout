@@ -9,7 +9,8 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     {% block head_extra %}{% endblock %}
 </head>
-<body class="min-h-screen grid grid-rows-[auto_1fr_auto] bg-gradient-to-t from-custom-blue-start via-custom-blue-mid to-custom-blue-end">
+<body class="bg-gradient-to-t from-custom-blue-start via-custom-blue-mid to-custom-blue-end flex flex-col min-h-screen">
+    
     <header class="flex items-center justify-between flex-wrap p-6">
         <div class="flex items-center flex-shrink-0 text-black mr-6">
             <a href="/" class="text-xl font-semibold">Signal-Scout</a>
@@ -20,7 +21,7 @@
             </button>
         </div>
         <div class="w-full block flex-grow lg:flex lg:items-center lg:w-auto">
-            <div class="text-sm lg:flex-grow">
+            <div class="custom-gradient text-sm lg:flex-grow">
                 <a href="/data" class="block mt-4 lg:inline-block lg:mt-0 text-black mr-4">
                     Data
                 </a>
@@ -35,12 +36,31 @@
     </header>
 
     <div class="flex-grow">
-    {% block content %}{% endblock %} <!-- <main> --> 
-    </div>    
+        {% block content %}{% endblock %} <!-- <main> --> 
+    </div>   
 
-    <footer class="text-center py-3">
+    <footer class="mt-auto text-center py-3 w-full">
             © 2024 Signal-Scout | Contact: hcylwik@gmail.com
     </footer>
+
+    <script>    
+        function adjustFooterPosition() {
+             const footer = document.querySelector('footer'); 
+             const bodyHeight = document.body.offsetHeight;
+             const viewportHeight = window.innerHeight;
+
+            if (bodyHeight <= viewportHeight) {
+                footer.classList.add('mt-auto');
+            } else {
+                footer.classList.remove('mt-auto');
+            }
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            adjustFooterPosition();
+        });
+        window.addEventListener('resize', adjustFooterPosition);
+    </script>
+    
     {% block scripts %}{% endblock %}
 
 {% block code %}{% endblock %}
