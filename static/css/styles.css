@@ -13,10 +13,6 @@
 .markdown-content a {
     @apply text-blue-500 hover:text-blue-600;
 }
-
-.justify-text {
-    text-align: justify;
-  }
   
 .gps-location-control button {
     background-color: #fff;
