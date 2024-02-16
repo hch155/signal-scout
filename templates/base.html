@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Signal-Scout</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/build.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/output.css') }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     {% block head_extra %}{% endblock %}
 </head>
-<body class="bg-gradient-to-t from-custom-blue-start via-custom-blue-mid to-custom-blue-end min-h-screen">
-    <nav class="flex items-center justify-between flex-wrap p-6 custom-gradient">
+<body class="bg-gradient-to-t from-custom-blue-start via-custom-blue-mid to-custom-blue-end flex flex-col min-h-screen">
+    
+    <header class="flex items-center justify-between flex-wrap p-6">
         <div class="flex items-center flex-shrink-0 text-black mr-6">
             <a href="/" class="text-xl font-semibold">Signal-Scout</a>
         </div>
@@ -32,11 +34,34 @@
                 </a>
             </div>
         </div>
-    </nav>
-    {% block content %}{% endblock %}
-    <footer class="fixed inset-x-0 bottom-0 text-center py-3">
+    </header>
+
+    <div class="flex-grow">
+        {% block content %}{% endblock %} <!-- <main> --> 
+    </div>   
+
+    <footer class="mt-auto text-center py-3 w-full">
             © 2024 Signal-Scout | Contact: hcylwik@gmail.com
     </footer>
+
+    <script>    
+        function adjustFooterPosition() {
+             const footer = document.querySelector('footer'); 
+             const bodyHeight = document.body.offsetHeight;
+             const viewportHeight = window.innerHeight;
+
+            if (bodyHeight <= viewportHeight) {
+                footer.classList.add('mt-auto');
+            } else {
+                footer.classList.remove('mt-auto');
+            }
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            adjustFooterPosition();
+        });
+        window.addEventListener('resize', adjustFooterPosition);
+    </script>
+    
     {% block scripts %}{% endblock %}
 
 {% block code %}{% endblock %}
