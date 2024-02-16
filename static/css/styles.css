@@ -7,14 +7,17 @@
 }
 
 .markdown-content p {
-    @apply text-base text-center text-gray-600;
+    @apply text-base text-gray-600;
 }
 
 .markdown-content a {
-    @apply text-blue-500 text-center hover:text-blue-600;
+    @apply text-blue-500 hover:text-blue-600;
 }
 
-
+.justify-text {
+    text-align: justify;
+  }
+  
 .gps-location-control button {
     background-color: #fff;
     border: none;

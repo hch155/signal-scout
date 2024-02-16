@@ -20,5 +20,8 @@
   "homepage": "https://github.com/hch155/signal-scout#readme",
   "dependencies": {
     "tailwindcss": "^3.4.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.10"
   }
 }
