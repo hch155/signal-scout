@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from models import db, BaseStation
-from queries import get_all_stations, find_nearest_stations, haversine, get_band_stats
+from queries import get_all_stations, find_nearest_stations, process_stations, haversine, get_band_stats
 import markdown, os, random
 
 app = Flask(__name__)
@@ -73,18 +73,24 @@ def submit_location():
 
 @app.route('/stations', methods=['GET'])
 def get_stations():
-    all_stations = get_all_stations()
-    stations_data = [{
-                      'basestation_id': station.basestation_id, 
-                      'latitude': station.latitude,              
-                      'longitude': station.longitude,            
-                      'frequency_bands': station.frequency_band, 
-                      'city': station.city,                     
-                      'location': station.location,              
-                      'service_provider': station.service_provider 
-                    } for station in all_stations]
+    try:    
+        all_stations = get_all_stations()
+        stations_data = [{
+                        'basestation_id': station.basestation_id, 
+                        'latitude': station.latitude,              
+                        'longitude': station.longitude,            
+                        'frequency_bands': station.frequency_band, 
+                        'city': station.city,                     
+                        'location': station.location,              
+                        'service_provider': station.service_provider 
+                        } for station in all_stations]
 
-    return jsonify(stations_data)
+        return jsonify(stations_data)
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Error fetching stations: {str(e)}")
+        # Return an error message with a 500 status code
+        return jsonify({"error": "An error occurred while fetching stations."}), 500
 
 @app.route('/get-stats')
 def get_stats():
@@ -103,6 +109,14 @@ def get_stats():
         'providers': stats['providers'],
         'sorted_bands': sorted_bands
     })
+
+@app.route('/stations_within_3km')
+def stations_within_3km():
+    user_lat = request.args.get('lat', type=float)
+    user_lng = request.args.get('lng', type=float)
+    stations = find_nearest_stations(user_lat, user_lng, max_distance=3)
+    return jsonify(stations)
+
 
 if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() in ['true', '1', 't']

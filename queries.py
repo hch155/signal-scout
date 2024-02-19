@@ -15,52 +15,56 @@ def haversine(lat1, lon1, lat2, lon2):
     r = 6371  # Radius of earth in kilometers
     return c * r
 
-def find_nearest_stations(user_lat, user_lon, limit=6):
+def find_nearest_stations(user_lat, user_lon, limit=6, max_distance=None):
     try:
         stations = BaseStation.query.all()
-        stations_with_distance = []
+        station_details = {}
 
         for station in stations:
             distance = haversine(user_lat, user_lon, station.latitude, station.longitude)
-            stations_with_distance.append((station, distance))
+            key = station.basestation_id
 
-        # Sort stations by distance, reorders the tuples in the stations_with_distance list so that they are sorted from the nearest station 
-        stations_with_distance.sort(key=lambda x: x[1])
-
-        # Group by location and aggregate frequency bands
-        grouped_stations = {}
-        for station, distance in stations_with_distance:
-            key = (station.latitude, station.longitude)
-            distance_rounded = round(distance, 2)
-
-            if key not in grouped_stations:
-                grouped_stations[key] = {
-                    'basestation_id': station.basestation_id,  
-                    'city': station.city,
-                    'service_provider': station.service_provider,                      
-                    'location': station.location,              
-                    'latitude': station.latitude,
-                    'longitude': station.longitude,
-                    'frequency_bands': set(),
-                    'distance': distance_rounded
+            if key not in station_details:
+                station_details[key] = {
+                    'station': station,
+                    'distance': distance,
+                    'frequency_bands': set()
                 }
-            else:
-                if distance_rounded < grouped_stations[key]['distance']:
-                    grouped_stations[key]['distance'] = distance_rounded
+            station_details[key]['frequency_bands'].add(station.frequency_band)
 
-            grouped_stations[key]['frequency_bands'].add(station.frequency_band)
-            
-        # Convert to list and limit the results
-        closest_stations = list(grouped_stations.values())[:limit]
-        
-        # Convert sets to lists for JSON serialization
-        for station in closest_stations:
-            station['frequency_bands'] = list(station['frequency_bands'])
+            if distance < station_details[key]['distance']:
+                station_details[key]['distance'] = distance
+
+        stations_with_distance = list(station_details.values())
+        if max_distance is not None:
+            stations_with_distance = [detail for detail in stations_with_distance if detail['distance'] <= max_distance]
+            for detail in stations_with_distance:  # Debugging distance filtering
+                 print(f"Included station {detail['station'].basestation_id} at distance: {detail['distance']} km")
+
+        stations_with_distance.sort(key=lambda x: x['distance'])
+
+        if max_distance is None:
+            stations_with_distance = stations_with_distance[:limit]
+
+        closest_stations = []
+        for detail in stations_with_distance:
+            station = detail['station']
+            closest_stations.append({
+                'basestation_id': station.basestation_id,  
+                'city': station.city,
+                'service_provider': station.service_provider,                      
+                'location': station.location,              
+                'latitude': station.latitude,
+                'longitude': station.longitude,
+                'frequency_bands': list(detail['frequency_bands']),
+                'distance': round(detail['distance'], 2)
+            })
 
         return closest_stations
+
     except Exception as e:
         print(f"Error in find_nearest_stations: {e}")
-        return []  # Return an empty list in case of an error
+        return []  # 
 
 def process_stations(stations):
     grouped_stations = {}
