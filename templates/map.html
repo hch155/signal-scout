@@ -244,31 +244,48 @@ function createSidebarContent(station, index) {
         </div>`;
 }
 
-function fetchAndDisplayStationsWithin3km(lat, lng) {
-    fetch(`/stations_within_3km?lat=${lat}&lng=${lng}`)
+function fetchStations(lat, lng, mode = 'nearest') {
+    let url = `/stations?lat=${lat}&lng=${lng}`;
+    if (mode === 'within3km') {
+        url = `/stations_within_3km?lat=${lat}&lng=${lng}`;
+    } 
+
+    fetch(url)
     .then(response => response.json())
     .then(stations => {
-        clearStationMarkers(); 
-        displayStations(stations); 
+        showSidebar();
+        displayStations(stations);
     })
     .catch(error => console.error('Error fetching stations:', error));
 }
 
 var showBTSButton = L.control({position: 'topright'});
-
 showBTSButton.onAdd = function(map) {
-    var div = L.DomUtil.create('div', 'show-bts-control');
-    div.innerHTML = '<button id="showBTSBtn" title="Show BTSs within 3km">Show BTSs within 3km</button>';
+    var div = L.DomUtil.create('div', 'bts-control-container');
+
+    div.innerHTML = `
+        <button id="showNearestBtn" title="Show 6 nearest BTSs" class="bts-button">
+            Show 6 Nearest BTSs
+        </button>
+        <button id="showWithin3kmBtn" title="Show BTSs within 3km" class="bts-button">
+            Show BTSs within 3km
+        </button>
+    `;
+
     L.DomEvent.on(div, 'click', function(e) {
-        L.DomEvent.stop(e); 
-        var center = mymap.getCenter();
-        fetchAndDisplayStationsWithin3km(center.lat, center.lng);
+        L.DomEvent.stop(e);
+        var center = map.getCenter();
+        if (e.target.id === 'showNearestBtn') {
+            fetchStations(center.lat, center.lng, 'nearest');
+        } else if (e.target.id === 'showWithin3kmBtn') {
+            fetchStations(center.lat, center.lng, 'within3km');
+        }
     });
+
     return div;
 };
 
 showBTSButton.addTo(mymap);
-
 
     </script>
 {% endblock %}
