@@ -45,7 +45,7 @@ var providerColors = {
 
 var stationMarkers = [];
 var marker;
-
+var userSubmittedLocation = null;
 
 mymap.on('click', function(e) {
     var coord = e.latlng;
@@ -99,6 +99,8 @@ gpsButton.onAdd = function(map) {
 gpsButton.addTo(mymap);
 
 function sendLocation(lat, lng) {
+    userSubmittedLocation = {lat: lat, lng: lng};
+
     fetch('/submit_location', {
         method: 'POST',
         headers: {
@@ -241,6 +243,32 @@ function createSidebarContent(station, index) {
             <p><b>Coordinates:</b> ${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}</p>
         </div>`;
 }
+
+function fetchAndDisplayStationsWithin3km(lat, lng) {
+    fetch(`/stations_within_3km?lat=${lat}&lng=${lng}`)
+    .then(response => response.json())
+    .then(stations => {
+        clearStationMarkers(); 
+        displayStations(stations); 
+    })
+    .catch(error => console.error('Error fetching stations:', error));
+}
+
+var showBTSButton = L.control({position: 'topright'});
+
+showBTSButton.onAdd = function(map) {
+    var div = L.DomUtil.create('div', 'show-bts-control');
+    div.innerHTML = '<button id="showBTSBtn" title="Show BTSs within 3km">Show BTSs within 3km</button>';
+    L.DomEvent.on(div, 'click', function(e) {
+        L.DomEvent.stop(e); 
+        var center = mymap.getCenter();
+        fetchAndDisplayStationsWithin3km(center.lat, center.lng);
+    });
+    return div;
+};
+
+showBTSButton.addTo(mymap);
+
 
     </script>
 {% endblock %}
