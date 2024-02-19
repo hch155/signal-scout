@@ -28,19 +28,14 @@
     background-color: #f0f0f0;
 }
 
-.show-bts-control button {
-    background-color: #fff;
-    border: 1px solid rgba(0,0,0,0.2);
-    border-radius: 4px;
-    cursor: pointer;
-    padding: 6px 10px;
-    text-align: center;
-    display: block;
-    font-size: 14px;
-    margin: 10px;
-    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+.bts-control-container {
+    @apply p-4 rounded flex flex-col;
 }
 
-.show-bts-control button:hover {
-    background-color: #f4f4f4;
+.bts-button {
+    @apply hover:bg-blue-50 text-black font-bold py-1 px-1 rounded;
+}
+
+.bts-button:last-child {
+    @apply mb-0;
 }
