@@ -73,23 +73,28 @@ def submit_location():
 
 @app.route('/stations', methods=['GET'])
 def get_stations():
-    try:    
-        all_stations = get_all_stations()
+    try:
+        user_lat = request.args.get('lat', type=float)
+        user_lng = request.args.get('lng', type=float)
+        max_distance = request.args.get('max_distance', default=None, type=float)
+
+        stations = find_nearest_stations(user_lat, user_lng, max_distance=max_distance)
+
         stations_data = [{
-                        'basestation_id': station.basestation_id, 
-                        'latitude': station.latitude,              
-                        'longitude': station.longitude,            
-                        'frequency_bands': station.frequency_band, 
-                        'city': station.city,                     
-                        'location': station.location,              
-                        'service_provider': station.service_provider 
-                        } for station in all_stations]
+            'basestation_id': station['basestation_id'], 
+            'latitude': station['latitude'],              
+            'longitude': station['longitude'],            
+            'frequency_bands': station['frequency_bands'], 
+            'city': station['city'],                     
+            'location': station['location'],              
+            'service_provider': station['service_provider'],
+            'distance': station['distance']
+        } for station in stations]
 
         return jsonify(stations_data)
     except Exception as e:
         # Log the error for debugging
         print(f"Error fetching stations: {str(e)}")
-        # Return an error message with a 500 status code
         return jsonify({"error": "An error occurred while fetching stations."}), 500
 
 @app.route('/get-stats')
