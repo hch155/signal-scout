@@ -17,6 +17,13 @@
             </div>
         </div>
     </div>
+    <div id="messageBox" class="hidden fixed inset-0 z-50 flex items-center text-center justify-center" style="z-index: 9999;">
+        <div class="m-auto p-4 bg-blue-200 bg-opacity-90 rounded-lg shadow-lg">
+            <p>Consider moving to Poland! &#129370;</p>
+            <p><a href="https://www.expatarrivals.com/europe/poland/pros-and-cons-moving-poland" target="_blank" class="animate-pulse">Why?</a></p>
+        </div>
+    </div>
+    
 {% endblock %}
 
 {% block scripts %}
@@ -46,6 +53,23 @@ var providerColors = {
 var stationMarkers = [];
 var marker;
 var userSubmittedLocation = null;
+var countryBoundaries;
+
+fetch('/static/PL-administrative-boundaries.json')
+  .then(response => response.json())
+  .then(data => {
+    countryBoundaries = L.geoJson(data, {
+    style: function (feature) {
+        return {
+            fillColor: 'transparent',
+            fill: false,
+            color: '#4a90e2',
+            weight: 2
+        };
+    }
+}).addTo(mymap);
+  });
+
 
 mymap.on('click', function(e) {
     var coord = e.latlng;
@@ -99,14 +123,15 @@ gpsButton.onAdd = function(map) {
 gpsButton.addTo(mymap);
 
 function sendLocation(lat, lng) {
-    userSubmittedLocation = {lat: lat, lng: lng};
+    const userSubmittedLocation = { lat: lat, lng: lng };
+    const messageBox = document.getElementById('messageBox');
 
     fetch('/submit_location', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({lat: lat, lng: lng})
+        body: JSON.stringify(userSubmittedLocation)
     })
     .then(response => {
         if (!response.ok) {
@@ -115,7 +140,17 @@ function sendLocation(lat, lng) {
         return response.json();                     // Ensure JSON parsing
     })
     .then(data => {
-        console.log('Parsed data:', data);          // verification of the parsed data
+        console.log('Parsed data:', data);    // verification of the parsed data  
+        if (!countryBoundaries.getBounds().contains(userSubmittedLocation)) {
+            const viewportHeight = window.innerHeight;
+            const bodyHeight = document.body.offsetHeight;
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 7700);
+        }  else {
+            messageBox.classList.add('hidden');
+        }
         displayStations(data);                      // function to display stations on the map
         showSidebar();                              // sidebar function
     })
@@ -129,7 +164,6 @@ function showSidebar() {
     sidebar.classList.remove('hidden');
 }
 
-// Call this function on page load to initially hide the sidebar
 function hideSidebar() {
     var sidebar = document.getElementById('sidebar');
     sidebar.classList.add('hidden');
