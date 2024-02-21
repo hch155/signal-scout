@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     "./templates/**/*.html",
     "./static/js/**/*.js",
@@ -10,6 +11,15 @@ module.exports = {
         'custom-blue-start': '#eff6ff',
         'custom-blue-mid': '#dbeafe',
         'custom-blue-end': '#bfdbfe',
+        'custom-dark-start': '#64748b',
+        'custom-dark-mid': '#475569',
+        'custom-dark-end': '#020617',
+        'dark': {
+          'text': '#f0f0f0',
+          'h2': '#e5e7eb',
+          'p': '#e5e7eb',
+          'a': '#e5e7eb',
+          'a-hover': '#1e40af', 
     },
     typography: (theme) => ({
       DEFAULT: {
@@ -31,6 +41,23 @@ module.exports = {
           },
         },
       },
+      dark: {
+        css: {
+          color: theme('colors.dark.text'),
+          h2: {
+            color: theme('colors.dark.h2'),
+          },
+          p: {
+            color: theme('colors.dark.p'),
+          },
+          a: {
+            color: theme('colors.dark.a'),
+            '&:hover': {
+              color: theme('colors.dark.a-hover'), 
+            },
+          },
+        },
+      },
     }),
   },
 },
@@ -38,4 +65,4 @@ module.exports = {
     require('@tailwindcss/typography'),
   ],
 }
-
+}
