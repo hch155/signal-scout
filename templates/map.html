@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <section class="slogan-section text-center text-[#333] p-5 mb-10">
+    <section class="slogan-section text-center text-[#333] dark:text-white p-5 mb-10">
         <h2 class="text-x1 font-bold">{{ slogan_title }}</h2>
         <p class="text-lg">{{ slogan_text }}</p>
     </section>
@@ -185,7 +185,6 @@ function displayStations(stations) {
 
     var bounds = [];
     
-
     if (!Array.isArray(stations)) {
         console.error('Received data is not an array:', stations);
         return;
@@ -267,7 +266,7 @@ function createSidebarContent(station, index) {
     var lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
     var googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
     return `
-        <div class="sidebar-item">
+        <div class="sidebar-item dark:text-white">
             <h4>${index + 1}. ${station.basestation_id}</h4>
             <p><b>Service Provider:</b> ${station.service_provider}</p>
             <p><b>Distance:</b> ${station.distance}km</p>
