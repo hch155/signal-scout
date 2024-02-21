@@ -960,10 +960,6 @@ video {
     display: flex;
   }
 
-  .lg\:hidden {
-    display: none;
-  }
-
   .lg\:w-auto {
     width: auto;
   }
