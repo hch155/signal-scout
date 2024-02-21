@@ -10,11 +10,16 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     {% block head_extra %}{% endblock %}
 </head>
-<body class="bg-gradient-to-t from-custom-blue-start via-custom-blue-mid to-custom-blue-end flex flex-col min-h-screen">
+<body class="bg-gradient-to-t from-custom-blue-start via-custom-blue-mid to-custom-blue-end dark:from-custom-dark-start dark:via-custom-dark-mid dark:to-custom-dark-end flex flex-col min-h-screen">
     
     <header class="flex items-center justify-between flex-wrap p-6">
-        <div class="flex items-center flex-shrink-0 text-black mr-6">
+        <div class="flex items-center flex-shrink-0 text-black dark:text-white mr-6">
             <a href="/" class="text-xl font-semibold">Signal-Scout</a>
+        </div>
+        <div class="fixed top-0 right-0 m-4">
+            <button id="themeToggle" class="text-black dark:text-white px-4 py-2 transition duration-1000 ease-in-out">
+                Dark mode
+            </button>
         </div>
         <div class="block lg:hidden">
             <button class="navbar-toggler" type="button">
@@ -23,13 +28,13 @@
         </div>
         <div class="w-full block flex-grow lg:flex lg:items-center lg:w-auto">
             <div class="custom-gradient text-sm lg:flex-grow">
-                <a href="/data" class="block mt-4 lg:inline-block lg:mt-0 text-black mr-4">
+                <a href="/data" class="block mt-4 lg:inline-block lg:mt-0 text-black mr-4 dark:text-white">
                     Data
                 </a>
-                <a href="/stats" class="block mt-4 lg:inline-block lg:mt-0 text-black mr-4">
-                    Stats
+                <a href="/stats" class="block mt-4 lg:inline-block lg:mt-0 text-black mr-4 dark:text-white">
+                    Statistics
                 </a>
-                <a href="/tips" class="block mt-4 lg:inline-block lg:mt-0 text-black">
+                <a href="/tips" class="block mt-4 lg:inline-block lg:mt-0 text-black dark:text-white">
                     Tips
                 </a>
             </div>
@@ -60,6 +65,31 @@
             adjustFooterPosition();
         });
         window.addEventListener('resize', adjustFooterPosition);
+
+        // Dark mode     
+        const btnThemeToggler = document.getElementById('themeToggle');
+
+        btnThemeToggler.addEventListener('click', function() {
+        // Toggle the 'dark' class on the <html> element
+        const isDarkMode = document.documentElement.classList.toggle('dark');
+
+        // Update button text based on the current theme
+        btnThemeToggler.textContent = isDarkMode ? 'Light Mode' : 'Dark Mode';
+
+        // Save the user's theme preference to localStorage
+        localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+    });
+
+        // Check for saved user preference, if any, on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const isDarkModePreferred = localStorage.getItem('theme') === 'dark' || 
+                                (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    document.documentElement.classList.toggle('dark', isDarkModePreferred);
+
+    // Update button text based on the loaded theme
+    btnThemeToggler.textContent = isDarkModePreferred ? 'Light Mode' : 'Dark Mode';
+    });
     </script>
     
     {% block scripts %}{% endblock %}
