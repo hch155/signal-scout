@@ -11,9 +11,9 @@ module.exports = {
         'custom-blue-start': '#eff6ff',
         'custom-blue-mid': '#dbeafe',
         'custom-blue-end': '#bfdbfe',
-        'custom-dark-start': '#1e293b',
-        'custom-dark-mid': '#0f172a',
-        'custom-dark-end': '#020617',
+        'custom-dark-start': '#374151',
+        'custom-dark-mid': '#111827',
+        'custom-dark-end': '#030712',
         'dark': {
           'text': '#f0f0f0',
           'h2': '#e5e7eb',

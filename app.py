@@ -103,6 +103,7 @@ def get_stations():
 def stations_within_distance():
     user_lat = request.args.get('lat', type=float)
     user_lng = request.args.get('lng', type=float)
+    max_distance = request.args.get('max_distance', type=float)
     stations = find_nearest_stations(user_lat, user_lng, max_distance=max_distance)
     return jsonify(stations)
 
