@@ -277,11 +277,15 @@ function createSidebarContent(station, index) {
         </div>`;
 }
 
-function fetchStations(lat, lng, mode = 'nearest') {
+function fetchStations(lat, lng, mode = 'nearest', limit = null, maxDistance = null ) {
     let url = `/stations?lat=${lat}&lng=${lng}`;
-    if (mode === 'within3km') {
-        url = `/stations_within_3km?lat=${lat}&lng=${lng}`;
-    } 
+    if (mode === 'nearest' && limit !== null) {
+        url += `&limit=${limit}`;
+    }
+    // If the mode requires maxDistance, append it to the URL
+    if (maxDistance !== null) {
+        url += `&max_distance=${maxDistance}`;
+    }
 
     fetch(url)
     .then(response => response.json())
@@ -296,22 +300,83 @@ var showBTSButton = L.control({position: 'topright'});
 showBTSButton.onAdd = function(map) {
     var div = L.DomUtil.create('div', 'bts-control-container');
 
+
     div.innerHTML = `
-        <button id="showNearestBtn" title="Show 6 nearest BTSs" class="bts-button">
-            Show 6 Nearest BTSs
+    <div class="my-1"> 
+        <button id="showNearestBtn" class="w-full text-gray-700 font-bold py-1 px-2 rounded">
+            Show Nearest BTSs
         </button>
-        <button id="showWithin3kmBtn" title="Show BTSs within 3km" class="bts-button">
-            Show BTSs within 3km
+        <div class="slider-container relative my-3">
+            <input type="range" id="nearestBtsRange" min="1" max="10" value="6" class="slider w-full bg-blue-300 rounded-full appearance-none h-1 dark:bg-gray-700">
+            <div id="nearestBtsValueLabel" class="absolute bg-blue-300 dark:bg-gray-700 text-white rounded-md py-0.5 px-2 text-xs"></div>
+        </div>
+    </div>
+
+    <div class="my-1">    
+        <button id="showWithinDistanceBtn" class="w-full text-gray-700 font-bold py-1 px-2 rounded">
+            Show BTSs within distance
         </button>
+        <div class="slider-container relative my-2">
+            <input type="range" id="withinDistanceRange" min="0" max="10" step="0.1" value="3" class="slider w-full bg-blue-300 ounded-full appearance-none h-1 dark:bg-gray-700">
+            <div id="withinDistanceValueLabel" class="absolute bg-blue-300 dark:bg-gray-700 text-white rounded-md py-0.5 px-2 text-xs"></div>
+        </div>
+    </div>
     `;
+
+    setTimeout(function() {
+        // Set up for the 'nearestBtsRange' slider
+        var nearestBtsRange = document.getElementById('nearestBtsRange');
+        var nearestBtsValueLabel = document.getElementById('nearestBtsValueLabel');
+        if (nearestBtsRange && nearestBtsValueLabel) {
+            function updateNearestBtsLabel() {
+                nearestBtsValueLabel.textContent = nearestBtsRange.value;
+            }
+            nearestBtsRange.addEventListener('input', updateNearestBtsLabel);
+            updateNearestBtsLabel(); // Initial update
+        }
+
+        // Set up for the 'withinDistanceRange' slider
+        var withinDistanceRange = document.getElementById('withinDistanceRange');
+        var withinDistanceValueLabel = document.getElementById('withinDistanceValueLabel');
+        if (withinDistanceRange && withinDistanceValueLabel) {
+            function updateWithinDistanceLabel() {
+                withinDistanceValueLabel.textContent = withinDistanceRange.value;
+            }
+            withinDistanceRange.addEventListener('input', updateWithinDistanceLabel);
+            updateWithinDistanceLabel();
+        }
+    }, 0);
+    
+
+    // Interaction handling
+    var sliders = div.querySelectorAll('input[type="range"]');
+    sliders.forEach(slider => {
+        // Disable map dragging on slider interaction start
+        slider.addEventListener('pointerdown', () => map.dragging.disable());
+        slider.addEventListener('mousedown', () => map.dragging.disable());
+        slider.addEventListener('touchstart', () => map.dragging.disable());
+
+        // Re-enable map dragging on interaction end
+        // Listening on the document to catch events even if the user's pointer leaves the slider
+        ['pointerup', 'mouseup', 'touchend', 'pointerleave', 'mouseleave', 'touchcancel'].forEach(eventType => {
+            document.addEventListener(eventType, () => {
+                if (map.dragging.enabled() === false) {
+                    map.dragging.enable();
+                }
+            }, { once: true });
+        });
+    });
 
     L.DomEvent.on(div, 'click', function(e) {
         L.DomEvent.stop(e);
         var center = map.getCenter();
+        var limit = document.getElementById('nearestBtsRange').value;
+        var maxDistance = document.getElementById('withinDistanceRange').value;
+
         if (e.target.id === 'showNearestBtn') {
-            fetchStations(center.lat, center.lng, 'nearest');
-        } else if (e.target.id === 'showWithin3kmBtn') {
-            fetchStations(center.lat, center.lng, 'within3km');
+            fetchStations(center.lat, center.lng, 'nearest', limit);
+        } else if (e.target.id === 'showWithinDistanceBtn') {
+            fetchStations(center.lat, center.lng, 'withinDistance', limit, maxDistance);
         }
     });
 
