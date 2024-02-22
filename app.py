@@ -78,8 +78,9 @@ def get_stations():
         user_lat = request.args.get('lat', type=float)
         user_lng = request.args.get('lng', type=float)
         max_distance = request.args.get('max_distance', default=None, type=float)
+        limit = request.args.get('limit', default=6, type=int)
 
-        stations = find_nearest_stations(user_lat, user_lng, max_distance=max_distance)
+        stations = find_nearest_stations(user_lat, user_lng, max_distance=max_distance, limit=limit)
 
         stations_data = [{
             'basestation_id': station['basestation_id'], 
@@ -98,11 +99,11 @@ def get_stations():
         print(f"Error fetching stations: {str(e)}")
         return jsonify({"error": "An error occurred while fetching stations."}), 500
 
-@app.route('/stations_within_3km')
-def stations_within_3km():
+@app.route('/stations_within_distance')
+def stations_within_distance():
     user_lat = request.args.get('lat', type=float)
     user_lng = request.args.get('lng', type=float)
-    stations = find_nearest_stations(user_lat, user_lng, max_distance=3)
+    stations = find_nearest_stations(user_lat, user_lng, max_distance=max_distance)
     return jsonify(stations)
 
 
