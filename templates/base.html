@@ -73,18 +73,18 @@
 
         // Save the user's theme preference to localStorage
         localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
-    });
+        });
 
         // Check for saved user preference, if any, on page load
-    document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', () => {
         const isDarkModePreferred = localStorage.getItem('theme') === 'dark' || 
                                 (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
-    document.documentElement.classList.toggle('dark', isDarkModePreferred);
+        document.documentElement.classList.toggle('dark', isDarkModePreferred);
 
-    // Update button text based on the loaded theme
-    btnThemeToggler.textContent = isDarkModePreferred ? 'Light Mode' : 'Dark Mode';
-    });
+        // Update button text based on the loaded theme
+        btnThemeToggler.textContent = isDarkModePreferred ? 'Light Mode' : 'Dark Mode';
+        });
     </script>
     
     {% block scripts %}{% endblock %}

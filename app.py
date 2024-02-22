@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from models import db, BaseStation
-from queries import get_all_stations, find_nearest_stations, process_stations, haversine, get_band_stats
+from queries import get_all_stations, find_nearest_stations, process_stations, haversine, get_band_stats, get_stats
 import markdown, os, random
 
 app = Flask(__name__)
@@ -28,7 +28,8 @@ def data_page():
 
 @app.route('/stats')
 def stats_page():
-    return render_template('stats.html')
+    stats= get_stats()
+    return render_template('stats.html', stats=stats)
 
 @app.route('/tips')
 def tips_page():
@@ -96,24 +97,6 @@ def get_stations():
         # Log the error for debugging
         print(f"Error fetching stations: {str(e)}")
         return jsonify({"error": "An error occurred while fetching stations."}), 500
-
-@app.route('/get-stats')
-def get_stats():
-    stats = get_band_stats()
-    band_order = ['5G3600', '5G2600', '5G2100', '5G1800', 'LTE2600', 'LTE2100', 'LTE1800', 'LTE900', 'LTE800', 'GSM900']
-    def band_sort_key(band):
-        if band in band_order:
-            return band_order.index(band)
-        return len(band_order)  # Place unknown bands at the end
-
-    sorted_bands = sorted(stats['bands_data'].keys(), key=band_sort_key)
-
-    return jsonify({
-        'physical_sites': stats['physical_sites'],
-        'bands_data': stats['bands_data'],
-        'providers': stats['providers'],
-        'sorted_bands': sorted_bands
-    })
 
 @app.route('/stations_within_3km')
 def stations_within_3km():
