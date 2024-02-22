@@ -237,7 +237,7 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
     googleMapsLink.href = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
     googleMapsLink.target = '_blank';
     googleMapsLink.textContent = 'View on Google Maps';
-    googleMapsLink.className = 'google-maps-link';
+    googleMapsLink.className = 'google-maps-link dark:text-white';
     stationInfoDiv.appendChild(googleMapsLink);
 }
 
