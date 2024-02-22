@@ -120,5 +120,23 @@ def get_band_stats():
         'providers': sorted(providers)
     }
 
+def get_stats():
+    stats = get_band_stats()
+    band_order = ['5G3600', '5G2600', '5G2100', '5G1800', 'LTE2600', 'LTE2100', 'LTE1800', 'LTE900', 'LTE800', 'GSM900']
+    
+    def band_sort_key(band):
+        if band in band_order:
+            return band_order.index(band)
+        return len(band_order)  # Place unknown bands at the end
+
+    sorted_bands = sorted(stats['bands_data'].keys(), key=band_sort_key)
+
+    return {
+        'physical_sites': stats['physical_sites'],
+        'bands_data': stats['bands_data'],
+        'providers': stats['providers'],
+        'sorted_bands': sorted_bands
+    }
+    
 def get_all_stations():
     return BaseStation.query.all()
