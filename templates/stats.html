@@ -6,6 +6,42 @@
         <div id="stats-container">
         </div>
     </div>
+    <head>
+        <meta charset="UTF-8">
+        <title>Band Statistics</title>
+        <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    </head>
+    <body class="bg-gray-800 text-white dark:text-white">
+        <div class="flex justify-center">
+            <table class="table-custom">
+                <thead>
+                    <tr>
+                        <th class="th-custom text-theme-responsive">Band</th>
+                        {% for provider in stats.providers %}
+                            <th class="th-custom text-theme-responsive">{{ provider }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for band in stats.sorted_bands %}
+                        <tr>
+                            <td class="td-custom text-theme-responsive">{{ band }}</td>
+                            {% for provider in stats.providers %}
+                                <td class="td-custom text-theme-responsive">{{ stats.bands_data[band].get(provider, 0) }}</td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                    <tr>
+                        <td class="td-custom text-theme-responsive">Physical Sites</td>
+                        {% for provider in stats.providers %}
+                            <td class="td-custom text-theme-responsive">{{ stats.physical_sites.get(provider, 0) }}</td>
+                        {% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </body>
+    
 {% endblock %}
 
 {% block scripts %}
@@ -13,38 +49,4 @@
 {% endblock %}
 
 {% block code %}
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        fetch('/get-stats')
-            .then(response => response.json())
-            .then(data => {
-                let tableHTML = '<table class="table"><thead><tr><th>Band</th>';
-                data.providers.forEach(provider => {
-                    tableHTML += `<th>${provider}</th>`;
-                });
-                tableHTML += '</tr></thead><tbody>';
-    
-                data.sorted_bands.forEach(band => {
-                    tableHTML += `<tr><td>${band}</td>`;
-                    data.providers.forEach(provider => {
-                        let count = data.bands_data[band][provider] || 0;
-                        tableHTML += `<td>${count}</td>`;
-                    });
-                    tableHTML += '</tr>';
-                });
-    
-                // Add row for physical sites
-                tableHTML += '<tr><td>Physical Sites</td>';
-                data.providers.forEach(provider => {
-                    let count = data.physical_sites[provider] || 0;
-                    tableHTML += `<td>${count}</td>`;
-                });
-                tableHTML += '</tr></tbody></table>';
-    
-                document.getElementById('stats-container').innerHTML = tableHTML;
-            })
-            .catch(error => console.error('Error:', error));
-    });
-        </script>
-
 {% endblock %}
