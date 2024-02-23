@@ -75,7 +75,7 @@ mymap.on('click', function(e) {
     var coord = e.latlng;
     var lat = coord.lat;
     var lng = coord.lng;
-
+    
     // Clear existing marker,
     if (marker) {
         mymap.removeLayer(marker);
@@ -122,11 +122,18 @@ gpsButton.onAdd = function(map) {
 };
 gpsButton.addTo(mymap);
 
-function sendLocation(lat, lng) {
+function sendLocation(lat, lng, mode = 'nearest', limit = 6, max_distance = null) {
+    let url = `/submit_location`;
     const userSubmittedLocation = { lat: lat, lng: lng };
+    const requestData = {
+        ...userSubmittedLocation, 
+        mode: mode, // Including mode in the request data
+        limit: limit,
+        max_distance: max_distance // Keeping consistent with the naming convention
+    };
     const messageBox = document.getElementById('messageBox');
 
-    fetch('/submit_location', {
+    fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -182,7 +189,7 @@ function displayStations(stations) {
     clearStationMarkers(); // Clear existing markers
     var sidebarContent = document.getElementById('sidebar');
     sidebarContent.innerHTML = ''; // Clear existing sidebar content
-
+    
     var bounds = [];
     
     if (!Array.isArray(stations)) {
@@ -193,13 +200,14 @@ function displayStations(stations) {
     stations.forEach((station, index) => {
         addStationMarker(station, index);
         addStationInfoToSidebar(station, index, sidebarContent);
-
-        var latLng = L.latLng(station.latitude, station.longitude);
+        
+    var latLng = L.latLng(station.latitude, station.longitude);
         bounds.push(latLng); 
     });
 
     if (bounds.length > 0) {
         mymap.fitBounds(bounds, { padding: [50, 50] }); 
+        mymap.setZoom(mymap.getZoom() - 3); //
     }
 }
 
@@ -244,13 +252,14 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
 function createPopupContent(station, index) {
     var formattedLat = station.latitude.toFixed(5);
     var formattedLng = station.longitude.toFixed(5);
+    var formattedDistance = station.distance.toFixed(2);
     var latHemisphere = station.latitude >= 0 ? 'N' : 'S';
     var lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
     var googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
     
     return `
         <b>${index + 1}. Service Provider:</b> ${station.service_provider}<br>
-        <b>Distance:</b> ${station.distance}km<br>
+        <b>Distance:</b> ${formattedDistance}km<br>
         <b>Base Station ID:</b> ${station.basestation_id}<br>
         <b>Frequency Bands:</b> ${station.frequency_bands.join(", ")}<br>
         <b>City:</b> ${station.city}<br>
@@ -262,6 +271,7 @@ function createPopupContent(station, index) {
 function createSidebarContent(station, index) {
     var formattedLat = station.latitude.toFixed(5);
     var formattedLng = station.longitude.toFixed(5);
+    var formattedDistance = station.distance.toFixed(2);
     var latHemisphere = station.latitude >= 0 ? 'N' : 'S';
     var lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
     var googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
@@ -269,7 +279,7 @@ function createSidebarContent(station, index) {
         <div class="sidebar-item dark:text-white">
             <h4>${index + 1}. ${station.basestation_id}</h4>
             <p><b>Service Provider:</b> ${station.service_provider}</p>
-            <p><b>Distance:</b> ${station.distance}km</p>
+            <p><b>Distance:</b> ${formattedDistance}km</p>
             <p><b>Frequency Bands:</b> ${station.frequency_bands.join(", ")}</p>
             <p><b>City:</b> ${station.city}</p>
             <p><b>Location:</b> ${station.location}</p>
@@ -294,6 +304,32 @@ function fetchStations(lat, lng, mode = 'nearest', limit = null, maxDistance = n
         displayStations(stations);
     })
     .catch(error => console.error('Error fetching stations:', error));
+}
+
+function setupSliderInteractions(sliders, map) {
+    // Event handler to disable map dragging
+    const disableMapDragging = () => map.dragging.disable();
+
+    // Event handler to re-enable map dragging
+    const enableMapDragging = () => {
+        if (!map.dragging.enabled()) {
+            map.dragging.enable();
+        }
+    };
+
+    // Attach event listeners to each slider for disabling map dragging
+    sliders.forEach(slider => {
+        slider.addEventListener('pointerdown', disableMapDragging);
+        slider.addEventListener('mousedown', disableMapDragging);
+        slider.addEventListener('touchstart', disableMapDragging);
+    });
+
+    // Global event listeners for re-enabling map dragging
+    // Using 'once: true' to automatically remove after firing
+    const reEnableEvents = ['pointerup', 'mouseup', 'touchend'];
+    reEnableEvents.forEach(eventType => {
+        document.addEventListener(eventType, enableMapDragging, { once: true });
+    });
 }
 
 var showBTSButton = L.control({position: 'topright'});
@@ -322,7 +358,9 @@ showBTSButton.onAdd = function(map) {
         </div>
     </div>
     `;
-
+    var sliders = div.querySelectorAll('input[type="range"]');
+    setupSliderInteractions(sliders, map);
+    
     setTimeout(function() {
         // Set up for the 'nearestBtsRange' slider
         var nearestBtsRange = document.getElementById('nearestBtsRange');
@@ -347,26 +385,6 @@ showBTSButton.onAdd = function(map) {
         }
     }, 0);
     
-
-    // Interaction handling
-    var sliders = div.querySelectorAll('input[type="range"]');
-    sliders.forEach(slider => {
-        // Disable map dragging on slider interaction start
-        slider.addEventListener('pointerdown', () => map.dragging.disable());
-        slider.addEventListener('mousedown', () => map.dragging.disable());
-        slider.addEventListener('touchstart', () => map.dragging.disable());
-
-        // Re-enable map dragging on interaction end
-        // Listening on the document to catch events even if the user's pointer leaves the slider
-        ['pointerup', 'mouseup', 'touchend', 'pointerleave', 'mouseleave', 'touchcancel'].forEach(eventType => {
-            document.addEventListener(eventType, () => {
-                if (map.dragging.enabled() === false) {
-                    map.dragging.enable();
-                }
-            }, { once: true });
-        });
-    });
-
     L.DomEvent.on(div, 'click', function(e) {
         L.DomEvent.stop(e);
         var center = map.getCenter();
