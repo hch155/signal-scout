@@ -7,7 +7,7 @@ class QueriesTestCase(unittest.TestCase):
         self.app = app.test_client()
 
     def test_get_all_stations(self):
-        response = self.app.get('/stations')
+        response = self.app.get('/stations?lat=52.19122467094173&lng=23.170166015625004')
         self.assertEqual(response.status_code, 200)
        
 if __name__ == '__main__':
