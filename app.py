@@ -1,9 +1,14 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
+from flask_session import Session
 from models import db, BaseStation
 from queries import get_all_stations, find_nearest_stations, process_stations, haversine, get_band_stats, get_stats
 import markdown, os, random
 
 app = Flask(__name__)
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_TYPE"] = "filesystem"
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+Session(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
 db.init_app(app)
 
@@ -47,9 +52,13 @@ def favicon():
 def submit_location():
     try:
         data = request.json
+        session['user_location'] = {'lat': data['lat'], 'lng': data['lng']} 
         user_lat = data['lat']
         user_lng = data['lng']
-        nearest_stations = find_nearest_stations(user_lat, user_lng)
+        limit = data.get('limit', 6)
+        max_distance = data.get('max_distance', None)
+        
+        nearest_stations = find_nearest_stations(user_lat, user_lng, limit=limit, max_distance=max_distance)
         
         if nearest_stations is None:
             print("No stations found or an error occurred")
@@ -66,7 +75,7 @@ def submit_location():
             'distance': station['distance']
         } for station in nearest_stations]
 
-        return jsonify(stations_data)
+        return jsonify(nearest_stations)
 
     except Exception as e:
         print(f"Error in submit_location: {e}")
@@ -75,8 +84,12 @@ def submit_location():
 @app.route('/stations', methods=['GET'])
 def get_stations():
     try:
-        user_lat = request.args.get('lat', type=float)
-        user_lng = request.args.get('lng', type=float)
+        user_location = session.get('user_location')
+        if user_location:
+            user_lat = user_location['lat']
+            user_lng = user_location['lng']
+        else:
+            return jsonify({"error": "User location not set"}), 400
         max_distance = request.args.get('max_distance', default=None, type=float)
         limit = request.args.get('limit', default=6, type=int)
 
@@ -101,8 +114,12 @@ def get_stations():
 
 @app.route('/stations_within_distance')
 def stations_within_distance():
-    user_lat = request.args.get('lat', type=float)
-    user_lng = request.args.get('lng', type=float)
+    user_location = session.get('user_location')
+    if user_location:
+        user_lat = user_location['lat']
+        user_lng = user_location['lng']
+    else:
+        return jsonify({"error": "User location not set"}), 400
     max_distance = request.args.get('max_distance', type=float)
     stations = find_nearest_stations(user_lat, user_lng, max_distance=max_distance)
     return jsonify(stations)

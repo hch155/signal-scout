@@ -32,7 +32,6 @@ def find_nearest_stations(user_lat, user_lon, limit=6, max_distance=None):
 
         for station, distance in stations_with_distance:
             key = (station.latitude, station.longitude)
-            distance_rounded = round(distance, 2)
 
             if key not in grouped_stations:
                 grouped_stations[key] = {
@@ -43,13 +42,13 @@ def find_nearest_stations(user_lat, user_lon, limit=6, max_distance=None):
                     'latitude': station.latitude,
                     'longitude': station.longitude,
                     'frequency_bands': {station.frequency_band},  # Set for aggregating frequency bands
-                    'distance': distance_rounded
+                    'distance': distance
                 }
             else:
                 grouped_stations[key]['frequency_bands'].add(station.frequency_band)
                 # Update distance if a closer station with the same coordinates is found
-                if distance_rounded < grouped_stations[key]['distance']:
-                    grouped_stations[key]['distance'] = distance_rounded
+                if distance < grouped_stations[key]['distance']:
+                    grouped_stations[key]['distance'] = distance
 
         # Convert frequency_bands set to list for JSON serialization
         for station_info in grouped_stations.values():
