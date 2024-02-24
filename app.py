@@ -79,7 +79,7 @@ def get_stations():
             user_lng = user_location['lng']
         else:
             return jsonify({"error": "User location not set"}), 400
-            
+
         max_distance = request.args.get('max_distance', default=None, type=float)
         limit = request.args.get('limit', default=6, type=int)
         result = find_nearest_stations(user_lat, user_lng, max_distance=max_distance, limit=limit)
@@ -114,7 +114,7 @@ def stations_within_distance():
         return jsonify({"error": "User location not set"}), 400
     max_distance = request.args.get('max_distance', type=float)
     stations = find_nearest_stations(user_lat, user_lng, max_distance=max_distance)
-    return jsonify(data.stations)
+    return jsonify(stations)
 
 
 if __name__ == '__main__':
