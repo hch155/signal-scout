@@ -11,10 +11,15 @@ class QueriesTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.data.decode('utf-8'))
         
-        self.assertIsInstance(data, list)
-        self.assertGreater(len(data), 0)
-        for item in data:
-            self.assertIn('basestation_id', item)
+        self.assertIsInstance(data, dict)
+        self.assertGreater(len(data['stations']), 0)
+        self.assertIn('count', data)
+        self.assertIsInstance(data['count'], int)  
+        self.assertIn('stations', data)
+        self.assertIsInstance(data['stations'], list)
+    
+        for station in data['stations']:
+            self.assertIn('basestation_id', station)
             
 if __name__ == '__main__':
     unittest.main()
