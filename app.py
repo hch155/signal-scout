@@ -50,7 +50,7 @@ def favicon():
 @app.route('/submit_location', methods=['POST'])
 def submit_location():
     try:
-        data = request.json
+        data = request.get_json()
         session['user_location'] = {'lat': data['lat'], 'lng': data['lng']} 
         user_lat = data['lat']
         user_lng = data['lng']
@@ -58,22 +58,12 @@ def submit_location():
         max_distance = data.get('max_distance', None)
         
         nearest_stations = find_nearest_stations(user_lat, user_lng, limit=limit, max_distance=max_distance)
+        #print("Extracted nearest_stations", nearest_stations)
+        #print(f"Data type nearest_stations: {type(nearest_stations)}")
         
-        if nearest_stations is None:
+        if nearest_stations is None or not nearest_stations.get('stations'): # If the key 'stations' does not exist, .get() returns None by default, if faulty (e.g empty list) None or False
             print("No stations found or an error occurred")
             return jsonify({'error': 'No stations found or an error occurred'}), 500
-
-        stations_data = [{
-            'basestation_id': station['basestation_id'],
-            'city': station['city'],
-            'location': station['location'],
-            'service_provider': station['service_provider'],
-            'latitude': station['latitude'],
-            'longitude': station['longitude'],
-            'frequency_bands': station['frequency_bands'],
-            'distance': station['distance']
-        } for station in nearest_stations]
-
         return jsonify(nearest_stations)
 
     except Exception as e:
@@ -89,11 +79,13 @@ def get_stations():
             user_lng = user_location['lng']
         else:
             return jsonify({"error": "User location not set"}), 400
+            
         max_distance = request.args.get('max_distance', default=None, type=float)
         limit = request.args.get('limit', default=6, type=int)
-
-        stations = find_nearest_stations(user_lat, user_lng, max_distance=max_distance, limit=limit)
-
+        result = find_nearest_stations(user_lat, user_lng, max_distance=max_distance, limit=limit)
+        stations = result.get("stations", [])
+        stations_count = result.get("count", 0)
+       
         stations_data = [{
             'basestation_id': station['basestation_id'], 
             'latitude': station['latitude'],              
@@ -105,7 +97,8 @@ def get_stations():
             'distance': station['distance']
         } for station in stations]
 
-        return jsonify(stations_data)
+        return jsonify({"stations": stations_data, "count": stations_count})
+
     except Exception as e:
         # Log the error for debugging
         print(f"Error fetching stations: {str(e)}")
@@ -121,7 +114,7 @@ def stations_within_distance():
         return jsonify({"error": "User location not set"}), 400
     max_distance = request.args.get('max_distance', type=float)
     stations = find_nearest_stations(user_lat, user_lng, max_distance=max_distance)
-    return jsonify(stations)
+    return jsonify(data.stations)
 
 
 if __name__ == '__main__':
