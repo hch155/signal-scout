@@ -32,7 +32,7 @@ def find_nearest_stations(user_lat, user_lon, limit=6, max_distance=None):
 
         for station, distance in stations_with_distance:
             key = (station.latitude, station.longitude)
-
+            distance_rounded = round(distance, 2)
             if key not in grouped_stations:
                 grouped_stations[key] = {
                     'basestation_id': station.basestation_id,  
@@ -42,28 +42,31 @@ def find_nearest_stations(user_lat, user_lon, limit=6, max_distance=None):
                     'latitude': station.latitude,
                     'longitude': station.longitude,
                     'frequency_bands': {station.frequency_band},  # Set for aggregating frequency bands
-                    'distance': distance
+                    'distance': distance_rounded
                 }
             else:
                 grouped_stations[key]['frequency_bands'].add(station.frequency_band)
                 # Update distance if a closer station with the same coordinates is found
-                if distance < grouped_stations[key]['distance']:
-                    grouped_stations[key]['distance'] = distance
+                if distance_rounded < grouped_stations[key]['distance']:
+                    grouped_stations[key]['distance'] = distance_rounded
 
         # Convert frequency_bands set to list for JSON serialization
         for station_info in grouped_stations.values():
             station_info['frequency_bands'] = list(station_info['frequency_bands'])
 
-        # Apply limit if max_distance is not specified
+        # Apply limit if max_distance is not specified        
         closest_stations = list(grouped_stations.values())
-        if max_distance is None:
-            closest_stations = closest_stations[:limit]
+ 
+        if limit is not None and max_distance is None:
+            closest_stations = closest_stations[:int(limit)]
+        stations_count = len(closest_stations)
+        
+        return {"stations": closest_stations, "count": stations_count}
 
-        return closest_stations
 
     except Exception as e:
         print(f"Error in find_nearest_stations: {e}")
-        return []  
+        return {"stations": [], "count": 0}  
 
 
 
