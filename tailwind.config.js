@@ -12,7 +12,7 @@ module.exports = {
         'custom-blue-mid': '#dbeafe',
         'custom-blue-end': '#bfdbfe',
         'custom-dark-start': '#374151',
-        'custom-dark-mid': '#111827',
+        'custom-dark-mid': '#374151',
         'custom-dark-end': '#030712',
         'dark': {
           'text': '#f0f0f0',
