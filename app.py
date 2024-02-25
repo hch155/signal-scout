@@ -5,11 +5,24 @@ from queries import get_all_stations, find_nearest_stations, process_stations, h
 import markdown, os, random
 
 app = Flask(__name__)
+
+# Session configuration
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
-Session(app)
+app.config["SESSION_COOKIE_SAMESITE"] = 'Strict'  # SameSite attribute for all session cookies
+#app.config["SESSION_COOKIE_SECURE"] = True  # Only send cookies over HTTPS, to be implemented
+app.config["SESSION_COOKIE_HTTPONLY"] = True  # Prevent JavaScript access to session cookie, prevent XSS scripting attacks
+
+# Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
+
+# Flask extensions init
+Session(app)
 db.init_app(app)
+
+@app.before_request # Ensure session changes are acknowledged and persisted by Flask
+def session_handling():
+    session.modified = True  # Inform the session it has been modified
 
 SLOGANS = [
     ("On the Move?", "Navigate to the Nearest Base Stations for Uninterrupted Connectivity!"),

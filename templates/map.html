@@ -127,7 +127,7 @@ gpsButton.addTo(mymap);
 var btsCountControl = L.control({position: 'bottomleft'});
 btsCountControl.onAdd = function(map) {
     var div = L.DomUtil.create('div', '');
-    div.className = 'bg-white bg-opacity-80 p-2 rounded shadow text-black dark:bg-black dark:text-white';
+    div.className = 'bg-white p-3 rounded shadow text-black dark:bg-black dark:text-white';
     div.innerHTML = 'BTS count: <span id="btsCounter">0</span>';
     return div;
 }
@@ -340,28 +340,27 @@ function fetchStations(lat, lng, mode = 'nearest', limit = null, maxDistance = n
 }
 
 function setupSliderInteractions(sliders, map) {
-    // Event handler to disable map dragging
-    const disableMapDragging = () => map.dragging.disable();
-
+    let sliderActive = false;
+    const disableMapDragging = () => { // Event handler to disable map dragging
+        map.dragging.disable();
+        sliderActive= true;
+    }
     // Event handler to re-enable map dragging
     const enableMapDragging = () => {
-        if (!map.dragging.enabled()) {
+        if (sliderActive) {
             map.dragging.enable();
+            sliderActive = false;
         }
     };
-
     // Attach event listeners to each slider for disabling map dragging
     sliders.forEach(slider => {
         slider.addEventListener('pointerdown', disableMapDragging);
         slider.addEventListener('mousedown', disableMapDragging);
         slider.addEventListener('touchstart', disableMapDragging);
     });
-
-    // Global event listeners for re-enabling map dragging
-    // Using 'once: true' to automatically remove after firing
-    const reEnableEvents = ['pointerup', 'mouseup', 'touchend'];
-    reEnableEvents.forEach(eventType => {
-        document.addEventListener(eventType, enableMapDragging, { once: true });
+    
+    ['pointerup', 'mouseup', 'touchend', 'pointerleave', 'mouseleave', 'touchcancel'].forEach(eventType => {
+        document.addEventListener(eventType, enableMapDragging);
     });
 }
 
