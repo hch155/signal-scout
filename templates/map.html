@@ -127,7 +127,7 @@ gpsButton.addTo(mymap);
 var btsCountControl = L.control({position: 'bottomleft'});
 btsCountControl.onAdd = function(map) {
     var div = L.DomUtil.create('div', '');
-    div.className = 'bg-white bg-opacity-80 p-2 rounded shadow text-black dark:bg-black dark:text-white';
+    div.className = 'bg-white p-3 rounded shadow text-black dark:bg-black dark:text-white';
     div.innerHTML = 'BTS count: <span id="btsCounter">0</span>';
     return div;
 }
