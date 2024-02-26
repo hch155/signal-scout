@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, session
 from flask_session import Session
 from models import db, BaseStation
+from sqlalchemy import or_
 from collections import defaultdict
 from queries import get_all_stations, find_nearest_stations, process_stations, haversine, get_band_stats, get_stats
 import markdown, os, random
@@ -103,13 +104,11 @@ def get_stations():
         stations_count = result.get("count", 0)
         selected_bands = request.args.getlist('frequency_band') 
         service_provider = request.args.get('service_provider', None)
-        print(f"Received service_provider: {service_provider}")
         
         if service_provider:
             service_provider = service_provider.strip().rstrip("'")
             service_provider = service_provider.replace("'", "''")
             query = query.filter(BaseStation.service_provider == service_provider)
-            print(f"Received service_provider: {service_provider}")
 
         conditions = []
         for band in selected_bands:
@@ -145,7 +144,7 @@ def get_stations():
             [{**data, 
                 'frequency_bands': list(data['frequency_bands'])  # Convert set to list
             } for data in aggregated_stations.values()],key=lambda x: x['distance'])[:limit]
-            
+
         return jsonify({"stations": stations_data, "count": stations_count})
 
     except Exception as e:
