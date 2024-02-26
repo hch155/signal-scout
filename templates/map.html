@@ -455,9 +455,8 @@ showBTSButton.addTo(mymap);
 var filterControl = L.control({position: 'bottomleft'});
 filterControl.onAdd = function(map) {
     var div = L.DomUtil.create('div', 'filter-control-container');
-    div.className = 'p-1 text-black dark:bg-black dark:text-white w-48';
     div.innerHTML = `
-        <button id="toggle-filters-btn" class="bg-blue-500 hover:bg-blue-700 text-white dark:text-white font-bold py-1 px-2 rounded my-1 w-48">
+        <button id="toggle-filters-btn" class="bg-blue-500 hover:bg-blue-700 text-white dark:text-white font-bold py-1 px-2 rounded w-48">
         Toggle Filters
         </button>
 
