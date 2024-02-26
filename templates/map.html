@@ -52,6 +52,15 @@ var providerColors = {
     'AERO 2 Sp. z o.o.': 'blue' 
 };
 
+let currentFilters = {
+    lat: undefined,
+    lng: undefined,
+    limit: 6,
+    maxDistance: undefined,
+    serviceProvider: [],
+    frequencyBands: []
+};
+
 var stationMarkers = [];
 var marker;
 var userSubmittedLocation = null;
@@ -75,8 +84,8 @@ fetch('/static/PL-administrative-boundaries.json')
 
 mymap.on('click', function(e) {
     var coord = e.latlng;
-    var lat = coord.lat;
-    var lng = coord.lng;
+    lat = coord.lat;
+    lng = coord.lng;
     
     // Clear existing marker,
     if (marker) {
@@ -124,7 +133,7 @@ gpsButton.onAdd = function(map) {
 };
 gpsButton.addTo(mymap);
 
-var btsCountControl = L.control({position: 'bottomleft'});
+var btsCountControl = L.control({position: 'bottomright'});
 btsCountControl.onAdd = function(map) {
     var div = L.DomUtil.create('div', '');
     div.className = 'bg-white p-3 rounded shadow text-black dark:bg-black dark:text-white';
@@ -319,17 +328,22 @@ function createSidebarContent(station, index) {
         </div>`;
 }
 
-function fetchStations(lat, lng, mode = 'nearest', limit = null, maxDistance = null ) {
-    let url = `/stations?lat=${lat}&lng=${lng}`;
-    if (mode === 'nearest' && limit !== null) {
-        url += `&limit=${limit}`;
-    }
-    // If the mode requires maxDistance, append it to the URL
-    if (maxDistance !== null) {
-        url += `&max_distance=${maxDistance}`;
-    }
+function constructFilterURL() {
+    let params = new URLSearchParams();
 
-    fetch(url)
+    if (currentFilters.lat !== undefined) params.append('lat', currentFilters.lat);
+    if (currentFilters.lng !== undefined) params.append('lng', currentFilters.lng);
+    if (currentFilters.limit !== undefined) params.append('limit', currentFilters.limit);
+    if (currentFilters.maxDistance !== undefined) params.append('max_distance', currentFilters.maxDistance);
+    currentFilters.serviceProvider.forEach(provider => params.append('service_provider', provider));
+    currentFilters.frequencyBands.forEach(band => params.append('frequency_bands', band));
+
+    return `/stations?${params.toString()}`;
+}
+
+function fetchStations(lat, lng, mode = 'nearest', limit = null, maxDistance = null, serviceProvider = [], frequencyBands = []) {
+    let filterURL = constructFilterURL();
+    fetch(filterURL)
     .then(response => response.json())
     .then(data => {
         updateBTSCount(data.count);
@@ -338,7 +352,6 @@ function fetchStations(lat, lng, mode = 'nearest', limit = null, maxDistance = n
     })
     .catch(error => console.error('Error fetching stations:', error));
 }
-
 function setupSliderInteractions(sliders, map) {
     let sliderActive = false;
     const disableMapDragging = () => { // Event handler to disable map dragging
@@ -367,7 +380,6 @@ function setupSliderInteractions(sliders, map) {
 var showBTSButton = L.control({position: 'topright'});
 showBTSButton.onAdd = function(map) {
     var div = L.DomUtil.create('div', 'bts-control-container');
-
 
     div.innerHTML = `
     <div class="my-1"> 
@@ -425,9 +437,13 @@ showBTSButton.onAdd = function(map) {
         var maxDistance = document.getElementById('withinDistanceRange').value;
 
         if (e.target.id === 'showNearestBtn') {
-            fetchStations(center.lat, center.lng, 'nearest', limit);
+            currentFilters.limit = limit;
+            let filterURL = constructFilterURL();
+            fetchStations(filterURL);
         } else if (e.target.id === 'showWithinDistanceBtn') {
-            fetchStations(center.lat, center.lng, 'withinDistance', limit, maxDistance);
+            currentFilters.maxDistance = maxDistance
+            let filterURL = constructFilterURL();
+            fetchStations(filterURL);
         }
     });
 
@@ -436,6 +452,72 @@ showBTSButton.onAdd = function(map) {
 
 showBTSButton.addTo(mymap);
 
+var filterControl = L.control({position: 'bottomleft'});
+filterControl.onAdd = function(map) {
+    var div = L.DomUtil.create('div', 'filter-control-container');
+    div.className = 'p-1 text-black dark:bg-black dark:text-white w-48';
+    div.innerHTML = `
+        <button id="toggle-filters-btn" class="bg-blue-500 hover:bg-blue-700 text-white dark:text-white font-bold py-1 px-2 rounded my-1 w-48">
+        Toggle Filters
+        </button>
+
+        <div id="filterContainer" class="bg-white p-3 rounded shadow text-black dark:bg-black dark:text-white w-48 hidden">
+            <div class="flex flex-row justify-between items-start"> 
+                <div class="filter-section flex flex-col">
+                    <p class="filter-header">Service Provider:</p>
+                    <div class="flex flex-col">     
+                        <label><input type="checkbox" name="service_provider" value="P4 Sp. z o.o.'"> Play</label>
+                        <label><input type="checkbox" name="service_provider" value="Orange Polska S.A."> Orange</label>
+                        <label><input type="checkbox" name="service_provider" value="T-Mobile Polska S.A."> T-Mobile</label>
+                        <label><input type="checkbox" name="service_provider" value="POLKOMTEL Sp. z o.o."> Plus</label>
+                        <label><input type="checkbox" name="service_provider" value="AERO 2 Sp. z o.o."> Aero 2</label>
+                    </div>
+                </div>
+                <div class="filter-section flex flex-col">
+                    <p class="filter-header">Technology:</p>
+                    <div class="flex flex-col"> 
+                        <label><input type="checkbox" name="frequency_bands" value="5G3600"> 5G3600</label>
+                        <label><input type="checkbox" name="frequency_bands" value="5G2100"> 5G2100</label>
+                        <label><input type="checkbox" name="frequency_bands" value="5G1800"> 5G1800</label>
+                        <label><input type="checkbox" name="frequency_bands" value="LTE2600"> LTE2600</label>
+                        <label><input type="checkbox" name="frequency_bands" value="LTE2100"> LTE2100</label>
+                        <label><input type="checkbox" name="frequency_bands" value="LTE1800"> LTE1800</label>
+                        <label><input type="checkbox" name="frequency_bands" value="LTE900"> LTE900</label>
+                        <label><input type="checkbox" name="frequency_bands" value="LTE800"> LTE800</label>
+                        <label><input type="checkbox" name="frequency_bands" value="GSM1800"> GSM1800</label>
+                        <label><input type="checkbox" name="frequency_bands" value="GSM900"> GSM900</label>
+                    </div>
+                </div>  
+            </div>
+            <button id="apply-filters" class="apply-filters-btn mt-2 w-full text-white bg-blue-500 hover:bg-blue-700 font-bold py-1 px-4 rounded">
+                Apply Filters
+            </button>  
+        </div>
+    `;
+
+    // Prevent map actions when interacting with the filter controls
+    L.DomEvent.disableClickPropagation(div);
+    L.DomEvent.on(div, 'mousewheel', L.DomEvent.stopPropagation);
+
+    return div;
+};
+
+filterControl.addTo(mymap);
+
+document.getElementById('toggle-filters-btn').addEventListener('click', function() {
+    var filterContainer = document.getElementById('filterContainer');
+    filterContainer.classList.toggle('hidden');
+});
+
+document.getElementById('apply-filters').addEventListener('click', function() {
+    let frequencyBands = Array.from(document.querySelectorAll('input[name="frequency_bands"]:checked')).map(el => el.value);
+    let serviceProvider = Array.from(document.querySelectorAll('input[name="service_provider"]:checked')).map(el => el.value);
+    currentFilters.serviceProvider = serviceProvider;
+    currentFilters.frequencyBands = frequencyBands;
+
+    let filterURL = constructFilterURL();
+    fetchStations(filterURL);
+    })
     </script>
 {% endblock %}
 
