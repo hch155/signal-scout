@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, session
 from flask_session import Session
 from models import db, BaseStation
+from collections import defaultdict
 from queries import get_all_stations, find_nearest_stations, process_stations, haversine, get_band_stats, get_stats
 import markdown, os, random
 
@@ -93,23 +94,58 @@ def get_stations():
         else:
             return jsonify({"error": "User location not set"}), 400
 
+        query = BaseStation.query
+        
         max_distance = request.args.get('max_distance', default=None, type=float)
         limit = request.args.get('limit', default=6, type=int)
         result = find_nearest_stations(user_lat, user_lng, max_distance=max_distance, limit=limit)
         stations = result.get("stations", [])
         stations_count = result.get("count", 0)
-       
-        stations_data = [{
-            'basestation_id': station['basestation_id'], 
-            'latitude': station['latitude'],              
-            'longitude': station['longitude'],            
-            'frequency_bands': station['frequency_bands'], 
-            'city': station['city'],                     
-            'location': station['location'],              
-            'service_provider': station['service_provider'],
-            'distance': station['distance']
-        } for station in stations]
+        selected_bands = request.args.getlist('frequency_band') 
+        service_provider = request.args.get('service_provider', None)
+        print(f"Received service_provider: {service_provider}")
+        
+        if service_provider:
+            service_provider = service_provider.strip().rstrip("'")
+            service_provider = service_provider.replace("'", "''")
+            query = query.filter(BaseStation.service_provider == service_provider)
+            print(f"Received service_provider: {service_provider}")
 
+        conditions = []
+        for band in selected_bands:
+            if band.startswith('5G'):
+                conditions.append(BaseStation.frequency_band.like('%5G%'))
+            elif band.startswith('LTE'):
+                conditions.append(BaseStation.frequency_band.like(f'%{band}%'))
+            elif band.startswith('GSM'):
+                conditions.append(BaseStation.frequency_band.like(f'%{band}%'))
+        if conditions:
+            query = query.filter(or_(*conditions))     
+        
+        stations = query.all()
+        stations_data = []
+        aggregated_stations = defaultdict(lambda: {
+        'frequency_bands': set(),  # Set for avoiding duplicate bands
+        'distance': float('inf')  
+        })
+        for station in stations:
+            distance = haversine(user_lat, user_lng, station.latitude, station.longitude)
+            if distance <= 10:  
+                agg_station = aggregated_stations[station.basestation_id]
+                agg_station['basestation_id'] = station.basestation_id
+                agg_station['latitude'] = station.latitude
+                agg_station['longitude'] = station.longitude
+                agg_station['city'] = station.city
+                agg_station['location'] = station.location
+                agg_station['service_provider'] = station.service_provider
+                agg_station['distance'] = min(agg_station['distance'], distance)
+                agg_station['frequency_bands'].add(station.frequency_band)
+
+        stations_data = sorted(
+            [{**data, 
+                'frequency_bands': list(data['frequency_bands'])  # Convert set to list
+            } for data in aggregated_stations.values()],key=lambda x: x['distance'])[:limit]
+            
         return jsonify({"stations": stations_data, "count": stations_count})
 
     except Exception as e:
