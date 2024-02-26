@@ -455,7 +455,7 @@ showBTSButton.addTo(mymap);
 var filterControl = L.control({position: 'bottomleft'});
 filterControl.onAdd = function(map) {
     var div = L.DomUtil.create('div', 'filter-control-container');
-    div.className = 'bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-48';
+    div.className = 'p-1 text-black dark:bg-black dark:text-white w-48';
     div.innerHTML = `
         <button id="toggle-filters-btn" class="bg-blue-500 hover:bg-blue-700 text-white dark:text-white font-bold py-1 px-2 rounded my-1 w-48">
         Toggle Filters
@@ -487,11 +487,11 @@ filterControl.onAdd = function(map) {
                         <label><input type="checkbox" name="frequency_bands" value="GSM1800"> GSM1800</label>
                         <label><input type="checkbox" name="frequency_bands" value="GSM900"> GSM900</label>
                     </div>
-                </div>
+                </div>  
+            </div>
             <button id="apply-filters" class="apply-filters-btn mt-2 w-full text-white bg-blue-500 hover:bg-blue-700 font-bold py-1 px-4 rounded">
                 Apply Filters
-            </button>    
-            </div>
+            </button>  
         </div>
     `;
 
