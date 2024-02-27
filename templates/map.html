@@ -55,7 +55,7 @@ var providerColors = {
 let currentFilters = {
     lat: undefined,
     lng: undefined,
-    limit: 6,
+    limit: undefined,
     maxDistance: undefined,
     serviceProvider: [],
     frequencyBands: []
@@ -133,7 +133,7 @@ gpsButton.onAdd = function(map) {
 };
 gpsButton.addTo(mymap);
 
-var btsCountControl = L.control({position: 'bottomright'});
+var btsCountControl = L.control({position: 'bottomleft'});
 btsCountControl.onAdd = function(map) {
     var div = L.DomUtil.create('div', '');
     div.className = 'bg-white p-3 rounded shadow text-black dark:bg-black dark:text-white';
@@ -340,8 +340,12 @@ function constructFilterURL() {
     if (currentFilters.lng !== undefined) params.append('lng', currentFilters.lng);
     if (currentFilters.limit !== undefined) params.append('limit', currentFilters.limit);
     if (currentFilters.maxDistance !== undefined) params.append('max_distance', currentFilters.maxDistance);
-    currentFilters.serviceProvider.forEach(provider => params.append('service_provider', provider));
-    currentFilters.frequencyBands.forEach(band => params.append('frequency_bands', band));
+    if (Array.isArray(currentFilters.serviceProvider)) {
+        currentFilters.serviceProvider.forEach(provider => params.append('service_provider', provider));
+    }
+    if (Array.isArray(currentFilters.frequencyBands)) {
+        currentFilters.frequencyBands.forEach(band => params.append('frequency_bands', band));
+    }
 
     return `/stations?${params.toString()}`;
 }
@@ -351,179 +355,121 @@ function fetchStations(lat, lng, mode = 'nearest', limit = null, maxDistance = n
     fetch(filterURL)
     .then(response => response.json())
     .then(data => {
-        console.log("Received data:", data)
         updateBTSCount(data.count);
         showSidebar();
         displayStations(data.stations);
     })
     .catch(error => console.error('Error fetching stations:', error));
 }
-function setupSliderInteractions(sliders, map) {
-    let sliderActive = false;
-    const disableMapDragging = () => { // Event handler to disable map dragging
-        map.dragging.disable();
-        sliderActive= true;
-    }
-    // Event handler to re-enable map dragging
-    const enableMapDragging = () => {
-        if (sliderActive) {
-            map.dragging.enable();
-            sliderActive = false;
-        }
-    };
-    // Attach event listeners to each slider for disabling map dragging
-    sliders.forEach(slider => {
-        slider.addEventListener('pointerdown', disableMapDragging);
-        slider.addEventListener('mousedown', disableMapDragging);
-        slider.addEventListener('touchstart', disableMapDragging);
-    });
-    
-    ['pointerup', 'mouseup', 'touchend', 'pointerleave', 'mouseleave', 'touchcancel'].forEach(eventType => {
-        document.addEventListener(eventType, enableMapDragging);
-    });
-}
 
-var showBTSButton = L.control({position: 'topright'});
-showBTSButton.onAdd = function(map) {
-    var div = L.DomUtil.create('div', 'bts-control-container');
-
-    div.innerHTML = `
-    <div class="my-1"> 
-        <button id="showNearestBtn" class="w-full text-gray-700 font-bold py-1 px-2 rounded">
-            Show Nearest BTSs
-        </button>
-        <div class="slider-container relative my-3">
-            <input type="range" id="nearestBtsRange" min="1" max="10" value="6" class="slider w-full bg-blue-300 rounded-full appearance-none h-1 dark:bg-gray-700">
-            <div id="nearestBtsValueLabel" class="absolute bg-blue-300 dark:bg-gray-700 text-white rounded-md py-0.5 px-2 text-xs"></div>
-        </div>
-    </div>
-
-    <div class="my-1">    
-        <button id="showWithinDistanceBtn" class="w-full text-gray-700 font-bold py-1 px-2 rounded">
-            Show BTSs within distance
-        </button>
-        <div class="slider-container relative my-2">
-            <input type="range" id="withinDistanceRange" min="0" max="10" step="0.1" value="3" class="slider w-full bg-blue-300 rounded-full appearance-none h-1 dark:bg-gray-700">
-            <div id="withinDistanceValueLabel" class="absolute bg-blue-300 dark:bg-gray-700 text-white rounded-md py-0.5 px-2 text-xs"></div>
-        </div>
-    </div>
-    `;
-    
-    var sliders = div.querySelectorAll('input[type="range"]');
-    setupSliderInteractions(sliders, map);
-    
-    setTimeout(function() {
-        // Set up for the 'nearestBtsRange' slider
-        var nearestBtsRange = document.getElementById('nearestBtsRange');
-        var nearestBtsValueLabel = document.getElementById('nearestBtsValueLabel');
-        if (nearestBtsRange && nearestBtsValueLabel) {
-            function updateNearestBtsLabel() {
-                nearestBtsValueLabel.textContent = nearestBtsRange.value;
-            }
-            nearestBtsRange.addEventListener('input', updateNearestBtsLabel);
-            updateNearestBtsLabel(); // Initial update
-        }
-
-        // Set up for the 'withinDistanceRange' slider
-        var withinDistanceRange = document.getElementById('withinDistanceRange');
-        var withinDistanceValueLabel = document.getElementById('withinDistanceValueLabel');
-        if (withinDistanceRange && withinDistanceValueLabel) {
-            function updateWithinDistanceLabel() {
-                withinDistanceValueLabel.textContent = withinDistanceRange.value;
-            }
-            withinDistanceRange.addEventListener('input', updateWithinDistanceLabel);
-            updateWithinDistanceLabel();
-        }
-    }, 0);
-    
-    L.DomEvent.on(div, 'click', function(e) {
-        L.DomEvent.stop(e);
-        var center = map.getCenter();
-        var limit = document.getElementById('nearestBtsRange').value;
-        var maxDistance = document.getElementById('withinDistanceRange').value;
-
-        if (e.target.id === 'showNearestBtn') {
-            currentFilters.limit = limit;
-            let filterURL = constructFilterURL();
-            fetchStations(filterURL);
-        } else if (e.target.id === 'showWithinDistanceBtn') {
-            currentFilters.maxDistance = maxDistance
-            let filterURL = constructFilterURL();
-            fetchStations(filterURL);
-        }
-    });
-
-    return div;
-};
-
-showBTSButton.addTo(mymap);
-
-var filterControl = L.control({position: 'bottomleft'});
+var filterControl = L.control({position: 'topright'});
 filterControl.onAdd = function(map) {
     var div = L.DomUtil.create('div', 'filter-control-container');
     div.innerHTML = `
-        <button id="toggle-filters-btn" class="bg-blue-500 hover:bg-blue-700 text-white dark:text-white font-bold py-1 px-2 rounded w-48">
+        <button id="toggle-filters-btn" class="bg-blue-500 hover:bg-blue-700 text-white dark:text-white font-bold py-1 px-2 rounded w-76 transition duration-3000">
         Toggle Filters
         </button>
 
-        <div id="filterContainer" class="bg-white p-3 rounded shadow text-black dark:bg-black dark:text-white w-48 hidden">
-            <div class="flex flex-row justify-between items-start"> 
-                <div class="filter-section flex flex-col">
-                    <p class="filter-header">Service Provider:</p>
-                    <div class="flex flex-col">     
-                        <label><input type="checkbox" name="service_provider" value="P4 Sp. z o.o.'"> Play</label>
-                        <label><input type="checkbox" name="service_provider" value="Orange Polska S.A."> Orange</label>
-                        <label><input type="checkbox" name="service_provider" value="T-Mobile Polska S.A."> T-Mobile</label>
-                        <label><input type="checkbox" name="service_provider" value="POLKOMTEL Sp. z o.o."> Plus</label>
-                        <label><input type="checkbox" name="service_provider" value="AERO 2 Sp. z o.o."> Aero 2</label>
-                    </div>
+        <div id="filterContainer" class="bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76s hidden">
+
+            <div class="my-2>
+                <p class="text-gray-700 font-bold dark:text-white">Service Provider:</p>
+                <div class="flex flex-wrap label-container gap-1">    
+                    <label><input type="checkbox" name="service_provider" value="P4 Sp. z o.o.'"> Play</label>
+                    <label><input type="checkbox" name="service_provider" value="Orange Polska S.A."> Orange</label>
+                    <label><input type="checkbox" name="service_provider" value="T-Mobile Polska S.A."> T-Mobile</label>
+                    <label><input type="checkbox" name="service_provider" value="POLKOMTEL Sp. z o.o."> Plus</label>
+                    <label><input type="checkbox" name="service_provider" value="AERO 2 Sp. z o.o."> Aero 2</label>
                 </div>
-                <div class="filter-section flex flex-col">
-                    <p class="filter-header">Technology:</p>
-                    <div class="flex flex-col"> 
-                        <label><input type="checkbox" name="frequency_bands" value="5G3600"> 5G3600</label>
-                        <label><input type="checkbox" name="frequency_bands" value="5G2100"> 5G2100</label>
-                        <label><input type="checkbox" name="frequency_bands" value="5G1800"> 5G1800</label>
-                        <label><input type="checkbox" name="frequency_bands" value="LTE2600"> LTE2600</label>
-                        <label><input type="checkbox" name="frequency_bands" value="LTE2100"> LTE2100</label>
-                        <label><input type="checkbox" name="frequency_bands" value="LTE1800"> LTE1800</label>
-                        <label><input type="checkbox" name="frequency_bands" value="LTE900"> LTE900</label>
-                        <label><input type="checkbox" name="frequency_bands" value="LTE800"> LTE800</label>
-                        <label><input type="checkbox" name="frequency_bands" value="GSM1800"> GSM1800</label>
-                        <label><input type="checkbox" name="frequency_bands" value="GSM900"> GSM900</label>
-                    </div>
-                </div>  
             </div>
+
+            <div class="my-2">
+                <p class="text-gray-700 font-bold dark:text-white">Frequency:</p>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-1">
+                    <label><input type="checkbox" name="frequency_bands" value="5G3600"> 5G3600</label>
+                    <label><input type="checkbox" name="frequency_bands" value="5G2100"> 5G2100</label>
+                    <label><input type="checkbox" name="frequency_bands" value="5G1800"> 5G1800</label>
+                    <label><input type="checkbox" name="frequency_bands" value="LTE2600"> LTE2600</label>
+                    <label><input type="checkbox" name="frequency_bands" value="LTE2100"> LTE2100</label>
+                    <label><input type="checkbox" name="frequency_bands" value="LTE1800"> LTE1800</label>
+                    <label><input type="checkbox" name="frequency_bands" value="LTE900"> LTE900</label>
+                    <label><input type="checkbox" name="frequency_bands" value="LTE800"> LTE800</label>
+                    <label><input type="checkbox" name="frequency_bands" value="GSM1800"> GSM1800</label>
+                    <label><input type="checkbox" name="frequency_bands" value="GSM900"> GSM900</label>
+                </div>
+            </div>
+           
+            <div class="slider-container my-4">
+                <div class="flex justify-between items-center">
+                    <p class="text-gray-700 dark:text-white font-bold">Show Nearest BTSs:</p>
+                    <span id="nearestBtsValue" class="text-xs text-white  bg-blue-300 dark:bg-gray-700 rounded-md py-0.5 px-2">6</span>
+                </div>
+                <input type="range" id="nearestBtsRange" min="1" max="10" value="6" class="w-full bg-blue-300 rounded-full appearance-none h-1 dark:bg-gray-700">
+            </div>
+
+            <div class="slider-container my-4">
+                <div class="flex justify-between items-center">
+                    <p class="text-gray-700 dark:text-white font-bold">Show BTSs within distance:</p>
+                    <span id="withinDistanceValue" class="text-xs text-white  bg-blue-300 dark:bg-gray-700 rounded-md py-0.5 px-2">3</span>
+                </div>
+                <input type="range" id="withinDistanceRange" min="0" max="10" step="0.1" value="3" class="w-full bg-blue-300 rounded-full appearance-none h-1 dark:bg-gray-700">
+            </div>
+
             <button id="apply-filters" class="apply-filters-btn mt-2 w-full text-white bg-blue-500 hover:bg-blue-700 font-bold py-1 px-4 rounded">
                 Apply Filters
-            </button>  
+            </button>      
         </div>
-    `;
-
-    // Prevent map actions when interacting with the filter controls
+        
+    `; 
     L.DomEvent.disableClickPropagation(div);
     L.DomEvent.on(div, 'mousewheel', L.DomEvent.stopPropagation);
-
+    
     return div;
-};
+    };
 
 filterControl.addTo(mymap);
 
 document.getElementById('toggle-filters-btn').addEventListener('click', function() {
-    var filterContainer = document.getElementById('filterContainer');
-    filterContainer.classList.toggle('hidden');
-});
+        var filterContainer = document.getElementById('filterContainer');
+        filterContainer.classList.toggle('hidden');
+        });
 
 document.getElementById('apply-filters').addEventListener('click', function() {
     let frequencyBands = Array.from(document.querySelectorAll('input[name="frequency_bands"]:checked')).map(el => el.value);
     let serviceProvider = Array.from(document.querySelectorAll('input[name="service_provider"]:checked')).map(el => el.value);
+    var center = mymap.getCenter();
+    var limit = document.getElementById('nearestBtsRange').value;
+    var maxDistance = document.getElementById('withinDistanceRange').value;
     currentFilters.serviceProvider = serviceProvider;
     currentFilters.frequencyBands = frequencyBands;
+    currentFilters.limit = limit;
+    currentFilters.maxDistance = maxDistance;
 
     let filterURL = constructFilterURL();
     fetchStations(filterURL);
-    })
+})
+
+document.addEventListener('DOMContentLoaded', function() {
+    var nearestBtsRange = document.getElementById('nearestBtsRange');
+    var withinDistanceRange = document.getElementById('withinDistanceRange');
+
+    if (nearestBtsRange) {
+        nearestBtsRange.addEventListener('input', function() {
+            var nearestBtsValueDisplay = document.getElementById('nearestBtsValue');
+            if (nearestBtsValueDisplay) {
+                nearestBtsValueDisplay.textContent = this.value;
+            }
+        });
+    }
+
+    if (withinDistanceRange) {
+        withinDistanceRange.addEventListener('input', function() {
+            var withinDistanceValueDisplay = document.getElementById('withinDistanceValue');
+            if (withinDistanceValueDisplay) {
+                withinDistanceValueDisplay.textContent = this.value;
+            }
+        });
+    }
+});
     </script>
 {% endblock %}
-
-

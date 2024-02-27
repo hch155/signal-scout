@@ -98,7 +98,11 @@ def get_stations():
         max_distance = request.args.get('max_distance', default=None, type=float)
         limit = request.args.get('limit', default=6, type=int)
         frequency_bands = request.args.getlist('frequency_bands')
-        selected_service_provider = request.args.get('service_provider', default=None, type=str).rstrip("'")
+        selected_service_provider = request.args.get('service_provider')
+        if selected_service_provider is not None:
+            selected_service_provider = selected_service_provider.rstrip("'")
+        else:
+            selected_service_provider = None
 
         result = find_nearest_stations(user_lat, user_lng, max_distance=max_distance, limit=limit)
         stations = result.get("stations", [])
