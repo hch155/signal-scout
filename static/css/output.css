@@ -808,10 +808,6 @@ video {
   --tw-gradient-to: #bfdbfe var(--tw-gradient-to-position);
 }
 
-.p-1 {
-  padding: 0.25rem;
-}
-
 .p-3 {
   padding: 0.75rem;
 }
