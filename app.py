@@ -95,55 +95,22 @@ def get_stations():
         else:
             return jsonify({"error": "User location not set"}), 400
 
-        query = BaseStation.query
-        
         max_distance = request.args.get('max_distance', default=None, type=float)
         limit = request.args.get('limit', default=6, type=int)
         result = find_nearest_stations(user_lat, user_lng, max_distance=max_distance, limit=limit)
         stations = result.get("stations", [])
         stations_count = result.get("count", 0)
-        selected_bands = request.args.getlist('frequency_band') 
-        service_provider = request.args.get('service_provider', None)
-        
-        if service_provider:
-            service_provider = service_provider.strip().rstrip("'")
-            service_provider = service_provider.replace("'", "''")
-            query = query.filter(BaseStation.service_provider == service_provider)
-
-        conditions = []
-        for band in selected_bands:
-            if band.startswith('5G'):
-                conditions.append(BaseStation.frequency_band.like('%5G%'))
-            elif band.startswith('LTE'):
-                conditions.append(BaseStation.frequency_band.like(f'%{band}%'))
-            elif band.startswith('GSM'):
-                conditions.append(BaseStation.frequency_band.like(f'%{band}%'))
-        if conditions:
-            query = query.filter(or_(*conditions))     
-        
-        stations = query.all()
-        stations_data = []
-        aggregated_stations = defaultdict(lambda: {
-        'frequency_bands': set(),  # Set for avoiding duplicate bands
-        'distance': float('inf')  
-        })
-        for station in stations:
-            distance = haversine(user_lat, user_lng, station.latitude, station.longitude)
-            if distance <= 10:  
-                agg_station = aggregated_stations[station.basestation_id]
-                agg_station['basestation_id'] = station.basestation_id
-                agg_station['latitude'] = station.latitude
-                agg_station['longitude'] = station.longitude
-                agg_station['city'] = station.city
-                agg_station['location'] = station.location
-                agg_station['service_provider'] = station.service_provider
-                agg_station['distance'] = min(agg_station['distance'], distance)
-                agg_station['frequency_bands'].add(station.frequency_band)
-
-        stations_data = sorted(
-            [{**data, 
-                'frequency_bands': list(data['frequency_bands'])  # Convert set to list
-            } for data in aggregated_stations.values()],key=lambda x: x['distance'])[:limit]
+       
+        stations_data = [{
+            'basestation_id': station['basestation_id'], 
+            'latitude': station['latitude'],              
+            'longitude': station['longitude'],            
+            'frequency_bands': station['frequency_bands'], 
+            'city': station['city'],                     
+            'location': station['location'],              
+            'service_provider': station['service_provider'],
+            'distance': station['distance']
+        } for station in stations]
 
         return jsonify({"stations": stations_data, "count": stations_count})
 
@@ -151,19 +118,6 @@ def get_stations():
         # Log the error for debugging
         print(f"Error fetching stations: {str(e)}")
         return jsonify({"error": "An error occurred while fetching stations."}), 500
-
-@app.route('/stations_within_distance')
-def stations_within_distance():
-    user_location = session.get('user_location')
-    if user_location:
-        user_lat = user_location['lat']
-        user_lng = user_location['lng']
-    else:
-        return jsonify({"error": "User location not set"}), 400
-    max_distance = request.args.get('max_distance', type=float)
-    stations = find_nearest_stations(user_lat, user_lng, max_distance=max_distance)
-    return jsonify(stations)
-
 
 if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() in ['true', '1', 't']
