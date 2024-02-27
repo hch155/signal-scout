@@ -97,10 +97,19 @@ def get_stations():
 
         max_distance = request.args.get('max_distance', default=None, type=float)
         limit = request.args.get('limit', default=6, type=int)
+        frequency_bands = request.args.getlist('frequency_bands')
+        selected_service_provider = request.args.get('service_provider', default=None, type=str).rstrip("'")
+
         result = find_nearest_stations(user_lat, user_lng, max_distance=max_distance, limit=limit)
         stations = result.get("stations", [])
         stations_count = result.get("count", 0)
-       
+
+        if frequency_bands:
+            stations = [station for station in stations if set(frequency_bands).issubset(set(station['frequency_bands']))]
+
+        if selected_service_provider:
+            stations = [station for station in stations if station['service_provider'] == selected_service_provider]
+
         stations_data = [{
             'basestation_id': station['basestation_id'], 
             'latitude': station['latitude'],              
@@ -112,7 +121,9 @@ def get_stations():
             'distance': station['distance']
         } for station in stations]
 
-        return jsonify({"stations": stations_data, "count": stations_count})
+        filtered_count = len(stations_data)
+
+        return jsonify({"stations": stations_data, "count": filtered_count})
 
     except Exception as e:
         # Log the error for debugging

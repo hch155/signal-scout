@@ -151,13 +151,19 @@ function updateBTSCount(count) {
 }
 
 function sendLocation(lat, lng, mode = 'nearest', limit = 6, max_distance = null) {
+    currentFilters.lat = lat;
+    currentFilters.lng = lng;
+    currentFilters.limit = limit;
+    currentFilters.maxDistance = max_distance;
+
     let url = `/submit_location`;
     const userSubmittedLocation = { lat: lat, lng: lng };
     const requestData = {
-        ...userSubmittedLocation, 
-        mode: mode, // Including mode in the request data
+        lat: lat,
+        lng: lng,
+        mode: mode,
         limit: limit,
-        max_distance: max_distance // Keeping consistent with the naming convention
+        max_distance: max_distance
     };
     const messageBox = document.getElementById('messageBox');
 
@@ -190,7 +196,6 @@ function sendLocation(lat, lng, mode = 'nearest', limit = 6, max_distance = null
             updateBTSCount(data.count);
             showSidebar(); 
             displayStations(data.stations);
-            // Pass just the stations array to displayStations
         } else {
             console.error('Unexpected data structure:', data);
         }
@@ -248,7 +253,7 @@ function displayStations(data) {
 
     if (bounds.length > 0) {
         mymap.fitBounds(bounds, { padding: [50, 50] }); 
-        mymap.setZoom(mymap.getZoom() - 3); //
+        mymap.setZoom(mymap.getZoom() - 1); //
     }
 }
 
@@ -346,6 +351,7 @@ function fetchStations(lat, lng, mode = 'nearest', limit = null, maxDistance = n
     fetch(filterURL)
     .then(response => response.json())
     .then(data => {
+        console.log("Received data:", data)
         updateBTSCount(data.count);
         showSidebar();
         displayStations(data.stations);
