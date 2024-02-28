@@ -447,6 +447,7 @@ document.getElementById('apply-filters').addEventListener('click', function() {
 
     let filterURL = constructFilterURL();
     fetchStations(filterURL);
+    document.getElementById('filterContainer').classList.add('hidden');
 })
 
 document.addEventListener('DOMContentLoaded', function() {
