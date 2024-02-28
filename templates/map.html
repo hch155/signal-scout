@@ -58,7 +58,8 @@ let currentFilters = {
     limit: undefined,
     maxDistance: undefined,
     serviceProvider: [],
-    frequencyBands: []
+    frequencyBands: [],
+    mode: 'all' // 'all', 'nearest', 'withinDistance'
 };
 
 var stationMarkers = [];
@@ -338,8 +339,7 @@ function constructFilterURL() {
 
     if (currentFilters.lat !== undefined) params.append('lat', currentFilters.lat);
     if (currentFilters.lng !== undefined) params.append('lng', currentFilters.lng);
-    if (currentFilters.limit !== undefined) params.append('limit', currentFilters.limit);
-    if (currentFilters.maxDistance !== undefined) params.append('max_distance', currentFilters.maxDistance);
+   
     if (Array.isArray(currentFilters.serviceProvider)) {
         currentFilters.serviceProvider.forEach(provider => params.append('service_provider', provider));
     }
@@ -347,11 +347,18 @@ function constructFilterURL() {
         currentFilters.frequencyBands.forEach(band => params.append('frequency_bands', band));
     }
 
+    if (currentFilters.mode === 'nearest') {
+        if (currentFilters.limit !== undefined) params.append('limit', currentFilters.limit);
+    } else if (currentFilters.mode === 'withinDistance') {
+        if (currentFilters.maxDistance !== undefined) params.append('max_distance', currentFilters.maxDistance);
+    }
+
     return `/stations?${params.toString()}`;
 }
 
-function fetchStations(lat, lng, mode = 'nearest', limit = null, maxDistance = null, serviceProvider = [], frequencyBands = []) {
+function fetchStations() {
     let filterURL = constructFilterURL();
+    console.log(`Fetching stations with URL: ${filterURL}`);
     fetch(filterURL)
     .then(response => response.json())
     .then(data => {
@@ -398,26 +405,27 @@ filterControl.onAdd = function(map) {
                     <label><input type="checkbox" name="frequency_bands" value="GSM900"> GSM900</label>
                 </div>
             </div>
-           
+            <button id="apply-filters" class="apply-filters-btn mt-2 w-full text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500" font-bold py-1 px-4 rounded">
+                Apply Filters
+            </button>
+
             <div class="slider-container my-4">
                 <div class="flex justify-between items-center">
-                    <p class="text-gray-700 dark:text-white font-bold">Show Nearest BTSs:</p>
-                    <span id="nearestBtsValue" class="text-xs text-white  bg-blue-300 dark:bg-gray-700 rounded-md py-0.5 px-2">6</span>
+                    <button id="showNearestBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500" font-bold py-1 px-4 rounded">Show Nearest BTS</button>
+                    <span id="nearestBtsValue" class="text-xs text-white bg-blue-300 dark:bg-gray-700 rounded-md py-0.5 px-2">6</span>
                 </div>
                 <input type="range" id="nearestBtsRange" min="1" max="10" value="6" class="w-full bg-blue-300 rounded-full appearance-none h-1 dark:bg-gray-700">
             </div>
 
             <div class="slider-container my-4">
                 <div class="flex justify-between items-center">
-                    <p class="text-gray-700 dark:text-white font-bold">Show BTSs within distance:</p>
-                    <span id="withinDistanceValue" class="text-xs text-white  bg-blue-300 dark:bg-gray-700 rounded-md py-0.5 px-2">3</span>
+                    <button id="showWithinDistanceBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500"  font-bold py-1 px-4 rounded">Show BTS Within Distance</button>
+                    <span id="withinDistanceValue" class="text-xs text-white bg-blue-300 dark:bg-gray-700 rounded-md py-0.5 px-2">3</span>
                 </div>
                 <input type="range" id="withinDistanceRange" min="0" max="10" step="0.1" value="3" class="w-full bg-blue-300 rounded-full appearance-none h-1 dark:bg-gray-700">
             </div>
 
-            <button id="apply-filters" class="apply-filters-btn mt-2 w-full text-white bg-blue-500 hover:bg-blue-700 font-bold py-1 px-4 rounded">
-                Apply Filters
-            </button>      
+                  
         </div>
         
     `; 
@@ -437,40 +445,54 @@ document.getElementById('toggle-filters-btn').addEventListener('click', function
 document.getElementById('apply-filters').addEventListener('click', function() {
     let frequencyBands = Array.from(document.querySelectorAll('input[name="frequency_bands"]:checked')).map(el => el.value);
     let serviceProvider = Array.from(document.querySelectorAll('input[name="service_provider"]:checked')).map(el => el.value);
-    var center = mymap.getCenter();
-    var limit = document.getElementById('nearestBtsRange').value;
-    var maxDistance = document.getElementById('withinDistanceRange').value;
     currentFilters.serviceProvider = serviceProvider;
     currentFilters.frequencyBands = frequencyBands;
-    currentFilters.limit = limit;
-    currentFilters.maxDistance = maxDistance;
 
-    let filterURL = constructFilterURL();
-    fetchStations(filterURL);
+    currentFilters.mode = 'all'; // Reset to 'all'
+    //let filterURL = constructFilterURL();
+    fetchStations();
+
     document.getElementById('filterContainer').classList.add('hidden');
 })
 
-document.addEventListener('DOMContentLoaded', function() {
-    var nearestBtsRange = document.getElementById('nearestBtsRange');
-    var withinDistanceRange = document.getElementById('withinDistanceRange');
+setTimeout(() => {
+    const nearestBtsRange = document.getElementById('nearestBtsRange');
+    const nearestBtsValue = document.getElementById('nearestBtsValue');
+    const withinDistanceRange = document.getElementById('withinDistanceRange');
+    const withinDistanceValue = document.getElementById('withinDistanceValue');
 
-    if (nearestBtsRange) {
+    if (nearestBtsRange && nearestBtsValue) {
         nearestBtsRange.addEventListener('input', function() {
-            var nearestBtsValueDisplay = document.getElementById('nearestBtsValue');
-            if (nearestBtsValueDisplay) {
-                nearestBtsValueDisplay.textContent = this.value;
-            }
+            nearestBtsValue.textContent = nearestBtsRange.value;
         });
+        nearestBtsValue.textContent = nearestBtsRange.value;
     }
 
-    if (withinDistanceRange) {
+    if (withinDistanceRange && withinDistanceValue) {
         withinDistanceRange.addEventListener('input', function() {
-            var withinDistanceValueDisplay = document.getElementById('withinDistanceValue');
-            if (withinDistanceValueDisplay) {
-                withinDistanceValueDisplay.textContent = this.value;
-            }
+            withinDistanceValue.textContent = withinDistanceRange.value;
         });
+        withinDistanceValue.textContent = withinDistanceRange.value;
     }
-});
+
+    document.getElementById('showNearestBtn').addEventListener('click', function() {
+        currentFilters.mode = 'nearest';
+        const center = mymap.getCenter();
+        currentFilters.lat = center.lat;
+        currentFilters.lng = center.lng;
+        currentFilters.limit = nearestBtsRange.value;
+        fetchStations();
+    });
+
+    document.getElementById('showWithinDistanceBtn').addEventListener('click', function() {
+        currentFilters.mode = 'withinDistance';
+        const center = mymap.getCenter();
+        currentFilters.lat = center.lat;
+        currentFilters.lng = center.lng;
+        currentFilters.maxDistance = withinDistanceRange.value;
+        fetchStations();
+    });
+}, 0);
+
     </script>
 {% endblock %}
