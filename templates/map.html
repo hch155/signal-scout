@@ -52,7 +52,7 @@ var providerColors = {
     'AERO 2 Sp. z o.o.': 'blue' 
 };
 
-let currentFilters = {
+var currentFilters = {
     lat: undefined,
     lng: undefined,
     limit: undefined,
@@ -151,7 +151,7 @@ function updateBTSCount(count) {
     }
 }
 
-function sendLocation(lat, lng, mode = 'nearest', limit = 6, max_distance = null) {
+function sendLocation(lat, lng, limit = 9, max_distance = null) {
     currentFilters.lat = lat;
     currentFilters.lng = lng;
     currentFilters.limit = limit;
@@ -162,7 +162,6 @@ function sendLocation(lat, lng, mode = 'nearest', limit = 6, max_distance = null
     const requestData = {
         lat: lat,
         lng: lng,
-        mode: mode,
         limit: limit,
         max_distance: max_distance
     };
@@ -337,8 +336,11 @@ function createSidebarContent(station, index) {
 function constructFilterURL() {
     let params = new URLSearchParams();
 
-    if (currentFilters.lat !== undefined) params.append('lat', currentFilters.lat);
-    if (currentFilters.lng !== undefined) params.append('lng', currentFilters.lng);
+    const lat = currentFilters.lat !== undefined ? currentFilters.lat : mymap.getCenter().lat;
+    const lng = currentFilters.lng !== undefined ? currentFilters.lng : mymap.getCenter().lng;
+
+    params.append('lat', lat);
+    params.append('lng', lng);
    
     if (Array.isArray(currentFilters.serviceProvider)) {
         currentFilters.serviceProvider.forEach(provider => params.append('service_provider', provider));
@@ -362,6 +364,7 @@ function fetchStations() {
     fetch(filterURL)
     .then(response => response.json())
     .then(data => {
+        console.log(data);
         updateBTSCount(data.count);
         showSidebar();
         displayStations(data.stations);
@@ -412,7 +415,7 @@ filterControl.onAdd = function(map) {
             <div class="slider-container my-4">
                 <div class="flex justify-between items-center">
                     <button id="showNearestBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500" font-bold py-1 px-4 rounded">Show Nearest BTS</button>
-                    <span id="nearestBtsValue" class="text-xs text-white bg-blue-300 dark:bg-gray-700 rounded-md py-0.5 px-2">6</span>
+                    <span id="nearestBtsValue" class="text-xs text-white bg-blue-300 dark:bg-gray-700 rounded-md px-2">6</span>
                 </div>
                 <input type="range" id="nearestBtsRange" min="1" max="10" value="6" class="w-full bg-blue-300 rounded-full appearance-none h-1 dark:bg-gray-700">
             </div>
@@ -420,7 +423,7 @@ filterControl.onAdd = function(map) {
             <div class="slider-container my-4">
                 <div class="flex justify-between items-center">
                     <button id="showWithinDistanceBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500"  font-bold py-1 px-4 rounded">Show BTS Within Distance</button>
-                    <span id="withinDistanceValue" class="text-xs text-white bg-blue-300 dark:bg-gray-700 rounded-md py-0.5 px-2">3</span>
+                    <span id="withinDistanceValue" class="text-xs text-white bg-blue-300 dark:bg-gray-700 rounded-md px-2">3</span>
                 </div>
                 <input type="range" id="withinDistanceRange" min="0" max="10" step="0.1" value="3" class="w-full bg-blue-300 rounded-full appearance-none h-1 dark:bg-gray-700">
             </div>
@@ -447,9 +450,10 @@ document.getElementById('apply-filters').addEventListener('click', function() {
     let serviceProvider = Array.from(document.querySelectorAll('input[name="service_provider"]:checked')).map(el => el.value);
     currentFilters.serviceProvider = serviceProvider;
     currentFilters.frequencyBands = frequencyBands;
+    currentFilters.nearestBts = document.getElementById('nearestBtsRange').value;
+    currentFilters.distance = document.getElementById('withinDistanceRange').value;
 
     currentFilters.mode = 'all'; // Reset to 'all'
-    //let filterURL = constructFilterURL();
     fetchStations();
 
     document.getElementById('filterContainer').classList.add('hidden');
@@ -480,7 +484,7 @@ setTimeout(() => {
         const center = mymap.getCenter();
         currentFilters.lat = center.lat;
         currentFilters.lng = center.lng;
-        currentFilters.limit = nearestBtsRange.value;
+        currentFilters.limit = document.getElementById('nearestBtsRange').value;
         fetchStations();
     });
 
