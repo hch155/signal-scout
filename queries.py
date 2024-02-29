@@ -15,12 +15,17 @@ def haversine(lat1, lon1, lat2, lon2):
     r = 6371  # Radius of earth in kilometers
     return c * r
 
-def find_nearest_stations(user_lat, user_lon, limit=6, max_distance=None):
+def find_nearest_stations(user_lat, user_lon, limit=9, max_distance=None, service_providers=[], frequency_bands=[]):
     try:
         stations = BaseStation.query.all()
         stations_with_distance = []
 
         for station in stations:
+            if service_providers and station.service_provider not in service_providers:
+                continue
+            if frequency_bands and station.frequency_band not in frequency_bands:
+                continue 
+                     
             distance = haversine(user_lat, user_lon, station.latitude, station.longitude)
             if max_distance is None or distance <= max_distance:
                 stations_with_distance.append((station, distance))
