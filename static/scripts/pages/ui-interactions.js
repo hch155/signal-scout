@@ -1,4 +1,4 @@
-// base
+// base.html
 
 function adjustFooterPosition() {
     const footer = document.querySelector('footer'); 
@@ -12,7 +12,7 @@ function adjustFooterPosition() {
    }
 }
 
-// map
+// map.html
 
 function requestAndSendGPSLocation() {
     // Stop event propagation if called from an event listener
