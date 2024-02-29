@@ -364,7 +364,6 @@ function fetchStations() {
     fetch(filterURL)
     .then(response => response.json())
     .then(data => {
-        console.log(data);
         updateBTSCount(data.count);
         showSidebar();
         displayStations(data.stations);
@@ -404,7 +403,6 @@ filterControl.onAdd = function(map) {
                     <label><input type="checkbox" name="frequency_bands" value="LTE1800"> LTE1800</label>
                     <label><input type="checkbox" name="frequency_bands" value="LTE900"> LTE900</label>
                     <label><input type="checkbox" name="frequency_bands" value="LTE800"> LTE800</label>
-                    <label><input type="checkbox" name="frequency_bands" value="GSM1800"> GSM1800</label>
                     <label><input type="checkbox" name="frequency_bands" value="GSM900"> GSM900</label>
                 </div>
             </div>
