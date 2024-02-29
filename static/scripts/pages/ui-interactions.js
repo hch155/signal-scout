@@ -44,6 +44,11 @@ function updateBTSCount(count) {
     }
 }
 
+function clearBTSCount(count) {
+    var btsCounter = document.getElementById('btsCounter')
+    btsCounter.textContent = 0;
+}
+
 function sendLocation(lat, lng, limit = 9, max_distance = null) {
     currentFilters.lat = lat;
     currentFilters.lng = lng;
@@ -262,3 +267,21 @@ function fetchStations() {
     })
     .catch(error => console.error('Error fetching stations:', error));
 }
+
+function resetFiltersUI() {
+    document.querySelectorAll('input[type="range"]').forEach(slider => {
+        document.getElementById('nearestBtsRange').value = 6; // sliders
+        document.getElementById('withinDistanceRange').value = 3;
+        document.getElementById('nearestBtsValue').textContent = 6;
+        document.getElementById('withinDistanceValue').textContent = 3;
+    });
+
+    document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    clearBTSCount()
+    clearStationMarkers()
+    hideSidebar()
+    currentFilters = {...initialFilters}; // spread
+
+}    
