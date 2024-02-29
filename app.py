@@ -69,7 +69,7 @@ def submit_location():
         session['user_location'] = {'lat': data['lat'], 'lng': data['lng']} 
         user_lat = data['lat']
         user_lng = data['lng']
-        limit = data.get('limit', 6)
+        limit = data.get('limit', 9)
         max_distance = data.get('max_distance', None)
         
         nearest_stations = find_nearest_stations(user_lat, user_lng, limit=limit, max_distance=max_distance)
@@ -96,26 +96,21 @@ def get_stations():
             return jsonify({"error": "User location not set"}), 400
 
         max_distance = request.args.get('max_distance', default=None, type=float)
-        limit = request.args.get('limit', default=6, type=int)
+        limit = request.args.get('limit', default=9, type=int)
         frequency_bands = request.args.getlist('frequency_bands')
-        selected_service_provider = request.args.getlist('service_provider')
-        selected_service_provider= []
-        for provider in selected_service_provider:
-            if provider == "P4 Sp. z o.o.'":
-                provider = provider.rstrip("'")
-                selected_service_provider.append(provider)        
-            else:
-                selected_service_provider = None
+        raw_service_providers = request.args.getlist('service_provider')
 
-        result = find_nearest_stations(user_lat, user_lng, max_distance=max_distance, limit=limit)
+        cleaned_service_providers = [provider.rstrip("'") for provider in raw_service_providers]
+
+        result = find_nearest_stations(user_lat, user_lng, max_distance=max_distance, limit=limit, service_providers=cleaned_service_providers, frequency_bands=frequency_bands)
         stations = result.get("stations", [])
         stations_count = result.get("count", 0)
 
         if frequency_bands:
             stations = [station for station in stations if set(frequency_bands).issubset(set(station['frequency_bands']))]
 
-        if selected_service_provider:
-            stations = [station for station in stations if station['service_provider'] == selected_service_provider]
+        if cleaned_service_providers:
+            stations = [station for station in stations if station['service_provider'] in cleaned_service_providers]
 
         stations_data = [{
             'basestation_id': station['basestation_id'], 
