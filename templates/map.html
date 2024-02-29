@@ -117,7 +117,7 @@
     var btsCountControl = L.control({position: 'bottomleft'});
     btsCountControl.onAdd = function(map) {
         var div = L.DomUtil.create('div', '');
-        div.className = 'bg-white p-3 rounded shadow text-black dark:bg-black dark:text-white';
+        div.className = 'bg-white p-3 rounded shadow text-black dark:bg-gray-700 dark:hover:bg-gray-500 dark:text-white';
         div.innerHTML = 'BTS count: <span id="btsCounter">0</span>';
         return div;
     }
@@ -127,11 +127,11 @@
     filterControl.onAdd = function(map) {
         var div = L.DomUtil.create('div', 'filter-control-container');
         div.innerHTML = `
-            <button id="toggle-filters-btn" class="bg-blue-500 hover:bg-blue-700 text-white dark:text-white font-bold py-1 px-2 rounded w-76 transition duration-3000">
+            <button id="toggle-filters-btn" class="bg-blue-500 hover:bg-blue-700 dark:bg-gray-700 dark:hover:bg-gray-500 text-white dark:text-white font-bold py-1 px-2 rounded w-76">
             Toggle Filters
             </button>
 
-            <button id="reset-filters-btn" class="bg-blue-500 hover:bg-blue-700 text-white dark:text-white font-bold py-1 px-2 rounded w-76 transition duration-3000">
+            <button id="reset-filters-btn" class="bg-blue-500 hover:bg-blue-700 dark:bg-gray-700 dark:hover:bg-gray-500 text-white dark:text-white font-bold py-1 px-2 rounded w-76">
             Reset Filters
             </button>
 
