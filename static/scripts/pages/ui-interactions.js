@@ -283,5 +283,34 @@ function resetFiltersUI() {
     clearStationMarkers()
     hideSidebar()
     currentFilters = {...initialFilters}; // spread
-
 }    
+
+document.addEventListener('DOMContentLoaded', function() {
+    const nearestBtsRangeInput = document.getElementById('nearestBtsRange');
+    const withinDistanceInput = document.getElementById('withinDistanceRange');
+
+    function validateAndCorrectInput(input, isInteger = false) {
+        input.addEventListener('input', function() {
+            const validValue = this.value.match(isInteger ? /^\d+$/ : /^(\d+(\.\d{0,1})?|\.?\d{1,1})$/);
+            if (validValue) {
+                let value = isInteger ? parseInt(validValue[0], 10) : parseFloat(validValue[0]);
+                const max = parseFloat(this.max);
+    
+                if (value > max) {
+                    value = max;
+                } else if (!isInteger && value === 0) {
+                    value = 0.1; 
+                }
+                this.value = isInteger ? value.toString() : value.toFixed(1);
+            } else {
+                this.value = this.value.slice(0, -1); // remove the last invalid character
+            }
+        });
+    }
+
+    validateAndCorrectInput(nearestBtsRangeInput, true); // true for integer validation
+    validateAndCorrectInput(withinDistanceInput); // default for decimal validation
+
+    nearestBtsRangeInput.setAttribute('placeholder', '1-10');
+    withinDistanceInput.setAttribute('placeholder', '0.1-10.0');
+});
