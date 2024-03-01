@@ -1,23 +1,6 @@
-// base.html
-
-function adjustFooterPosition() {
-    const footer = document.querySelector('footer'); 
-    const bodyHeight = document.body.offsetHeight;
-    const viewportHeight = window.innerHeight;
-
-   if (bodyHeight <= viewportHeight) {
-       footer.classList.add('mt-auto');
-   } else {
-       footer.classList.remove('mt-auto');
-   }
-}
-
 // map.html
 
 function requestAndSendGPSLocation() {
-    // Stop event propagation if called from an event listener
-    if (event) event.stopPropagation();
-
     if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition(function(position) {
             var userLat = position.coords.latitude;
@@ -316,5 +299,5 @@ document.addEventListener('DOMContentLoaded', function() {
     validateAndCorrectInput(withinDistanceInput); // default for decimal validation
 
     nearestBtsRangeInput.setAttribute('placeholder', '1-10');
-    withinDistanceInput.setAttribute('placeholder', '0.1-10');
+    withinDistanceInput.setAttribute('placeholder', '0.1-10'); 
 });
