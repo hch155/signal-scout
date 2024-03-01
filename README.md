@@ -5,7 +5,7 @@ Signal-Scout is a web application designed to help users find the nearest base s
 ## Features
 
 - Interactive map displaying base stations near the user's location
-- Information on service providers, frequency bands, and base station locations
+- Information on service providers, frequency bands and base station locations
 - Tips for adjusting equipment to achieve the best signal strength
 
 ## Prerequisites

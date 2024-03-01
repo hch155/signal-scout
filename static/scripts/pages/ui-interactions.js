@@ -290,27 +290,31 @@ document.addEventListener('DOMContentLoaded', function() {
     const withinDistanceInput = document.getElementById('withinDistanceRange');
 
     function validateAndCorrectInput(input, isInteger = false) {
-        input.addEventListener('input', function() {
-            const validValue = this.value.match(isInteger ? /^\d+$/ : /^(\d+(\.\d{0,1})?|\.?\d{1,1})$/);
-            if (validValue) {
-                let value = isInteger ? parseInt(validValue[0], 10) : parseFloat(validValue[0]);
-                const max = parseFloat(this.max);
-    
-                if (value > max) {
-                    value = max;
-                } else if (!isInteger && value === 0) {
-                    value = 0.1; 
-                }
-                this.value = isInteger ? value.toString() : value.toFixed(1);
+    input.addEventListener('input', function() {
+        const validValue = this.value.match(isInteger ? /^\d+$/ : /^\d*\.?\d?$/);
+        
+        if (validValue) {
+            let value = isInteger ? parseInt(this.value, 10) : parseFloat(this.value);
+            const max = parseFloat(this.max);
+
+            if (value > max) {
+                this.value = max.toString();
+            } else if (value === max && this.value.endsWith('.0')) {
+                this.value = this.value.slice(0, -2);
+            } else if ((!isInteger && value <= 0) || (isInteger && value < 1)) {
+                this.value = isInteger ? "1" : "0.1"; // 1 for integer, 0.1 for decimal
             } else {
-                this.value = this.value.slice(0, -1); // remove the last invalid character
+                this.value = isInteger ? value.toString() : value.toFixed(1);
             }
-        });
-    }
+        } else {
+            this.value = this.value.slice(0, -1); // remove the last invalid character
+        }
+    });
+}
 
     validateAndCorrectInput(nearestBtsRangeInput, true); // true for integer validation
     validateAndCorrectInput(withinDistanceInput); // default for decimal validation
 
     nearestBtsRangeInput.setAttribute('placeholder', '1-10');
-    withinDistanceInput.setAttribute('placeholder', '0.1-10.0');
+    withinDistanceInput.setAttribute('placeholder', '0.1-10');
 });
