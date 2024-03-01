@@ -170,17 +170,15 @@
                 <div class="slider-container my-4">
                     <div class="flex justify-between items-center">
                         <button id="showNearestBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500" font-bold py-1 px-4 rounded">Show Nearest BTS</button>
-                        <span id="nearestBtsValue" class="text-xs text-white bg-blue-300 dark:bg-gray-700 rounded-md px-2">6</span>
                     </div>
-                    <input type="range" id="nearestBtsRange" min="1" max="10" value="6" class="w-full bg-blue-300 rounded-full appearance-none h-1 dark:bg-gray-700">
+                    <input type="number" id="nearestBtsRange" min="1" max="10" placeholder="" class="w-[4.25rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
                 </div>
 
                 <div class="slider-container my-4">
                     <div class="flex justify-between items-center">
-                        <button id="showWithinDistanceBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500"  font-bold py-1 px-4 rounded">Show BTS Within Distance</button>
-                        <span id="withinDistanceValue" class="text-xs text-white bg-blue-300 dark:bg-gray-700 rounded-md px-2">3</span>
+                        <button id="showWithinDistanceBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500" font-bold py-1 px-4 rounded">Show BTS Within Distance</button>
                     </div>
-                    <input type="range" id="withinDistanceRange" min="0" max="10" step="0.1" value="3" class="w-full bg-blue-300 rounded-full appearance-none h-1 dark:bg-gray-700">
+                    <input type="number" id="withinDistanceRange" min="0.0" max="10" step="0.1" placeholder="" class="w-[4.25rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
                 </div>
 
                     
@@ -214,28 +212,10 @@
         currentFilters.mode = 'all'; // Reset to 'all'
         fetchStations();
 
-        //document.getElementById('filterContainer').classList.add('hidden');
+        //document.getElementById('filterContainer').classList.add('hidden'); // removed auto hiding temporarily
     })
 
     setTimeout(() => {
-        const nearestBtsRange = document.getElementById('nearestBtsRange');
-        const nearestBtsValue = document.getElementById('nearestBtsValue');
-        const withinDistanceRange = document.getElementById('withinDistanceRange');
-        const withinDistanceValue = document.getElementById('withinDistanceValue');
-
-        if (nearestBtsRange && nearestBtsValue) {
-            nearestBtsRange.addEventListener('input', function() {
-                nearestBtsValue.textContent = nearestBtsRange.value;
-            });
-            nearestBtsValue.textContent = nearestBtsRange.value;
-        }
-
-        if (withinDistanceRange && withinDistanceValue) {
-            withinDistanceRange.addEventListener('input', function() {
-                withinDistanceValue.textContent = withinDistanceRange.value;
-            });
-            withinDistanceValue.textContent = withinDistanceRange.value;
-        }
 
         document.getElementById('showNearestBtn').addEventListener('click', function() {
             currentFilters.mode = 'nearest';
