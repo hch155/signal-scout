@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/build.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/output.css') }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <script src="{{ url_for('static', filename='scripts/pages/common.js') }}"></script>
     {% block head_extra %}{% endblock %}
 </head>
 <body class="bg-gradient-to-t from-custom-blue-start via-custom-blue-mid to-custom-blue-end dark:from-custom-dark-start dark:via-custom-dark-mid dark:to-custom-dark-end flex flex-col min-h-screen">
@@ -53,54 +54,6 @@
 
     <script>
           
-        document.addEventListener('DOMContentLoaded', function() {
-            adjustFooterPosition();
-        });
-        
-        window.addEventListener('resize', adjustFooterPosition);
-
-        // Dark mode     
-        const btnThemeToggler = document.getElementById('themeToggle');
-
-        btnThemeToggler.addEventListener('click', function() {
-        // Toggle the 'dark' class on the <html> element
-        const isDarkMode = document.documentElement.classList.toggle('dark');
-
-        // Update button text based on the current theme
-        btnThemeToggler.textContent = isDarkMode ? 'Light Mode' : 'Dark Mode';
-
-        // Save the user's theme preference to localStorage
-        localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
-        });
-
-        // Check for saved user preference, if any, on page load
-        document.addEventListener('DOMContentLoaded', () => {
-        const isDarkModePreferred = localStorage.getItem('theme') === 'dark' || 
-                                (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-        document.documentElement.classList.toggle('dark', isDarkModePreferred);
-
-        // Update button text based on the loaded theme
-        btnThemeToggler.textContent = isDarkModePreferred ? 'Light Mode' : 'Dark Mode';
-        });
-        
-        document.addEventListener('DOMContentLoaded', (event) => {
-            const backToTopBtn = document.getElementById('backToTopBtn');
-            window.addEventListener('scroll', () => {
-                if (window.scrollY > 200) {
-                    backtoTopBtn.classList.remove('hidden');
-                } else {
-                    backtoTopBtn.classList.add('hidden');
-                }
-            backtoTopBtn.addEventListener('click', () => {
-                window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
-            });
-         });
-        }); 
-
     </script>
     
     {% block scripts %}{% endblock %}
