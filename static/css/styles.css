@@ -60,10 +60,6 @@
     background-color: #f0f0f0;
 }
 
-.custom-slider-width {
-  width: 100%; 
-}
-
 .label-container > label {
   @apply inline-flex items-center mr-1; 
 }
