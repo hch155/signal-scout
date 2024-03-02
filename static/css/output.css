@@ -705,10 +705,6 @@ video {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.resize {
-  resize: both;
-}
-
 .grid-cols-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1045,10 +1041,6 @@ video {
   background-color: #f0f0f0;
 }
 
-.custom-slider-width {
-  width: 100%;
-}
-
 .label-container > label {
   margin-right: 0.25rem;
   display: inline-flex;
@@ -1083,6 +1075,11 @@ video {
 :is(.dark .dark\:bg-gray-700) {
   --tw-bg-opacity: 1;
   background-color: rgb(55 65 81 / var(--tw-bg-opacity));
+}
+
+:is(.dark .dark\:bg-gray-800) {
+  --tw-bg-opacity: 1;
+  background-color: rgb(31 41 55 / var(--tw-bg-opacity));
 }
 
 :is(.dark .dark\:from-custom-dark-start) {
