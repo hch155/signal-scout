@@ -86,7 +86,7 @@ gpsButton.addTo(mymap);
 var btsCountControl = L.control({position: 'bottomleft'});
 btsCountControl.onAdd = function(map) {
     var div = L.DomUtil.create('div', '');
-    div.className = 'bg-white p-3 rounded shadow text-black dark:bg-gray-700 dark:hover:bg-gray-500 dark:text-white';
+    div.className = 'bg-white p-2 rounded shadow text-black dark:bg-gray-800 dark:hover:bg-gray-500 dark:text-white';
     div.innerHTML = 'BTS count: <span id="btsCounter">0</span>';
     return div;
 }
@@ -104,7 +104,7 @@ filterControl.onAdd = function(map) {
         Reset Filters
         </button>
 
-        <div id="filterContainer" class="bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 hidden">
+        <div id="filterContainer" class="bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400 hidden">
 
             <div class="my-2>
                 <p class="text-gray-700 font-bold dark:text-white">Service Provider:</p>
