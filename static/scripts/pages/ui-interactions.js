@@ -486,5 +486,6 @@ document.addEventListener('DOMContentLoaded', function() {
     validateAndCorrectInput(withinDistanceInput); // default for decimal validation
 
     nearestBtsRangeInput.setAttribute('placeholder', '1-10');
-    withinDistanceInput.setAttribute('placeholder', '0.1-10'); 
+    withinDistanceInput.setAttribute('placeholder', '0.1-10');
+   
 });
