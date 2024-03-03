@@ -180,8 +180,6 @@ document.getElementById('apply-filters').addEventListener('click', function() {
 
     currentFilters.mode = 'all'; // Reset to 'all'
     fetchStations();
-
-    //document.getElementById('filterContainer').classList.add('hidden'); // removed auto hiding temporarily
 })
 
 setTimeout(() => {
@@ -212,16 +210,11 @@ function requestAndSendGPSLocation() {
             var userLng = position.coords.longitude;
             mymap.setView([userLat, userLng], 7); 
             sendLocation(userLat, userLng);
-        }, function(error) {
-            console.error('Geolocation error:', error);
-            alert('Error getting location. Please try again.');
         }, {
             enableHighAccuracy: true,
             timeout: 7000,
             maximumAge: 0
         });
-    } else {
-        console.log("Geolocation is not supported by this browser.");
     }
 }
 
@@ -268,13 +261,11 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
         return response.json(); // Ensure JSON parsing
     })
     .then(data => {
-        console.log('Parsed data:', data);    // verification of the parsed data  
         if (!countryBoundaries.getBounds().contains(userSubmittedLocation)) {
-            const viewportHeight = window.innerHeight;
-            const bodyHeight = document.body.offsetHeight;
             messageBox.classList.remove('hidden');
             setTimeout(() => {
-                messageBox.classList.add('hidden');
+                messageBox.classList.add('hidden')
+                mymap.zoomOut(7);
             }, 7700);
         }  else {
             messageBox.classList.add('hidden');
@@ -283,13 +274,8 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
             updateBTSCount(data.count);
             showSidebar(); 
             displayStations(data.stations);
-        } else {
-            console.error('Unexpected data structure:', data);
         }
-})
-    .catch((error) => {
-        console.error('Error:', error);
-    });
+    })
 }
 
 function showSidebar() {
@@ -324,9 +310,6 @@ function displayStations(data) {
     } else if (data && Array.isArray(data.stations)) {
         // Data is an object containing stations and possibly other information
         stations = data.stations;
-    } else {
-        console.error('Invalid data format for displayStations', data);
-        return; // Exit the function if the data format is not recognized
     }
 
     stations.forEach((station, index) => {
@@ -446,7 +429,6 @@ function constructFilterURL() {
 
 function fetchStations() {
     let filterURL = constructFilterURL();
-    console.log(`Fetching stations with URL: ${filterURL}`);
     fetch(filterURL)
     .then(response => response.json())
     .then(data => {
@@ -454,7 +436,6 @@ function fetchStations() {
         showSidebar();
         displayStations(data.stations);
     })
-    .catch(error => console.error('Error fetching stations:', error));
 }
 
 function resetFiltersUI() {
