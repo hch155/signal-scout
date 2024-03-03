@@ -705,6 +705,10 @@ video {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+.resize {
+  resize: both;
+}
+
 .grid-cols-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -806,8 +810,8 @@ video {
   padding: 0.25rem;
 }
 
-.p-3 {
-  padding: 0.75rem;
+.p-2 {
+  padding: 0.5rem;
 }
 
 .p-4 {
@@ -910,6 +914,10 @@ video {
 .text-white {
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+
+.accent-blue-500 {
+  accent-color: #3b82f6;
 }
 
 .shadow {
@@ -1032,8 +1040,7 @@ video {
   border: none;
   border-radius: 3px;
   cursor: pointer;
-  padding: 5px 10px;
-  margin: 10px;
+  padding: 5px 9px;
   box-shadow: 0 1px 5px rgba(0,0,0,0.2);
 }
 
@@ -1100,6 +1107,10 @@ video {
 :is(.dark .dark\:text-white) {
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+
+:is(.dark .dark\:accent-gray-400) {
+  accent-color: #9ca3af;
 }
 
 :is(.dark .dark\:hover\:bg-gray-500:hover) {
