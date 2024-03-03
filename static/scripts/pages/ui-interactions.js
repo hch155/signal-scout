@@ -264,7 +264,8 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
         if (!countryBoundaries.getBounds().contains(userSubmittedLocation)) {
             messageBox.classList.remove('hidden');
             setTimeout(() => {
-                messageBox.classList.add('hidden');
+                messageBox.classList.add('hidden')
+                mymap.zoomOut(7);
             }, 7700);
         }  else {
             messageBox.classList.add('hidden');
