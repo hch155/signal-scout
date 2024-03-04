@@ -37,6 +37,7 @@ var stationMarkers = [];
 var marker;
 var userSubmittedLocation = null;
 var countryBoundaries;
+var isFirstClick = true;
 
 window.onload = hideSidebar; // Hide the sidebar initially
 
@@ -57,8 +58,8 @@ fetch('/static/PL-administrative-boundaries.json')
 
 mymap.on('click', function(e) {
     var coord = e.latlng;
-    lat = coord.lat;
-    lng = coord.lng;
+    var lat = coord.lat;
+    var lng = coord.lng;
     
     // Clear existing marker,
     if (marker) {
@@ -67,8 +68,14 @@ mymap.on('click', function(e) {
 
     // marker to show where you clicked.
     marker = L.marker([lat, lng], {icon: greenIcon}).addTo(mymap);
-        
-    sendLocation(lat, lng);
+    currentFilters.lat = lat;
+    currentFilters.lng = lng;
+    if (isFirstClick) {
+        sendLocation(lat, lng);
+        isFirstClick = false;
+    } else {
+        fetchStations();
+    }      
 });
 
 var gpsButton = L.control({position: 'topleft'});
@@ -435,10 +442,10 @@ function constructFilterURL() {
 
     const lat = currentFilters.lat !== undefined ? currentFilters.lat : mymap.getCenter().lat;
     const lng = currentFilters.lng !== undefined ? currentFilters.lng : mymap.getCenter().lng;
+    
+    params.append('lat', currentFilters.lat);
+    params.append('lng', currentFilters.lng);
 
-    params.append('lat', lat);
-    params.append('lng', lng);
-   
     if (Array.isArray(currentFilters.serviceProvider)) {
         currentFilters.serviceProvider.forEach(provider => params.append('service_provider', provider));
     }
@@ -458,7 +465,7 @@ function constructFilterURL() {
 function fetchStations() {
     let filterURL = constructFilterURL();
     fetch(filterURL)
-    .then(response => response.json())
+    .then(response => response.json()) // Parse JSON body of the response)
     .then(data => {
         updateBTSCount(data.count);
         showSidebar();
