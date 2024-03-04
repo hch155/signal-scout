@@ -83,6 +83,19 @@ gpsButton.onAdd = function(map) {
 };
 gpsButton.addTo(mymap);
 
+var zoomButton = L.control({position: 'topleft'});
+zoomButton.onAdd = function(map) {
+    var div = L.DomUtil.create('div', 'zoom-control');
+    div.innerHTML = '<button id="zoomOutInButton" title="Zoom out & in">🔍</button>';
+    var button = div.querySelector('#zoomOutInButton');
+    L.DomEvent.on(button, 'click', function(e) {
+        L.DomEvent.stop(e);
+        zoomOutAndIn(); 
+    });
+    return div;
+};
+zoomButton.addTo(mymap);
+
 var btsCountControl = L.control({position: 'bottomleft'});
 btsCountControl.onAdd = function(map) {
     var div = L.DomUtil.create('div', '');
@@ -217,6 +230,21 @@ function requestAndSendGPSLocation() {
         });
     }
 }
+
+function createZoomToggleFunction(map) {
+    let shouldZoomOut = true;
+
+    return function() {
+        if (shouldZoomOut) {
+            map.zoomOut(3);
+        } else {
+            map.zoomIn(3);
+        }
+        shouldZoomOut = !shouldZoomOut;
+    };
+}
+
+var zoomOutAndIn = createZoomToggleFunction(mymap); // Initialize the toggle function and pass the map instance
 
 function updateBTSCount(count) {
     var btsCounter = document.getElementById('btsCounter');
