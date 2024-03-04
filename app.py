@@ -88,12 +88,19 @@ def submit_location():
 @app.route('/stations', methods=['GET'])
 def get_stations():
     try:
-        user_location = session.get('user_location')
-        if user_location:
-            user_lat = user_location['lat']
-            user_lng = user_location['lng']
+        user_lat = request.args.get('lat')
+        user_lng = request.args.get('lng')
+        
+        if user_lat and user_lng:    
+            user_lat = float(user_lat)
+            user_lng = float(user_lng)
         else:
-            return jsonify({"error": "User location not set"}), 400
+            user_location = session.get('user_location')
+            if user_location:
+                user_lat = user_location['lat']
+                user_lng = user_location['lng']
+            else:
+                return jsonify({"error": "User location not set"}), 400
 
         max_distance = request.args.get('max_distance', default=None, type=float)
         limit = request.args.get('limit', default=9, type=int)
