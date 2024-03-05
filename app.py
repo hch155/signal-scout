@@ -73,8 +73,6 @@ def submit_location():
         max_distance = data.get('max_distance', None)
         
         nearest_stations = find_nearest_stations(user_lat, user_lng, limit=limit, max_distance=max_distance)
-        #print("Extracted nearest_stations", nearest_stations)
-        #print(f"Data type nearest_stations: {type(nearest_stations)}")
         
         if nearest_stations is None or not nearest_stations.get('stations'): # If the key 'stations' does not exist, .get() returns None by default, if faulty (e.g empty list) None or False
             print("No stations found or an error occurred")
