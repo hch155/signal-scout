@@ -78,6 +78,22 @@ mymap.on('click', function(e) {
     }      
 });
 
+function setupTouchInteraction(mymap) {
+    let isInteracting = false;
+    const interactionStarted = () => isInteracting = true;
+    const interactionEnded = () => setTimeout(() => isInteracting = false, 500); 
+
+    mymap.on('touchstart', interactionStarted);
+    mymap.on('touchmove', interactionStarted); // Touchmove for pinch or drag
+    mymap.on('touchend', interactionEnded); // Detect end
+    mymap.on('click', function(e) {
+        if (isInteracting) {
+            e.originalEvent.preventDefault();
+        }
+    });
+}
+setupTouchInteraction(mymap);
+
 var gpsButton = L.control({position: 'topleft'});
 gpsButton.onAdd = function(map) {
     var div = L.DomUtil.create('div', 'gps-location-control');
@@ -106,7 +122,7 @@ zoomButton.addTo(mymap);
 var btsCountControl = L.control({position: 'bottomleft'});
 btsCountControl.onAdd = function(map) {
     var div = L.DomUtil.create('div', '');
-    div.className = 'bg-white p-2 rounded shadow text-black dark:bg-gray-800 dark:hover:bg-gray-500 dark:text-white';
+    div.className = 'bg-white p-2 mt-[-4rem] md:mt-0 rounded shadow text-black dark:bg-gray-800 dark:hover:bg-gray-500 dark:text-white';
     div.innerHTML = 'BTS count: <span id="btsCounter">0</span>';
     return div;
 }
@@ -465,7 +481,7 @@ function constructFilterURL() {
 function fetchStations() {
     let filterURL = constructFilterURL();
     fetch(filterURL)
-    .then(response => response.json()) // Parse JSON body of the response)
+    .then(response => response.json())
     .then(data => {
         updateBTSCount(data.count);
         showSidebar();
@@ -475,7 +491,7 @@ function fetchStations() {
 
 function resetFiltersUI() {
     document.querySelectorAll('input[type="range"]').forEach(slider => {
-        document.getElementById('nearestBtsRange').value = 6; // sliders
+        document.getElementById('nearestBtsRange').value = 6;
         document.getElementById('withinDistanceRange').value = 3;
         document.getElementById('nearestBtsValue').textContent = 6;
         document.getElementById('withinDistanceValue').textContent = 3;
