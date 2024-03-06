@@ -18,11 +18,40 @@
         <div class="flex items-center flex-shrink-0 text-black dark:text-white mr-6">
             <a href="/" class="text-xl font-semibold">Signal-Scout</a>
         </div>
+        
+        <div id="registrationModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center " style="z-index: 5000;">
+            <div class="container mx-auto h-full flex justify-center items-center">
+              <div class="bg-blue-50 dark:bg-gray-500 p-8 rounded-lg shadow-lg max-w-sm mx-auto">
+                <button class="close-modal dark:text-white">Close</button>
+                <h2 class="text-center text-xl font-bold mb-4 dark:text-white">Sign up to get exclusive features</h2>
+                <form id="registrationForm" class="space-y-4">
+                  <input type="text" placeholder="Your Email" class="w-full dark:bg-gray-300 p-2 border rounded">
+                  <input type="password" placeholder="Password" class="w-full dark:bg-gray-300 p-2 border rounded">
+                  <input type="password" placeholder="Confirm Password" class="w-full dark:bg-gray-300 p-2 border rounded">
+                  <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-700">Register</button>
+                </form>
+              </div>
+            </div>
+        </div>
+        
+        <div id="signInModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center" style="z-index: 5000;">
+            <div class="container mx-auto h-full flex justify-center items-center">
+              <div class="bg-blue-50 dark:bg-gray-500 p-8 rounded-lg shadow-lg max-w-sm mx-auto">
+                <button class="close-modal dark:text-white">Close</button>
+                <h2 class="text-center text-2xl font-bold mb-4 dark:text-white">Sign In</h2>
+                <form id="signInForm" class="space-y-4">
+                  <input type="text" placeholder="Your Email" class="w-full dark:bg-gray-300 p-2 border rounded">
+                  <input type="password" placeholder="Password" class="w-full p-2 dark:bg-gray-300 border rounded">
+                  <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-700">Sign In</button>
+                </form>
+              </div>
+            </div>
+        </div>
 
         <div class="absolute top-0 right-0 m-4">
-            <button id="themeToggle" class="text-black dark:text-white px-4 py-2 transition duration-1000 ease-in-out">
-                Dark mode
-            </button>
+            <button id="signInBtn" class="text-black dark:text-white px-4 py-2">Sign In</button>
+            <button id="registerBtn" class="text-black dark:text-white px-4 py-2">Register</button>
+            <button id="themeToggle" class="text-black dark:text-white px-4 py-2 transition duration-1000 ease-in-out">Dark mode</button>
         </div>
 
         <button id="backtoTopBtn" class="hidden fixed bottom-5 right-5 bg-blue-500 dark:bg-gray-500 text-white px-4 py-2 rounded transition duration-1000 ease-in-out">

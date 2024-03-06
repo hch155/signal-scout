@@ -56,4 +56,40 @@ document.addEventListener('DOMContentLoaded', (event) => {
         });
     });
  });
-}); 
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const registerBtn = document.getElementById('registerBtn');
+    const signInBtn = document.getElementById('signInBtn');
+    const registrationModal = document.getElementById('registrationModal');
+    const signInModal = document.getElementById('signInModal');
+  
+    registerBtn.addEventListener('click', () => {
+      registrationModal.classList.toggle('hidden');
+    });
+  
+    signInBtn.addEventListener('click', () => {
+      signInModal.classList.toggle('hidden');
+    });
+  
+    document.querySelectorAll('.close-modal').forEach(button => {
+      button.addEventListener('click', () => {
+        const modalToClose = button.closest('.modal'); // common class for all modals
+        if (modalToClose) {
+          modalToClose.classList.add('hidden');
+        }
+      });
+    });
+  
+    registrationModal.addEventListener('click', (event) => {
+      if (event.target === registrationModal) {
+        registrationModal.classList.add('hidden');
+      }
+    });
+  
+    signInModal.addEventListener('click', (event) => {
+      if (event.target === signInModal) {
+        signInModal.classList.add('hidden');
+      }
+    });
+  });
