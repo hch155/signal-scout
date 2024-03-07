@@ -4,10 +4,12 @@ from models import db, BaseStation
 from sqlalchemy import or_
 from collections import defaultdict
 from queries import get_all_stations, find_nearest_stations, process_stations, haversine, get_band_stats, get_stats
+from dotenv import load_dotenv
 import markdown, os, random
 
 app = Flask(__name__)
 
+ssl_context = (os.getenv('SSL_CERT_PATH'), os.getenv('SSL_KEY_PATH'))
 # Session configuration
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
@@ -140,4 +142,7 @@ def get_stations():
 if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() in ['true', '1', 't']
     port = int(os.environ.get('PORT', 8080))
-    app.run(debug=debug_mode, host='0.0.0.0', port=port)
+    app.run(debug=debug_mode,
+            host='0.0.0.0',
+            port=port)
+            #ssl_context=('/etc/ssl/localcerts/localhost+2.pem', '/etc/ssl/localcerts/localhost+2-key.pem')) 
