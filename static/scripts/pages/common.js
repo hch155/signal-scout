@@ -12,6 +12,21 @@ function adjustFooterPosition() {
    }
 }
 
+function logoutUser() {
+  fetch('/logout', { method: 'POST' })
+  .then(response => {
+      if (response.ok) {
+          alert('Logged out successfully.');
+      } else {
+          alert('Logout failed. Please try again.');
+      }
+  })
+  .catch(error => {
+      console.error('Error:', error);
+      alert('An error occurred. Please try again.');
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     adjustFooterPosition();
 });
@@ -123,3 +138,50 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('An error occurred. Please try again.');
     });
   });
+
+  document.getElementById('signInForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+
+    fetch('/login', { 
+        method: 'POST',
+        body: new FormData(document.getElementById('signInForm'))
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred during login. Please try again.');
+    });
+});
+
+document.addEventListener('DOMContentLoaded', (event) => {
+  fetch('/session_check')
+      .then(response => response.json())
+      .then(data => {
+          if (data.logged_in) {
+              document.getElementById('signInForm').style.display = 'none'; // hide
+              document.getElementById('registrationForm').style.display = 'none';
+              document.getElementById('logoutButton').style.display = 'block';
+
+          } else {
+              document.getElementById('signInForm').style.display = 'block';
+              document.getElementById('registrationForm').style.display = 'block'
+              document.getElementById('logoutButton').style.display = 'none';
+          }
+      })
+      .catch(error => console.error('Error checking session state:', error));
+});
+
