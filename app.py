@@ -182,11 +182,16 @@ def login_user():
     else:
         return jsonify({"success": False, "message": "Invalid email or password."}), 401
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 def logout():
-    session.pop('user_id', None)  # Remove 'user_id' from session
+    session.pop('user_id', None) 
     return jsonify({"success": True, "message": "You have been logged out."}), 200
 
+
+@app.route('/session_check')
+def session_check():
+    is_logged_in = 'user_id' in session
+    return jsonify({"logged_in": is_logged_in})
 
 if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() in ['true', '1', 't']
