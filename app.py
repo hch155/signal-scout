@@ -20,7 +20,9 @@ app.config["SESSION_COOKIE_SAMESITE"] = 'Strict'  # SameSite attribute for all s
 app.config["SESSION_COOKIE_HTTPONLY"] = True  # Prevent JavaScript access to session cookie, prevent XSS scripting attacks
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_BINDS'] = {
+    'users': 'sqlite:///users.db' 
+}
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 Session(app)
@@ -174,7 +176,7 @@ def login_user():
 
     user = User.query.filter_by(email=email).first()
 
-    if user and bcrypt.check_password_hash(user.password, password):
+    if user and bcrypt.check_password_hash(user.password_hash, password):
         session['user_id'] = user.id
         return jsonify({"success": True, "message": "Logged in successfully."}), 200
     else:
