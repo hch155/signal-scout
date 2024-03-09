@@ -93,3 +93,33 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
+
+  document.getElementById('registrationForm').addEventListener('submit', function(e) {
+    e.preventDefault(); // Prevent default form submission
+  
+    const formData = new FormData(this); // 'this' refers to the form
+    const password = formData.get('password');
+    const confirmPassword = formData.get('confirm_password');
+
+    if (password !== confirmPassword) {
+      alert('Passwords do not match.');
+      return;
+    }
+  
+    fetch('/register', { 
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Registration successful!');
+      } else {
+        alert('Registration failed: ' + data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('An error occurred. Please try again.');
+    });
+  });
