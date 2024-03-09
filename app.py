@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, session
+from flask_bcrypt import Bcrypt
 from flask_session import Session
-from models import db, BaseStation
+from models import db, BaseStation, User
 from sqlalchemy import or_
 from collections import defaultdict
 from queries import get_all_stations, find_nearest_stations, process_stations, haversine, get_band_stats, get_stats
@@ -8,19 +9,22 @@ from dotenv import load_dotenv
 import markdown, os, random
 
 app = Flask(__name__)
+bcrypt = Bcrypt(app)
 
 ssl_context = (os.getenv('SSL_CERT_PATH'), os.getenv('SSL_KEY_PATH'))
-# Session configuration
+# Session and database configuration
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SESSION_COOKIE_SAMESITE"] = 'Strict'  # SameSite attribute for all session cookies
-#app.config["SESSION_COOKIE_SECURE"] = True  # Only send cookies over HTTPS, to be implemented
+#app.config["SESSION_COOKIE_SECURE"] = True  # Only send cookies over HTTPS
 app.config["SESSION_COOKIE_HTTPONLY"] = True  # Prevent JavaScript access to session cookie, prevent XSS scripting attacks
 
-# Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
+app.config['SQLALCHEMY_BINDS'] = {
+    'users': 'sqlite:///users.db' 
+}
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Flask extensions init
 Session(app)
 db.init_app(app)
 
@@ -139,10 +143,55 @@ def get_stations():
         print(f"Error fetching stations: {str(e)}")
         return jsonify({"error": "An error occurred while fetching stations."}), 500
 
+
+@app.route('/register', methods=['POST'])
+def register_user():
+    email = request.form.get('email')
+    password = request.form.get('password')
+    confirm_password = request.form.get('confirm_password')
+
+    if password != confirm_password:
+        return jsonify({'error': 'Passwords do not match.'}), 400
+
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user is not None:
+        return 'Email already registered.'
+
+    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+ 
+    try:    
+        user = User(email=email, password_hash=hashed_password)
+        db.session.add(user)
+        db.session.commit()
+        return jsonify({"success": True, "message": "User registered successfully."}), 200
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error registering user: {e}")
+        return jsonify({"success": False, "message": "Registration failed due to a server error."}), 500
+    
+@app.route('/login', methods=['POST'])
+def login_user():
+    email = request.form.get('email')
+    password = request.form.get('password')
+
+    user = User.query.filter_by(email=email).first()
+
+    if user and bcrypt.check_password_hash(user.password_hash, password):
+        session['user_id'] = user.id
+        return jsonify({"success": True, "message": "Logged in successfully."}), 200
+    else:
+        return jsonify({"success": False, "message": "Invalid email or password."}), 401
+
+@app.route('/logout')
+def logout():
+    session.pop('user_id', None)  # Remove 'user_id' from session
+    return jsonify({"success": True, "message": "You have been logged out."}), 200
+
+
 if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() in ['true', '1', 't']
     port = int(os.environ.get('PORT', 8080))
     app.run(debug=debug_mode,
             host='0.0.0.0',
             port=port)
-            #ssl_context=('/etc/ssl/localcerts/localhost+2.pem', '/etc/ssl/localcerts/localhost+2-key.pem')) 
+            #ssl_context=('/etc/ssl/localcerts/localhost+2.pem', '/etc/ssl/localcerts/localhost+2-key.pem')) + uncomment app.config["SESSION_COOKIE_SECURE"]
