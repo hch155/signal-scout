@@ -6,6 +6,7 @@ from sqlalchemy import or_
 from collections import defaultdict
 from queries import get_all_stations, find_nearest_stations, process_stations, haversine, get_band_stats, get_stats
 from dotenv import load_dotenv
+from datetime import timedelta
 import markdown, os, random
 
 app = Flask(__name__)
@@ -13,10 +14,11 @@ bcrypt = Bcrypt(app)
 
 ssl_context = (os.getenv('SSL_CERT_PATH'), os.getenv('SSL_KEY_PATH'))
 # Session and database configuration
-app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_PERMANENT"] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config["SESSION_TYPE"] = "filesystem"
-app.config["SESSION_COOKIE_SAMESITE"] = 'Strict'  # SameSite attribute for all session cookies
-#app.config["SESSION_COOKIE_SECURE"] = True  # Only send cookies over HTTPS
+app.config["SESSION_COOKIE_SAMESITE"] = 'Lax'  # SameSite attribute for all session cookies
+app.config["SESSION_COOKIE_SECURE"] = True  # Only send cookies over HTTPS
 app.config["SESSION_COOKIE_HTTPONLY"] = True  # Prevent JavaScript access to session cookie, prevent XSS scripting attacks
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
@@ -173,7 +175,7 @@ def register_user():
 def login_user():
     email = request.form.get('email')
     password = request.form.get('password')
-
+ 
     user = User.query.filter_by(email=email).first()
 
     if user and bcrypt.check_password_hash(user.password_hash, password):
@@ -193,10 +195,19 @@ def session_check():
     is_logged_in = 'user_id' in session
     return jsonify({"logged_in": is_logged_in})
 
+@app.route('/debug_session')
+def debug_session():
+    session_info = {
+        "logged_in": 'user_id' in session,
+        "session_permanent": session.permanent,
+        "session_lifetime": str(app.permanent_session_lifetime),
+    }
+    return jsonify(session_info)
+
 if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() in ['true', '1', 't']
     port = int(os.environ.get('PORT', 8080))
     app.run(debug=debug_mode,
             host='0.0.0.0',
-            port=port)
-            #ssl_context=('/etc/ssl/localcerts/localhost+2.pem', '/etc/ssl/localcerts/localhost+2-key.pem')) + uncomment app.config["SESSION_COOKIE_SECURE"]
+            port=port,
+            ssl_context=('/etc/ssl/localcerts/localhost+2.pem', '/etc/ssl/localcerts/localhost+2-key.pem'))
