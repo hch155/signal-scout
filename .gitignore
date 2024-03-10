@@ -4,3 +4,5 @@ __pycache__/
 .env
 *.crt
 *.key
+*.db
+instance/users.db
