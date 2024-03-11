@@ -60,23 +60,40 @@ function initializeScrollToTop() {
   }
 }
 
+function toggleRegistrationModal() {
+  document.getElementById('registrationModal').classList.toggle('hidden');
+}
+
+function toggleSignInModal() {
+  document.getElementById('signInModal').classList.toggle('hidden');
+}
+
+function closeModal(event) {
+  event.target.closest('.modal').classList.add('hidden');
+}
+
+function backgroundClickToClose(event, modal) {
+  if (event.target === modal) modal.classList.add('hidden');
+}
+
 function initializeModalToggle() {
   const registerBtn = document.getElementById('registerBtn');
   const signInBtn = document.getElementById('signInBtn');
   const registrationModal = document.getElementById('registrationModal');
   const signInModal = document.getElementById('signInModal');
 
-  registerBtn.addEventListener('click', () => registrationModal.classList.toggle('hidden'));
-  signInBtn.addEventListener('click', () => signInModal.classList.toggle('hidden'));
+
+  registerBtn.addEventListener('click', toggleRegistrationModal);
+
+
+  signInBtn.addEventListener('click', toggleSignInModal);
 
   document.querySelectorAll('.close-modal').forEach(button => {
-      button.addEventListener('click', () => button.closest('.modal').classList.add('hidden'));
+      button.addEventListener('click', closeModal);
   });
 
   [registrationModal, signInModal].forEach(modal => {
-      modal.addEventListener('click', (event) => {
-          if (event.target === modal) modal.classList.add('hidden');
-      });
+      modal.addEventListener('click', (event) => backgroundClickToClose(event, modal));
   });
 }
 
@@ -254,11 +271,21 @@ function conditionalCheckLoginState() {
 }
 
 function adjustUIForLoggedOutState() {
-  document.getElementById('registrationModal').classList.add('hidden');
-  document.getElementById('signInModal').classList.add('hidden');
-  document.getElementById('signInBtn').style.display = 'block'; 
-  document.getElementById('registerBtn').style.display = 'block'; 
-  document.getElementById('logoutButton').style.display = 'none';
+  const registrationModal = document.getElementById('registrationModal');
+  const signInModal = document.getElementById('signInModal');
+  
+  if (registrationModal) {
+      registrationModal.style.display = '';
+      registrationModal.classList.add('hidden');
+  }
+  if (signInModal) {
+      signInModal.style.display = '';
+      signInModal.classList.add('hidden');
+  }
+
+  safelyUpdateDisplay('signInBtn', 'block');
+  safelyUpdateDisplay('registerBtn', 'block');
+  safelyUpdateDisplay('logoutButton', 'none');
 }
 
 function resetUIAndListeners() {
