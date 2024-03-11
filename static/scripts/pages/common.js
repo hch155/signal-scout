@@ -85,18 +85,96 @@ function initializeFormSubmissions() {
   document.getElementById('signInForm').addEventListener('submit', handleSignInSubmit);
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+  const registrationForm = document.getElementById('registrationForm');
+
+  if (registrationForm) {
+      registrationForm.addEventListener('submit', handleRegistrationSubmit);
+  }
+});
+
 function handleRegistrationSubmit(e) {
   e.preventDefault(); // Prevent default form submission
+
   const formData = new FormData(e.target);
+  const email = formData.get('email');
   const password = formData.get('password');
   const confirmPassword = formData.get('confirm_password');
 
-  if (password !== confirmPassword) {
-      alert('Passwords do not match.');
-      return;
-  }
+  resetErrorMessages();
 
-  submitForm('/register', formData);
+  // validations
+  const isEmailValid = validateField(email, 'emailError', 'Please enter a valid email address.', validateEmail);
+  const isPasswordValid = validateField(password, 'passwordError', 
+      'Password must be at least 8 characters long, include at least one number, one uppercase letter, and one special character.', validatePassword);
+  const doPasswordsMatch = validateFieldMatch(password, confirmPassword, 'confirmPasswordError', 'Passwords do not match.');
+
+  if (isEmailValid && isPasswordValid && doPasswordsMatch) {
+      submitForm('/register', formData); 
+  }
+}
+
+function validateField(value, errorElementId, errorMessage, validationFunction) {
+  if (!validationFunction(value)) {
+      showError(errorElementId, errorMessage);
+      return false;
+  }
+  return true;
+}
+
+function validateFieldMatch(value1, value2, errorElementId, errorMessage) {
+  if (value1 !== value2) {
+      showError(errorElementId, errorMessage);
+      return false;
+  }
+  return true;
+}
+
+function showError(elementId, message) {
+  const errorElement = document.getElementById(elementId);
+  errorElement.textContent = message;
+  errorElement.classList.remove('hidden'); 
+}
+
+function resetErrorMessages() {
+  document.querySelectorAll('.error-message').forEach((errorElement) => {
+      errorElement.classList.add('hidden');
+  });
+}
+
+// validation functions
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validatePassword(password) {
+  return /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*\W).{8,}$/.test(password);
+}
+
+function submitForm(url, formData) {
+  fetch(url, {
+      method: 'POST',
+      body: formData,
+  })
+  .then(response => response.json())
+  .then(data => {
+      if (data.success) {
+          alert('Registration successful!');
+          registrationForm.reset();
+          // window.location.href = '/path';
+          checkLoginStateAndUpdateUI();
+          if (url === '/login') {
+              localStorage.setItem('loggedIn', 'true');
+          }
+          
+      } else {
+          alert('Registration failed: ' + data.message);
+      }
+  })
+  .catch(error => {
+      console.error('Error:', error);
+      alert('An error occurred during registration. Please try again.');
+  });
 }
 
 function handleSignInSubmit(e) {
