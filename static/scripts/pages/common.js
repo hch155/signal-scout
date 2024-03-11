@@ -82,10 +82,7 @@ function initializeModalToggle() {
   const registrationModal = document.getElementById('registrationModal');
   const signInModal = document.getElementById('signInModal');
 
-
   registerBtn.addEventListener('click', toggleRegistrationModal);
-
-
   signInBtn.addEventListener('click', toggleSignInModal);
 
   document.querySelectorAll('.close-modal').forEach(button => {
@@ -225,6 +222,8 @@ function logoutUser() {
       if (data.success) {
           localStorage.removeItem('loggedIn');
           resetUIAndListeners();
+          clearSensitiveSessionData();
+          clearLoginForm();
       } else {
           console.error('Logout failed:', data.message);
       }
@@ -292,6 +291,15 @@ function resetUIAndListeners() {
   adjustUIForLoggedOutState(); 
   initializeModalToggle();
   initializeFormSubmissions();
+}
+
+function clearSensitiveSessionData() {
+  sessionStorage.removeItem('userSessionInfo');
+}
+
+function clearLoginForm() {
+  document.getElementById('email').value = '';
+  document.getElementById('password').value = ''; 
 }
 
 function debugSession() {
