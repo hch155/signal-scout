@@ -18,7 +18,7 @@ app.config["SESSION_PERMANENT"] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SESSION_COOKIE_SAMESITE"] = 'Lax'  # SameSite attribute for all session cookies
-app.config["SESSION_COOKIE_SECURE"] = True  # Only send cookies over HTTPS
+#app.config["SESSION_COOKIE_SECURE"] = True  # Only send cookies over HTTPS
 app.config["SESSION_COOKIE_HTTPONLY"] = True  # Prevent JavaScript access to session cookie, prevent XSS scripting attacks
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
@@ -215,5 +215,5 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     app.run(debug=debug_mode,
             host='0.0.0.0',
-            port=port,
-            ssl_context=('/etc/ssl/localcerts/localhost+2.pem', '/etc/ssl/localcerts/localhost+2-key.pem'))
+            port=port)
+            #ssl_context=('/etc/ssl/localcerts/localhost+2.pem', '/etc/ssl/localcerts/localhost+2-key.pem')) #uncomment line 21
