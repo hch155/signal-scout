@@ -7,7 +7,7 @@ from collections import defaultdict
 from queries import get_all_stations, find_nearest_stations, process_stations, haversine, get_band_stats, get_stats
 from dotenv import load_dotenv
 from datetime import timedelta
-import markdown, os, random
+import markdown, os, random, re
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
@@ -151,6 +151,12 @@ def register_user():
     email = request.form.get('email')
     password = request.form.get('password')
     confirm_password = request.form.get('confirm_password')
+
+    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+$", email):
+        return "Invalid email address.", 400
+
+    if not re.fullmatch(r"(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*\W).{8,}$", password):
+        return "Password does not meet criteria.", 400
 
     if password != confirm_password:
         return jsonify({'error': 'Passwords do not match.'}), 400
