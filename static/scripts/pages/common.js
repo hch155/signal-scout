@@ -174,11 +174,12 @@ function submitForm(url, formData) {
   .then(data => {
       if (data.success) {
           alert('Registration successful!');
-          registrationForm.reset();
           // window.location.href = '/path';
-          checkLoginStateAndUpdateUI();
+          resetUIAndListeners();
+          document.getElementById(registrationModal).classList.toggle('hidden')
           if (url === '/login') {
               localStorage.setItem('loggedIn', 'true');
+              checkLoginStateAndUpdateUI();
           }
           
       } else {
@@ -203,9 +204,10 @@ function submitForm(url, formData) {
   .then(data => {
       alert(data.message);
       if (data.success) {
-          checkLoginStateAndUpdateUI();
+          clearLoginForm();
           if (url === '/login') {
               localStorage.setItem('loggedIn', 'true');
+              checkLoginStateAndUpdateUI();
           }
       }
   })
@@ -299,7 +301,8 @@ function clearSensitiveSessionData() {
 
 function clearLoginForm() {
   document.getElementById('email').value = '';
-  document.getElementById('password').value = ''; 
+  document.getElementById('password').value = '';
+  document.getElementById('confirmpassword').value = '';  
 }
 
 function debugSession() {
