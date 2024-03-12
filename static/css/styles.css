@@ -71,3 +71,7 @@
 .label-container > label {
   @apply inline-flex items-center mr-1; 
 }
+
+.toast-transition {
+  transition: opacity 1s;
+}
