@@ -176,7 +176,6 @@ function submitForm(url, formData) {
           alert('Registration successful!');
           // window.location.href = '/path';
           resetUIAndListeners();
-          document.getElementById(registrationModal).classList.toggle('hidden')
           if (url === '/login') {
               localStorage.setItem('loggedIn', 'true');
               checkLoginStateAndUpdateUI();
@@ -204,6 +203,7 @@ function submitForm(url, formData) {
   .then(data => {
       alert(data.message);
       if (data.success) {
+          adjustUIForLoggedOutState();
           clearLoginForm();
           if (url === '/login') {
               localStorage.setItem('loggedIn', 'true');
