@@ -173,21 +173,21 @@ function submitForm(url, formData) {
   .then(response => response.json())
   .then(data => {
       if (data.success) {
-          alert('Registration successful!');
           // window.location.href = '/path';
           resetUIAndListeners();
+          showToast('Registration successful!', 'success');
           if (url === '/login') {
               localStorage.setItem('loggedIn', 'true');
               checkLoginStateAndUpdateUI();
           }
           
       } else {
-          alert('Registration failed: ' + data.message);
+        showToast('Registration failed: Email already in use.', 'error');
       }
   })
   .catch(error => {
       console.error('Error:', error);
-      alert('An error occurred during registration. Please try again.');
+      showToast('An error occurred during registration. Please try again.', 'error');
   });
 }
 
@@ -201,19 +201,26 @@ function submitForm(url, formData) {
   fetch(url, { method: 'POST', body: formData })
   .then(response => response.json())
   .then(data => {
-      alert(data.message);
+
       if (data.success) {
-          adjustUIForLoggedOutState();
           clearLoginForm();
+          adjustUIForLoggedOutState();
           if (url === '/login') {
               localStorage.setItem('loggedIn', 'true');
               checkLoginStateAndUpdateUI();
+              showToast('Logged in', 'success');
           }
+          if (url === '/register') {
+            showToast('User registered', 'success');
+          }
+      } else {
+        if (url === '/login')
+          showToast(data.errorMessage || 'Login failed. Wrong email or password. Please try again.', 'error');
       }
   })
   .catch(error => {
       console.error('Error:', error);
-      alert('An error occurred. Please try again.');
+      showToast('An error occurred. Please try again.', 'error');
   });
 }
 
@@ -223,9 +230,10 @@ function logoutUser() {
   .then(data => {
       if (data.success) {
           localStorage.removeItem('loggedIn');
+          clearLoginForm();
           resetUIAndListeners();
           clearSensitiveSessionData();
-          clearLoginForm();
+          showToast('Logged out', 'success');
       } else {
           console.error('Logout failed:', data.message);
       }
@@ -300,9 +308,26 @@ function clearSensitiveSessionData() {
 }
 
 function clearLoginForm() {
-  document.getElementById('email').value = '';
-  document.getElementById('password').value = '';
-  document.getElementById('confirmpassword').value = '';  
+  document.getElementById('registrationForm').reset();
+  document.getElementById('signInForm').reset();
+}
+
+function showToast(message, type = 'success') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  const bgColorClass = type === 'success' ? 'bg-blue-500' : 'bg-red-500';
+  toast.className = `${bgColorClass} text-white px-4 py-2 rounded shadow-lg mb-2 toast-transition`;
+  toast.textContent = message;
+
+  container.appendChild(toast); 
+
+ 
+  setTimeout(() => {
+    toast.classList.add('opacity-0');
+    setTimeout(() => {
+      container.removeChild(toast); 
+    }, 1000);
+  }, 2500);
 }
 
 function debugSession() {
