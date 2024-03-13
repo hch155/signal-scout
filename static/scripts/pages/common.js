@@ -208,6 +208,7 @@ function submitForm(url, formData) {
           if (url === '/login') {
               localStorage.setItem('loggedIn', 'true');
               checkLoginStateAndUpdateUI();
+              updateDynamicContent();
               showToast('Logged in', 'success');
           }
           if (url === '/register') {
@@ -233,6 +234,7 @@ function logoutUser() {
           clearLoginForm();
           resetUIAndListeners();
           clearSensitiveSessionData();
+          updateDynamicContent();
           showToast('Logged out', 'success');
       } else {
           console.error('Logout failed:', data.message);
