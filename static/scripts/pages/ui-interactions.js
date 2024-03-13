@@ -1,4 +1,6 @@
 // map.html
+updateDynamicContent()
+
 var mymap = L.map('mapid').setView([52.231, 21.004], 7); //  default location and zoom level
 
 var lightTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -141,52 +143,55 @@ filterControl.onAdd = function(map) {
         </button>
 
         <div id="filterContainer" class="bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400 hidden">
-
-            <div class="my-2>
-                <p class="text-gray-700 font-bold dark:text-white">Service Provider:</p>
-                <div class="flex flex-wrap label-container gap-1">    
-                    <label><input type="checkbox" name="service_provider" value="P4 Sp. z o.o.'"> Play</label>
-                    <label><input type="checkbox" name="service_provider" value="Orange Polska S.A."> Orange</label>
-                    <label><input type="checkbox" name="service_provider" value="T-Mobile Polska S.A."> T-Mobile</label>
-                    <label><input type="checkbox" name="service_provider" value="POLKOMTEL Sp. z o.o."> Plus</label>
-                    <label><input type="checkbox" name="service_provider" value="AERO 2 Sp. z o.o."> Aero 2</label>
+            <div class="static-content">
+                <div class="my-2>
+                    <p class="text-gray-700 font-bold dark:text-white">Service Provider:</p>
+                    <div class="flex flex-wrap label-container gap-1">    
+                        <label><input type="checkbox" name="service_provider" value="P4 Sp. z o.o.'"> Play</label>
+                        <label><input type="checkbox" name="service_provider" value="Orange Polska S.A."> Orange</label>
+                        <label><input type="checkbox" name="service_provider" value="T-Mobile Polska S.A."> T-Mobile</label>
+                        <label><input type="checkbox" name="service_provider" value="POLKOMTEL Sp. z o.o."> Plus</label>
+                        <label><input type="checkbox" name="service_provider" value="AERO 2 Sp. z o.o."> Aero 2</label>
+                    </div>
                 </div>
-            </div>
 
-            <div class="my-2">
-                <p class="text-gray-700 font-bold dark:text-white">Frequency:</p>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-1">
-                    <label><input type="checkbox" name="frequency_bands" value="5G3600"> 5G3600</label>
-                    <label><input type="checkbox" name="frequency_bands" value="5G2100"> 5G2100</label>
-                    <label><input type="checkbox" name="frequency_bands" value="5G1800"> 5G1800</label>
-                    <label><input type="checkbox" name="frequency_bands" value="LTE2600"> LTE2600</label>
-                    <label><input type="checkbox" name="frequency_bands" value="LTE2100"> LTE2100</label>
-                    <label><input type="checkbox" name="frequency_bands" value="LTE1800"> LTE1800</label>
-                    <label><input type="checkbox" name="frequency_bands" value="LTE900"> LTE900</label>
-                    <label><input type="checkbox" name="frequency_bands" value="LTE800"> LTE800</label>
-                    <label><input type="checkbox" name="frequency_bands" value="GSM900"> GSM900</label>
+                <div class="my-2">
+                    <p class="text-gray-700 font-bold dark:text-white">Frequency:</p>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-1">
+                        <label><input type="checkbox" name="frequency_bands" value="5G3600"> 5G3600</label>
+                        <label><input type="checkbox" name="frequency_bands" value="5G2100"> 5G2100</label>
+                        <label><input type="checkbox" name="frequency_bands" value="5G1800"> 5G1800</label>
+                        <label><input type="checkbox" name="frequency_bands" value="LTE2600"> LTE2600</label>
+                        <label><input type="checkbox" name="frequency_bands" value="LTE2100"> LTE2100</label>
+                        <label><input type="checkbox" name="frequency_bands" value="LTE1800"> LTE1800</label>
+                        <label><input type="checkbox" name="frequency_bands" value="LTE900"> LTE900</label>
+                        <label><input type="checkbox" name="frequency_bands" value="LTE800"> LTE800</label>
+                        <label><input type="checkbox" name="frequency_bands" value="GSM900"> GSM900</label>
+                    </div>
                 </div>
-            </div>
 
-            <button id="apply-filters" class="apply-filters-btn mt-2 w-full text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500" font-bold py-1 px-4 rounded">
-                Apply Filters
-            </button>
+                <button id="apply-filters" class="apply-filters-btn mt-2 w-full text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500" font-bold py-1 px-4 rounded">
+                    Apply Filters
+                </button>
 
-            <div class="slider-container my-4">
-                <div class="flex justify-between items-center">
-                    <button id="showNearestBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500" font-bold py-1 px-4 rounded">Show Nearest BTS</button>
+                <div class="slider-container my-4">
+                    <div class="flex justify-between items-center">
+                        <button id="showNearestBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500" font-bold py-1 px-4 rounded">Show Nearest BTS</button>
+                    </div>
+                    <input type="number" id="nearestBtsRange" min="1" max="10" placeholder="" class="w-[4.25rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
                 </div>
-                <input type="number" id="nearestBtsRange" min="1" max="10" placeholder="" class="w-[4.25rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
-            </div>
 
-            <div class="slider-container my-4">
-                <div class="flex justify-between items-center">
-                    <button id="showWithinDistanceBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500" font-bold py-1 px-4 rounded">Show BTS Within Distance</button>
+                <div class="slider-container my-4">
+                    <div class="flex justify-between items-center">
+                        <button id="showWithinDistanceBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500" font-bold py-1 px-4 rounded">Show BTS Within Distance</button>
+                    </div>
+                    <input type="number" id="withinDistanceRange" min="0.0" max="10" step="0.1" placeholder="" class="w-[4.25rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
                 </div>
-                <input type="number" id="withinDistanceRange" min="0.0" max="10" step="0.1" placeholder="" class="w-[4.25rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
-            </div>
 
+                <div id="dynamicContent"
                 
+                </div>
+            </div> 
         </div>
         
     `; 
@@ -538,5 +543,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
     nearestBtsRangeInput.setAttribute('placeholder', '1-10');
     withinDistanceInput.setAttribute('placeholder', '0.1-10');
-   
 });
+
+function updateDynamicContent() {
+    fetch('/session_check')
+    .then(response => response.json())
+    .then(data => {
+        const dynamicContent = document.getElementById('dynamicContent');
+        const isLoggedIn = data.logged_in;
+        console.log(isLoggedIn)
+        if (isLoggedIn) {
+            dynamicContent.innerHTML = `
+                <div id="latLngContainer" class="flex flex-col space-y-0.5">
+                <button id="submitCoords" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded">Submit</button>
+                    <input type="text" id="latitudeInput" placeholder="52.230 (°N)" class="w-[4rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
+                    <input type="text" id="longitudeInput" placeholder="21.003 (°E)" class="w-[4rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
+                </div>`;
+        } else {
+            dynamicContent.innerHTML = `
+                <div id="latLngContainer" class="opacity-50 cursor-not-allowed flex flex-col space-y-0.5">
+                    <button id="submitCoords" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="Register or log in to use this feature.">Submit</button>
+                    <input type="text" id="latitudeInput" placeholder="52.230 (°N)" class="w-[4rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" disabled title="Register or log in to use this feature.">
+                    <input type="text" id="longitudeInput" placeholder="21.003 (°E)" class="w-[4rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" disabled title="Register or log in to use this feature.">
+                </div>`;
+            }
+    })
+    .catch(error => console.error('Error:', error));
+}
+  
