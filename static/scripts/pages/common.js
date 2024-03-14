@@ -25,25 +25,29 @@ function adjustFooterPosition() {
 }
 
 function initializeThemeToggle() {
-  const storedTheme = localStorage.getItem('theme');
-  const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const isDarkModePreferred = storedTheme === 'dark' || (!storedTheme && prefersDarkMode);
+    const btnThemeToggler = document.getElementById('themeToggle');
+    const themeIcon = document.createElement('img');
+    
+    const updateThemeIcon = (isDarkMode) => {
+        themeIcon.src = isDarkMode ? 'static/images/sunrise.svg' : 'static/images/sunset.svg';
+        themeIcon.style.filter = isDarkMode ? 'invert(100%)' : 'none';
+        if (!btnThemeToggler.contains(themeIcon)) {
+            btnThemeToggler.appendChild(themeIcon);
+        }
+    };
 
-  document.documentElement.classList.toggle('dark', isDarkModePreferred);
+    const storedTheme = localStorage.getItem('theme');
+    const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDarkModePreferred = storedTheme === 'dark' || (!storedTheme && prefersDarkMode);
 
-  const btnThemeToggler = document.getElementById('themeToggle');
-  if (btnThemeToggler) {
-      btnThemeToggler.textContent = isDarkModePreferred ? 'Light Mode' : 'Dark Mode';
+    document.documentElement.classList.toggle('dark', isDarkModePreferred);
+    updateThemeIcon(isDarkModePreferred);
 
-      btnThemeToggler.addEventListener('click', () => {
-          const isDarkModeNow = document.documentElement.classList.toggle('dark');
-          localStorage.setItem('theme', isDarkModeNow ? 'dark' : 'light');
-          btnThemeToggler.textContent = isDarkModeNow ? 'Light Mode' : 'Dark Mode';
-
-          // Custom event indicating the theme has changed
-          window.dispatchEvent(new CustomEvent('themeChanged', { detail: { isDarkMode: isDarkModeNow } }));
-      });
-  }
+    btnThemeToggler.addEventListener('click', () => {
+        const isDarkModeNow = document.documentElement.classList.toggle('dark');
+        localStorage.setItem('theme', isDarkModeNow ? 'dark' : 'light');
+        updateThemeIcon(isDarkModeNow);
+    });
 }
 
 // Scroll up
