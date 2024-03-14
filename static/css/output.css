@@ -665,6 +665,10 @@ video {
   margin-right: 1rem;
 }
 
+.mr-8 {
+  margin-right: 2rem;
+}
+
 .mt-1 {
   margin-top: 0.25rem;
 }
@@ -725,8 +729,12 @@ video {
   width: 4.25rem;
 }
 
-.w-\[5rem\] {
-  width: 5rem;
+.w-\[5\.5rem\] {
+  width: 5.5rem;
+}
+
+.w-\[8rem\] {
+  width: 8rem;
 }
 
 .w-full {
@@ -809,10 +817,10 @@ video {
   gap: 1.25rem;
 }
 
-.space-x-2 > :not([hidden]) ~ :not([hidden]) {
+.space-x-4 > :not([hidden]) ~ :not([hidden]) {
   --tw-space-x-reverse: 0;
-  margin-right: calc(0.5rem * var(--tw-space-x-reverse));
-  margin-left: calc(0.5rem * calc(1 - var(--tw-space-x-reverse)));
+  margin-right: calc(1rem * var(--tw-space-x-reverse));
+  margin-left: calc(1rem * calc(1 - var(--tw-space-x-reverse)));
 }
 
 .space-y-0 > :not([hidden]) ~ :not([hidden]) {

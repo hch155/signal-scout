@@ -145,6 +145,26 @@ def get_stations():
         print(f"Error fetching stations: {str(e)}")
         return jsonify({"error": "An error occurred while fetching stations."}), 500
 
+@app.route('/find_station', methods=['GET'])
+def find_station():
+    basestation_id = request.args.get('basestation_id', type=str)
+    if not basestation_id or len(basestation_id) > 7 or not re.match("^[A-Za-z0-9]+$", basestation_id):
+        return jsonify({"error": "Request cannot be processed"}), 400
+
+    station = BaseStation.query.filter_by(basestation_id=basestation_id).first()
+    if station:
+        station_data = {
+            'basestation_id': station.basestation_id,
+            'latitude': station.latitude,
+            'longitude': station.longitude,
+            'frequency_bands': station.frequency_band,
+            'city': station.city,
+            'location': station.location,
+            'service_provider': station.service_provider,
+        }
+        return jsonify(station_data)
+    else:
+        return jsonify({"error": "Station not found"}), 404
 
 @app.route('/register', methods=['POST'])
 def register_user():
