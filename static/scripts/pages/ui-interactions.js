@@ -583,7 +583,6 @@ function updateDynamicContent() {
     .then(data => {
         const dynamicContent = document.getElementById('dynamicContent');
         const isLoggedIn = data.logged_in;
-        console.log(isLoggedIn)
         if (isLoggedIn) {
             dynamicContent.innerHTML = `
                 <div id="latLngContainer" class="flex flex-col space-y-0.5">
