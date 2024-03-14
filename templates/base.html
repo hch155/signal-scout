@@ -41,6 +41,14 @@
                   <div class="error-message text-red-500 text-sm mt-1 hidden" id="passwordError"></div>
                   <input type="password" id="confirmpassword" name="confirm_password" placeholder="Confirm Password" class="w-full dark:bg-gray-300 p-2 border rounded">
                   <div class="error-message text-red-500 text-sm mt-1 hidden" id="confirmPasswordError"></div>
+                  <div id="passwordRequirements" class="mt-2">
+                    <p class="password-requirement text-red-500" data-criteria="minLength"><span class="indicator">X</span> At least 8 characters</p>
+                    <p class="password-requirement text-red-500" data-criteria="number"><span class="indicator">X</span> Contains a number</p>
+                    <p class="password-requirement text-red-500" data-criteria="uppercase"><span class="indicator">X</span> Contains an uppercase letter</p>
+                    <p class="password-requirement text-red-500" data-criteria="lowercase"><span class="indicator">X</span> Contains a lowercase letter</p>
+                    <p class="password-requirement text-red-500" data-criteria="specialChar"><span class="indicator">X</span> Contains a special character</p>
+                    <p class="password-requirement text-red-500" data-criteria="passwordMatch"><span class="indicator">X</span> Passwords match</p>
+                </div>
                   <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-700">Register</button>
                 </form>
               </div>
