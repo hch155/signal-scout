@@ -545,6 +545,30 @@ document.addEventListener('DOMContentLoaded', function() {
     withinDistanceInput.setAttribute('placeholder', '0.1-10');
 });
 
+document.addEventListener('DOMContentLoaded', function() {
+    const dynamicContent = document.getElementById('dynamicContent');
+
+    function setupLatLngInputValidation(selector, min, max) {
+        dynamicContent.addEventListener('change', function(event) {
+            if (event.target.matches(selector)) {
+                const input = event.target;
+                let value = parseFloat(input.value);
+                if (value < min) {
+                    input.value = min.toFixed(3);
+                } else if (value > max) {
+                    input.value = max.toFixed(3);
+                } else {
+                    input.value = parseFloat(input.value).toFixed(3);
+                }
+            }
+        });
+    }
+
+    // specific selectors to match input elements
+    setupLatLngInputValidation('#latitudeInput', 48, 58);
+    setupLatLngInputValidation('#longitudeInput', 13.5, 24.5);
+});
+
 function updateDynamicContent() {
     fetch('/session_check')
     .then(response => response.json())
@@ -555,16 +579,16 @@ function updateDynamicContent() {
         if (isLoggedIn) {
             dynamicContent.innerHTML = `
                 <div id="latLngContainer" class="flex flex-col space-y-0.5">
-                <button id="submitCoords" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded">Submit</button>
-                    <input type="text" id="latitudeInput" placeholder="52.230 (°N)" class="w-[4rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
-                    <input type="text" id="longitudeInput" placeholder="21.003 (°E)" class="w-[4rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
+                <button id="submitCoords" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded ">Submit</button>
+                    <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="48" max="58" step="0.1">
+                    <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="13.5" max="24.5" step="0.1">
                 </div>`;
         } else {
             dynamicContent.innerHTML = `
                 <div id="latLngContainer" class="opacity-50 cursor-not-allowed flex flex-col space-y-0.5">
                     <button id="submitCoords" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="Register or log in to use this feature.">Submit</button>
-                    <input type="text" id="latitudeInput" placeholder="52.230 (°N)" class="w-[4rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" disabled title="Register or log in to use this feature.">
-                    <input type="text" id="longitudeInput" placeholder="21.003 (°E)" class="w-[4rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" disabled title="Register or log in to use this feature.">
+                    <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="48" max="58" step="0.1" disabled title="Register or log in to use this feature.">
+                    <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="13.5" max="24.5" step="0.1" disabled title="Register or log in to use this feature.">
                 </div>`;
             }
     })
