@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initializeThemeToggle();
   conditionalCheckLoginState();
   initializeScrollToTop();
+  initializePasswordValidation();
 });
 
 window.addEventListener('resize', adjustFooterPosition);
@@ -165,6 +166,57 @@ function validatePassword(password) {
   return /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*\W).{8,}$/.test(password);
 }
 
+function initializePasswordValidation() {
+  const passwordInput = document.getElementById('password');
+  const passwordConfirmInput = document.getElementById('confirmpassword');
+
+  function updatePasswordRequirements() {
+      const password = passwordInput.value;
+      const confirmPassword = passwordConfirmInput.value;
+
+      const requirements = {
+          minLength: password.length >= 8,
+          number: /\d/.test(password),
+          uppercase: /[A-Z]/.test(password),
+          lowercase: /[a-z]/.test(password),
+          specialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+          passwordMatch: password.length >= 8 && password === confirmPassword
+      };
+
+      document.querySelectorAll('.password-requirement').forEach(req => {
+          const criteria = req.getAttribute('data-criteria');
+          const isMet = requirements[criteria];
+
+          req.classList.toggle('text-red-500', !isMet);
+          req.classList.toggle('text-green-500', isMet);
+
+          const indicator = req.querySelector('.indicator');
+          if (indicator) {
+              indicator.textContent = isMet ? '✓' : 'X';
+          } else {
+              const newIndicator = document.createElement('span');
+              newIndicator.className = 'indicator';
+              newIndicator.textContent = isMet ? '✓' : 'X';
+              req.prepend(newIndicator);
+          }
+      });
+  }
+
+  if (passwordInput && passwordConfirmInput) {
+      [passwordInput, passwordConfirmInput].forEach(input => {
+          input.addEventListener('input', updatePasswordRequirements);
+      });
+  }
+}
+
+function resetPasswordCriteriaIndicators() {
+  document.querySelectorAll('.password-requirement').forEach(req => {
+      req.classList.add('text-red-500');
+      req.classList.remove('text-green-500');
+      req.textContent = req.textContent.replace('✓', 'X');
+  });
+}
+
 function submitForm(url, formData) {
   fetch(url, {
       method: 'POST',
@@ -213,6 +265,7 @@ function submitForm(url, formData) {
           }
           if (url === '/register') {
             showToast('User registered', 'success');
+            resetPasswordCriteriaIndicators();
           }
       } else {
         if (url === '/login')

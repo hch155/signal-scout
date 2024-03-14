@@ -246,16 +246,24 @@ setTimeout(() => {
 
 function requestAndSendGPSLocation() {
     if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(function(position) {
-            var userLat = position.coords.latitude;
-            var userLng = position.coords.longitude;
-            mymap.setView([userLat, userLng], 7); 
-            sendLocation(userLat, userLng);
-        }, {
-            enableHighAccuracy: true,
-            timeout: 7000,
-            maximumAge: 0
-        });
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                var userLat = position.coords.latitude;
+                var userLng = position.coords.longitude;
+                mymap.setView([userLat, userLng], 7); 
+                sendLocation(userLat, userLng); 
+            },
+            function(error) {
+                showToast('Location error: ${error.message}. Please try again.', 'error');
+            },
+            { 
+                enableHighAccuracy: true,
+                timeout: 7000,
+                maximumAge: 0
+            }
+        );
+    } else {
+        showToast('Geolocation is not supported by this browser.', 'error');
     }
 }
 
@@ -575,7 +583,6 @@ function updateDynamicContent() {
     .then(data => {
         const dynamicContent = document.getElementById('dynamicContent');
         const isLoggedIn = data.logged_in;
-        console.log(isLoggedIn)
         if (isLoggedIn) {
             dynamicContent.innerHTML = `
                 <div id="latLngContainer" class="flex flex-col space-y-0.5">
