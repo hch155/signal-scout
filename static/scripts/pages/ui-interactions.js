@@ -586,16 +586,20 @@ function updateDynamicContent() {
         if (isLoggedIn) {
             dynamicContent.innerHTML = `
                 <div id="latLngContainer" class="flex flex-col space-y-0.5">
-                <button id="submitCoords" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded ">Submit</button>
-                    <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="48" max="58" step="0.1">
-                    <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="13.5" max="24.5" step="0.1">
+                <button id="submitCoords" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded">Search</button>
+                    <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5.5rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="48" max="58" step="0.1">
+                    <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5.5rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="13.5" max="24.5" step="0.1">
+                    <button id="submitfilteredstation" class="w-48 mt-1 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded">Search</button>
+                    <input type="text" id="baseStationIdInput" placeholder="Enter Base Station ID" class="w-[8rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
                 </div>`;
         } else {
             dynamicContent.innerHTML = `
                 <div id="latLngContainer" class="opacity-50 cursor-not-allowed flex flex-col space-y-0.5">
-                    <button id="submitCoords" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="Register or log in to use this feature.">Submit</button>
-                    <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="48" max="58" step="0.1" disabled title="Register or log in to use this feature.">
-                    <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="13.5" max="24.5" step="0.1" disabled title="Register or log in to use this feature.">
+                    <button id="submitCoords" class="w-48 bg-blue-300 dark:bg-gray-700 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="Register or log in to use this feature.">Search</button>
+                    <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5.5rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="48" max="58" step="0.1" disabled title="Register or log in to use this feature.">
+                    <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5.5rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="13.5" max="24.5" step="0.1" disabled title="Register or log in to use this feature.">
+                    <button id="submitfilteredstation" class="w-48 mt-1 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded disabled title="Register or log in to use this feature.">Search</button>
+                    <input type="text" id="baseStationIdInput" placeholder="Enter Base Station ID" class="w-[8rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" disabled title="Register or log in to use this feature.">
                 </div>`;
             }
     })
@@ -631,10 +635,51 @@ function updateLatLngFilters() {
         fetchStations();
     }
 }
-    
+
 document.getElementById('dynamicContent').addEventListener('click', function(event) {
     if (event.target.id === 'submitCoords') {
         updateLatLngFilters();
     }
 });
+
+function updateStationFilters() {
+    const baseStationIdInput = document.getElementById('baseStationIdInput');
+    let basestation_id = baseStationIdInput.value;
+    basestation_id = basestation_id.toUpperCase();
+    if (!basestation_id || basestation_id.length > 7 || !/^[A-Za-z0-9]+$/.test(basestation_id)) {
+        showToast('Base Station ID must be up to 7 letters or digits.', 'error');
+        return;
+    }
+    if (!basestation_id) {
+        showToast('Base Station ID is required', 'error');
+        return;
+    }
+
+    fetch(`/find_station?basestation_id=${basestation_id}`)
+        .then(response => {
+            if (!response.ok) {
+                showToast('Base Station ID not found', 'error');
+                throw new Error('Base Station ID not found');
+            }
+            return response.json();
+        })
+        .then(station => {
+            if (station.error) {
+                showToast(station.error, 'error'); 
+                return; 
+            }
+
+            currentFilters.lat = station.latitude;
+            currentFilters.lng = station.longitude;
+            fetchStations();
+        })
+        .catch(error => {
+            console.error('Error fetching station:', error);
+        });
+}
   
+document.addEventListener('click', function(event) {
+    if (event.target.id === 'submitfilteredstation') {
+        updateStationFilters();
+    }
+});
