@@ -594,4 +594,40 @@ function updateDynamicContent() {
     })
     .catch(error => console.error('Error:', error));
 }
+
+function updateLatLngFilters() {
+    const latitudeInput = document.getElementById('latitudeInput');
+    const longitudeInput = document.getElementById('longitudeInput');
+
+    if (!latitudeInput.value.trim() || !longitudeInput.value.trim()) {
+        showToast('Both latitude and longitude must be filled out to proceed.', 'error');
+        return;
+    }
+
+    let lat = parseFloat(latitudeInput.value);
+    let lng = parseFloat(longitudeInput.value);
+    let validationPassed = true;
+
+    if (isNaN(lat) || lat < 48 || lat > 58) {
+        showToast('Latitude is out of range. Please enter a value between 48 and 58.', 'error');
+        validationPassed = false;
+    }
+
+    if (isNaN(lng) || lng < 13.5 || lng > 24.5) {
+        showToast('Longitude is out of range. Please enter a value between 13 and 25.', 'error');
+        validationPassed = false;
+    }
+
+    if (validationPassed) {
+        currentFilters.lat = lat;
+        currentFilters.lng = lng;
+        fetchStations();
+    }
+}
+    
+document.getElementById('dynamicContent').addEventListener('click', function(event) {
+    if (event.target.id === 'submitCoords') {
+        updateLatLngFilters();
+    }
+});
   
