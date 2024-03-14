@@ -26,7 +26,7 @@
             <button id="signInBtn" class="inline-flex items-center text-black dark:text-white">Login</button>
             <button id="registerBtn" class="inline-flex items-center mr-4 text-black dark:text-white">Sign Up</button>
             <button id="logoutButton" class="inline-flex items-center mr-4 text-black dark:text-white" style="display:none;" onclick="logoutUser()">Logout</button>
-            <button id="themeToggle" class="inline-flex items-center mr-4 text-black dark:text-white transition duration-1000 ease-in-out">Dark mode</button>
+            <button id="themeToggle" class="text-black dark:text-white"></button>
         </div>
         
         <div id="registrationModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center" style="z-index: 5000;">
@@ -71,6 +71,10 @@
     </header>
 
     <div id="toast-container" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center space-y-2" style="z-index: 5000;"></div>
+
+    <button id="backToTopBtn" class="hidden fixed bottom-5 right-5 bg-blue-500 dark:bg-gray-500 text-white px-4 py-2 rounded transition duration-1000 ease-in-out">
+      ↑ Back to Top
+    </button>
 
     <div class="flex-grow">
         {% block content %}{% endblock %} <!-- <main> --> 
