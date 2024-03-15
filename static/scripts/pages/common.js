@@ -47,6 +47,7 @@ function initializeThemeToggle() {
         const isDarkModeNow = document.documentElement.classList.toggle('dark');
         localStorage.setItem('theme', isDarkModeNow ? 'dark' : 'light');
         updateThemeIcon(isDarkModeNow);
+        window.dispatchEvent(new CustomEvent('themeChanged', { detail: { isDarkMode: isDarkModeNow } }));
     });
 }
 
