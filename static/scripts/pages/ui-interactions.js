@@ -596,10 +596,10 @@ function updateDynamicContent() {
             dynamicContent.innerHTML = `
                 <div id="latLngContainer" class="opacity-50 cursor-not-allowed flex flex-col space-y-0.5">
                     <button id="submitCoords" class="w-48 bg-blue-300 dark:bg-gray-700 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="Register or log in to use this feature.">Search</button>
-                    <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5.5rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="48" max="58" step="0.1" disabled title="Register or log in to use this feature.">
-                    <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5.5rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="13.5" max="24.5" step="0.1" disabled title="Register or log in to use this feature.">
-                    <button id="submitfilteredstation" class="w-48 mt-1 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded disabled title="Register or log in to use this feature.">Search</button>
-                    <input type="text" id="baseStationIdInput" placeholder="Enter Base Station ID" class="w-[8rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" disabled title="Register or log in to use this feature.">
+                    <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5.5rem] bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" min="48" max="58" step="0.1" disabled title="Register or log in to use this feature.">
+                    <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5.5rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" min="13.5" max="24.5" step="0.1" disabled title="Register or log in to use this feature.">
+                    <button id="submitfilteredstation" class="w-48 mt-1 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="Register or log in to use this feature.">Search</button>
+                    <input type="text" id="baseStationIdInput" placeholder="Enter Base Station ID" class="w-[8rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" disabled title="Register or log in to use this feature.">
                 </div>`;
             }
     })
