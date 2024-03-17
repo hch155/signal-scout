@@ -1,7 +1,8 @@
 from flask import Flask, render_template, request, jsonify, session
 from flask_bcrypt import Bcrypt
 from flask_session import Session
-from models import db, BaseStation, User
+from database import db
+from models import BaseStation, User
 from sqlalchemy import or_
 from collections import defaultdict
 from queries import get_all_stations, find_nearest_stations, process_stations, haversine, get_band_stats, get_stats
@@ -11,24 +12,41 @@ import markdown, os, random, re
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
+load_dotenv()
+# Database configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
+app.config['SQLALCHEMY_BINDS'] = {
+    'users': 'sqlite:///users.db' 
+}
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
+with app.app_context():
+    db.create_all()
+    
+"""
+if os.getenv('ENV') == 'production':
+    app.config['SQLALCHEMY_BINDS'] = {
+        'users': os.getenv('COCKROACH_DB_URI')
+    }
+else:
+    app.config['SQLALCHEMY_BINDS'] = {
+        'users': 'sqlite:///./instance/users.db'
+    }
+"""
+
+# HTTPS encryption for Flask
 
 ssl_context = (os.getenv('SSL_CERT_PATH'), os.getenv('SSL_KEY_PATH'))
-# Session and database configuration
+
+# Session configuration
+
 app.config["SESSION_PERMANENT"] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SESSION_COOKIE_SAMESITE"] = 'Lax'  # SameSite attribute for all session cookies
 #app.config["SESSION_COOKIE_SECURE"] = True  # Only send cookies over HTTPS
 app.config["SESSION_COOKIE_HTTPONLY"] = True  # Prevent JavaScript access to session cookie, prevent XSS scripting attacks
-
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
-app.config['SQLALCHEMY_BINDS'] = {
-    'users': 'sqlite:///users.db' 
-}
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
 Session(app)
-db.init_app(app)
 
 @app.before_request # Ensure session changes are acknowledged and persisted by Flask
 def session_handling():
@@ -236,4 +254,4 @@ if __name__ == '__main__':
     app.run(debug=debug_mode,
             host='0.0.0.0',
             port=port)
-            #ssl_context=('/etc/ssl/localcerts/localhost+2.pem', '/etc/ssl/localcerts/localhost+2-key.pem')) #uncomment line 21
+            #ssl_context=('/etc/ssl/localcerts/localhost+2.pem', '/etc/ssl/localcerts/localhost+2-key.pem')) #app.config["SESSION_COOKIE_SECURE"] = True
