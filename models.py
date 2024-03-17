@@ -1,14 +1,15 @@
-from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime, timedelta
+from database import db
 from werkzeug.security import generate_password_hash, check_password_hash
-
-db = SQLAlchemy()
+import os
 
 class BaseStation(db.Model):
-    id = db.Column(db.Integer, primary_key=True)            # db index 
-    basestation_id = db.Column(db.String, nullable=True)    # Real base station ID
-    city = db.Column(db.String, nullable=True)              # City
-    location = db.Column(db.String, nullable=True)          # Location/Street number
-    service_provider = db.Column(db.String, nullable=True)  # ISP
+    __tablename__ = 'base_station'
+    id = db.Column(db.Integer, primary_key=True)
+    basestation_id = db.Column(db.String, nullable=True)
+    city = db.Column(db.String, nullable=True)
+    location = db.Column(db.String, nullable=True)
+    service_provider = db.Column(db.String, nullable=True)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
     frequency_band = db.Column(db.String, nullable=False)
@@ -19,6 +20,17 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
+    username = db.Column(db.String(80), unique=True)
+    full_name = db.Column(db.String(100))
+    profile_picture = db.Column(db.String(255))
+    bio = db.Column(db.Text)
+    date_of_birth = db.Column(db.Date)
+    registration_date = db.Column(db.DateTime, default=datetime.utcnow)
+    last_login_date = db.Column(db.DateTime)
+    role = db.Column(db.String(80), default='user')
+    status = db.Column(db.String(80), default='active')
+    last_password_change = db.Column(db.DateTime, default=datetime.utcnow)
+    last_password_reset_request = db.Column(db.DateTime)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
