@@ -57,7 +57,8 @@ function initializeScrollToTop() {
 
   if (backToTopBtn) {
     window.addEventListener('scroll', () => {
-        backToTopBtn.classList.toggle('hidden', window.scrollY <= 200);
+        const scrollThreshold = window.innerWidth < 768 ? 300 : 200;
+        backToTopBtn.classList.toggle('hidden', window.scrollY <= scrollThreshold);
     });
 
     backToTopBtn.addEventListener('click', () => {
