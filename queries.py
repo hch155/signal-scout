@@ -15,6 +15,23 @@ def haversine(lat1, lon1, lat2, lon2):
     r = 6371  # Radius of earth in kilometers
     return c * r
 
+def sort_frequency_bands(bands):
+    def get_sort_key(band):
+        # Define sorting priority
+        if band.startswith('5G'):
+            priority = 1
+        elif 'LTE' in band:
+            priority = 2
+        elif band.endswith('GSM'):
+            priority = 3
+        else:
+            priority = 4 
+
+        numeric_part = int(''.join(filter(str.isdigit, band))) if any(char.isdigit() for char in band) else 0
+        return (priority, -numeric_part, band)  # Sort by priority, then by negative numeric part, then by band name
+
+    return sorted(bands, key=get_sort_key)
+    
 def find_nearest_stations(user_lat, user_lon, limit=9, max_distance=None, service_providers=[], frequency_bands=[]):
     try:
         stations = BaseStation.query.all()
@@ -57,7 +74,7 @@ def find_nearest_stations(user_lat, user_lon, limit=9, max_distance=None, servic
 
         # Convert frequency_bands set to list for JSON serialization
         for station_info in grouped_stations.values():
-            station_info['frequency_bands'] = list(station_info['frequency_bands'])
+            station_info['frequency_bands'] = sort_frequency_bands(station_info['frequency_bands'])
 
         # Apply limit if max_distance is not specified        
         closest_stations = list(grouped_stations.values())
