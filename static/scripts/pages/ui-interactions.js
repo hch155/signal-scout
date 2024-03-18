@@ -124,7 +124,7 @@ zoomButton.addTo(mymap);
 var btsCountControl = L.control({position: 'bottomleft'});
 btsCountControl.onAdd = function(map) {
     var div = L.DomUtil.create('div', '');
-    div.className = 'bg-white p-2 dark:mt-[-4rem] dark:md:mt-0 rounded shadow text-black dark:bg-gray-800 dark:hover:bg-gray-500 dark:text-white';
+    div.className = 'bg-white p-2 dark:mt-[-4.5rem] dark:md:mt-0 rounded shadow text-black dark:bg-gray-800 dark:hover:bg-gray-500 dark:text-white';
     div.innerHTML = 'BTS count: <span id="btsCounter">0</span>';
     return div;
 }
