@@ -424,7 +424,7 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
     googleMapsLink.href = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
     googleMapsLink.target = '_blank';
     googleMapsLink.textContent = 'View on Google Maps';
-    googleMapsLink.className = 'google-maps-link dark:text-white';
+    googleMapsLink.className = 'no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold';
     stationInfoDiv.appendChild(googleMapsLink);
 }
 
@@ -444,7 +444,7 @@ function createPopupContent(station, index) {
         <b>City:</b> ${station.city}<br>
         <b>Location:</b> ${station.location}<br>
         <b>Coordinates:</b> ${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}<br>
-        <a href="${googleMapsLink}" target="_blank">View on Google Maps</a>`;
+        <a href="${googleMapsLink}" target="_blank" class="no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold">View on Google Maps</a>`;
 }
 
 function createSidebarContent(station, index) {
@@ -453,7 +453,6 @@ function createSidebarContent(station, index) {
     var formattedDistance = station.distance.toFixed(2);
     var latHemisphere = station.latitude >= 0 ? 'N' : 'S';
     var lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
-    var googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
     return `
         <div class="sidebar-item dark:text-white">
             <h4>${index + 1}. ${station.basestation_id}</h4>
