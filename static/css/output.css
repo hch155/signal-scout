@@ -636,11 +636,6 @@ video {
   margin-bottom: 0.5rem;
 }
 
-.my-4 {
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-}
-
 .mb-2 {
   margin-bottom: 0.5rem;
 }
@@ -687,6 +682,10 @@ video {
 
 .mt-3 {
   margin-top: 0.75rem;
+}
+
+.mt-4 {
+  margin-top: 1rem;
 }
 
 .mt-auto {
@@ -1253,6 +1252,24 @@ video {
   transition: opacity 1s;
 }
 
+.joystick-ui {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.joystick {
+  width: 60px;
+  height: 60px;
+  background-color: #4B5563;
+  /* Cool Gray 600 */
+  border-radius: 50%;
+  touch-action: none;
+  /* Prevents the browser's default touch action */
+}
+
 .hover\:bg-blue-300:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(147 197 253 / var(--tw-bg-opacity));
@@ -1279,7 +1296,6 @@ video {
 
 :is(.dark .dark\:mt-\[-4\.5rem\]) {
   margin-top: -4.5rem;
-
 }
 
 :is(.dark .dark\:bg-black) {
