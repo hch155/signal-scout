@@ -65,7 +65,28 @@ def populate_database(combined_df):
 
         combined_df['Szer geogr stacji'] = combined_df['Szer geogr stacji'].apply(dms_to_decimal)
         combined_df['Dł geogr stacji'] = combined_df['Dł geogr stacji'].apply(dms_to_decimal)
-        combined_df.sort_values(by=['Szer geogr stacji', 'Dł geogr stacji'], inplace=True)
+
+        # sorting key for frequency bands
+        def sorting_key(x):
+            starts_with_5 = x.startswith('5')
+            contains_LTE = 'LTE' in x
+            ends_with_GSM = x.endswith('GSM')
+            
+            # Extract numeric part for sorting, if present
+            numeric_part = int(re.search(r'\d+', x).group()) if re.search(r'\d+', x) else 0
+
+            # Create a tuple that represents the sorting priority
+            # Prioritize by starts_with_5 (True first), then not contains_LTE (False first for LTE),
+            # then ends_with_GSM (True last), and finally by numeric_part in descending order
+            return (not starts_with_5, not contains_LTE, ends_with_GSM, -numeric_part)
+
+        combined_df['sorting_key'] = combined_df['frequency_band'].apply(sorting_key)
+
+        # Sort by coordinates first, then by the custom sorting key for frequency bands
+        combined_df.sort_values(by=['Szer geogr stacji', 'Dł geogr stacji', 'sorting_key'], inplace=True)
+
+        # Drop the sorting_key column if it's no longer needed
+        combined_df.drop('sorting_key', axis=1, inplace=True)
 
         for _, row in combined_df.iterrows():
             try:
