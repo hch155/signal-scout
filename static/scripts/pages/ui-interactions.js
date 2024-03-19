@@ -1,21 +1,21 @@
 // map.html
 updateDynamicContent()
 
-var mymap = L.map('mapid').setView([52.231, 21.004], 7); //  default location and zoom level
+let mymap = L.map('mapid').setView([52.231, 21.004], 7); //  default location and zoom level
 
-var lightTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+const lightTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
 }).addTo(mymap);
 
-var darkTileLayer = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', {
+const darkTileLayer = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 });  
 
-var greenIcon = new L.Icon({ 
+const greenIcon = new L.Icon({ 
 iconUrl: 'static/css/images/marker-icon-green.png', shadowUrl: 'static/css/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
 });
 
-var providerColors = {
+const providerColors = {
     'P4 Sp. z o.o.': 'violet', // purple/violet marker for Play
     'Orange Polska S.A.': 'orange',
     'T-Mobile Polska S.A.': 'red', 
@@ -24,22 +24,22 @@ var providerColors = {
 };
 
 const initialFilters = {
-    lat: undefined,
-    lng: undefined,
-    limit: undefined,
-    maxDistance: undefined,
+    lat: null,
+    lng: null,
+    limit: null,
+    maxDistance: null,
     serviceProvider: [],
     frequencyBands: [],
     mode: 'all' // 'all', 'nearest', 'withinDistance'
 };
 
-var currentFilters = {...initialFilters};
+let currentFilters = {...initialFilters};
     
-var stationMarkers = [];
-var marker;
-var userSubmittedLocation = null;
-var countryBoundaries;
-var isFirstClick = true;
+let stationMarkers = [];
+let marker;
+let userSubmittedLocation = null;
+let countryBoundaries;
+let isFirstClick = true;
 
 window.onload = hideSidebar; // Hide the sidebar initially
 
@@ -59,9 +59,9 @@ fetch('/static/PL-administrative-boundaries.json')
 });
 
 mymap.on('click', function(e) {
-    var coord = e.latlng;
-    var lat = coord.lat;
-    var lng = coord.lng;
+    let coord = e.latlng;
+    let lat = coord.lat;
+    let lng = coord.lng;
     
     // Clear existing marker,
     if (marker) {
@@ -96,9 +96,9 @@ function setupTouchInteraction(mymap) {
 }
 setupTouchInteraction(mymap);
 
-var gpsButton = L.control({position: 'topleft'});
+let gpsButton = L.control({position: 'topleft'});
 gpsButton.onAdd = function(map) {
-    var div = L.DomUtil.create('div', 'gps-location-control');
+    let div = L.DomUtil.create('div', 'gps-location-control');
     div.innerHTML = '<button id="useMyLocationBtn" title="Use My Location">📍</button>';
     L.DomEvent.on(div, 'click', function(e) {
         L.DomEvent.stop(e); // Prevent map click
@@ -108,11 +108,11 @@ gpsButton.onAdd = function(map) {
 };
 gpsButton.addTo(mymap);
 
-var zoomButton = L.control({position: 'topleft'});
+let zoomButton = L.control({position: 'topleft'});
 zoomButton.onAdd = function(map) {
-    var div = L.DomUtil.create('div', 'zoom-control');
+    let div = L.DomUtil.create('div', 'zoom-control');
     div.innerHTML = '<button id="zoomOutInButton" title="Zoom out & in">🔍</button>';
-    var button = div.querySelector('#zoomOutInButton');
+    let button = div.querySelector('#zoomOutInButton');
     L.DomEvent.on(button, 'click', function(e) {
         L.DomEvent.stop(e);
         zoomOutAndIn(); 
@@ -121,18 +121,18 @@ zoomButton.onAdd = function(map) {
 };
 zoomButton.addTo(mymap);
 
-var btsCountControl = L.control({position: 'bottomleft'});
+let btsCountControl = L.control({position: 'bottomleft'});
 btsCountControl.onAdd = function(map) {
-    var div = L.DomUtil.create('div', '');
+    let div = L.DomUtil.create('div', '');
     div.className = 'bg-white p-2 dark:mt-[-4.5rem] dark:md:mt-0 rounded shadow text-black dark:bg-gray-800 dark:hover:bg-gray-500 dark:text-white';
     div.innerHTML = 'BTS count: <span id="btsCounter">0</span>';
     return div;
 }
 btsCountControl.addTo(mymap);
 
-var filterControl = L.control({position: 'topright'});
+let filterControl = L.control({position: 'topright'});
 filterControl.onAdd = function(map) {
-    var div = L.DomUtil.create('div', 'filter-control-container');
+    let div = L.DomUtil.create('div', 'filter-control-container');
     div.innerHTML = `
         <button id="toggle-filters-btn" class="bg-blue-500 hover:bg-blue-700 dark:bg-gray-800 dark:hover:bg-gray-500 text-white dark:text-white font-bold py-1 px-2 rounded w-76">
         Toggle Filters
@@ -204,7 +204,7 @@ filterControl.onAdd = function(map) {
 filterControl.addTo(mymap);
 
 document.getElementById('toggle-filters-btn').addEventListener('click', function() {
-        var filterContainer = document.getElementById('filterContainer');
+        let filterContainer = document.getElementById('filterContainer');
         filterContainer.classList.toggle('hidden');
         });
 
@@ -248,13 +248,13 @@ function requestAndSendGPSLocation() {
     if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition(
             function(position) {
-                var userLat = position.coords.latitude;
-                var userLng = position.coords.longitude;
+                let userLat = position.coords.latitude;
+                let userLng = position.coords.longitude;
                 mymap.setView([userLat, userLng], 7); 
                 sendLocation(userLat, userLng); 
             },
-            function(error) {
-                showToast('Location error: ${error.message}. Please try again.', 'error');
+            function() {
+                showToast('Location error. Please try again.', 'error');
             },
             { 
                 enableHighAccuracy: true,
@@ -280,17 +280,17 @@ function createZoomToggleFunction(map) {
     };
 }
 
-var zoomOutAndIn = createZoomToggleFunction(mymap); // Initialize the toggle function and pass the map instance
+let zoomOutAndIn = createZoomToggleFunction(mymap); // Initialize the toggle function and pass the map instance
 
 function updateBTSCount(count) {
-    var btsCounter = document.getElementById('btsCounter');
+    let btsCounter = document.getElementById('btsCounter');
     if (btsCounter) {
         btsCounter.textContent = count;
     }
 }
 
 function clearBTSCount(count) {
-    var btsCounter = document.getElementById('btsCounter')
+    let btsCounter = document.getElementById('btsCounter')
     btsCounter.textContent = 0;
 }
 
@@ -343,18 +343,18 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
 }
 
 function showSidebar() {
-    var sidebar = document.getElementById('sidebar');
+    let sidebar = document.getElementById('sidebar');
     sidebar.classList.remove('hidden');
 }
 
 function hideSidebar() {
-    var sidebar = document.getElementById('sidebar');
+    let sidebar = document.getElementById('sidebar');
     sidebar.classList.add('hidden');
     
 }
 
 function clearStationMarkers() { // clearing markers when new location is submitted
-    for (var i = 0; i < stationMarkers.length; i++) {
+    for (let i = 0; i < stationMarkers.length; i++) {
         mymap.removeLayer(stationMarkers[i]);
     }
     stationMarkers = []; // Reset the array
@@ -362,11 +362,11 @@ function clearStationMarkers() { // clearing markers when new location is submit
 
 function displayStations(data) {
     clearStationMarkers(); // Clear existing markers
-    var sidebarContent = document.getElementById('sidebar');
+    let sidebarContent = document.getElementById('sidebar');
     sidebarContent.innerHTML = ''; // Clear existing sidebar content
     let stations;
     
-    var bounds = [];
+    let bounds = [];
     
     if (Array.isArray(data)) {
         // Data is just the list of stations
@@ -380,7 +380,7 @@ function displayStations(data) {
         addStationMarker(station, index);
         addStationInfoToSidebar(station, index, sidebarContent);
         
-    var latLng = L.latLng(station.latitude, station.longitude);
+    let latLng = L.latLng(station.latitude, station.longitude);
         bounds.push(latLng); 
     });
 
@@ -391,7 +391,7 @@ function displayStations(data) {
 }
 
 function createCustomIcon(station, index, providerIconUrl) {
-    var iconHtml = `<div style="background-image: url(${providerIconUrl}); width: 30px; height: 46px; background-size: cover; position: relative;">
+    let iconHtml = `<div style="background-image: url(${providerIconUrl}); width: 30px; height: 46px; background-size: cover; position: relative;">
                         <div style="position: absolute; bottom: 1px; width: 100%; text-align: center; color: white; font-weight: bold; font-size: 21px;">
                             ${index + 1}
                         </div>
@@ -402,25 +402,25 @@ function createCustomIcon(station, index, providerIconUrl) {
 }
 
 function addStationMarker(station, index) {
-    var providerIconUrl = `static/css/images/marker-icon-${providerColors[station.service_provider]}.png` || 'grey'; // grey color if provider not found
-    var customIcon = createCustomIcon(station, index, providerIconUrl);
-    var stationMarker = L.marker([station.latitude, station.longitude], {icon: customIcon}).addTo(mymap);
-    var popupContent = createPopupContent(station, index);
+    let providerIconUrl = `static/css/images/marker-icon-${providerColors[station.service_provider]}.png` || 'grey'; // grey color if provider not found
+    let customIcon = createCustomIcon(station, index, providerIconUrl);
+    let stationMarker = L.marker([station.latitude, station.longitude], {icon: customIcon}).addTo(mymap);
+    let popupContent = createPopupContent(station, index);
     stationMarker.bindPopup(popupContent);
     stationMarkers.push(stationMarker);
 
-    var tooltipContent = `${index + 1}. ${station.basestation_id}`; // tooltip
+    let tooltipContent = `${index + 1}. ${station.basestation_id}`; // tooltip
     stationMarker.bindTooltip(tooltipContent);
 }
 
 function addStationInfoToSidebar(station, index, sidebarContent) {
-    var stationInfo = createSidebarContent(station, index);
-    var stationInfoDiv = document.createElement('div');
+    let stationInfo = createSidebarContent(station, index);
+    let stationInfoDiv = document.createElement('div');
     stationInfoDiv.className = 'sidebar-item';
     stationInfoDiv.innerHTML = stationInfo;
     sidebarContent.appendChild(stationInfoDiv);
     
-    var googleMapsLink = document.createElement('a');
+    let googleMapsLink = document.createElement('a');
     googleMapsLink.href = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
     googleMapsLink.target = '_blank';
     googleMapsLink.textContent = 'View on Google Maps';
@@ -429,12 +429,12 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
 }
 
 function createPopupContent(station, index) {
-    var formattedLat = station.latitude.toFixed(5);
-    var formattedLng = station.longitude.toFixed(5);
-    var formattedDistance = station.distance.toFixed(2);
-    var latHemisphere = station.latitude >= 0 ? 'N' : 'S';
-    var lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
-    var googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
+    let formattedLat = station.latitude.toFixed(5);
+    let formattedLng = station.longitude.toFixed(5);
+    let formattedDistance = station.distance.toFixed(2);
+    let latHemisphere = station.latitude >= 0 ? 'N' : 'S';
+    let lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
+    let googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
     
     return `
         <b>${index + 1}. Service Provider:</b> ${station.service_provider}<br>
@@ -448,11 +448,11 @@ function createPopupContent(station, index) {
 }
 
 function createSidebarContent(station, index) {
-    var formattedLat = station.latitude.toFixed(5);
-    var formattedLng = station.longitude.toFixed(5);
-    var formattedDistance = station.distance.toFixed(2);
-    var latHemisphere = station.latitude >= 0 ? 'N' : 'S';
-    var lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
+    let formattedLat = station.latitude.toFixed(5);
+    let formattedLng = station.longitude.toFixed(5);
+    let formattedDistance = station.distance.toFixed(2);
+    let latHemisphere = station.latitude >= 0 ? 'N' : 'S';
+    let lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
     return `
         <div class="sidebar-item dark:text-white">
             <h4>${index + 1}. ${station.basestation_id}</h4>

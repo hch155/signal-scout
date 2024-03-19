@@ -75,3 +75,19 @@
 .toast-transition {
   transition: opacity 1s;
 }
+
+.joystick-ui {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.joystick {
+  width: 60px;
+  height: 60px;
+  background-color: #4B5563; /* Cool Gray 600 */
+  border-radius: 50%;
+  touch-action: none; /* Prevents the browser's default touch action */
+}
