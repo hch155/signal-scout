@@ -124,7 +124,7 @@ zoomButton.addTo(mymap);
 var btsCountControl = L.control({position: 'bottomleft'});
 btsCountControl.onAdd = function(map) {
     var div = L.DomUtil.create('div', '');
-    div.className = 'bg-white p-2 dark:mt-[-4rem] dark:md:mt-0 rounded shadow text-black dark:bg-gray-800 dark:hover:bg-gray-500 dark:text-white';
+    div.className = 'bg-white p-2 dark:mt-[-4.5rem] dark:md:mt-0 rounded shadow text-black dark:bg-gray-800 dark:hover:bg-gray-500 dark:text-white';
     div.innerHTML = 'BTS count: <span id="btsCounter">0</span>';
     return div;
 }
@@ -424,7 +424,7 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
     googleMapsLink.href = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
     googleMapsLink.target = '_blank';
     googleMapsLink.textContent = 'View on Google Maps';
-    googleMapsLink.className = 'google-maps-link dark:text-white';
+    googleMapsLink.className = 'no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold';
     stationInfoDiv.appendChild(googleMapsLink);
 }
 
@@ -444,7 +444,7 @@ function createPopupContent(station, index) {
         <b>City:</b> ${station.city}<br>
         <b>Location:</b> ${station.location}<br>
         <b>Coordinates:</b> ${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}<br>
-        <a href="${googleMapsLink}" target="_blank">View on Google Maps</a>`;
+        <a href="${googleMapsLink}" target="_blank" class="no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold">View on Google Maps</a>`;
 }
 
 function createSidebarContent(station, index) {
@@ -453,7 +453,6 @@ function createSidebarContent(station, index) {
     var formattedDistance = station.distance.toFixed(2);
     var latHemisphere = station.latitude >= 0 ? 'N' : 'S';
     var lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
-    var googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
     return `
         <div class="sidebar-item dark:text-white">
             <h4>${index + 1}. ${station.basestation_id}</h4>
@@ -600,17 +599,17 @@ function updateDynamicContent() {
                 </div>`;
         } else {
             dynamicContent.innerHTML = `
-                <div id="latLngContainer" class="opacity-50 cursor-not-allowed flex flex-col space-y-0.5 title="Register or log in to use this feature.">
-                    <button id="submitCoords" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="Register or log in to use this feature.">Search</button>
+                <div id="latLngContainer" class="opacity-50 cursor-not-allowed flex flex-col space-y-0.5 title="Log in to use this feature.">
+                    <button id="submitCoords" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="Log in to use this feature.">Search</button>
                     <div class="flex space-x-2">
-                        <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5.5rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" min="48" max="58" step="0.1" disabled title="Register or log in to use this feature.">
-                        <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5.5rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" min="13.5" max="24.5" step="0.1" disabled title="Register or log in to use this feature.">
+                        <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5.5rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" min="48" max="58" step="0.1" disabled title="Log in to use this feature.">
+                        <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5.5rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" min="13.5" max="24.5" step="0.1" disabled title="Log in to use this feature.">
                     </div>
                 </div>
-                <div id="searchByBtsContainer" class="my-4 opacity-50 cursor-not-allowed flex flex-col space-y-0.5 title="Register or log in to use this feature.">
-                    <button id="submitfilteredstation" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="Register or log in to use this feature.">Search</button>
+                <div id="searchByBtsContainer" class="my-4 opacity-50 cursor-not-allowed flex flex-col space-y-0.5 title="Log in to use this feature.">
+                    <button id="submitfilteredstation" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="Log in to use this feature.">Search</button>
                     <div class="flex space-x-2">
-                        <input type="text" id="baseStationIdInput" placeholder="Enter Base Station ID" class="w-[8rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" disabled title="Register or log in to use this feature.">
+                        <input type="text" id="baseStationIdInput" placeholder="Enter Base Station ID" class="w-[8rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" disabled title="Log in to use this feature.">
                     </div>
                 </div>`;
         }
