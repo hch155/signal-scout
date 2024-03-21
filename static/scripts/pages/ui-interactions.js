@@ -93,6 +93,8 @@ function setupTouchInteraction(mymap) {
             e.originalEvent.preventDefault();
         }
     });
+    // Disable zoom on double tap
+    mymap.doubleClickZoom.disable();
 }
 setupTouchInteraction(mymap);
 
