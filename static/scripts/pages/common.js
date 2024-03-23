@@ -1,5 +1,4 @@
 // base.html
-
 document.addEventListener('DOMContentLoaded', function() {
   initializeModalToggle();
   initializeFormSubmissions();
@@ -266,7 +265,8 @@ function submitForm(url, formData) {
           if (url === '/login') {
               localStorage.setItem('loggedIn', 'true');
               checkLoginStateAndUpdateUI();
-              updateDynamicContent();
+              loadTipsContent();
+              window.dispatchEvent(new CustomEvent('userLoggedIn'));
               showToast('Logged in', 'success');
           }
           if (url === '/register') {
@@ -293,7 +293,8 @@ function logoutUser() {
           clearLoginForm();
           resetUIAndListeners();
           clearSensitiveSessionData();
-          updateDynamicContent();
+          loadTipsContent();
+          window.dispatchEvent(new CustomEvent('userLoggedOut'));
           showToast('Logged out', 'success');
       } else {
           console.error('Logout failed:', data.message);
