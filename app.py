@@ -78,10 +78,30 @@ def stats_page():
 
 @app.route('/tips')
 def tips_page():
-    with open('content/tips.md', 'r') as file:
+    if 'user_id' in session:
+        markdown_file_path = 'content/tips_registered.md'
+    else:
+        markdown_file_path = 'content/tips.md'
+
+    with open(markdown_file_path, 'r') as file:
         content = file.read()
+
     html_content = markdown.markdown(content)
-    return render_template('tips.html', content=html_content)    
+
+    return render_template('tips.html', content=html_content)
+
+@app.route('/tips/content')
+def tips_content():
+    if 'user_id' in session:
+        markdown_file_path = 'content/tips_registered.md'
+    else:
+        markdown_file_path = 'content/tips.md'
+
+    with open(markdown_file_path, 'r') as file:
+        markdown_content = file.read()
+
+    html_content = markdown.markdown(markdown_content)
+    return html_content
 
 @app.route('/favicon.ico')
 def favicon():
