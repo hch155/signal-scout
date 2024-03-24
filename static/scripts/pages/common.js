@@ -1,5 +1,6 @@
 // base.html
 document.addEventListener('DOMContentLoaded', function() {
+  executeCurrentPageAction();
   initializeModalToggle();
   initializeFormSubmissions();
   adjustFooterPosition();
@@ -265,7 +266,7 @@ function submitForm(url, formData) {
           if (url === '/login') {
               localStorage.setItem('loggedIn', 'true');
               checkLoginStateAndUpdateUI();
-              loadTipsContent();
+              executeCurrentPageAction();
               window.dispatchEvent(new CustomEvent('userLoggedIn'));
               showToast('Logged in', 'success');
           }
@@ -293,7 +294,7 @@ function logoutUser() {
           clearLoginForm();
           resetUIAndListeners();
           clearSensitiveSessionData();
-          loadTipsContent();
+          executeCurrentPageAction();
           window.dispatchEvent(new CustomEvent('userLoggedOut'));
           showToast('Logged out', 'success');
       } else {
@@ -390,6 +391,28 @@ function showToast(message, type = 'success') {
       container.removeChild(toast); 
     }, 1000);
   }, 2500);
+}
+
+const pageActions = {
+  '/': () => {
+      if (typeof window.updateDynamicContent === 'function') {
+          window.updateDynamicContent();
+      }
+  },
+  '/tips': () => {
+      if (typeof window.loadTipsContent === 'function') {
+          window.loadTipsContent();
+      }
+  },
+};
+
+function executeCurrentPageAction() {
+  const path = window.location.pathname;
+  const action = pageActions[path];
+
+  if (action) {
+      action();
+  }
 }
 
 function debugSession() {

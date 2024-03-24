@@ -63,10 +63,3 @@
 <p>Device in NSA mode, LTE2600 + NR3600 = 120MHz, DL throughput resulting on average around 1000-1200Mbps (peak 1500-1600Mbps), UL up to 150Mbps</p>
 
 <p>Most of the user equipment (minding their capabilities and network configuration priorities) tend to aggregate as most carriers as possible ensuring the best experience as possible</p>
-
-
-
-
-
-
-
