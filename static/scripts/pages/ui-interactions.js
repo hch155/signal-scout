@@ -110,19 +110,6 @@ gpsButton.onAdd = function(map) {
 };
 gpsButton.addTo(mymap);
 
-let zoomButton = L.control({position: 'topleft'});
-zoomButton.onAdd = function(map) {
-    let div = L.DomUtil.create('div', 'zoom-control');
-    div.innerHTML = '<button id="zoomOutInButton" title="Zoom out & in">🔍</button>';
-    let button = div.querySelector('#zoomOutInButton');
-    L.DomEvent.on(button, 'click', function(e) {
-        L.DomEvent.stop(e);
-        zoomOutAndIn(); 
-    });
-    return div;
-};
-zoomButton.addTo(mymap);
-
 let btsCountControl = L.control({position: 'bottomleft'});
 btsCountControl.onAdd = function(map) {
     let div = L.DomUtil.create('div', '');
@@ -269,21 +256,6 @@ function requestAndSendGPSLocation() {
     }
 }
 
-function createZoomToggleFunction(map) {
-    let shouldZoomOut = true;
-
-    return function() {
-        if (shouldZoomOut) {
-            map.zoomOut(3);
-        } else {
-            map.zoomIn(3);
-        }
-        shouldZoomOut = !shouldZoomOut;
-    };
-}
-
-let zoomOutAndIn = createZoomToggleFunction(mymap); // Initialize the toggle function and pass the map instance
-
 function updateBTSCount(count) {
     let btsCounter = document.getElementById('btsCounter');
     if (btsCounter) {
@@ -331,7 +303,7 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
             messageBox.classList.remove('hidden');
             setTimeout(() => {
                 messageBox.classList.add('hidden')
-                mymap.zoomOut(7);
+                mymap.zoomOut(4);
             }, 7700);
         }  else {
             messageBox.classList.add('hidden');
