@@ -1,0 +1,20 @@
+    {% extends "base.html" %}
+
+    {% block content %}
+        <div class="markdown-content prose lg:prose-xl mx-auto pb-16 px-6">
+            <div id="data-content">
+                {{ content|safe }}
+            </div>
+        </div>
+    {% endblock %}
+
+{% block scripts %}
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+{% endblock %}
+
+{% block code %}
+{% endblock %}
+    
+
+
+

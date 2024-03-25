@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 8080
 
 # Define environment variable
-ENV NAME World
+ENV FLASK_APP=src/app.py
 
 # Run app.py when the container launches
-CMD ["python", "app.py"]
+CMD ["python", "src/app.py"]
