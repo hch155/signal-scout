@@ -66,7 +66,7 @@ def home():
 
 @app.route('/data')
 def data_page():
-    with open('content/data.md', 'r') as file:
+    with open('src/content/data.md', 'r') as file:
         content = file.read()
     html_content = markdown.markdown(content)
     return render_template('data.html', content=html_content)
@@ -79,9 +79,9 @@ def stats_page():
 @app.route('/tips')
 def tips_page():
     if 'user_id' in session:
-        markdown_file_path = 'content/tips_registered.md'
+        markdown_file_path = 'src/content/tips_registered.md'
     else:
-        markdown_file_path = 'content/tips.md'
+        markdown_file_path = 'src/content/tips.md'
 
     with open(markdown_file_path, 'r') as file:
         content = file.read()
@@ -93,9 +93,9 @@ def tips_page():
 @app.route('/tips/content')
 def tips_content():
     if 'user_id' in session:
-        markdown_file_path = 'content/tips_registered.md'
+        markdown_file_path = 'src/content/tips_registered.md'
     else:
-        markdown_file_path = 'content/tips.md'
+        markdown_file_path = 'src/content/tips.md'
 
     with open(markdown_file_path, 'r') as file:
         markdown_content = file.read()
