@@ -2,8 +2,8 @@
 module.exports = {
   darkMode: 'class',
   content: [
-    "./templates/*.html",
-    "./static/**/*.js",
+    "./src/templates/*.html",
+    "./src/static/**/*.js",
   ],
   theme: {
     extend: {
@@ -20,6 +20,8 @@ module.exports = {
           'p': '#e5e7eb',
           'a': '#e5e7eb',
           'a-hover': '#1e40af', 
+          'strong': '#e5e7eb',
+          'li': '#e5e7eb',
     },
     typography: (theme) => ({
       DEFAULT: {
