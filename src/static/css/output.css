@@ -1178,6 +1178,20 @@ video {
   color: rgb(255 255 255 / var(--tw-text-opacity));
 }
 
+.markdown-content strong {
+  font-weight: 700;
+}
+
+:is(.dark .markdown-content strong) {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+
+:is(.dark .markdown-content li) {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+
 .text-theme-responsive {
   color: black;
 }
@@ -1238,15 +1252,6 @@ video {
   background-color: #f0f0f0;
 }
 
-.zoom-control button {
-  background-color: #fff;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  padding: 5px 9px;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.2);
-}
-
 .label-container > label {
   margin-right: 0.25rem;
   display: inline-flex;
@@ -1255,24 +1260,6 @@ video {
 
 .toast-transition {
   transition: opacity 1s;
-}
-
-.joystick-ui {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-}
-
-.joystick {
-  width: 60px;
-  height: 60px;
-  background-color: #4B5563;
-  /* Cool Gray 600 */
-  border-radius: 50%;
-  touch-action: none;
-  /* Prevents the browser's default touch action */
 }
 
 .hover\:bg-blue-300:hover {
