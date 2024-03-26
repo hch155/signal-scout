@@ -65,7 +65,7 @@
 <p>Most of the user equipment (minding their capabilities and network configuration priorities) tend to aggregate as most carriers as possible ensuring the best experience as possible</p>
 
 
-## Obtaining cell information from device
+## Obtaining cell information from mobile device
 
 <p> By accessing cell information via calling below codes: </p>
 <p>iOS: *3001#12345#* </p>
@@ -81,7 +81,7 @@
             <li>Band Information: Refers to the specific frequency band your device is using for its cellular connection. Different bands have varying characteristics in terms of coverage and data speed.</li>
             <li>Bandwidth: Indicates the width of the frequency band used for the network connection, measured in MHz. A wider bandwidth can allow for higher data throughput.</li>
             <li>Cell ID: A unique identifier for the cell tower your device is currently connected to. This can be used to pinpoint the location of the tower and extract cell ID and base station ID.</li>
-            <li>Radio Access: This shows the type of network technology in use, such as LTE, WCDMA, or GSM, each with its own set of performance characteristics.</li>
+            <li>Radio Access: This shows the type of network technology in use, such as 5G, LTE, each with its own set of performance characteristics.</li>
             <li>PCI (Physical Cell ID): An identifier used in LTE networks to identify a physical cell. It's crucial for the handover process between cells and for signaling on the physical layer.</li>
             <li>TAC (Tracking Area Code): Used in LTE networks, this code helps in managing device tracking and paging procedures between different areas within the network.</li>
             <li>EARFCN DL (E-UTRA Absolute Radio Frequency Channel Number for Downlink): Specifies the frequency channel used for the downlink in LTE networks. It's a unique number representing the carrier frequency and helps in identifying the specific frequency used for cellular communication.</li>
@@ -105,22 +105,23 @@
 <p>Together, these metrics offer a comprehensive view of the device's interaction with the cellular network, highlighting areas of strength and pinpointing potential issues that could affect the user experience. Understanding these elements is key for network engineers, technicians, and enthusiasts who are keen on maximizing cellular network performance and reliability.</p>
 
 ## Understanding Signal Strength and Quality
+
 <p>The metrics RSRP, RSRQ, and SINR are pivotal in evaluating the signal strength and quality of cellular connections, applicable not only to LTE but also to 5G networks. Understanding these can provide users with insight into the robustness of their signal connection.</p>
-<p><strong>RSRP (Reference Signal Received Power)</strong> is the most basic measure of signal strength. For LTE and 5G, a higher RSRP value indicates a stronger signal. Signal strength can be broadly categorized as follows:</p>
+<p>RSRP is the most basic measure of signal strength. For LTE and 5G, a higher RSRP value indicates a stronger signal. Signal strength can be broadly categorized as follows:</p>
 <ul>
     <li>Excellent Signal: RSRP higher than -80 dBm</li>
     <li>Good Signal: RSRP between -80 dBm and -90 dBm</li>
     <li>Fair Signal: RSRP between -90 dBm and -100 dBm</li>
     <li>Poor Signal: RSRP lower than -100 dBm</li>
 </ul>
-<p><strong>RSRQ (Reference Signal Received Quality)</strong> helps evaluate the quality of the received signal, considering both signal strength and interference levels. It is especially useful in dense network environments. For LTE and 5G:</p>
+<p>RSRQ helps evaluate the quality of the received signal, considering both signal strength and interference levels. It is especially useful in dense network environments. For LTE and 5G:</p>
 <ul>
     <li>Excellent Quality: RSRQ higher than -10 dB</li>
     <li>Good Quality: RSRQ between -10 dB and -15 dB</li>
     <li>Fair Quality: RSRQ between -15 dB and -20 dB</li>
     <li>Poor Quality: RSRQ lower than -20 dB</li>
 </ul>
-<p><strong>SINR (Signal-to-Interference-plus-Noise Ratio)</strong> compares the level of the signal to the combined interference and noise. Higher SINR values indicate a clearer and better quality signal. Typical SINR ranges for a good user experience:</p>
+<p>SINR compares the level of the signal to the combined interference and noise. Higher SINR values indicate a clearer and better quality signal. Typical SINR ranges for a good user experience:</p>
 <ul>
     <li>Excellent Quality: SINR higher than 20 dB</li>
     <li>Good Quality: SINR between 13 dB and 20 dB</li>
