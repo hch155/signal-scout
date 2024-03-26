@@ -23,7 +23,7 @@ const providerColors = {
     'AERO 2 Sp. z o.o.': 'blue' 
 };
 
-const initialFilters = {
+const initialFilters = () => ({
     lat: null,
     lng: null,
     limit: null,
@@ -31,9 +31,9 @@ const initialFilters = {
     serviceProvider: [],
     frequencyBands: [],
     mode: 'all' // 'all', 'nearest', 'withinDistance'
-};
+});
 
-let currentFilters = {...initialFilters};
+let currentFilters = initialFilters();
     
 let stationMarkers = [];
 let marker;
@@ -486,10 +486,8 @@ function resetFiltersUI() {
     document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
         checkbox.checked = false;
     });
-    clearBTSCount()
-    clearStationMarkers()
-    hideSidebar()
-    currentFilters = {...initialFilters}; // spread
+    const { lat, lng } = currentFilters;
+    currentFilters = { ...initialFilters(), lat, lng }; // spread
 }    
 
 document.addEventListener('DOMContentLoaded', function() {
