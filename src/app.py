@@ -64,11 +64,24 @@ def home():
     slogan_title, slogan_text = random.choice(SLOGANS)
     return render_template('map.html', slogan_title=slogan_title, slogan_text=slogan_text)
 
+def get_html_content_from_markdown(file_name):
+
+    if os.environ.get('ENV') == 'PRODUCTION':
+        base_path = 'src/content'
+    else:
+        base_path = 'content'
+
+    file_path = os.path.join(base_path, file_name)
+
+    with open(file_path, 'r') as file:
+        markdown_content = file.read()
+    html_content = markdown.markdown(markdown_content)
+
+    return html_content
+
 @app.route('/data')
 def data_page():
-    with open('src/content/data.md', 'r') as file:
-        content = file.read()
-    html_content = markdown.markdown(content)
+    html_content = get_html_content_from_markdown('data.md')
     return render_template('data.html', content=html_content)
 
 @app.route('/stats')
@@ -78,29 +91,14 @@ def stats_page():
 
 @app.route('/tips')
 def tips_page():
-    if 'user_id' in session:
-        markdown_file_path = 'src/content/tips_registered.md'
-    else:
-        markdown_file_path = 'src/content/tips.md'
-
-    with open(markdown_file_path, 'r') as file:
-        content = file.read()
-
-    html_content = markdown.markdown(content)
-
+    file_name = 'tips_registered.md' if 'user_id' in session else 'tips.md'
+    html_content = get_html_content_from_markdown(file_name)
     return render_template('tips.html', content=html_content)
 
 @app.route('/tips/content')
 def tips_content():
-    if 'user_id' in session:
-        markdown_file_path = 'src/content/tips_registered.md'
-    else:
-        markdown_file_path = 'src/content/tips.md'
-
-    with open(markdown_file_path, 'r') as file:
-        markdown_content = file.read()
-
-    html_content = markdown.markdown(markdown_content)
+    file_name = 'tips_registered.md' if 'user_id' in session else 'tips.md'
+    html_content = get_html_content_from_markdown(file_name)
     return html_content
 
 @app.route('/favicon.ico')
