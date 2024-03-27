@@ -26,6 +26,9 @@ jobs:
     - name: Set up environment
       run: echo "ENV=PRODUCTION" >> $GITHUB_ENV
 
+    - name: Set PYTHONPATH
+      run: echo "PYTHONPATH=${{ github.workspace }}" >> $GITHUB_ENV
+
     - name: Lint with flake8
       run: |
         # Stop the build if there are Python syntax errors or undefined names.
