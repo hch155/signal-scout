@@ -1,5 +1,5 @@
 import unittest, json
-from app import app
+from src.app import app
 
 class QueriesTestCase(unittest.TestCase):
     def setUp(self):
