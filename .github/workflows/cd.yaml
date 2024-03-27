@@ -40,7 +40,7 @@ jobs:
       - name: Deploy to Cloud Run
         env:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
-        run: gcloud run deploy signal-scout --image europe-central2-docker.pkg.dev/signal-scout-413211/signal-scout-repo/signal-scout:latest --region europe-central2 --allow-unauthenticated --project signal-scout-413211 --max-instances=4 --memory=1Gi --update-env-vars SECRET_KEY="${SECRET_KEY}"
+        run: gcloud run deploy signal-scout --image europe-central2-docker.pkg.dev/signal-scout-413211/signal-scout-repo/signal-scout:latest --region europe-central2 --allow-unauthenticated --project signal-scout-413211 --max-instances=4 --memory=1Gi --update-env-vars SECRET_KEY="${SECRET_KEY}",ENV=PRODUCTION
 
         
 
