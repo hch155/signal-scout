@@ -14,13 +14,9 @@ app = Flask(__name__)
 bcrypt = Bcrypt(app)
 load_dotenv()
 # Database configuration
-basedir = os.path.abspath(os.path.dirname(__file__))
-stations_db_path = os.path.join(basedir, 'instance', 'stations.db')
-users_db_path = os.path.join(basedir, 'instance', 'users.db')
-
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{stations_db_path}'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stations.db'
 app.config['SQLALCHEMY_BINDS'] = {
-    'users': f'sqlite:///{users_db_path}'
+    'users': 'sqlite:///users.db' 
 }
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
