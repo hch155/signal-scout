@@ -1,6 +1,7 @@
 from app import app
 from models import BaseStation
 from database import db
+from sqlalchemy.exc import IntegrityError
 import pandas as pd
 import os
 import re
@@ -54,7 +55,9 @@ def read_and_process_excel(directory):
 
             all_data.append(df)
 
-    return pd.concat(all_data, axis=0)
+    combined_df = pd.concat(all_data, axis=0, ignore_index=True)
+    combined_df = combined_df.drop_duplicates(subset=['IdStacji', 'frequency_band'], keep='first')
+    return combined_df
 
 def populate_database(combined_df):
     """
