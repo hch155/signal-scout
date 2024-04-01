@@ -312,6 +312,7 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
             updateBTSCount(data.count);
             showSidebar(); 
             displayStations(data.stations);
+            addRingsForLocation(lat,lng);
         }
     })
 }
@@ -336,6 +337,7 @@ function clearStationMarkers() { // clearing markers when new location is submit
 
 function displayStations(data) {
     clearStationMarkers(); // Clear existing markers
+    clearRings();
     let sidebarContent = document.getElementById('sidebar');
     sidebarContent.innerHTML = ''; // Clear existing sidebar content
     let stations;
@@ -472,6 +474,7 @@ function fetchStations() {
         updateBTSCount(data.count);
         showSidebar();
         displayStations(data.stations);
+        addRingsForLocation(currentFilters.lat, currentFilters.lng);
     })
 }
 
@@ -666,3 +669,25 @@ document.addEventListener('click', function(event) {
         updateStationFilters();
     }
 });
+
+function addRing(lat, lng, radius, color) {
+    L.circle([lat, lng], {
+        color: color,
+        radius: radius
+    }).addTo(mymap);
+}
+
+function addRingsForLocation(lat, lng) {
+    addRing(lat, lng, 1000, 'green'); // 1km
+    addRing(lat, lng, 2000, 'yellow');
+    addRing(lat, lng, 4000, 'red'); 
+}
+
+function clearRings() {
+    mymap.eachLayer(function(layer) {
+        if (layer instanceof L.Circle) {
+            mymap.removeLayer(layer);
+        }
+    });
+}
+
