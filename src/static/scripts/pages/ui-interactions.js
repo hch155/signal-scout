@@ -673,6 +673,8 @@ document.addEventListener('click', function(event) {
 function addRing(lat, lng, radius, color) {
     L.circle([lat, lng], {
         color: color,
+        fillColor: color,
+        fillOpacity: 0, 
         radius: radius
     }).addTo(mymap);
 }
