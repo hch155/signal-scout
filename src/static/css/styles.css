@@ -67,3 +67,47 @@
 .toast-transition {
   transition: opacity 1s;
 }
+
+.frequency-range-legend {
+  @apply bg-white border border-gray-300 rounded-md p-4 shadow-md mt-5 hidden;
+}
+
+.frequency-table th {
+  @apply border-b-2 border-black;
+}
+
+.frequency-table tbody tr:first-child {
+  @apply border-t-2 border-black;
+}
+
+.frequency-table {
+  @apply w-full border-collapse;
+}
+
+.frequency-table td {
+  @apply text-center;
+}
+
+th[onclick] {
+  @apply cursor-pointer;
+}
+
+th[onclick]:hover {
+  @apply bg-blue-500 dark:bg-gray-800 dark:hover:bg-gray-500;
+}
+
+.highlighted-column {
+  @apply bg-blue-100 dark:bg-gray-400;
+}
+
+.frequency-table tbody tr td {
+  @apply border-b border-gray-300;
+}
+
+.frequency-table th, .frequency-table td {
+  @apply border-l border-gray-300;
+}
+
+.frequency-table th:last-child, .frequency-table td:last-child {
+  @apply border-r-0;
+}

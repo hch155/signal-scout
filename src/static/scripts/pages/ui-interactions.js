@@ -40,6 +40,13 @@ let marker;
 let userSubmittedLocation = null;
 let countryBoundaries;
 let isFirstClick = true;
+let currentBand = 'low';
+
+const frequencyRanges = {
+    high: [200, 500, 1000, 1500], // high band frequency distance radius
+    mid: [300, 750, 1500, 2000], //  mid band frequency
+    low: [500, 1500, 3000, 5000] // low band frequency
+};
 
 window.onload = hideSidebar; // Hide the sidebar initially
 
@@ -109,6 +116,48 @@ gpsButton.onAdd = function(map) {
     return div;
 };
 gpsButton.addTo(mymap);
+
+let frequencyRangeLegend = L.control({position: 'topleft'});
+
+    frequencyRangeLegend.onAdd = function(map) {
+        let div = L.DomUtil.create('div', 'gps-location-control');
+
+        let toggleBtn = L.DomUtil.create('button', '', div);
+        toggleBtn.id = 'toggleFrequencyRangeLegendBtn';
+        toggleBtn.title = 'Frequency Range Distance Legend';
+        toggleBtn.innerHTML = '<span class="text-green-500" style="position: relative; transform: scale(2.5); display: inline-block; vertical-align: middle;">&#x25CB;</span>';
+
+        let legendDiv = L.DomUtil.create('div', 'frequency-range-container hidden bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400', div);
+        legendDiv.innerHTML = `
+            <table class="frequency-table min-w-full divide-y divide-gray-200">
+                <thead class="text-gray-700 font-bold dark:text-white">
+                    <tr>
+                        <th>Signal Strength</th>
+                        <th class="column-high" onclick="changeFrequency('high')">High Band Frequency<br>(5G3600, L2600) (km)</th>
+                        <th class="column-mid" onclick="changeFrequency('mid')">Mid Band Frequency <br>(5G/L2100, L1800) (km)</th>
+                        <th class="column-low" onclick="changeFrequency('low')">Low Band Frequency<br>(L900, L800, G900) (km)</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-700 font-bold dark:text-white divide-y divide-gray-200">
+                    <tr class="bg-green-200 dark:bg-green-800"><td>Excellent</td><td>0.2</td><td>0.3</td><td>0.5</td></tr>
+                    <tr class="bg-yellow-200 dark:bg-yellow-700"><td>Good</td><td>0.5</td><td>0.75</td><td>1.5</td></tr>
+                    <tr class="bg-orange-200 dark:bg-orange-600"><td>Fair</td><td>1.0</td><td>1.5</td><td>3.0</td></tr>
+                    <tr class="bg-red-200 dark:bg-red-700"><td>Poor</td><td>1.5</td><td>2.0</td><td>5.0</td></tr>   
+                </tbody>
+            </table>
+        `;
+
+        L.DomEvent.on(toggleBtn, 'click', function() {
+            legendDiv.classList.toggle('hidden');
+        });
+
+        L.DomEvent.disableClickPropagation(div);
+        L.DomEvent.on(div, 'mousewheel', L.DomEvent.stopPropagation);
+
+        return div;
+};
+
+frequencyRangeLegend.addTo(mymap);
 
 let btsCountControl = L.control({position: 'bottomleft'});
 btsCountControl.onAdd = function(map) {
@@ -474,7 +523,7 @@ function fetchStations() {
         updateBTSCount(data.count);
         showSidebar();
         displayStations(data.stations);
-        addRingsForLocation(currentFilters.lat, currentFilters.lng);
+        addRingsForLocation(currentFilters.lat, currentFilters.lng, currentBand);
     })
 }
 
@@ -679,10 +728,12 @@ function addRing(lat, lng, radius, color) {
     }).addTo(mymap);
 }
 
-function addRingsForLocation(lat, lng) {
-    addRing(lat, lng, 1000, 'green'); // 1km
-    addRing(lat, lng, 2000, 'yellow');
-    addRing(lat, lng, 4000, 'red'); 
+function addRingsForLocation(lat, lng, band = 'low') {
+    const distanceRadius = frequencyRanges[currentBand];
+    addRing(lat, lng, distanceRadius[0], 'green'); // Excellent
+    addRing(lat, lng, distanceRadius[1], 'yellow'); // Good
+    addRing(lat, lng, distanceRadius[2], 'orange'); // Fair
+    addRing(lat, lng, distanceRadius[3], 'red'); // Poor
 }
 
 function clearRings() {
@@ -693,3 +744,24 @@ function clearRings() {
     });
 }
 
+function changeFrequency(band) {
+    const columnClass = `column-${band}`;
+
+    document.querySelectorAll('th, td').forEach(cell => {
+        cell.classList.remove('highlighted-column');
+    });
+
+    document.querySelectorAll(`.${columnClass}`).forEach(cell => {
+        cell.classList.add('highlighted-column');
+    });
+
+    currentBand = band;
+    clearRings();
+    addRingsForLocation(currentFilters.lat, currentFilters.lng, currentBand);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.column-low').forEach(cell => {
+        cell.classList.add('highlighted-column');
+    });
+});
