@@ -45,6 +45,7 @@ Before you begin, ensure you have met the following requirements:
 
 To run Signal-Scout, execute:
 
+    cd src
     python app.py    
     
 Access the web application by navigating to http://localhost:8080 in your web browser.
