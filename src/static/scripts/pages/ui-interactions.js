@@ -121,6 +121,11 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
 
     frequencyRangeLegend.onAdd = function(map) {
         let div = L.DomUtil.create('div', 'gps-location-control');
+        div.style.cursor = 'grab';
+        div.style.userSelect = "none"; 
+        div.style.position = 'absolute';
+        div.style.top = '112px';
+        div.style.left = '0px';
 
         let toggleBtn = L.DomUtil.create('button', '', div);
         toggleBtn.id = 'toggleFrequencyRangeLegendBtn';
@@ -151,6 +156,48 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
             legendDiv.classList.toggle('hidden');
         });
 
+        // Make draggable 
+        let startPos = null;
+        const onDragStart = function(e) {
+            startPos = { x: e.clientX, y: e.clientY };
+            div.style.cursor = 'grabbing';
+            document.addEventListener('mousemove', onDragMove);
+            document.addEventListener('mouseup', onDragEnd);
+        };
+
+        const onDragMove = function(e) {
+            if (startPos) {
+                let xDiff = e.clientX - startPos.x;
+                let yDiff = e.clientY - startPos.y;
+
+                // Calculate new position based on the difference
+                let newLeft = parseInt(div.style.left, 10) + xDiff;
+                let newTop = parseInt(div.style.top, 10) + yDiff;
+
+                // Get map container's dimensions to constrain the movement
+                let mapContainer = mymap.getContainer();
+                let maxLeft = mapContainer.offsetWidth - div.offsetWidth;
+                let maxTop = mapContainer.offsetHeight - div.offsetHeight;
+
+                // Apply constraints
+                newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+                newTop = Math.max(0, Math.min(newTop, maxTop));
+
+                div.style.left = newLeft + 'px';
+                div.style.top = newTop + 'px';
+
+                // Update startPos for the next call
+                startPos = { x: e.clientX, y: e.clientY };
+            }
+        };
+
+        const onDragEnd = function() {
+            document.removeEventListener('mousemove', onDragMove);
+            document.removeEventListener('mouseup', onDragEnd);
+            div.style.cursor = 'grab';
+        };
+
+        L.DomEvent.on(div, 'mousedown', onDragStart);
         L.DomEvent.disableClickPropagation(div);
         L.DomEvent.on(div, 'mousewheel', L.DomEvent.stopPropagation);
 
