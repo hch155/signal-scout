@@ -14,6 +14,7 @@ class BaseStation(db.Model):
     longitude = db.Column(db.Float, nullable=False)
     frequency_band = db.Column(db.String, nullable=False)
     rat = db.Column(db.String, nullable=True)
+    frequency_band_count = db.Column(db.Integer, default=-1, nullable=True)
 
 class User(db.Model):
     __bind_key__ = 'users'
