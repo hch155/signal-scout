@@ -31,30 +31,34 @@ def sort_frequency_bands(bands):
         return (priority, -numeric_part, band)  # Sort by priority, then by negative numeric part, then by band name
 
     return sorted(bands, key=get_sort_key)
-    
+
 def find_nearest_stations(user_lat, user_lon, limit=9, max_distance=None, service_providers=[], frequency_bands=[]):
     try:
-        stations = BaseStation.query.all()
-        stations_with_distance = []
+        # Filter early in the query to reduce memory usage and processing time
+        query = BaseStation.query
+        if service_providers:
+            query = query.filter(BaseStation.service_provider.in_(service_providers))
+        if frequency_bands:
+            query = query.filter(BaseStation.frequency_band.in_(frequency_bands))
+        
+        # Execute the filtered query
+        filtered_stations = query.all()
 
-        for station in stations:
-            if service_providers and station.service_provider not in service_providers:
-                continue
-            if frequency_bands and station.frequency_band not in frequency_bands:
-                continue 
-                     
-            distance = haversine(user_lat, user_lon, station.latitude, station.longitude)
-            if max_distance is None or distance <= max_distance:
-                stations_with_distance.append((station, distance))
-
-        stations_with_distance.sort(key=lambda x: x[1])
-
-        # Prepare for grouping stations with unique location
+        # Initialize a dictionary to hold the grouped stations with aggregated frequency bands
         grouped_stations = {}
 
-        for station, distance in stations_with_distance:
+        # Combine filtering by max_distance and grouping into a single loop
+        for station in filtered_stations:
+            distance = haversine(user_lat, user_lon, station.latitude, station.longitude)
+            
+            if max_distance is not None and distance > max_distance:
+                continue  # Skip this station if it's beyond the max_distance
+            
+            # Key for grouping stations by their unique location
             key = (station.latitude, station.longitude)
             distance_rounded = round(distance, 2)
+            
+            # Aggregate frequency bands and update distance if necessary
             if key not in grouped_stations:
                 grouped_stations[key] = {
                     'basestation_id': station.basestation_id,  
@@ -63,34 +67,37 @@ def find_nearest_stations(user_lat, user_lon, limit=9, max_distance=None, servic
                     'location': station.location,              
                     'latitude': station.latitude,
                     'longitude': station.longitude,
-                    'frequency_bands': {station.frequency_band},  # Set for aggregating frequency bands
+                    'frequency_bands': {station.frequency_band},
                     'distance': distance_rounded
                 }
             else:
+                # Add the current station's frequency band to the set
                 grouped_stations[key]['frequency_bands'].add(station.frequency_band)
-                # Update distance if a closer station with the same coordinates is found
+                # Ensure the stored distance is the minimum distance to this location
                 if distance_rounded < grouped_stations[key]['distance']:
                     grouped_stations[key]['distance'] = distance_rounded
-
-        # Convert frequency_bands set to list for JSON serialization
-        for station_info in grouped_stations.values():
-            station_info['frequency_bands'] = sort_frequency_bands(station_info['frequency_bands'])
-
-        # Apply limit if max_distance is not specified        
-        closest_stations = list(grouped_stations.values())
- 
-        if limit is not None and max_distance is None:
-            closest_stations = closest_stations[:int(limit)]
-        stations_count = len(closest_stations)
         
-        return {"stations": closest_stations, "count": stations_count}
+        for station_info in grouped_stations.values():
+            # Sort the frequency bands
+            sorted_bands = sort_frequency_bands(station_info['frequency_bands'])
+            station_info['frequency_bands'] = sorted_bands
 
+        final_stations_list = sorted(grouped_stations.values(), key=lambda x: x['distance'])
+
+        # Prepare the final list of stations, applying the limit
+        final_stations_list = sorted(grouped_stations.values(), key=lambda x: x['distance'])
+        if limit is not None:
+            final_stations_list = final_stations_list[:limit]
+
+        # Convert frequency_bands sets to lists for JSON serialization
+        for station_info in final_stations_list:
+            station_info['frequency_bands'] = list(station_info['frequency_bands'])
+
+        return {"stations": final_stations_list, "count": len(final_stations_list)}
 
     except Exception as e:
         print(f"Error in find_nearest_stations: {e}")
-        return {"stations": [], "count": 0}  
-
-
+        return {"stations": [], "count": 0}
 
 def process_stations(stations):
     grouped_stations = {}
