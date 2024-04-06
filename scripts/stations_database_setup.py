@@ -2,6 +2,7 @@ from app import app
 from models import BaseStation
 from database import db
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func
 import pandas as pd
 import os
 import re
@@ -94,7 +95,7 @@ def populate_database(combined_df):
         for _, row in combined_df.iterrows():
             try:
                 rat = determine_rat(row['frequency_band'])
-
+                
                 station = BaseStation(
                     latitude=row['Szer geogr stacji'],
                     longitude=row['Dł geogr stacji'],
@@ -103,8 +104,8 @@ def populate_database(combined_df):
                     basestation_id=row.get('IdStacji'),             # Real base station ID
                     city=row.get('Miejscowość'),         
                     service_provider=row.get('Nazwa Operatora'),    # name of ISP
-                    location=str(row.get('Lokalizacja'))
-                     
+                    location=str(row.get('Lokalizacja')),
+                    frequency_band_count=-1  
                 )
                 db.session.add(station)
 
@@ -114,10 +115,28 @@ def populate_database(combined_df):
                 continue 
         db.session.commit()
 
+def assign_freq_band_count():
+    with app.app_context():
+        # Fetch the distinct frequency band count for each base station
+        station_band_counts = db.session.query(
+            BaseStation.basestation_id,
+            func.count(BaseStation.frequency_band.distinct()).label('band_count')
+        ).group_by(BaseStation.basestation_id).all()
+        
+        # Update each station with its band count 
+        for basestation_id, band_count in station_band_counts:
+            # Update the station's band count
+            db.session.query(BaseStation).filter_by(basestation_id=basestation_id).update(
+                {"frequency_band_count": band_count}
+            )
+        
+        db.session.commit()
+
 def main():
     directory = 'base_station_data'
     combined_df = read_and_process_excel(directory)
     populate_database(combined_df)
+    assign_freq_band_count()
 
 if __name__ == '__main__':
     main()
