@@ -111,3 +111,6 @@ th[onclick]:hover {
 .frequency-table th:last-child, .frequency-table td:last-child {
   @apply border-r-0;
 }
+
+.text-yellow-500 { color: #fcd34d; } 
+.text-orange-500 { color: #fb923c; } 
