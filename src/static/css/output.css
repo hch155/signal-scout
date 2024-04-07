@@ -1298,24 +1298,6 @@ video {
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
-.frequency-range-legend-header {
-  display: flex;
-  cursor: move;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem;
-}
-
-.frequency-range-legend-header button {
-  border-style: none;
-  background-color: transparent;
-}
-
-.frequency-range-legend-header button:focus {
-  outline: 2px solid transparent;
-  outline-offset: 2px;
-}
-
 .frequency-table th {
   border-bottom-width: 2px;
   --tw-border-opacity: 1;
@@ -1380,6 +1362,14 @@ th[onclick]:hover {
 
 .frequency-table th:last-child, .frequency-table td:last-child {
   border-right-width: 0px;
+}
+
+.text-yellow-500 {
+  color: #fcd34d;
+}
+
+.text-orange-500 {
+  color: #fb923c;
 }
 
 .hover\:bg-blue-300:hover {
@@ -1506,4 +1496,4 @@ th[onclick]:hover {
   :is(.dark .dark\:md\:mt-0) {
     margin-top: 0px;
   }
-}
+} 

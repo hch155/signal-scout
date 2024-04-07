@@ -48,6 +48,8 @@ const frequencyRanges = {
     low: [500, 1500, 3000, 5000] // low band frequency
 };
 
+const frequencyRangecolors = ['green', 'yellow', 'orange', 'red'];
+
 window.onload = hideSidebar; // Hide the sidebar initially
 
 fetch('/static/PL-administrative-boundaries.json')
@@ -409,6 +411,7 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
             showSidebar(); 
             displayStations(data.stations);
             addRingsForLocation(lat,lng);
+            applyFrequencyColors();
         }
     })
 }
@@ -571,6 +574,7 @@ function fetchStations() {
         showSidebar();
         displayStations(data.stations);
         addRingsForLocation(currentFilters.lat, currentFilters.lng, currentBand);
+        applyFrequencyColors();
     })
 }
 
@@ -812,3 +816,76 @@ document.addEventListener('DOMContentLoaded', () => {
         cell.classList.add('highlighted-column');
     });
 });
+
+function getFrequencyColorForDistance(band, distanceKm) {
+    let distanceMeters = distanceKm * 1000;
+    let bandKey;
+    if (['5G3600', 'LTE2600', '5G2600'].includes(band)) {
+        bandKey = 'high';
+    } else if (['5G2100', 'LTE2100', '5G1800', 'LTE1800'].includes(band)) {
+        bandKey = 'mid';
+    } else {
+        bandKey = 'low';
+    }
+
+    // Get the corresponding distance thresholds for this bandKey
+    const thresholds = frequencyRanges[bandKey];
+
+    // Determine the color based on where the distance falls within the thresholds
+    for (let idx = 0; idx < thresholds.length; idx++) {
+        if (distanceMeters <= thresholds[idx]) {
+            return frequencyRangecolors[idx];
+        }
+    }
+    
+    return 'red'; // If distance exceeds all thresholds, default to red
+}
+
+function applyFrequencyColors() {
+    console.log('Function called');
+    const sidebarItems = document.querySelectorAll('.sidebar-item');
+    console.log('Sidebar items found:', sidebarItems.length);
+
+    sidebarItems.forEach((item, index) => {
+        console.log(`Processing item ${index}`);
+
+        let distance = null;
+        item.querySelectorAll('p').forEach(p => {
+            if (p.textContent.includes('Distance:')) {
+                const distanceMatch = p.textContent.match(/Distance:\s*(\d+\.?\d*)km/);
+                if (distanceMatch) {
+                    distance = parseFloat(distanceMatch[1]);
+                }
+            }
+        });
+
+        if (distance !== null) {
+            console.log(`Applying colors for item ${index} with distance ${distance}`);
+
+            // Find the paragraph with frequency bands
+            item.querySelectorAll('p').forEach(p => {
+                if (p.textContent.includes('Frequency Bands:')) {
+                    // Split and process each band from this paragraph
+                    const bandsContent = p.textContent.split('Frequency Bands:')[1].trim();
+                    const bandsList = bandsContent.split(',');
+                    // Clear the original content
+                    p.innerHTML = '<b>Frequency Bands:</b> ';
+
+                    bandsList.forEach((band, bandIndex) => {
+                        const color = getFrequencyColorForDistance(band.trim(), distance);
+                        // Create a span for each band with the appropriate color
+                        const span = document.createElement('span');
+                        span.textContent = band.trim();
+                        span.className = `text-${color}-500`;
+                        p.appendChild(span);
+
+                        // Adding commas between bands, but not after the last band
+                        if (bandIndex < bandsList.length - 1) {
+                            p.innerHTML += ', ';
+                        }
+                    });
+                }
+            });
+        }
+    });
+}
