@@ -842,12 +842,9 @@ function getFrequencyColorForDistance(band, distanceKm) {
 }
 
 function applyFrequencyColors() {
-    console.log('Function called');
     const sidebarItems = document.querySelectorAll('.sidebar-item');
-    console.log('Sidebar items found:', sidebarItems.length);
 
-    sidebarItems.forEach((item, index) => {
-        console.log(`Processing item ${index}`);
+    sidebarItems.forEach((item) => {
 
         let distance = null;
         item.querySelectorAll('p').forEach(p => {
@@ -860,7 +857,6 @@ function applyFrequencyColors() {
         });
 
         if (distance !== null) {
-            console.log(`Applying colors for item ${index} with distance ${distance}`);
 
             // Find the paragraph with frequency bands
             item.querySelectorAll('p').forEach(p => {
