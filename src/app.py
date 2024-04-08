@@ -60,7 +60,9 @@ SLOGANS = [
     ("On the Move?", "Navigate to the Nearest Base Stations for Uninterrupted Connectivity!"),
     ("Seeking Signal?", "Discover the Closest Connectivity Points for Seamless Communication!"),
     ("Chasing Coverage?", "Pinpoint the Best Signal Sources for Flawless Connections!"),
-    ("Stay Connected Everywhere", "Discover the Closest Base Stations for Optimal Signal Strength!")
+    ("Stay Connected Everywhere", "Discover the Closest Base Stations for Optimal Signal Strength!"),
+    ("Dropping Calls?", "Catch the color for quality coverage!"),
+    ("Found Getaway?", "Secure your signal!")
 ]
 
 @app.route('/')
