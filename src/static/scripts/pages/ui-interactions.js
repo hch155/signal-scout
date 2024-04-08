@@ -481,7 +481,8 @@ function addStationMarker(station, index) {
     let customIcon = createCustomIcon(station, index, providerIconUrl);
     let stationMarker = L.marker([station.latitude, station.longitude], {icon: customIcon}).addTo(mymap);
     let popupContent = createPopupContent(station, index);
-    stationMarker.bindPopup(popupContent);
+    const coloredContent = applyFrequencyColorsToTooltipContent(popupContent);
+    stationMarker.bindPopup(coloredContent);
     stationMarkers.push(stationMarker);
 
     let tooltipContent = `${index + 1}. ${station.basestation_id}`; // tooltip
@@ -884,4 +885,31 @@ function applyFrequencyColors() {
             });
         }
     });
+}
+
+function applyFrequencyColorsToTooltipContent(content, distance) {
+    // Find the distance if not provided
+    if (!distance) {
+        const distanceMatch = content.match(/<b>Distance:<\/b>\s*(\d+\.?\d*)km/);
+        if (distanceMatch) {
+            distance = parseFloat(distanceMatch[1]);
+        }
+    }
+
+    if (distance) {
+        // Find the frequency bands substring in the content
+        const bandsMatch = content.match(/<b>Frequency Bands:<\/b>\s*([^<]+)/);
+        if (bandsMatch && bandsMatch[1]) {
+            // Split the bands into array
+            const bandsList = bandsMatch[1].split(',').map(band => band.trim());
+            const coloredBandsHtml = bandsList.map(band => {
+                const colorClass = getFrequencyColorForDistance(band, distance); 
+                return `<span class="text-${colorClass}-500">${band}</span>`;
+            }).join(', ');
+
+            content = content.replace(bandsMatch[0], `<b>Frequency Bands:</b> ${coloredBandsHtml}`);
+        }
+    }
+
+    return content;
 }
