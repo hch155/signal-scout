@@ -173,8 +173,8 @@ function validatePassword(password) {
 }
 
 function initializePasswordValidation() {
-  const passwordInput = document.getElementById('password');
-  const passwordConfirmInput = document.getElementById('confirmpassword');
+  const passwordInput = document.getElementById('registrationPassword');
+  const passwordConfirmInput = document.getElementById('confirmRegistrationPassword');
 
   function updatePasswordRequirements() {
       const password = passwordInput.value;
@@ -221,6 +221,28 @@ function resetPasswordCriteriaIndicators() {
       req.classList.remove('text-green-500');
       req.textContent = req.textContent.replace('✓', 'X');
   });
+}
+
+function togglePasswordVisibility(passwordInputId, confirmPasswordInputId = null, toggleButtonId) {
+  let passwordInput = document.getElementById(passwordInputId);
+  let confirmPasswordInput = confirmPasswordInputId ? document.getElementById(confirmPasswordInputId) : null;
+  let toggleButton = document.getElementById(toggleButtonId);
+
+  if (!passwordInput) {
+    throw new Error('Error: Cannot find password input element.');
+  }
+
+  if (passwordInput.type === 'password') {
+    passwordInput.type = 'text';
+    if (toggleButton) toggleButton.textContent = 'Hide';
+  } else {
+    passwordInput.type = 'password';
+    if (toggleButton) toggleButton.textContent = 'Show';
+  }
+
+  if (confirmPasswordInput) {
+    confirmPasswordInput.type = passwordInput.type;
+  }
 }
 
 function submitForm(url, formData) {
