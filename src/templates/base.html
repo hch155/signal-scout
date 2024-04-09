@@ -11,66 +11,76 @@
     <script defer src="{{ url_for('static', filename='scripts/pages/common.js') }}"></script>
     <script defer src="{{ url_for('static', filename='scripts/pages/tips-interactions.js') }}"></script>
     {% block head_extra %}{% endblock %}
-</head>
-<body class="bg-gradient-to-t from-custom-blue-start via-custom-blue-mid to-custom-blue-end dark:from-custom-dark-start dark:via-custom-dark-mid dark:to-custom-dark-end flex flex-col min-h-screen">
-    
-    <header class="flex items-center justify-between flex-wrap p-6">
+  </head>
+  <body class="bg-gradient-to-t from-custom-blue-start via-custom-blue-mid to-custom-blue-end dark:from-custom-dark-start dark:via-custom-dark-mid dark:to-custom-dark-end flex flex-col min-h-screen">
+      
+      <header class="flex items-center justify-between flex-wrap p-6">
+  
+          <div class="flex items-center space-x-4 text-black dark:text-white">
+              <a href="/" class="inline-flex items-center mr-4 text-lg font-semibold">Signal-Scout</a>
+              <a href="/data" class="inline-flex items-center mr-8 text-black dark:text-white">Data</a>
+              <a href="/stats" class="inline-flex items-center mr-8 text-black dark:text-white">Statistics</a>
+              <a href="/tips" class="inline-flex items-center mr-8 text-black dark:text-white">Tips</a>
+          </div>
+      
+          <div class="flex items-center space-x-4">
+              <button id="signInBtn" class="inline-flex items-center text-black dark:text-white">Login</button>
+              <button id="registerBtn" class="inline-flex items-center mr-8 text-black dark:text-white">Sign Up</button>
+              <button id="logoutButton" class="inline-flex items-center mr-8 text-black dark:text-white" style="display:none;" onclick="logoutUser()">Logout</button>
+              <button id="themeToggle" class="text-black dark:text-white mr-8"></button>
+          </div>
+          
+          <div id="registrationModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center" style="z-index: 5000;">
+              <div class="container mx-auto h-full flex justify-center items-center">
+                <div class="relative bg-blue-50 dark:bg-gray-500 p-8 rounded-lg shadow-lg max-w-sm mx-auto">
+                  <button class="close-modal dark:text-white absolute top-0 right-0 mt-2 mr-2">Close</button>
+                  <h2 class="text-center text-xl font-bold mb-4 dark:text-white">Sign up to get exclusive features</h2>
+                  <form id="registrationForm" method="POST" action="/register" class="space-y-2">
+                    <input type="text" id="email" name="email" placeholder="Your Email" required pattern="[^@ \t\r\n]+@[^@ \t\r\n]+\.[^@ \t\r\n]+" title="Please enter a valid email address." class="w-full dark:bg-gray-300 p-2 border rounded">
+                    <div class="error-message text-red-500 text-sm mt-1 hidden" id="emailError"></div>
 
-        <div class="flex items-center space-x-4 text-black dark:text-white">
-            <a href="/" class="inline-flex items-center mr-4 text-lg font-semibold">Signal-Scout</a>
-            <a href="/data" class="inline-flex items-center mr-8 text-black dark:text-white">Data</a>
-            <a href="/stats" class="inline-flex items-center mr-8 text-black dark:text-white">Statistics</a>
-            <a href="/tips" class="inline-flex items-center mr-8 text-black dark:text-white">Tips</a>
-        </div>
-    
-        <div class="flex items-center space-x-4">
-            <button id="signInBtn" class="inline-flex items-center text-black dark:text-white">Login</button>
-            <button id="registerBtn" class="inline-flex items-center mr-8 text-black dark:text-white">Sign Up</button>
-            <button id="logoutButton" class="inline-flex items-center mr-8 text-black dark:text-white" style="display:none;" onclick="logoutUser()">Logout</button>
-            <button id="themeToggle" class="text-black dark:text-white mr-8"></button>
-        </div>
-        
-        <div id="registrationModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center" style="z-index: 5000;">
-            <div class="container mx-auto h-full flex justify-center items-center">
-              <div class="relative bg-blue-50 dark:bg-gray-500 p-8 rounded-lg shadow-lg max-w-sm mx-auto">
-                <button class="close-modal dark:text-white absolute top-0 right-0 mt-2 mr-2">Close</button>
-                <h2 class="text-center text-xl font-bold mb-4 dark:text-white">Sign up to get exclusive features</h2>
-                <form id="registrationForm" method="POST" action="/register" class="space-y-2">
-                  <input type="text" id="email" name="email" placeholder="Your Email" required pattern="[^@ \t\r\n]+@[^@ \t\r\n]+\.[^@ \t\r\n]+" title="Please enter a valid email address." class="w-full dark:bg-gray-300 p-2 border rounded">
-                  <div class="error-message text-red-500 text-sm mt-1 hidden" id="emailError"></div>
-                  <input type="password" id="password" name="password" placeholder="Password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[\W]).{8,}" title="Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character." class="w-full dark:bg-gray-300 p-2 border rounded">
-                  <div class="error-message text-red-500 text-sm mt-1 hidden" id="passwordError"></div>
-                  <input type="password" id="confirmpassword" name="confirm_password" placeholder="Confirm Password" class="w-full dark:bg-gray-300 p-2 border rounded">
-                  <div class="error-message text-red-500 text-sm mt-1 hidden" id="confirmPasswordError"></div>
-                  <div id="passwordRequirements" class="mt-2">
-                    <p class="password-requirement text-red-500" data-criteria="minLength"><span class="indicator">X</span> At least 8 characters</p>
-                    <p class="password-requirement text-red-500" data-criteria="number"><span class="indicator">X</span> Contains a number</p>
-                    <p class="password-requirement text-red-500" data-criteria="uppercase"><span class="indicator">X</span> Contains an uppercase letter</p>
-                    <p class="password-requirement text-red-500" data-criteria="lowercase"><span class="indicator">X</span> Contains a lowercase letter</p>
-                    <p class="password-requirement text-red-500" data-criteria="specialChar"><span class="indicator">X</span> Contains a special character</p>
-                    <p class="password-requirement text-red-500" data-criteria="passwordMatch"><span class="indicator">X</span> Passwords match</p>
+                    <div class="flex items-center border rounded dark:bg-gray-300">
+                      <input type="password" id="registrationPassword" name="password" placeholder="Password" class="w-full p-2 dark:bg-gray-300 rounded-l">
+                      <button type="button" onclick="togglePasswordVisibility('registrationPassword', 'confirmRegistrationPassword', 'toggleRegistrationPassword')" tabindex="-1">
+                        Show
+                      </button>
+                    </div>
+                    
+                    <div class="error-message text-red-500 text-sm mt-1 hidden" id="passwordError"></div>
+                    <input type="password" id="confirmRegistrationPassword" name="confirm_password" placeholder="Confirm Password" class="w-full dark:bg-gray-300 p-2 border rounded">
+                    <div class="error-message text-red-500 text-sm mt-1 hidden" id="confirmPasswordError"></div>
+                    <div id="passwordRequirements" class="mt-2">
+                      <p class="password-requirement text-red-500" data-criteria="minLength"><span class="indicator">X</span> At least 8 characters</p>
+                      <p class="password-requirement text-red-500" data-criteria="number"><span class="indicator">X</span> Contains a number</p>
+                      <p class="password-requirement text-red-500" data-criteria="uppercase"><span class="indicator">X</span> Contains an uppercase letter</p>
+                      <p class="password-requirement text-red-500" data-criteria="lowercase"><span class="indicator">X</span> Contains a lowercase letter</p>
+                      <p class="password-requirement text-red-500" data-criteria="specialChar"><span class="indicator">X</span> Contains a special character</p>
+                      <p class="password-requirement text-red-500" data-criteria="passwordMatch"><span class="indicator">X</span> Passwords match</p>
+                  </div>
+                    <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-700">Register</button>
+                  </form>
                 </div>
-                  <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-700">Register</button>
-                </form>
               </div>
-            </div>
-        </div>
-        
-        <div id="signInModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center" style="z-index: 5000;">
-            <div class="container mx-auto h-full flex justify-center items-center">
-              <div class="relative bg-blue-50 dark:bg-gray-500 p-8 rounded-lg shadow-lg max-w-sm mx-auto">
-                <button class="close-modal dark:text-white absolute top-0 right-0 mt-2 mr-2">Close</button>
-                <h2 class="text-center text-2xl font-bold mb-4 dark:text-white">Sign In</h2>
-                <form id="signInForm" method="POST" action="/login" class="space-y-2">
-                  <input type="text" id="email" name="email" placeholder="Your Email" class="w-full dark:bg-gray-300 p-2 border rounded">
-                  <input type="password" id="password" name="password" placeholder="Password" class="w-full p-2 dark:bg-gray-300 border rounded">
-                  <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-700">Sign In</button>
-                </form>
+          </div>
+          
+          <div id="signInModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center" style="z-index: 5000;">
+              <div class="container mx-auto h-full flex justify-center items-center">
+                <div class="relative bg-blue-50 dark:bg-gray-500 p-8 rounded-lg shadow-lg max-w-sm mx-auto">
+                  <button class="close-modal dark:text-white absolute top-0 right-0 mt-2 mr-2">Close</button>
+                  <h2 class="text-center text-2xl font-bold mb-4 dark:text-white">Sign In</h2>
+                  <form id="signInForm" method="POST" action="/login" class="space-y-2">
+                    <input type="text" id="email" name="email" placeholder="Your Email" class="w-full dark:bg-gray-300 p-2 border rounded">
+                    <div class="relative flex items-center dark:bg-gray-300 border rounded w-full">
+                      <input type="password" id="loginPassword" name="password" placeholder="Password" class="w-full p-2 dark:bg-gray-300 rounded-l">
+                      <button type="button" onclick="togglePasswordVisibility('loginPassword', null, 'toggleLoginPassword')" tabindex="-1">Show</button>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-500 text-white p-2 mt-4 rounded hover:bg-blue-700">Sign In</button>
+                  </form>
+                </div>
               </div>
-            </div>
-        </div>
-    </header>
-
+          </div>
+      </header>
+  
     <div id="toast-container" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center space-y-2" style="z-index: 5000;"></div>
 
     <button id="backToTopBtn" class="hidden fixed bottom-5 right-5 bg-blue-500 dark:bg-gray-500 text-white px-4 py-2 rounded transition duration-1000 ease-in-out">
