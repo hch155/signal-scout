@@ -877,6 +877,11 @@ video {
   border-radius: 0.5rem;
 }
 
+.rounded-l {
+  border-top-left-radius: 0.25rem;
+  border-bottom-left-radius: 0.25rem;
+}
+
 .border {
   border-width: 1px;
 }
@@ -1365,11 +1370,15 @@ th[onclick]:hover {
 }
 
 .text-yellow-500 {
-  color: #f59e0b;
+  color: #f9e725;
 }
 
 .text-orange-500 {
-  color: #f97316;
+  color: #ff8c00;
+}
+
+.text-red-500 {
+  color: #d32f2f;
 }
 
 .hover\:bg-blue-300:hover {
