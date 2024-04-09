@@ -112,5 +112,6 @@ th[onclick]:hover {
   @apply border-r-0;
 }
 
-.text-yellow-500 { color: #f59e0b; } 
-.text-orange-500 { color: #f97316; } 
+.text-yellow-500 { color: #f9e725; } 
+.text-orange-500 { color: #ff8c00; }
+.text-red-500 { color: #d32f2f; } 
