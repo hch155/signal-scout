@@ -1,6 +1,8 @@
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, make_response
 from flask_bcrypt import Bcrypt
 from flask_session import Session
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from database import db
 from models import BaseStation, User
 from sqlalchemy import or_
@@ -51,6 +53,12 @@ app.config["SESSION_COOKIE_SAMESITE"] = 'Lax'  # SameSite attribute for all sess
 app.config["SESSION_COOKIE_SECURE"] = True  # Only send cookies over HTTPS
 app.config["SESSION_COOKIE_HTTPONLY"] = True  # Prevent JavaScript access to session cookie, prevent XSS scripting attacks
 Session(app)
+
+limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["8 per minute"])
+
+@app.errorhandler(429)
+def rate_limit_exceeded(e):
+    return '<html><body><h1>Rate Limit Exceeded</h1><p>Please wait a minute before making new requests.</p><img src="/static/limitexceededfresh.png" alt="Rate Limit Exceeded"></body></html>', 429
 
 @app.before_request # Ensure session changes are acknowledged and persisted by Flask
 def session_handling():
@@ -209,6 +217,7 @@ def find_station():
         return jsonify({"error": "Station not found"}), 404
 
 @app.route('/register', methods=['POST'])
+@limiter.limit("2 per day")
 def register_user():
     email = request.form.get('email')
     password = request.form.get('password')
@@ -240,6 +249,7 @@ def register_user():
         return jsonify({"success": False, "message": "Registration failed due to a server error."}), 500
     
 @app.route('/login', methods=['POST'])
+@limiter.limit("3 per hour")
 def login_user():
     email = request.form.get('email')
     password = request.form.get('password')
@@ -278,4 +288,4 @@ if __name__ == '__main__':
     app.run(debug=debug_mode,
             host='0.0.0.0',
             port=port)
-            #ssl_context=('/etc/ssl/localcerts/localhost+2.pem', '/etc/ssl/localcerts/localhost+2-key.pem')) #app.config["SESSION_COOKIE_SECURE"] = True
+            #ssl_context=('/etc/ssl/localcerts/localhost+2.pem', '/etc/ssl/localcerts/localhost+2-key.pem'))
