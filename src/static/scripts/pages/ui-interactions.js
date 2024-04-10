@@ -873,7 +873,7 @@ function applyFrequencyColors() {
                         // Create a span for each band with the appropriate color
                         const span = document.createElement('span');
                         span.textContent = band.trim();
-                        span.className = `text-${color}-500`;
+                        span.className = `text-${color}-600`;
                         p.appendChild(span);
 
                         // Adding commas between bands, but not after the last band
@@ -904,7 +904,8 @@ function applyFrequencyColorsToTooltipContent(content, distance) {
             const bandsList = bandsMatch[1].split(',').map(band => band.trim());
             const coloredBandsHtml = bandsList.map(band => {
                 const colorClass = getFrequencyColorForDistance(band, distance); 
-                return `<span class="text-${colorClass}-500 text-shadow">${band}</span>`;
+
+                return `<span class="text-${colorClass}-600">${band}</span>`;
             }).join(', ');
 
             content = content.replace(bandsMatch[0], `<b>Frequency Bands:</b> ${coloredBandsHtml}`);
