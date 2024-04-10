@@ -904,6 +904,7 @@ function applyFrequencyColorsToTooltipContent(content, distance) {
             const bandsList = bandsMatch[1].split(',').map(band => band.trim());
             const coloredBandsHtml = bandsList.map(band => {
                 const colorClass = getFrequencyColorForDistance(band, distance); 
+
                 return `<span class="text-${colorClass}-600">${band}</span>`;
             }).join(', ');
 
