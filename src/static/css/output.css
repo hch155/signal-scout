@@ -1372,11 +1372,14 @@ th[onclick]:hover {
 .text-yellow-600 {
   color: #ffeb3b;
   text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
+
 }
 
 .text-orange-600 {
   color: #ff8c00;
+
   text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
+
 }
 
 .text-red-600 {
@@ -1387,6 +1390,11 @@ th[onclick]:hover {
 .text-green-600 {
   color: #22c55e;
   text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
+}
+
+.text-green-500 {
+  color: #22c55e;
+  text-shadow: 2px 2px 3px rgba(0,0,0,0.4);
 }
 
 .hover\:bg-blue-300:hover {
