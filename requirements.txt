@@ -16,6 +16,7 @@ decorator==5.1.1
 et-xmlfile==1.1.0
 Flask==3.0.2
 Flask-Bcrypt==1.0.1
+Flask-Limiter==3.5.1
 Flask-Session==0.8.0
 Flask-SQLAlchemy==3.1.1
 fonttools==4.50.0
