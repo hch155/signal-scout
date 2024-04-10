@@ -1369,42 +1369,24 @@ th[onclick]:hover {
   border-right-width: 0px;
 }
 
-.text-yellow-600 {
+.text-yellow-500 {
   color: #ffeb3b;
-  text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
-<<<<<<< HEAD
-
-=======
->>>>>>> addfunc
+  text-shadow: 2px 2px 3px rgba(0,0,0,0.4);
 }
 
-.text-orange-600 {
+.text-orange-500 {
   color: #ff8c00;
-<<<<<<< HEAD
-
-  text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
-
-=======
-  text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
->>>>>>> addfunc
+  text-shadow: 2px 2px 3px rgba(0,0,0,0.4);
 }
 
-.text-red-600 {
+.text-red-500 {
   color: #d32f2f;
-  text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
-}
-
-.text-green-600 {
-  color: #22c55e;
-  text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
-<<<<<<< HEAD
+  text-shadow: 2px 2px 3px rgba(0,0,0,0.4);
 }
 
 .text-green-500 {
   color: #22c55e;
   text-shadow: 2px 2px 3px rgba(0,0,0,0.4);
-=======
->>>>>>> addfunc
 }
 
 .hover\:bg-blue-300:hover {
@@ -1502,11 +1484,6 @@ th[onclick]:hover {
 :is(.dark .dark\:text-blue-300) {
   --tw-text-opacity: 1;
   color: rgb(147 197 253 / var(--tw-text-opacity));
-}
-
-:is(.dark .dark\:text-neutral-100) {
-  --tw-text-opacity: 1;
-  color: rgb(245 245 245 / var(--tw-text-opacity));
 }
 
 :is(.dark .dark\:text-white) {
