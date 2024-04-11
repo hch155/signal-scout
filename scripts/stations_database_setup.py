@@ -105,7 +105,8 @@ def populate_database(combined_df):
                     city=row.get('Miejscowość'),         
                     service_provider=row.get('Nazwa Operatora'),    # name of ISP
                     location=str(row.get('Lokalizacja')),
-                    frequency_band_count=-1  
+                    frequency_band_count=-1,
+                    latitude_segment=-1  
                 )
                 db.session.add(station)
 
@@ -132,11 +133,30 @@ def assign_freq_band_count():
         
         db.session.commit()
 
+def get_latitude_segment(latitude):
+    """Returns the segment index for a given latitude."""
+    base_latitude = 49.0  # Starting latitude
+    segment_size = 0.3  # Size of each latitude segment // 33.(3) km
+    return int((latitude - base_latitude) / segment_size)
+
+def assign_latitude_segments():
+    with app.app_context():
+        stations = db.session.query(BaseStation).all()
+        
+        for station in stations:
+            latitude_segment = get_latitude_segment(station.latitude)
+            
+            # Update the station's latitude_segment
+            station.latitude_segment = latitude_segment
+        
+        db.session.commit()
+
 def main():
     directory = 'base_station_data'
     combined_df = read_and_process_excel(directory)
     populate_database(combined_df)
     assign_freq_band_count()
+    assign_latitude_segments()
 
 if __name__ == '__main__':
     main()
