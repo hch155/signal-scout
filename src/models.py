@@ -10,11 +10,12 @@ class BaseStation(db.Model):
     city = db.Column(db.String, nullable=True)
     location = db.Column(db.String, nullable=True)
     service_provider = db.Column(db.String, nullable=True)
-    latitude = db.Column(db.Float, nullable=False)
-    longitude = db.Column(db.Float, nullable=False)
+    latitude = db.Column(db.Float, index=True, nullable=False)
+    longitude = db.Column(db.Float, index=True, nullable=False)
     frequency_band = db.Column(db.String, nullable=False)
     rat = db.Column(db.String, nullable=True)
     frequency_band_count = db.Column(db.Integer, default=-1, nullable=True)
+    latitude_segment = db.Column(db.Integer, default=-1, nullable=True)
 
 class User(db.Model):
     __bind_key__ = 'users'
