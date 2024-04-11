@@ -1369,24 +1369,24 @@ th[onclick]:hover {
   border-right-width: 0px;
 }
 
-.text-yellow-500 {
+.text-yellow-600 {
   color: #ffeb3b;
-  text-shadow: 2px 2px 3px rgba(0,0,0,0.4);
+  text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
 }
 
-.text-orange-500 {
+.text-orange-600 {
   color: #ff8c00;
-  text-shadow: 2px 2px 3px rgba(0,0,0,0.4);
+  text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
 }
 
-.text-red-500 {
+.text-red-600 {
   color: #d32f2f;
-  text-shadow: 2px 2px 3px rgba(0,0,0,0.4);
+  text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
 }
 
-.text-green-500 {
+.text-green-600 {
   color: #22c55e;
-  text-shadow: 2px 2px 3px rgba(0,0,0,0.4);
+  text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
 }
 
 .hover\:bg-blue-300:hover {
