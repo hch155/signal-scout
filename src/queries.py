@@ -32,10 +32,20 @@ def sort_frequency_bands(bands):
 
     return sorted(bands, key=get_sort_key)
 
+def get_latitude_segment(latitude):
+    """Returns the segment index for a given latitude."""
+    base_latitude = 49.0  # Starting latitude
+    segment_size = 0.3  # Size of each latitude segment // 33.333 km
+    return int((latitude - base_latitude) / segment_size)
+
 def find_nearest_stations(user_lat, user_lon, limit=9, max_distance=None, service_providers=[], frequency_bands=[]):
+    user_segment = get_latitude_segment(user_lat)
+    adjacent_segments = [user_segment - 1, user_segment, user_segment + 1]  # Include boundary segments
+
     try:
         # Filter early in the query to reduce memory usage and processing time
-        query = BaseStation.query
+        query = BaseStation.query.filter(BaseStation.latitude_segment.in_(adjacent_segments))
+        
         if service_providers:
             query = query.filter(BaseStation.service_provider.in_(service_providers))
         if frequency_bands:
