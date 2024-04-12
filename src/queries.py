@@ -38,7 +38,7 @@ def get_latitude_segment(latitude):
     segment_size = 0.3  # Size of each latitude segment // 33.333 km
     return int((latitude - base_latitude) / segment_size)
 
-def find_nearest_stations(user_lat, user_lon, limit=9, max_distance=None, service_providers=[], frequency_bands=[]):
+def find_nearest_stations(user_lat, user_lng, limit=9, max_distance=None, service_providers=[], frequency_bands=[]):
     user_segment = get_latitude_segment(user_lat)
     adjacent_segments = [user_segment - 1, user_segment, user_segment + 1]  # Include boundary segments
 
@@ -59,7 +59,7 @@ def find_nearest_stations(user_lat, user_lon, limit=9, max_distance=None, servic
 
         # Combine filtering by max_distance and grouping into a single loop
         for station in filtered_stations:
-            distance = haversine(user_lat, user_lon, station.latitude, station.longitude)
+            distance = haversine(user_lat, user_lng, station.latitude, station.longitude)
             
             if max_distance is not None and distance > max_distance:
                 continue  # Skip this station if it's beyond the max_distance
