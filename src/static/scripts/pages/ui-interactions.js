@@ -24,8 +24,8 @@ const providerColors = {
 };
 
 const initialFilters = () => ({
-    lat: null,
-    lng: null,
+    lat: 52.231,
+    lng: 21.004,
     limit: null,
     maxDistance: null,
     serviceProvider: [],
@@ -544,9 +544,10 @@ function createSidebarContent(station, index) {
 function constructFilterURL() {
     let params = new URLSearchParams();
 
-    const lat = currentFilters.lat !== undefined ? currentFilters.lat : mymap.getCenter().lat;
-    const lng = currentFilters.lng !== undefined ? currentFilters.lng : mymap.getCenter().lng;
-    
+    const center = mymap.getCenter();
+    currentFilters.lat = center.lat;
+    currentFilters.lng = center.lng;
+
     params.append('lat', currentFilters.lat);
     params.append('lng', currentFilters.lng);
 
@@ -574,7 +575,7 @@ function fetchStations() {
         updateBTSCount(data.count);
         showSidebar();
         displayStations(data.stations);
-        addRingsForLocation(currentFilters.lat, currentFilters.lng, currentBand);
+        addRingsForLocation(currentFilters.lat, currentFilters.lng);
         applyFrequencyColors();
     })
 }
