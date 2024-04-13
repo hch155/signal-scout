@@ -52,8 +52,7 @@ const frequencyRangecolors = ['green', 'yellow', 'orange', 'red'];
 
 window.onload = hideSidebar; // Hide the sidebar initially
 
-fetch('/static/PL-administrative-boundaries.json')
-.then(response => response.json())
+globalFetch('/static/PL-administrative-boundaries.json')
 .then(data => {
     countryBoundaries = L.geoJson(data, {
     style: function (feature) {
@@ -383,18 +382,12 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
 
     const messageBox = document.getElementById('messageBox');
 
-    fetch(url, {
+    globalFetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestData)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json(); // Ensure JSON parsing
     })
     .then(data => {
         if (!countryBoundaries.getBounds().contains(userSubmittedLocation)) {
@@ -544,6 +537,9 @@ function createSidebarContent(station, index) {
 function constructFilterURL() {
     let params = new URLSearchParams();
 
+    const lat = currentFilters.lat !== undefined ? currentFilters.lat : mymap.getCenter().lat;
+    const lng = currentFilters.lng !== undefined ? currentFilters.lng : mymap.getCenter().lng;
+    
     const center = mymap.getCenter();
     currentFilters.lat = center.lat;
     currentFilters.lng = center.lng;
@@ -569,15 +565,24 @@ function constructFilterURL() {
 
 function fetchStations() {
     let filterURL = constructFilterURL();
-    fetch(filterURL)
-    .then(response => response.json())
+    globalFetch(filterURL)
     .then(data => {
+        // Assuming data is already the parsed JSON object
+        if (!data || typeof data !== 'object') {
+            console.error('Invalid data received:', data);
+            return;  // Early return if data is invalid or not an object
+        }
         updateBTSCount(data.count);
         showSidebar();
         displayStations(data.stations);
-        addRingsForLocation(currentFilters.lat, currentFilters.lng);
+        if (currentFilters.lat && currentFilters.lng) {
+            addRingsForLocation(currentFilters.lat, currentFilters.lng);
+        }
         applyFrequencyColors();
     })
+    .catch(error => {
+        console.error('Failed to process station data:', error);
+    });
 }
 
 function resetFiltersUI() {
@@ -654,8 +659,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function updateDynamicContent() {
-    fetch('/session_check')
-    .then(response => response.json())
+    globalFetch('/session_check')
     .then(data => {
         const dynamicContent = document.getElementById('dynamicContent');
         const isLoggedIn = data.logged_in;
@@ -743,14 +747,7 @@ function updateStationFilters() {
         return;
     }
 
-    fetch(`/find_station?basestation_id=${basestation_id}`)
-        .then(response => {
-            if (!response.ok) {
-                showToast('Base Station ID not found', 'error');
-                throw new Error('Base Station ID not found');
-            }
-            return response.json();
-        })
+    globalFetch(`/find_station?basestation_id=${basestation_id}`)
         .then(station => {
             if (station.error) {
                 showToast(station.error, 'error'); 
