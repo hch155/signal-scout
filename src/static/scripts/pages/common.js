@@ -35,6 +35,7 @@ function globalFetch(url, options) {
 
 function handleErrors(response) {
     if (response.status === 429) {
+        localStorage.setItem('rateLimitedUntil', Date.now() + 60000);
         showRateLimitModal();
         document.getElementById('rateLimitModal').classList.remove('hidden');
         setTimeout(() => {
@@ -50,11 +51,17 @@ function showRateLimitModal() {
 
   // Calculate the remaining time based on what's stored or default to 60 seconds
   let endTime = parseInt(localStorage.getItem('rateLimitedUntil'), 10);
-  let timeLeft = endTime ? Math.max(0, Math.round((endTime - Date.now()) / 1000)) : 60;
-  if (!timeLeft || isNaN(timeLeft)) timeLeft = 60;  // Default to 60 seconds if invalid
+  let timeLeft = endTime ? Math.round((endTime - Date.now()) / 1000) : 60; // Fallback to 60 seconds if endTime is not valid
 
+  // Check for NaN or non-positive values and adjust accordingly
+  if (isNaN(timeLeft) || timeLeft <= 0) {
+      console.error('Invalid time left calculated:', timeLeft);
+      timeLeft = 60; // Reset to default 60 seconds if calculated time is invalid
+      localStorage.setItem('rateLimitedUntil', Date.now() + timeLeft * 1000); // Reset endTime in storage
+  }
+
+  countdownElement.textContent = timeLeft;
   modal.classList.remove('hidden');
-  localStorage.setItem('rateLimitedUntil', Date.now() + timeLeft * 1000);
 
   const timer = setInterval(() => {
       timeLeft = Math.max(0, Math.round((endTime - Date.now()) / 1000)); // Recalculate timeLeft to avoid drift
@@ -66,19 +73,6 @@ function showRateLimitModal() {
           localStorage.removeItem('rateLimitedUntil'); // Clean up
       }
   }, 1000);
-
-  // Sync countdown across tabs
-  window.addEventListener('storage', event => {
-      if (event.key === 'rateLimitedUntil') {
-          endTime = parseInt(event.newValue, 10);
-          timeLeft = Math.max(0, Math.round((endTime - Date.now()) / 1000));
-          countdownElement.textContent = timeLeft;
-          if (timeLeft <= 0) {
-              clearInterval(timer);
-              modal.classList.add('hidden');
-          }
-      }
-  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
