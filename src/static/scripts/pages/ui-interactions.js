@@ -24,8 +24,8 @@ const providerColors = {
 };
 
 const initialFilters = () => ({
-    lat: 52.231,
-    lng: 21.004,
+    lat: mymap.getCenter().lat,
+    lng: mymap.getCenter().lng,
     limit: null,
     maxDistance: null,
     serviceProvider: [],
@@ -86,6 +86,11 @@ mymap.on('click', function(e) {
     } else {
         fetchStations();
     }      
+});
+
+mymap.on('moveend', function() {
+    currentFilters.lat = mymap.getCenter().lat;
+    currentFilters.lng = mymap.getCenter().lng;
 });
 
 function setupTouchInteraction(mymap) {
@@ -537,13 +542,6 @@ function createSidebarContent(station, index) {
 function constructFilterURL() {
     let params = new URLSearchParams();
 
-    const lat = currentFilters.lat !== undefined ? currentFilters.lat : mymap.getCenter().lat;
-    const lng = currentFilters.lng !== undefined ? currentFilters.lng : mymap.getCenter().lng;
-    
-    const center = mymap.getCenter();
-    currentFilters.lat = center.lat;
-    currentFilters.lng = center.lng;
-
     params.append('lat', currentFilters.lat);
     params.append('lng', currentFilters.lng);
 
@@ -596,8 +594,12 @@ function resetFiltersUI() {
     document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
         checkbox.checked = false;
     });
-    const { lat, lng } = currentFilters;
-    currentFilters = { ...initialFilters(), lat, lng }; // spread
+    const center = mymap.getCenter();
+    currentFilters = {
+        ...initialFilters(), // spread
+        lat: center.lat,   
+        lng: center.lng     
+    };
 }    
 
 document.addEventListener('DOMContentLoaded', function() {
