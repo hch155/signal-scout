@@ -12,6 +12,84 @@ document.addEventListener('DOMContentLoaded', function() {
 
 window.addEventListener('resize', adjustFooterPosition);
 
+function globalFetch(url, options) {
+  return fetch(url, options)
+  .then(response => {
+      if (!response.ok) {
+          handleErrors(response);
+          throw new Error(`HTTP error, status = ${response.status}`);
+      }
+      if (response.headers.get("Content-Type")?.includes("application/json")) {
+          return response.json(); // Parse JSON only if the content type is correct
+      } else {
+          return response.text().then(text => {
+              throw new Error('Expected JSON but received text');
+          });
+      }
+  })
+  .catch(error => {
+      console.error('There was a problem with the fetch operation:', error.message);
+      throw error;
+  });
+}
+
+function handleErrors(response) {
+    if (response.status === 429) {
+        showRateLimitModal();
+        document.getElementById('rateLimitModal').classList.remove('hidden');
+        setTimeout(() => {
+            document.getElementById('rateLimitModal').classList.add('hidden');
+        }, 60000); 
+    }
+    // more error handling to be added
+}
+
+function showRateLimitModal() {
+  const modal = document.getElementById('rateLimitModal');
+  const countdownElement = document.getElementById('countdown');
+
+  // Calculate the remaining time based on what's stored or default to 60 seconds
+  let endTime = parseInt(localStorage.getItem('rateLimitedUntil'), 10);
+  let timeLeft = endTime ? Math.max(0, Math.round((endTime - Date.now()) / 1000)) : 60;
+  if (!timeLeft || isNaN(timeLeft)) timeLeft = 60;  // Default to 60 seconds if invalid
+
+  modal.classList.remove('hidden');
+  localStorage.setItem('rateLimitedUntil', Date.now() + timeLeft * 1000);
+
+  const timer = setInterval(() => {
+      timeLeft = Math.max(0, Math.round((endTime - Date.now()) / 1000)); // Recalculate timeLeft to avoid drift
+      countdownElement.textContent = timeLeft;
+
+      if (timeLeft <= 0) {
+          clearInterval(timer);
+          modal.classList.add('hidden');
+          localStorage.removeItem('rateLimitedUntil'); // Clean up
+      }
+  }, 1000);
+
+  // Sync countdown across tabs
+  window.addEventListener('storage', event => {
+      if (event.key === 'rateLimitedUntil') {
+          endTime = parseInt(event.newValue, 10);
+          timeLeft = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+          countdownElement.textContent = timeLeft;
+          if (timeLeft <= 0) {
+              clearInterval(timer);
+              modal.classList.add('hidden');
+          }
+      }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  let endTime = parseInt(localStorage.getItem('rateLimitedUntil'), 10);
+  let timeLeft = endTime ? Math.max(0, Math.round((endTime - Date.now()) / 1000)) : 0;
+
+  if (timeLeft > 0) {
+      showRateLimitModal(timeLeft); // Display the modal with the remaining time
+  }
+});
+
 function adjustFooterPosition() {
     const footer = document.querySelector('footer'); 
     const bodyHeight = document.body.offsetHeight;
@@ -246,7 +324,7 @@ function togglePasswordVisibility(passwordInputId, confirmPasswordInputId = null
 }
 
 function submitForm(url, formData) {
-  fetch(url, {
+  globalFetch(url, {
       method: 'POST',
       body: formData,
   })
@@ -278,7 +356,7 @@ function handleSignInSubmit(e) {
 }
 
 function submitForm(url, formData) {
-  fetch(url, { method: 'POST', body: formData })
+  globalFetch(url, { method: 'POST', body: formData })
   .then(response => response.json())
   .then(data => {
 
@@ -308,7 +386,7 @@ function submitForm(url, formData) {
 }
 
 function logoutUser() {
-  fetch('/logout', { method: 'POST' })
+  globalFetch('/logout', { method: 'POST' })
   .then(response => response.json())
   .then(data => {
       if (data.success) {
@@ -334,7 +412,7 @@ function safelyUpdateDisplay(elementId, displayStyle) {
 }
 
 function checkLoginStateAndUpdateUI() {
-  fetch('/session_check')
+  globalFetch('/session_check')
     .then(response => response.json())
     .then(data => {
       if (data.logged_in) {
@@ -436,6 +514,7 @@ function executeCurrentPageAction() {
       action();
   }
 }
+
 
 function debugSession() {
   fetch('/debug_session')
