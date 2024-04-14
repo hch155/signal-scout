@@ -322,7 +322,6 @@ function submitForm(url, formData) {
       method: 'POST',
       body: formData,
   })
-  .then(response => response.json())
   .then(data => {
       if (data.success) {
           // window.location.href = '/path';
@@ -351,7 +350,6 @@ function handleSignInSubmit(e) {
 
 function submitForm(url, formData) {
   globalFetch(url, { method: 'POST', body: formData })
-  .then(response => response.json())
   .then(data => {
 
       if (data.success) {
@@ -381,7 +379,6 @@ function submitForm(url, formData) {
 
 function logoutUser() {
   globalFetch('/logout', { method: 'POST' })
-  .then(response => response.json())
   .then(data => {
       if (data.success) {
           localStorage.removeItem('loggedIn');
@@ -407,7 +404,6 @@ function safelyUpdateDisplay(elementId, displayStyle) {
 
 function checkLoginStateAndUpdateUI() {
   globalFetch('/session_check')
-    .then(response => response.json())
     .then(data => {
       if (data.logged_in) {
         safelyUpdateDisplay('registrationModal', 'none');
