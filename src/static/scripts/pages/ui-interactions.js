@@ -24,8 +24,8 @@ const providerColors = {
 };
 
 const initialFilters = () => ({
-    lat: mymap.getCenter().lat,
-    lng: mymap.getCenter().lng,
+    lat: null,
+    lng: null,
     limit: null,
     maxDistance: null,
     serviceProvider: [],
@@ -33,6 +33,7 @@ const initialFilters = () => ({
     mode: 'all' // 'all', 'nearest', 'withinDistance'
 });
 
+let locationSetInitially = false;
 let currentFilters = initialFilters();
     
 let stationMarkers = [];
@@ -88,10 +89,7 @@ mymap.on('click', function(e) {
     }      
 });
 
-mymap.on('moveend', function() {
-    currentFilters.lat = mymap.getCenter().lat;
-    currentFilters.lng = mymap.getCenter().lng;
-});
+
 
 function setupTouchInteraction(mymap) {
     let isInteracting = false;
@@ -305,6 +303,13 @@ document.getElementById('reset-filters-btn').addEventListener('click', resetFilt
 document.getElementById('apply-filters').addEventListener('click', function() {
     let frequencyBands = Array.from(document.querySelectorAll('input[name="frequency_bands"]:checked')).map(el => el.value);
     let serviceProvider = Array.from(document.querySelectorAll('input[name="service_provider"]:checked')).map(el => el.value);
+
+    if (!locationSetInitially) {
+        const center = mymap.getCenter();
+        currentFilters.lat = center.lat;
+        currentFilters.lng = center.lng;
+    }
+    
     currentFilters.serviceProvider = serviceProvider;
     currentFilters.frequencyBands = frequencyBands;
     currentFilters.nearestBts = document.getElementById('nearestBtsRange').value;
@@ -318,18 +323,12 @@ setTimeout(() => {
 
     document.getElementById('showNearestBtn').addEventListener('click', function() {
         currentFilters.mode = 'nearest';
-        const center = mymap.getCenter();
-        currentFilters.lat = center.lat;
-        currentFilters.lng = center.lng;
         currentFilters.limit = nearestBtsRange.value;
         fetchStations();
     });
 
     document.getElementById('showWithinDistanceBtn').addEventListener('click', function() {
         currentFilters.mode = 'withinDistance';
-        const center = mymap.getCenter();
-        currentFilters.lat = center.lat;
-        currentFilters.lng = center.lng;
         currentFilters.maxDistance = withinDistanceRange.value;
         fetchStations();
     });
@@ -375,6 +374,7 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
     currentFilters.lng = lng;
     currentFilters.limit = limit;
     currentFilters.maxDistance = max_distance;
+    locationSetInitially = true;
 
     let url = `/submit_location`;
     const userSubmittedLocation = { lat: lat, lng: lng };
@@ -570,6 +570,7 @@ function fetchStations() {
             console.error('Invalid data received:', data);
             return;  // Early return if data is invalid or not an object
         }
+        locationSetInitially = true;
         updateBTSCount(data.count);
         showSidebar();
         displayStations(data.stations);
