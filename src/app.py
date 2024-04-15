@@ -7,7 +7,7 @@ from database import db
 from models import BaseStation, User
 from sqlalchemy import or_
 from collections import defaultdict
-from queries import get_all_stations, find_nearest_stations, process_stations, haversine, get_band_stats, get_stats, get_latitude_segment
+from queries import get_all_stations, find_nearest_stations, haversine, get_band_stats, get_stats, get_latitude_segment
 from dotenv import load_dotenv
 from datetime import timedelta
 import markdown, os, random, re
