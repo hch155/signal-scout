@@ -3,7 +3,6 @@ blinker==1.7.0
 cachelib==0.13.0
 click==8.1.7
 Deprecated==1.2.14
-dotenv==0.0.5
 Flask==3.0.3
 Flask-Bcrypt==1.0.1
 Flask-Limiter==3.5.1
