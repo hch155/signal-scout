@@ -109,29 +109,6 @@ def find_nearest_stations(user_lat, user_lng, limit=9, max_distance=None, servic
         print(f"Error in find_nearest_stations: {e}")
         return {"stations": [], "count": 0}
 
-def process_stations(stations):
-    grouped_stations = {}
-
-    for station in stations:
-        key = (station.latitude, station.longitude)
-        if key not in grouped_stations:
-            grouped_stations[key] = {
-                'basestation_id': station.basestation_id,  
-                'city': station.city,
-                'service_provider': station.service_provider,                      
-                'location': station.location,
-                'latitude': station.latitude,
-                'longitude': station.longitude,
-                'frequency_bands': set()
-            }
-        grouped_stations[key]['frequency_bands'].add(station.frequency_band)
-
-    # Convert sets to lists for JSON serialization
-    for key in grouped_stations:
-        grouped_stations[key]['frequency_bands'] = list(grouped_stations[key]['frequency_bands'])
-
-    return list(grouped_stations.values())
-
 def get_band_stats():
     # Query for physical site counts per provider
     physical_sites_query = db.session.query(
