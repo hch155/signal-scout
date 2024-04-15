@@ -67,9 +67,10 @@
 
 ## Obtaining cell information from mobile device
 
-<p> By accessing cell information via calling below codes: </p>
+<p>By using the following codes, you can access hidden menu on your devices: </p>
 <p>iOS: *3001#12345#* </p>
-<p>Android: *#4636#*#* , you can obtain crucial information like: </p>
+<p>Android: *#4636#*#* </p>
+<br>
 <p><strong>Deep Diving into iOS Field Test Mode: *3001#12345#*</strong></p>
 
 <p>When you dial <em>*3001#12345#*</em> on an iOS device, it enters what's known as the Field Test Mode. This hidden feature offers advanced users and technicians a deeper look into the inner workings of their device's cellular connectivity. Here's a breakdown of some of the key information that can be accessed through this mode and what it means:</p>
