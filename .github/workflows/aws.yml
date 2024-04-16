@@ -5,15 +5,13 @@ on:
     branches: [ "main" ]
 
 env:
-  AWS_REGION: eu-central-1                   # set this to your preferred AWS region, e.g. us-west-1
-  ECR_REPOSITORY: signal-scout           # set this to your Amazon ECR repository name
-  ECS_SERVICE: signal-scout                 # set this to your Amazon ECS service name
-  ECS_CLUSTER: signal-scout                 # set this to your Amazon ECS cluster name
-  ECS_TASK_DEFINITION: .aws/task-definition.json # set this to the path to your Amazon ECS task definition
-                                               # file, e.g. .aws/task-definition.json
-  CONTAINER_NAME: signal-scout           # set this to the name of the container in the
-                                               # containerDefinitions section of your task definition
-
+  AWS_REGION: eu-central-1             
+  ECR_REPOSITORY: signal-scout       
+  ECS_SERVICE: signal-scout       
+  ECS_CLUSTER: signal-scout
+  ECS_TASK_DEFINITION: .aws/task-definition.json 
+  CONTAINER_NAME: signal-scout           
+                                          
 permissions:
   contents: read
 
@@ -37,15 +35,15 @@ jobs:
         python-version: '3.12.2' 
 
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
+      uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
 
     - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
     - name: Build, tag, and push image to Amazon ECR
       id: build-image
