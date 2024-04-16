@@ -1,5 +1,4 @@
 {
-    "taskDefinitionArn": "arn:aws:ecs:eu-central-1:503546036325:task-definition/signal-scout-family:3",
     "containerDefinitions": [
         {
             "name": "signal-scout",
@@ -38,40 +37,8 @@
     "family": "signal-scout-family",
     "executionRoleArn": "arn:aws:iam::503546036325:role/ecsTaskExecutionRole",
     "networkMode": "awsvpc",
-    "revision": 3,
     "volumes": [],
-    "status": "ACTIVE",
-    "requiresAttributes": [
-        {
-            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
-        },
-        {
-            "name": "ecs.capability.execution-role-awslogs"
-        },
-        {
-            "name": "com.amazonaws.ecs.capability.ecr-auth"
-        },
-        {
-            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
-        },
-        {
-            "name": "ecs.capability.execution-role-ecr-pull"
-        },
-        {
-            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
-        },
-        {
-            "name": "ecs.capability.task-eni"
-        },
-        {
-            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.29"
-        }
-    ],
     "placementConstraints": [],
-    "compatibilities": [
-        "EC2",
-        "FARGATE"
-    ],
     "requiresCompatibilities": [
         "FARGATE"
     ],
@@ -81,7 +48,5 @@
         "cpuArchitecture": "X86_64",
         "operatingSystemFamily": "LINUX"
     },
-    "registeredAt": "2024-04-16T15:30:12.443Z",
-    "registeredBy": "arn:aws:iam::503546036325:root",
     "tags": []
 }
