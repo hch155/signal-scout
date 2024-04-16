@@ -9,7 +9,7 @@ env:
   ECR_REPOSITORY: signal-scout       
   ECS_SERVICE: signal-scout       
   ECS_CLUSTER: signal-scout
-  ECS_TASK_DEFINITION: .aws/task-definition.json 
+  ECS_TASK_DEFINITION: aws/task-definition.json 
   CONTAINER_NAME: signal-scout           
                                           
 permissions:
