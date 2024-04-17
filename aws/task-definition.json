@@ -2,7 +2,7 @@
     "containerDefinitions": [
         {
             "name": "signal-scout",
-            "image": "503546036325.dkr.ecr.eu-central-1.amazonaws.com/signal-scout:9620c899192d76345bb67392de228dc2220f2698",
+            "image": "503546036325.dkr.ecr.eu-central-1.amazonaws.com/signal-scout:25da67eeecd277a09ebe53022675f6deac8b9eb4",
             "cpu": 0,
             "portMappings": [
                 {
@@ -44,7 +44,7 @@
         "EC2"
     ],
     "cpu": "1024",
-    "memory": "1",
+    "memory": "1024",
     "runtimePlatform": {
         "cpuArchitecture": "X86_64",
         "operatingSystemFamily": "LINUX"
