@@ -219,7 +219,7 @@ def find_station():
         return jsonify({"error": "Station not found"}), 404
 
 @app.route('/register', methods=['POST'])
-@limiter.limit("2 per day")
+@limiter.limit("5 per hour")
 def register_user():
     email = request.form.get('email')
     password = request.form.get('password')
@@ -251,7 +251,7 @@ def register_user():
         return jsonify({"success": False, "message": "Registration failed due to a server error."}), 500
     
 @app.route('/login', methods=['POST'])
-@limiter.limit("3 per hour")
+@limiter.limit("3 per minute")
 def login_user():
     email = request.form.get('email')
     password = request.form.get('password')
