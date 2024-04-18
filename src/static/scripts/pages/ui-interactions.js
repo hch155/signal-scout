@@ -508,17 +508,19 @@ function createPopupContent(station, index) {
     let formattedDistance = station.distance.toFixed(2);
     let latHemisphere = station.latitude >= 0 ? 'N' : 'S';
     let lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
-    let googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
-    
+    let googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;  
+
     return `
-        <b>${index + 1}. Service Provider:</b> ${station.service_provider}<br>
-        <b>Distance:</b> ${formattedDistance}km<br>
-        <b>Base Station ID:</b> ${station.basestation_id}<br>
-        <b>Frequency Bands:</b> ${station.frequency_bands.join(", ")}<br>
-        <b>City:</b> ${station.city}<br>
-        <b>Location:</b> ${station.location}<br>
-        <b>Coordinates:</b> ${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}<br>
-        <a href="${googleMapsLink}" target="_blank" class="no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold">View on Google Maps</a>`;
+        <div class="bg-white dark:bg-gray-800 dark:text-white p-1 rounded-lg">
+            <b>${index + 1}. Service Provider:</b> ${station.service_provider}<br>
+            <b>Distance:</b> ${formattedDistance}km<br>
+            <b>Base Station ID:</b> ${station.basestation_id}<br>
+            <b>Frequency Bands:</b> ${station.frequency_bands.join(", ")}<br>
+            <b>City:</b> ${station.city}<br>
+            <b>Location:</b> ${station.location}<br>
+            <b>Coordinates:</b> ${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}<br>
+            <a href="${googleMapsLink}" target="_blank" class="no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold">View on Google Maps</a>
+        </div>`;
 }
 
 function createSidebarContent(station, index) {
