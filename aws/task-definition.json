@@ -2,7 +2,7 @@
     "containerDefinitions": [
         {
             "name": "signal-scout",
-            "image": "503546036325.dkr.ecr.eu-central-1.amazonaws.com/signal-scout:25da67eeecd277a09ebe53022675f6deac8b9eb4",
+            "image": "503546036325.dkr.ecr.eu-central-1.amazonaws.com/signal-scout:latest",
             "cpu": 0,
             "portMappings": [
                 {
@@ -29,8 +29,7 @@
                     "awslogs-group": "/ecs/signal-scout-family",
                     "awslogs-region": "eu-central-1",
                     "awslogs-stream-prefix": "ecs"
-                },
-                "secretOptions": []
+                }
             },
             "systemControls": []
         }
@@ -41,10 +40,10 @@
     "volumes": [],
     "placementConstraints": [],
     "requiresCompatibilities": [
-        "EC2"
+        "FARGATE"
     ],
     "cpu": "1024",
-    "memory": "1024",
+    "memory": "2048",
     "runtimePlatform": {
         "cpuArchitecture": "X86_64",
         "operatingSystemFamily": "LINUX"
