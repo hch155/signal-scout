@@ -1,0 +1,41 @@
+name: cd
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to Azure Web App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      
+      - name: Set up environment
+        run: |
+          echo "ENV=PRODUCTION" >> $GITHUB_ENV
+      
+      - name: Set up Python 3.12.2
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.2' 
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/signal-scout:latest .
+          docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/signal-scout:latest
+
+      - name: Deploy to Azure Web App
+        run: |
+          az webapp config container set --name signal-scout --resource-group signal-scout \
+            --docker-custom-image-name ${{ secrets.REGISTRY_LOGIN_SERVER }}/signal-scout:latest \
+            --docker-registry-server-url https://${{ secrets.REGISTRY_LOGIN_SERVER }} \
+            --docker-registry-server-user ${{ secrets.REGISTRY_USERNAME }} \
+            --docker-registry-server-password ${{ secrets.REGISTRY_PASSWORD }}
