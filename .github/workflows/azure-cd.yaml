@@ -22,10 +22,14 @@ jobs:
         run: |
           echo -n "${{ secrets.AZURE_REGISTRY_PASSWORD }}" | docker login "${{ secrets.REGISTRY_LOGIN_SERVER }}" -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
       
 >>>>>>> addfunc
+=======
+
+>>>>>>> b2470a645de92a067300b1ee5d9c427315417c3a
       - name: Set up environment
         run: |
           echo "ENV=PRODUCTION" >> $GITHUB_ENV
