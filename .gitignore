@@ -5,3 +5,4 @@ __pycache__/
 *.crt
 *.key
 venv/
+performance_scripts/
