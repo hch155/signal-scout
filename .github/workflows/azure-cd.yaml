@@ -1,4 +1,4 @@
-name: cd
+name: Azure cd
 
 on:
   push:
@@ -47,4 +47,6 @@ jobs:
             --registry-username ${{ secrets.REGISTRY_USERNAME }} \
             --registry-password ${{ secrets.AZURE_REGISTRY_PASSWORD }} \
             --dns-name-label signal-scout \
-            --ports 8080
+            --ports 8080 \
+            --environment-variables ENV=PRODUCTION \
+            --restart-policy Always
