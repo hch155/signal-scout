@@ -324,12 +324,22 @@ setTimeout(() => {
     document.getElementById('showNearestBtn').addEventListener('click', function() {
         currentFilters.mode = 'nearest';
         currentFilters.limit = nearestBtsRange.value;
+        if (!locationSetInitially) {
+            const center = mymap.getCenter();
+            currentFilters.lat = center.lat;
+            currentFilters.lng = center.lng;
+        }
         fetchStations();
     });
 
     document.getElementById('showWithinDistanceBtn').addEventListener('click', function() {
         currentFilters.mode = 'withinDistance';
         currentFilters.maxDistance = withinDistanceRange.value;
+        if (!locationSetInitially) {
+            const center = mymap.getCenter();
+            currentFilters.lat = center.lat;
+            currentFilters.lng = center.lng;
+        }
         fetchStations();
     });
 }, 0);
