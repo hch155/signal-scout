@@ -34,8 +34,7 @@ const initialFilters = () => ({
 });
 
 let locationSetInitially = false;
-let currentFilters = initialFilters();
-    
+let currentFilters = initialFilters();  
 let stationMarkers = [];
 let marker;
 let userSubmittedLocation = null;
@@ -88,8 +87,6 @@ mymap.on('click', function(e) {
         fetchStations();
     }      
 });
-
-
 
 function setupTouchInteraction(mymap) {
     let isInteracting = false;
@@ -793,7 +790,7 @@ function addRing(lat, lng, radius, color) {
     }).addTo(mymap);
 }
 
-function addRingsForLocation(lat, lng, band = 'low') {
+function addRingsForLocation(lat, lng) {
     const distanceRadius = frequencyRanges[currentBand];
     addRing(lat, lng, distanceRadius[0], 'green'); // Excellent
     addRing(lat, lng, distanceRadius[1], 'yellow'); // Good

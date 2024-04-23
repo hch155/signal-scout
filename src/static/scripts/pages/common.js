@@ -505,7 +505,6 @@ function executeCurrentPageAction() {
   }
 }
 
-
 function debugSession() {
   fetch('/debug_session')
   .then(response => response.json())
