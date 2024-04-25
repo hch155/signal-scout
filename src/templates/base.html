@@ -17,7 +17,10 @@
       <header class="flex items-center justify-between flex-wrap p-6">
   
           <div class="flex items-center space-x-4 text-black dark:text-white">
-              <a href="/" class="inline-flex items-center mr-4 text-lg font-semibold">Signal-Scout</a>
+              <a href="/" class="inline-flex items-center mr-2 text-lg font-medium">
+                <img src="{{ url_for('static', filename='favicon.ico') }}" alt="Signal-Scout logo" class="w-6 h-6 mb-1 mr-2">
+                Signal-Scout
+              </a>
               <a href="/data" class="inline-flex items-center mr-8 text-black dark:text-white">Data</a>
               <a href="/stats" class="inline-flex items-center mr-8 text-black dark:text-white">Statistics</a>
               <a href="/tips" class="inline-flex items-center mr-8 text-black dark:text-white">Tips</a>
