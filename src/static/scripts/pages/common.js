@@ -295,26 +295,32 @@ function resetPasswordCriteriaIndicators() {
   });
 }
 
-function togglePasswordVisibility(passwordInputId, confirmPasswordInputId = null, toggleButtonId) {
+function passwordVisibilityToggle(passwordInputId, confirmPasswordInputId, toggleButtonId) {
   let passwordInput = document.getElementById(passwordInputId);
   let confirmPasswordInput = confirmPasswordInputId ? document.getElementById(confirmPasswordInputId) : null;
   let toggleButton = document.getElementById(toggleButtonId);
 
-  if (!passwordInput) {
-    throw new Error('Error: Cannot find password input element.');
+  // Helper fuunction to toggle password visibility
+  function togglePassword(show) {
+      if (show) {
+          passwordInput.type = 'text';
+          toggleButton.textContent = 'Hide';
+          if (confirmPasswordInput) confirmPasswordInput.type = 'text';
+      } else {
+          passwordInput.type = 'password';
+          toggleButton.textContent = 'Show';
+          if (confirmPasswordInput) confirmPasswordInput.type = 'password';
+      }
   }
 
-  if (passwordInput.type === 'password') {
-    passwordInput.type = 'text';
-    if (toggleButton) toggleButton.textContent = 'Hide';
-  } else {
-    passwordInput.type = 'password';
-    if (toggleButton) toggleButton.textContent = 'Show';
-  }
+  // Mouse and touch event listeners
+  toggleButton.addEventListener('mousedown', () => togglePassword(true));
+  toggleButton.addEventListener('mouseup', () => togglePassword(false));
+  toggleButton.addEventListener('mouseleave', () => togglePassword(false));
 
-  if (confirmPasswordInput) {
-    confirmPasswordInput.type = passwordInput.type;
-  }
+  // Touch events for mobile devices
+  toggleButton.addEventListener('touchstart', () => togglePassword(true));
+  toggleButton.addEventListener('touchend', () => togglePassword(false));
 }
 
 function submitForm(url, formData) {
