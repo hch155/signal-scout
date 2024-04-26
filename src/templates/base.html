@@ -44,7 +44,7 @@
 
                     <div class="flex items-center border rounded dark:bg-gray-300">
                       <input type="password" id="registrationPassword" name="password" placeholder="Password" class="w-full p-2 dark:bg-gray-300 rounded-l">
-                      <button type="button" onclick="togglePasswordVisibility('registrationPassword', 'confirmRegistrationPassword', 'toggleRegistrationPassword')" tabindex="-1">
+                      <button type="button" id="toggleRegistrationPassword" onclick="passwordVisibilityToggle('registrationPassword', 'confirmRegistrationPassword', 'toggleRegistrationPassword')" tabindex="-1">
                         Show
                       </button>
                     </div>
@@ -75,7 +75,7 @@
                     <input type="text" id="email" name="email" placeholder="Your Email" class="w-full dark:bg-gray-300 p-2 border rounded">
                     <div class="relative flex items-center dark:bg-gray-300 border rounded w-full">
                       <input type="password" id="loginPassword" name="password" placeholder="Password" class="w-full p-2 dark:bg-gray-300 rounded-l">
-                      <button type="button" onclick="togglePasswordVisibility('loginPassword', null, 'toggleLoginPassword')" tabindex="-1">Show</button>
+                      <button type="button" id="toggleLoginPassword" onclick="passwordVisibilityToggle('loginPassword', null, 'toggleLoginPassword')" tabindex="-1">Show</button>
                     </div>
                     <button type="submit" class="w-full bg-blue-500 text-white p-2 mt-4 rounded hover:bg-blue-700">Sign In</button>
                   </form>
