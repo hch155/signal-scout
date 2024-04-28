@@ -1,0 +1,10 @@
+---
+
+releases:
+
+
+  - name: signal-scout
+
+    chart: ./signal-scout
+
+    installed: true 
