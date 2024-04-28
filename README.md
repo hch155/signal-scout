@@ -55,7 +55,7 @@ Access the web application by navigating to http://localhost:8080 in your web br
 If you prefer to use Docker, you can build and run the application as a Docker container:
     
     docker build -t signal-scout .
-    docker run -p 8080:8080 signal-scout
+    docker run -e ENV=PRODUCTION -p 8080:8080 signal-scout
     
 
 If you have any questions or suggestions, please contact me at hcylwik@gmail.com
