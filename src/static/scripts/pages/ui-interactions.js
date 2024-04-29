@@ -445,7 +445,6 @@ function displayStations(data) {
     let sidebarContent = document.getElementById('sidebar');
     sidebarContent.innerHTML = ''; // Clear existing sidebar content
     let stations;
-    
     let bounds = [];
     
     if (Array.isArray(data)) {
@@ -464,10 +463,19 @@ function displayStations(data) {
         bounds.push(latLng); 
     });
 
-    if (bounds.length > 0) {
-        mymap.fitBounds(bounds, { padding: [50, 50] }); 
-        mymap.setZoom(mymap.getZoom() - 1); //
+    function updateBTSView(bounds) {
+        // Adjusts map to fit given bounds with padding and reduces zoom level for an optimal view if bounds are not empty.
+        if (bounds.length > 0) {
+            let boundsLatLng = L.latLngBounds(bounds);
+            mymap.fitBounds(boundsLatLng, { padding: [50, 50] });
+            let currentZoom = mymap.getZoom();
+            let newZoom = currentZoom - 1;
+            if (newZoom < currentZoom) {
+                mymap.setZoom(newZoom);
+            }
+        } 
     }
+    updateBTSView(bounds);
 }
 
 function createCustomIcon(station, index, providerIconUrl) {
