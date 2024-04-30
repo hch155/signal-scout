@@ -5,7 +5,12 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build:css": "npx tailwindcss build src/static/css/styles.css -o src/static/css/output.css"
+    "build:css": "npx tailwindcss build src/static/css/styles.css -o src/static/css/output.css",
+    "minify-file1": "uglifyjs ./src/static/scripts/pages/common.js -c drop_console=true -m --source-map url=common.min.js.map -o ./src/static/dist/pages/common.min.js",
+    "minify-file2": "uglifyjs ./src/static/scripts/pages/map-initialization.js -c drop_console=true -m --source-map url=map-initialization.min.js.map -o ./src/static/dist/pages/map-initialization.min.js",
+    "minify-file3": "uglifyjs ./src/static/scripts/pages/tips-interactions.js -c drop_console=true -m --source-map url=tips-interactions.min.js.map -o ./src/static/dist/pages/tips-interactions.min.js",
+    "minify-file4": "uglifyjs ./src/static/scripts/pages/ui-interactions.js -c drop_console=true -m --source-map url=ui-interactions.min.js.map -o ./src/static/dist/pages/ui-interactions.min.js",
+    "minify-all": "npm run minify-file1 && npm run minify-file2 && npm run minify-file3 && npm run minify-file4"
   },
   "repository": {
     "type": "git",
@@ -20,6 +25,7 @@
   "homepage": "https://github.com/hch155/signal-scout#readme",
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.10",
-    "tailwindcss": "^3.4.1"
+    "tailwindcss": "^3.4.1",
+    "uglify-js": "^3.17.4"
   }
 }
