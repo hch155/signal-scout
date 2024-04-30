@@ -5,4 +5,5 @@ __pycache__/
 *.crt
 *.key
 venv/
+src/static/dist/pages/
 performance_scripts/
