@@ -342,26 +342,26 @@ setTimeout(() => {
 }, 0);
 
 function requestAndSendGPSLocation() {
-    if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(
-            function(position) {
-                let userLat = position.coords.latitude;
-                let userLng = position.coords.longitude;
-                mymap.setView([userLat, userLng], 7); 
-                sendLocation(userLat, userLng); 
-            },
-            function() {
-                showToast('Location error. Please try again.', 'error');
-            },
-            { 
-                enableHighAccuracy: true,
-                timeout: 7000,
-                maximumAge: 0
-            }
-        );
-    } else {
-        showToast('Geolocation is not supported by this browser.', 'error');
-    }
+    // Leaflet's locate to find the user's position
+    mymap.locate({ setView: true, maxZoom: 7, enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+    mymap.on('locationfound', function(e) {
+        let userLat = e.latlng.lat;
+        let userLng = e.latlng.lng;
+        sendLocation(userLat, userLng);
+    });
+
+    mymap.on('locationerror', function(e) {
+
+        if (e.message.includes("denied")) {
+            showToast('Location permission was denied. Please enable it to use this feature.', 'error');
+        } else if (e.message.includes("unavailable")) {
+            showToast('Location information is currently unavailable.', 'error');
+        } else if (e.message.includes("timeout")) {
+            showToast('The request to get your location timed out. Please try again.', 'error');
+        } else {
+            showToast('An unknown location error occurred. ' + e.message, 'error');
+        }
+    });
 }
 
 function updateBTSCount(count) {
