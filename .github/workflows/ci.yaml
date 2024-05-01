@@ -18,6 +18,8 @@ jobs:
         node-version: '22'
 
     - name: Install dependencies and run minification
+      env:
+        NODE_DEBUG: 'uglify-js'
       run: |
         npm install
         npm run minify-all
