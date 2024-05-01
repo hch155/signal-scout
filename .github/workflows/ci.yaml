@@ -18,13 +18,10 @@ jobs:
         node-version: '22'
 
     - name: Install dependencies and run minification
-      env:
-        NODE_DEBUG: 'uglify-js'
       run: |
         npm install
         npm run minify-all
        
-
     - name: Set up Python 3.12.2
       uses: actions/setup-python@v5
       with:
