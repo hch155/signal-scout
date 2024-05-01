@@ -33,9 +33,9 @@ jobs:
 
       - name: Download minified files
         uses: actions/download-artifact@v4
-      
-      - name: List Files
-        run: ls -R
+        with:
+          name: minified-js
+          path: src/static/dist/pages/
 
       - name: Use gcloud CLI
         run: gcloud info
