@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from datetime import timedelta
 import markdown, os, random, re
 
-app = Flask(__name__, static_folder='static')
+app = Flask(__name__, static_folder='src/static')
 bcrypt = Bcrypt(app)
 load_dotenv()
 # Database configuration
