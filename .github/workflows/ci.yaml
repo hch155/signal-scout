@@ -23,7 +23,7 @@ jobs:
         npm run minify-all
 
     - name: Upload minified files as artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v4.1.5
       with:
           name: minified-js
           path: src/static/dist/pages/
