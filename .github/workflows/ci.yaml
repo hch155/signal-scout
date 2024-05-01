@@ -12,6 +12,18 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Set directory permissions
+      run: chmod -R 755 src/static/dist/pages
+
+    - name: Print working directory and list target directory
+      run: |
+        pwd
+        ls -la src/static/dist/pages
+    
+    - name: Test file creation in target directory
+      run: touch src/static/dist/pages/testfile.txt && ls -la src/static/dist/pages
+      
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
@@ -21,6 +33,7 @@ jobs:
       run: |
         npm install
         npm run minify-all
+        ls -la src/static/dist/pages
        
     - name: Set up Python 3.12.2
       uses: actions/setup-python@v5
