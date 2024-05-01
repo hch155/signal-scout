@@ -6,10 +6,10 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:css": "npx tailwindcss build src/static/css/styles.css -o src/static/css/output.css",
-    "minify-file1": "uglifyjs src/static/scripts/pages/common.js -c drop_console=true -m --source-map url=common.min.js.map -o src/static/dist/pages/common.min.js --verbose  || exit 1",
+    "minify-file1": "uglifyjs src/static/scripts/pages/common.js -c drop_console=true -m --source-map url=common.min.js.map -o src/static/dist/pages/common.min.js --verbose || exit 1",
     "minify-file2": "uglifyjs src/static/scripts/pages/map-initialization.js -c drop_console=true -m --source-map url=map-initialization.min.js.map -o src/static/dist/pages/map-initialization.min.js --verbose || exit 1",
-    "minify-file3": "uglifyjs src/static/scripts/pages/tips-interactions.js -c drop_console=true -m --source-map url=tips-interactions.min.js.map -o src/static/dist/pages/tips-interactions.min.js --verbose  || exit 1",
-    "minify-file4": "uglifyjs src/static/scripts/pages/ui-interactions.js -c drop_console=true -m --source-map url=ui-interactions.min.js.map -o src/static/dist/pages/ui-interactions.min.js --verbose  || exit 1",
+    "minify-file3": "uglifyjs src/static/scripts/pages/tips-interactions.js -c drop_console=true -m --source-map url=tips-interactions.min.js.map -o src/static/dist/pages/tips-interactions.min.js --verbose || exit 1",
+    "minify-file4": "uglifyjs src/static/scripts/pages/ui-interactions.js -c drop_console=true -m --source-map url=ui-interactions.min.js.map -o src/static/dist/pages/ui-interactions.min.js --verbose || exit 1",
     "minify-all": "npm run minify-file1 && npm run minify-file2 && npm run minify-file3 && npm run minify-file4"
   },
   "repository": {
