@@ -30,9 +30,6 @@ jobs:
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
-
-      - name: Check current directory
-        run: ls -alh
       
       - name: Download minified files
         uses: actions/download-artifact@v4
