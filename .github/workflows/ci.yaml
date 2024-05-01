@@ -24,7 +24,6 @@ jobs:
         npm install
         npm run minify-all
        
-
     - name: Set up Python 3.12.2
       uses: actions/setup-python@v5
       with:
