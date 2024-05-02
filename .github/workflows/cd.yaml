@@ -30,18 +30,6 @@ jobs:
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
-      
-      - name: Download artifact files
-        uses: dawidd6/action-download-artifact@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }} 
-          workflow: ci.yaml
-          commit: ${{ github.event.pull_request.head.sha }}
-          name: minified-js
-          path: src/static/dist/pages/
-
-      - name: List downloaded files
-        run: ls -alh src/static/dist/pages/
 
       - name: Use gcloud CLI
         run: gcloud info
