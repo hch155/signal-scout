@@ -40,6 +40,9 @@ jobs:
           name: minified-js
           path: src/static/dist/pages/
 
+      - name: List downloaded files
+        run: ls -alh src/static/dist/pages/
+
       - name: Use gcloud CLI
         run: gcloud info
 
