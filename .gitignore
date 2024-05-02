@@ -5,5 +5,5 @@ __pycache__/
 *.crt
 *.key
 venv/
-src/static/dist/pages/
+src/static/dist/pages/*.map
 performance_scripts/
