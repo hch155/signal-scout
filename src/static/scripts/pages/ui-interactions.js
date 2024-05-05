@@ -300,19 +300,14 @@ document.getElementById('reset-filters-btn').addEventListener('click', resetFilt
 document.getElementById('apply-filters').addEventListener('click', function() {
     let frequencyBands = Array.from(document.querySelectorAll('input[name="frequency_bands"]:checked')).map(el => el.value);
     let serviceProvider = Array.from(document.querySelectorAll('input[name="service_provider"]:checked')).map(el => el.value);
-
-    if (!locationSetInitially) {
-        const center = mymap.getCenter();
-        currentFilters.lat = center.lat;
-        currentFilters.lng = center.lng;
-    }
     
     currentFilters.serviceProvider = serviceProvider;
     currentFilters.frequencyBands = frequencyBands;
     currentFilters.nearestBts = document.getElementById('nearestBtsRange').value;
     currentFilters.distance = document.getElementById('withinDistanceRange').value;
-
     currentFilters.mode = 'all'; // Reset to 'all'
+
+    checkAndSetInitialLocation();
     fetchStations();
 })
 
@@ -321,22 +316,16 @@ setTimeout(() => {
     document.getElementById('showNearestBtn').addEventListener('click', function() {
         currentFilters.mode = 'nearest';
         currentFilters.limit = nearestBtsRange.value;
-        if (!locationSetInitially) {
-            const center = mymap.getCenter();
-            currentFilters.lat = center.lat;
-            currentFilters.lng = center.lng;
-        }
+
+        checkAndSetInitialLocation();
         fetchStations();
     });
 
     document.getElementById('showWithinDistanceBtn').addEventListener('click', function() {
         currentFilters.mode = 'withinDistance';
         currentFilters.maxDistance = withinDistanceRange.value;
-        if (!locationSetInitially) {
-            const center = mymap.getCenter();
-            currentFilters.lat = center.lat;
-            currentFilters.lng = center.lng;
-        }
+
+        checkAndSetInitialLocation();
         fetchStations();
     });
 }, 0);
@@ -362,6 +351,14 @@ function requestAndSendGPSLocation() {
             showToast('An unknown location error occurred. ' + e.message, 'error');
         }
     });
+}
+
+function checkAndSetInitialLocation() {
+    if (!locationSetInitially) {
+        const center = mymap.getCenter();
+        currentFilters.lat = center.lat;
+        currentFilters.lng = center.lng;
+    }
 }
 
 function updateBTSCount(count) {
