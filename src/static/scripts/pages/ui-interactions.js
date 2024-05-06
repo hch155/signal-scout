@@ -814,6 +814,11 @@ function clearRings() {
 function changeFrequency(band) {
     const columnClass = `column-${band}`;
 
+    if (currentFilters.lat === null || currentFilters.lng === null) {
+        showToast('Please submit your location before changing the frequency.', 'error');
+        return;
+    }
+
     document.querySelectorAll('th, td').forEach(cell => {
         cell.classList.remove('highlighted-column');
     });
