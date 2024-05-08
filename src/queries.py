@@ -38,7 +38,7 @@ def get_latitude_segment(latitude):
     segment_size = 0.3  # Size of each latitude segment // 33.333 km
     return int((latitude - base_latitude) / segment_size)
 
-def find_nearest_stations(user_lat, user_lng, limit=9, max_distance=None, service_providers=[], frequency_bands=[]):
+def find_nearest_stations(user_lat, user_lng, limit=None, max_distance=None, service_providers=[], frequency_bands=[]):
     user_segment = get_latitude_segment(user_lat)
     adjacent_segments = [user_segment - 1, user_segment, user_segment + 1]  # Include boundary segments
 
@@ -53,7 +53,6 @@ def find_nearest_stations(user_lat, user_lng, limit=9, max_distance=None, servic
         
         # Execute the filtered query
         filtered_stations = query.all()
-
         # Initialize a dictionary to hold the grouped stations with aggregated frequency bands
         grouped_stations = {}
 
@@ -67,7 +66,6 @@ def find_nearest_stations(user_lat, user_lng, limit=9, max_distance=None, servic
             # Key for grouping stations by their unique location
             key = (station.latitude, station.longitude)
             distance_rounded = round(distance, 2)
-            
             # Aggregate frequency bands and update distance if necessary
             if key not in grouped_stations:
                 grouped_stations[key] = {
@@ -92,13 +90,10 @@ def find_nearest_stations(user_lat, user_lng, limit=9, max_distance=None, servic
             sorted_bands = sort_frequency_bands(station_info['frequency_bands'])
             station_info['frequency_bands'] = sorted_bands
 
-        final_stations_list = sorted(grouped_stations.values(), key=lambda x: x['distance'])
-
         # Prepare the final list of stations, applying the limit
         final_stations_list = sorted(grouped_stations.values(), key=lambda x: x['distance'])
         if limit is not None:
             final_stations_list = final_stations_list[:limit]
-
         # Convert frequency_bands sets to lists for JSON serialization
         for station_info in final_stations_list:
             station_info['frequency_bands'] = list(station_info['frequency_bands'])
