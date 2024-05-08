@@ -162,6 +162,17 @@ def get_stations():
 
         max_distance = request.args.get('max_distance', default=None, type=float)
         limit = request.args.get('limit', default=9, type=int)
+
+        if max_distance is not None:
+            if max_distance < 0.1 or max_distance > 10:
+                return jsonify({"error": "Invalid parameter", "message": "Max distance must be between 0.1 and 10 km. Please respect it."}), 400
+            # Set limit to None when a valid max_distance is provided to focus on distance-based filtering
+            limit = None
+        elif limit is not None:
+            # Validate limit if max_distance is not provided
+            if limit < 1 or limit > 10:
+                return jsonify({"error": "Invalid parameter", "message": "Limit cannot exceed 10. Please respect it."}), 400
+
         frequency_bands = request.args.getlist('frequency_bands')
         raw_service_providers = request.args.getlist('service_provider')
 
