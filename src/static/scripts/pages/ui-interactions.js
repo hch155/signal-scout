@@ -145,10 +145,10 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
                     </tr>
                 </thead>
                 <tbody class="text-gray-700 font-bold dark:text-white divide-y divide-gray-200">
-                    <tr class="bg-green-200 dark:bg-green-800"><td>Excellent</td><td>0.2</td><td>0.3</td><td>0.5</td></tr>
-                    <tr class="bg-yellow-200 dark:bg-yellow-700"><td>Good</td><td>0.5</td><td>0.75</td><td>1.5</td></tr>
-                    <tr class="bg-orange-200 dark:bg-orange-600"><td>Fair</td><td>1.0</td><td>1.5</td><td>3.0</td></tr>
-                    <tr class="bg-red-200 dark:bg-red-700"><td>Poor</td><td>1.5</td><td>2.0</td><td>5.0</td></tr>   
+                    <tr class="bg-green-600 dark:bg-green-700"><td>Excellent</td><td>0.2</td><td>0.3</td><td>0.5</td></tr>
+                    <tr class="bg-yellow-300 dark:bg-yellow-400"><td>Good</td><td>0.5</td><td>0.75</td><td>1.5</td></tr>
+                    <tr class="bg-orange-400 dark:bg-orange-400"><td>Fair</td><td>1.0</td><td>1.5</td><td>3.0</td></tr>
+                    <tr class="bg-red-500 dark:bg-red-600"><td>Poor</td><td>1.5</td><td>2.0</td><td>5.0</td></tr>   
                 </tbody>
             </table>
         `;
