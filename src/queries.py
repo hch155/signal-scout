@@ -35,7 +35,7 @@ def sort_frequency_bands(bands):
 def get_latitude_segment(latitude):
     """Returns the segment index for a given latitude."""
     base_latitude = 49.0  # Starting latitude
-    segment_size = 0.3  # Size of each latitude segment // 33.333 km
+    segment_size = 0.1  # Size of each latitude segment // 11.111 km
     return int((latitude - base_latitude) / segment_size)
 
 def find_nearest_stations(user_lat, user_lng, limit=None, max_distance=None, service_providers=[], frequency_bands=[]):
