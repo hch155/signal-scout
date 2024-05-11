@@ -54,7 +54,7 @@ app.config["SESSION_COOKIE_SECURE"] = True  # Only send cookies over HTTPS
 app.config["SESSION_COOKIE_HTTPONLY"] = True  # Prevent JavaScript access to session cookie, prevent XSS scripting attacks
 Session(app)
 
-limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["8 per minute"])
+limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["16 per minute"])
 
 @app.errorhandler(429)
 def rate_limit_exceeded(e):
