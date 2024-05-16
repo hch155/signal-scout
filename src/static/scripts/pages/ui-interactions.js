@@ -133,7 +133,7 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
         toggleBtn.title = 'Frequency Range Distance Legend';
         toggleBtn.innerHTML = '<span class="text-green-500" style="position: relative; transform: scale(2.5); display: inline-block; vertical-align: middle;">&#x25CB;</span>';
 
-        let legendDiv = L.DomUtil.create('div', 'frequency-range-container hidden bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400', div);
+        let legendDiv = L.DomUtil.create('div', 'frequency-range-container bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400', div);
         legendDiv.innerHTML = `
             <table class="frequency-table min-w-full divide-y divide-gray-200">
                 <thead class="text-gray-700 font-bold dark:text-white">
