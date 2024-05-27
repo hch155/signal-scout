@@ -6,4 +6,4 @@ This application utilizes data provided by Urząd Komunikacji Elektronicznej (UK
 
 This publicly available dataset allows us to map out coverage areas accurately and provide insights into network availability across different regions.
 
-Last updated on 25th of April, 2024, this data is instrumental in helping us enhance your connectivity experience.
+Last updated on 27th of May, 2024, this data is instrumental in helping us enhance your connectivity experience.
