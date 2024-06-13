@@ -15,7 +15,9 @@ import markdown, os, random, re
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
 load_dotenv()
+
 # Database configuration
+
 basedir = os.path.abspath(os.path.dirname(__file__))
 stations_db_path = os.path.join(basedir, 'instance', 'stations.db')
 users_db_path = os.path.join(basedir, 'instance', 'users.db')
