@@ -524,7 +524,7 @@ function createPopupContent(station, index) {
     let googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;  
 
     return `
-        <div class="bg-white dark:bg-gray-800 dark:text-white p-1 rounded-lg">
+        <div class="bg-blue-50 dark:bg-gray-800 dark:text-white p-1 rounded-lg">
             <b>${index + 1}. Service Provider:</b> ${station.service_provider}<br>
             <b>Distance:</b> ${formattedDistance}km<br>
             <b>Base Station ID:</b> ${station.basestation_id}<br>
