@@ -63,3 +63,43 @@
 <p>Device in NSA mode, LTE2600 + NR3600 = 120MHz, DL throughput resulting on average around 1000-1200Mbps (peak 1500-1600Mbps), UL up to 150Mbps</p>
 
 <p>Most of the user equipment (minding their capabilities and network configuration priorities) tend to aggregate as most carriers as possible ensuring the best experience as possible</p>
+
+## Obtaining cell information from mobile device
+
+<p>By using the following codes, you can access hidden menu on your devices: </p>
+<p>iOS: *3001#12345#* </p>
+<p>Android: *#*#4636#*#* </p>
+<br>
+<p><strong>Deep Diving into iOS Field Test Mode: *3001#12345#*</strong></p>
+
+<p>When you dial <em>*3001#12345#*</em> on an iOS device, it enters what's known as the Field Test Mode. This hidden feature offers advanced users and technicians a deeper look into the inner workings of their device's cellular connectivity. Here's a breakdown of some of the key information that can be accessed through this mode and what it means:</p>
+
+<ul>
+    <li>RAT (Radio Access Technology) Serving Cell Info
+        <ul>
+            <li>PLMN (Public Land Mobile Network): Identifies the mobile network that your phone is currently connected to. It is comprised of the MCC (Mobile Country Code) and MNC (Mobile Network Code), uniquely identifying the country and the mobile network operator, respectively. For example, PLMN 26006 indicates an operator in country code 260 (Poland) with an operator ID of 06.</li>
+            <li>Band Information: Refers to the specific frequency band your device is using for its cellular connection. Different bands have varying characteristics in terms of coverage and data speed.</li>
+            <li>Bandwidth: Indicates the width of the frequency band used for the network connection, measured in MHz. A wider bandwidth can allow for higher data throughput.</li>
+            <li>Cell ID: A unique identifier for the cell tower your device is currently connected to. This can be used to pinpoint the location of the tower and extract cell ID and base station ID.</li>
+            <li>Radio Access: This shows the type of network technology in use, such as 5G, LTE, each with its own set of performance characteristics.</li>
+            <li>PCI (Physical Cell ID): An identifier used in LTE (in 5G also) networks to identify a physical cell. It's crucial for the handover process between cells and for signaling on the physical layer.</li>
+            <li>TAC (Tracking Area Code): Used in LTE networks, this code helps in managing device tracking and paging procedures between different areas within the network.</li>
+            <li>EARFCN DL (E-UTRA Absolute Radio Frequency Channel Number for Downlink): Specifies the frequency channel used for the downlink in LTE networks. It's a unique number representing the carrier frequency and helps in identifying the specific frequency used for cellular communication.</li>
+        </ul>
+    </li>
+</ul>
+
+<p><strong>Band</strong></p>
+<p>The Band refers to a specific range of frequencies that cellular networks use to transmit and receive signals. Different bands have different properties in terms of coverage and penetration. For example, lower frequency bands (such as 700 MHz) offer better coverage and indoor penetration but may have lower data throughput compared to higher frequency bands (such as 2600 MHz), which offer higher data rates but have a shorter range and reduced building penetration.</p>
+<p><strong>ConnectionStats</strong></p>
+<p>ConnectionStats likely refers to statistics regarding the device's connection to the network. This can include data rates, latency, packet loss, and other metrics that indicate the quality and reliability of the network connection. These stats are crucial for diagnosing connection problems and optimizing network performance.</p>
+<p><strong>RACH Attempt</strong></p>
+<p>RACH (Random Access Channel) Attempt refers to the process by which a device attempts to initiate a connection with the network. When a device needs to establish a connection for a call or data session, it sends a signal on the RACH. The network then responds, allowing the device to move to a dedicated channel for communication. Monitoring RACH attempts can be important for identifying issues with network access in congested areas or with weak signal strength.</p>
+<p><strong>RSRP, RSRQ, SINR</strong></p>
+<p>These terms relate to the quality of the signal between the device and the network:</p>
+<p>RSRP (Reference Signal Received Power): Measures the power of signals received from the cell. It's a primary indicator of signal strength.</p>
+<p>RSRQ (Reference Signal Received Quality): Provides an assessment of the quality of the received signal. RSRQ takes into account both the signal strength (RSRP) and the level of interference and noise. It's particularly useful for evaluating performance in areas with high cell density.</p>
+<p>SINR (Signal-to-Interference-plus-Noise Ratio): This metric compares the level of the signal to the background noise plus interference from other sources. A higher SINR indicates a better quality of connection, as it suggests that the signal is much clearer compared to the noise and interference.</p>
+<p><strong>Serving Cell Info</strong></p>
+<p>Serving Cell Info provides details about the cell tower (base station) to which the device is currently connected. This can include the cell ID, frequency band, technology (e.g., LTE, 5G), and various performance metrics like RSRP, RSRQ, and SINR mentioned above. This information is vital for understanding the current connection's characteristics and can help in troubleshooting connectivity issues or optimizing network performance.</p>
+<p>Together, these metrics offer a comprehensive view of the device's interaction with the cellular network, highlighting areas of strength and pinpointing potential issues that could affect the user experience. Understanding these elements is key for network engineers, technicians, and enthusiasts who are keen on maximizing cellular network performance and reliability.</p>
