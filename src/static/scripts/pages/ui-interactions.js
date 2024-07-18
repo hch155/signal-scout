@@ -336,7 +336,7 @@ function requestAndSendGPSLocation() {
     mymap.on('locationfound', function(e) {
         let userLat = e.latlng.lat;
         let userLng = e.latlng.lng;
-        gpsMarker = L.marker([userLat, userLng], {icon: greenIcon}).addTo(mymap).bindPopup("Your Location").openPopup();
+        gpsMarker = L.marker([userLat, userLng], {icon: greenIcon}).addTo(mymap).bindPopup(`<div class=" dark:text-white">Your Location</div>`).openPopup();
         sendLocation(userLat, userLng);
     });
 
