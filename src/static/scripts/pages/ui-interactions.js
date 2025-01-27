@@ -19,8 +19,7 @@ const providerColors = {
     'P4 Sp. z o.o.': 'violet', // purple/violet marker for Play
     'Orange Polska S.A.': 'orange',
     'T-Mobile Polska S.A.': 'red', 
-    'POLKOMTEL Sp. z o.o.': 'blue',
-    'AERO 2 Sp. z o.o.': 'blue' 
+    'POLKOMTEL Sp. z o.o.': 'blue'
 };
 
 const initialFilters = () => ({
@@ -237,7 +236,6 @@ filterControl.onAdd = function(map) {
                         <label><input type="checkbox" name="service_provider" value="Orange Polska S.A."> Orange</label>
                         <label><input type="checkbox" name="service_provider" value="T-Mobile Polska S.A."> T-Mobile</label>
                         <label><input type="checkbox" name="service_provider" value="POLKOMTEL Sp. z o.o."> Plus</label>
-                        <label><input type="checkbox" name="service_provider" value="AERO 2 Sp. z o.o."> Aero 2</label>
                     </div>
                 </div>
 
