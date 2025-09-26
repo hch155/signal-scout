@@ -2,8 +2,8 @@
 
 This application utilizes data provided by Urząd Komunikacji Elektronicznej (UKE).
 
-[https://bip.uke.gov.pl/pozwolenia-radiowe/wykaz-pozwolen-radiowych-tresci/stacje-gsm-umts-lte-oraz-cdma,12.html](https://bip.uke.gov.pl/pozwolenia-radiowe/wykaz-pozwolen-radiowych-tresci/stacje-gsm-umts-lte-oraz-cdma,12.html)
+[https://bip.uke.gov.pl/pozwolenia-radiowe/wykaz-pozwolen-radiowych-tresci/stacje-gsm-umts-lte-5gnr-oraz-cdma,12,0.html](https://bip.uke.gov.pl/pozwolenia-radiowe/wykaz-pozwolen-radiowych-tresci/stacje-gsm-umts-lte-5gnr-oraz-cdma,12,0.html)
 
 This publicly available dataset allows to map out coverage areas accurately and provide insights into network availability across different regions.
 
-Last updated on 28th of August, 2025, this data is instrumental in enhancing your connectivity experience.
+Last updated on 26th of September, 2025, this data is instrumental in enhancing your connectivity experience.
