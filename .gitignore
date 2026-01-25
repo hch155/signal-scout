@@ -4,6 +4,8 @@ __pycache__/
 .env
 *.crt
 *.key
+*.pem
+certs/
 venv/
 src/static/dist/pages/*.map
 performance_scripts/
