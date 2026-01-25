@@ -504,13 +504,25 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
     stationInfoDiv.className = 'sidebar-item';
     stationInfoDiv.innerHTML = stationInfo;
     sidebarContent.appendChild(stationInfoDiv);
-    
+
     let googleMapsLink = document.createElement('a');
     googleMapsLink.href = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
     googleMapsLink.target = '_blank';
     googleMapsLink.textContent = 'View on Google Maps';
     googleMapsLink.className = 'no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold';
     stationInfoDiv.appendChild(googleMapsLink);
+
+    // Add compass button if supported and user location is available
+    if (window.CompassModule && window.CompassModule.isSupported() && currentFilters.lat && currentFilters.lng) {
+        const compassBtn = window.CompassModule.addButton(
+            station.latitude,
+            station.longitude,
+            `${station.basestation_id} (${station.service_provider})`,
+            currentFilters.lat,
+            currentFilters.lng
+        );
+        stationInfoDiv.appendChild(compassBtn);
+    }
 }
 
 function createPopupContent(station, index) {

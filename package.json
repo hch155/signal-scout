@@ -10,7 +10,8 @@
     "minify-file2": "uglifyjs src/static/scripts/pages/map-initialization.js -c drop_console=true -m --source-map url=map-initialization.min.js.map -o src/static/dist/pages/map-initialization.min.js",
     "minify-file3": "uglifyjs src/static/scripts/pages/tips-interactions.js -c drop_console=true -m --source-map url=tips-interactions.min.js.map -o src/static/dist/pages/tips-interactions.min.js",
     "minify-file4": "uglifyjs src/static/scripts/pages/ui-interactions.js -c drop_console=true -m --source-map url=ui-interactions.min.js.map -o src/static/dist/pages/ui-interactions.min.js",
-    "minify-all": "npm run minify-file1 && npm run minify-file2 && npm run minify-file3 && npm run minify-file4"
+    "minify-file5": "uglifyjs src/static/scripts/pages/compass.js -c drop_console=true -m --source-map url=compass.min.js.map -o src/static/dist/pages/compass.min.js",
+    "minify-all": "npm run minify-file1 && npm run minify-file2 && npm run minify-file3 && npm run minify-file4 && npm run minify-file5"
   },
   "repository": {
     "type": "git",
