@@ -11,8 +11,17 @@ let compassState = {
     bearingToTarget: null,
     isActive: false,
     hasPermission: false,
-    watchId: null
+    watchId: null,
+    isMobileDevice: false,
+    hasOrientationData: false,
+    orientationCheckTimeout: null
 };
+
+// Detect if device is mobile/tablet
+function detectMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        || (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+}
 
 // Calculate bearing from point A to point B (in degrees, 0 = North, clockwise)
 function calculateBearing(lat1, lng1, lat2, lng2) {
@@ -68,6 +77,12 @@ function handleOrientation(event) {
     }
 
     if (heading !== null) {
+        // Mark that we're receiving real orientation data
+        if (!compassState.hasOrientationData) {
+            compassState.hasOrientationData = true;
+            updateCompassMode();
+        }
+
         // Smooth the heading to reduce jitter
         if (compassState.deviceHeading !== null) {
             // Simple low-pass filter
@@ -80,6 +95,27 @@ function handleOrientation(event) {
         }
         compassState.deviceHeading = heading;
         updateCompassDisplay();
+    }
+}
+
+// Update compass mode (mobile vs desktop)
+function updateCompassMode() {
+    const mobileElements = document.querySelectorAll('.compass-mobile-only');
+    const desktopNotice = document.getElementById('compass-desktop-notice');
+    const compassRing = document.getElementById('compass-ring');
+
+    if (compassState.hasOrientationData) {
+        // Mobile mode - show full compass
+        mobileElements.forEach(el => el.classList.remove('hidden'));
+        if (desktopNotice) desktopNotice.classList.add('hidden');
+    } else {
+        // Desktop mode - show static view
+        mobileElements.forEach(el => el.classList.add('hidden'));
+        if (desktopNotice) desktopNotice.classList.remove('hidden');
+        // Point compass to show bearing statically
+        if (compassRing && compassState.bearingToTarget !== null) {
+            compassRing.style.transform = 'rotate(0deg)';
+        }
     }
 }
 
@@ -292,14 +328,18 @@ async function startCompass(stationLat, stationLng, stationName, userLat, userLn
     compassState.targetName = stationName;
     compassState.userLat = userLat;
     compassState.userLng = userLng;
+    compassState.isMobileDevice = detectMobileDevice();
+    compassState.hasOrientationData = false;
 
     // Calculate bearing to target
     compassState.bearingToTarget = calculateBearing(userLat, userLng, stationLat, stationLng);
 
-    // Request permission if needed
-    if (!compassState.hasPermission) {
+    // Request permission if needed (mobile only)
+    if (compassState.isMobileDevice && !compassState.hasPermission) {
         const granted = await requestOrientationPermission();
-        if (!granted) return false;
+        if (!granted && compassState.isMobileDevice) {
+            // On mobile, permission denied - still show static compass
+        }
     }
 
     // Show compass UI
@@ -309,8 +349,16 @@ async function startCompass(stationLat, stationLng, stationName, userLat, userLn
     window.addEventListener('deviceorientation', handleOrientation, true);
     compassState.isActive = true;
 
-    // Also track user's GPS location for live updates
-    if ('geolocation' in navigator) {
+    // Set timeout to check if we receive orientation data
+    // If not after 1.5 seconds, switch to desktop/static mode
+    compassState.orientationCheckTimeout = setTimeout(() => {
+        if (!compassState.hasOrientationData) {
+            updateCompassMode();
+        }
+    }, 1500);
+
+    // Also track user's GPS location for live updates (mobile)
+    if ('geolocation' in navigator && compassState.isMobileDevice) {
         compassState.watchId = navigator.geolocation.watchPosition(
             (position) => {
                 compassState.userLat = position.coords.latitude;
@@ -338,7 +386,13 @@ function stopCompass() {
         compassState.watchId = null;
     }
 
+    if (compassState.orientationCheckTimeout) {
+        clearTimeout(compassState.orientationCheckTimeout);
+        compassState.orientationCheckTimeout = null;
+    }
+
     compassState.isActive = false;
+    compassState.hasOrientationData = false;
     lastAlignedState = false;
     hideCompassUI();
 }
@@ -432,20 +486,26 @@ function showCompassUI() {
                 </div>
             </div>
 
-            <!-- Direction instruction -->
-            <div id="compass-direction" class="mt-3 text-base font-semibold text-blue-600 dark:text-blue-400">Rotate until arrow points up</div>
+            <!-- Direction instruction (mobile only) -->
+            <div id="compass-direction" class="compass-mobile-only mt-3 text-base font-semibold text-blue-600 dark:text-blue-400">Rotate until arrow points up</div>
+
+            <!-- Desktop notice (shown when no orientation data) -->
+            <div id="compass-desktop-notice" class="hidden mt-3 text-center">
+                <div class="text-sm font-semibold text-amber-600 dark:text-amber-400 mb-1">Desktop Mode</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">Compass sensors not available.<br>Use on mobile for live tracking.</div>
+            </div>
 
             <!-- Distance -->
             <div id="compass-distance" class="text-2xl font-bold text-gray-800 dark:text-white mt-1">-- km</div>
 
             <!-- Details -->
             <div class="text-xs text-gray-500 dark:text-gray-400 mt-2 space-y-0.5 text-center">
-                <div id="compass-heading">You face: --°</div>
+                <div id="compass-heading" class="compass-mobile-only">You face: --°</div>
                 <div id="compass-bearing">Station: --°</div>
             </div>
 
-            <!-- Help text -->
-            <div class="text-xs text-gray-400 dark:text-gray-500 mt-3 text-center leading-relaxed">
+            <!-- Help text (mobile only) -->
+            <div class="compass-mobile-only text-xs text-gray-400 dark:text-gray-500 mt-3 text-center leading-relaxed">
                 <span class="text-blue-500 font-medium">Blue</span> → Station<br>
                 <span class="text-orange-500 font-medium">Orange</span> → You
             </div>
