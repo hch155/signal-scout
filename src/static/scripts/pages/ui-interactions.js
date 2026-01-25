@@ -108,10 +108,17 @@ setupTouchInteraction(mymap);
 let gpsButton = L.control({position: 'topleft'});
 gpsButton.onAdd = function(map) {
     let div = L.DomUtil.create('div', 'gps-location-control');
-    div.innerHTML = '<button id="useMyLocationBtn" title="Use My Location">📍</button>';
+    div.innerHTML = `
+        <button id="useMyLocationBtn" title="Use My Location" class="map-control-btn">
+            <span class="control-icon">📍</span>
+            <span class="control-label">GPS</span>
+        </button>
+    `;
     L.DomEvent.on(div, 'click', function(e) {
-        L.DomEvent.stop(e); // Prevent map click
-        requestAndSendGPSLocation(); 
+        L.DomEvent.stop(e);
+        const btn = document.getElementById('useMyLocationBtn');
+        btn.classList.add('collapsed');
+        requestAndSendGPSLocation();
     });
     return div;
 };
@@ -127,10 +134,13 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
         div.style.top = '112px';
         div.style.left = '0px';
 
-        let toggleBtn = L.DomUtil.create('button', '', div);
+        let toggleBtn = L.DomUtil.create('button', 'map-control-btn', div);
         toggleBtn.id = 'toggleFrequencyRangeLegendBtn';
-        toggleBtn.title = 'Frequency Range Distance Legend';
-        toggleBtn.innerHTML = '<span class="text-green-500" style="position: relative; transform: scale(2.5); display: inline-block; vertical-align: middle;">&#x25CB;</span>';
+        toggleBtn.title = 'Signal Range Legend';
+        toggleBtn.innerHTML = `
+            <span class="control-icon text-green-500 text-lg">◎</span>
+            <span class="control-label">Range</span>
+        `;
 
         let legendDiv = L.DomUtil.create('div', 'frequency-range-container bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400', div);
         legendDiv.innerHTML = `
@@ -154,6 +164,7 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
 
         L.DomEvent.on(toggleBtn, 'click', function() {
             legendDiv.classList.toggle('hidden');
+            toggleBtn.classList.add('collapsed');
         });
 
         // Make draggable 
@@ -379,6 +390,7 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
     currentFilters.maxDistance = max_distance;
     locationSetInitially = true;
 
+    showLoadingSkeleton();
     let url = `/submit_location`;
     const userSubmittedLocation = { lat: lat, lng: lng };
     const requestData = {
@@ -435,11 +447,31 @@ function clearStationMarkers() { // clearing markers when new location is submit
     stationMarkers = []; // Reset the array
 } 
 
+function showLoadingSkeleton() {
+    let sidebarContent = document.getElementById('sidebar');
+    sidebarContent.innerHTML = '';
+    sidebarContent.classList.remove('hidden');
+
+    // Show 3 skeleton cards
+    for (let i = 0; i < 3; i++) {
+        let skeleton = document.createElement('div');
+        skeleton.className = 'skeleton-card';
+        skeleton.innerHTML = `
+            <div class="skeleton-line skeleton-title"></div>
+            <div class="skeleton-line skeleton-text"></div>
+            <div class="skeleton-line skeleton-text-short"></div>
+            <div class="skeleton-line skeleton-text"></div>
+            <div class="skeleton-line skeleton-text-short"></div>
+        `;
+        sidebarContent.appendChild(skeleton);
+    }
+}
+
 function displayStations(data) {
     clearStationMarkers(); // Clear existing markers
     clearRings();
     let sidebarContent = document.getElementById('sidebar');
-    sidebarContent.innerHTML = ''; // Clear existing sidebar content
+    sidebarContent.innerHTML = ''; // Clear existing sidebar content (and skeletons)
     let stations;
     let bounds = [];
     
@@ -587,6 +619,7 @@ function constructFilterURL() {
 }
 
 function fetchStations() {
+    showLoadingSkeleton();
     let filterURL = constructFilterURL();
     globalFetch(filterURL)
     .then(data => {

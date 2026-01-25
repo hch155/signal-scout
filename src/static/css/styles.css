@@ -77,6 +77,55 @@
     background-color: #f0f0f0;
 }
 
+/* Map control buttons with labels */
+.map-control-btn {
+    display: flex !important;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px !important;
+    transition: all 0.3s ease;
+    overflow: hidden;
+    animation: control-pulse 2s ease-in-out infinite;
+}
+
+.map-control-btn .control-icon {
+    flex-shrink: 0;
+    font-size: 14px;
+}
+
+.map-control-btn .control-label {
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: width 0.3s ease, opacity 0.3s ease;
+}
+
+/* Collapsed state - icon only, no pulse */
+.map-control-btn.collapsed {
+    animation: none;
+}
+
+.map-control-btn.collapsed .control-label {
+    width: 0;
+    opacity: 0;
+    overflow: hidden;
+}
+
+@keyframes control-pulse {
+    0%, 100% { box-shadow: 0 1px 5px rgba(0,0,0,0.2); }
+    50% { box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); }
+}
+
+/* Dark mode */
+.dark .map-control-btn {
+    background-color: #1f2937 !important;
+    color: #e5e7eb;
+}
+
+.dark .map-control-btn:hover {
+    background-color: #374151 !important;
+}
+
 .label-container > label {
   @apply inline-flex items-center mr-1; 
 }
@@ -152,7 +201,38 @@ th[onclick]:hover {
   text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
 }
 
-.text-green-600 { 
-  color: #22c55e; 
+.text-green-600 {
+  color: #22c55e;
   text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
+}
+
+/* Loading skeleton */
+.skeleton-card {
+  @apply bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-line {
+  @apply bg-gray-200 dark:bg-gray-700 rounded;
+  height: 12px;
+  margin-bottom: 10px;
+}
+
+.skeleton-title {
+  width: 60%;
+  height: 16px;
+  margin-bottom: 14px;
+}
+
+.skeleton-text {
+  width: 80%;
+}
+
+.skeleton-text-short {
+  width: 50%;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }

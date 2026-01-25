@@ -1256,6 +1256,11 @@ video {
   color: rgb(51 51 51 / var(--tw-text-opacity, 1));
 }
 
+.text-amber-600 {
+  --tw-text-opacity: 1;
+  color: rgb(217 119 6 / var(--tw-text-opacity, 1));
+}
+
 .text-black {
   --tw-text-opacity: 1;
   color: rgb(0 0 0 / var(--tw-text-opacity, 1));
@@ -1552,6 +1557,63 @@ video {
   background-color: #f0f0f0;
 }
 
+/* Map control buttons with labels */
+
+.map-control-btn {
+  display: flex !important;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px !important;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  animation: control-pulse 2s ease-in-out infinite;
+}
+
+.map-control-btn .control-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.map-control-btn .control-label {
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: width 0.3s ease, opacity 0.3s ease;
+}
+
+/* Collapsed state - icon only, no pulse */
+
+.map-control-btn.collapsed {
+  animation: none;
+}
+
+.map-control-btn.collapsed .control-label {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+@keyframes control-pulse {
+  0%, 100% {
+    box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+  }
+}
+
+/* Dark mode */
+
+.dark .map-control-btn {
+  background-color: #1f2937 !important;
+  color: #e5e7eb;
+}
+
+.dark .map-control-btn:hover {
+  background-color: #374151 !important;
+}
+
 .label-container > label {
   margin-right: 0.25rem;
   display: inline-flex;
@@ -1671,6 +1733,67 @@ th[onclick]:hover:hover:is(.dark *) {
 .text-green-600 {
   color: #22c55e;
   text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
+}
+
+/* Loading skeleton */
+
+.skeleton-card {
+  border-radius: 0.5rem;
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
+  padding: 1rem;
+  --tw-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --tw-shadow-colored: 0 1px 2px 0 var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.skeleton-card:is(.dark *) {
+  --tw-bg-opacity: 1;
+  background-color: rgb(31 41 55 / var(--tw-bg-opacity, 1));
+}
+
+.skeleton-card {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-line {
+  border-radius: 0.25rem;
+  --tw-bg-opacity: 1;
+  background-color: rgb(229 231 235 / var(--tw-bg-opacity, 1));
+}
+
+.skeleton-line:is(.dark *) {
+  --tw-bg-opacity: 1;
+  background-color: rgb(55 65 81 / var(--tw-bg-opacity, 1));
+}
+
+.skeleton-line {
+  height: 12px;
+  margin-bottom: 10px;
+}
+
+.skeleton-title {
+  width: 60%;
+  height: 16px;
+  margin-bottom: 14px;
+}
+
+.skeleton-text {
+  width: 80%;
+}
+
+.skeleton-text-short {
+  width: 50%;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .hover\:bg-blue-300:hover {
@@ -1793,6 +1916,11 @@ th[onclick]:hover:hover:is(.dark *) {
 
 .dark\:to-custom-dark-end:is(.dark *) {
   --tw-gradient-to: #030712 var(--tw-gradient-to-position);
+}
+
+.dark\:text-amber-400:is(.dark *) {
+  --tw-text-opacity: 1;
+  color: rgb(251 191 36 / var(--tw-text-opacity, 1));
 }
 
 .dark\:text-blue-300:is(.dark *) {
