@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
   conditionalCheckLoginState();
   initializeScrollToTop();
   initializePasswordValidation();
+  initializeSloganRotate();
 });
 
 window.addEventListener('resize', adjustFooterPosition);
@@ -171,6 +172,17 @@ function initializeModalToggle() {
   [registrationModal, signInModal].forEach(modal => {
       modal.addEventListener('click', (event) => backgroundClickToClose(event, modal));
   });
+
+  // Close modals with ESC key
+  document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+          [registrationModal, signInModal].forEach(modal => {
+              if (!modal.classList.contains('hidden')) {
+                  modal.classList.add('hidden');
+              }
+          });
+      }
+  });
 }
 
 function initializeFormSubmissions() {
@@ -266,7 +278,9 @@ function initializePasswordValidation() {
           const isMet = requirements[criteria];
 
           req.classList.toggle('text-red-500', !isMet);
+          req.classList.toggle('dark:text-red-400', !isMet);
           req.classList.toggle('text-green-500', isMet);
+          req.classList.toggle('dark:text-green-400', isMet);
 
           const indicator = req.querySelector('.indicator');
           if (indicator) {
@@ -289,8 +303,8 @@ function initializePasswordValidation() {
 
 function resetPasswordCriteriaIndicators() {
   document.querySelectorAll('.password-requirement').forEach(req => {
-      req.classList.add('text-red-500');
-      req.classList.remove('text-green-500');
+      req.classList.add('text-red-500', 'dark:text-red-400');
+      req.classList.remove('text-green-500', 'dark:text-green-400');
       req.textContent = req.textContent.replace('✓', 'X');
   });
 }
@@ -518,5 +532,34 @@ function debugSession() {
       console.log('Debug Session:', data);
   })
   .catch(error => console.error('Error debugging session:', error));
+}
+
+function initializeSloganRotate() {
+  const el = document.querySelector('.slogan-rotate');
+  if (!el) return;
+
+  const lines = el.dataset.lines.split('|');
+  if (lines.length < 2) return;
+
+  // Measure tallest line and lock height so layout never shifts
+  let maxH = 0;
+  const original = el.textContent;
+  lines.forEach(function(line) {
+      el.textContent = line;
+      maxH = Math.max(maxH, el.offsetHeight);
+  });
+  el.textContent = original;
+  el.style.minHeight = maxH + 'px';
+
+  let idx = 0;
+
+  setInterval(function() {
+      el.classList.add('fade-out');
+      setTimeout(function() {
+          idx = (idx + 1) % lines.length;
+          el.textContent = lines[idx];
+          el.classList.remove('fade-out');
+      }, 500);
+  }, 3500);
 }
 

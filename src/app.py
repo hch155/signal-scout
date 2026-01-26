@@ -13,6 +13,7 @@ from datetime import timedelta
 import markdown, os, random, re
 
 app = Flask(__name__)
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 bcrypt = Bcrypt(app)
 load_dotenv()
 
@@ -91,7 +92,7 @@ def get_html_content_from_markdown(file_name):
 
     with open(file_path, 'r') as file:
         markdown_content = file.read()
-    html_content = markdown.markdown(markdown_content)
+    html_content = markdown.markdown(markdown_content, extensions=['tables', 'fenced_code'])
 
     return html_content
 

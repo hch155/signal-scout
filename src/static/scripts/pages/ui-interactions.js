@@ -66,10 +66,18 @@ globalFetch('/static/PL-administrative-boundaries.json')
 });
 
 mymap.on('click', function(e) {
+    // Ignore clicks originating from map controls (zoom buttons, GPS, filters)
+    if (e.originalEvent && e.originalEvent.target) {
+        const target = e.originalEvent.target;
+        if (target.closest('.leaflet-control')) {
+            return;
+        }
+    }
+
     let coord = e.latlng;
     let lat = coord.lat;
     let lng = coord.lng;
-    
+
     // Clear existing marker,
     if (marker) {
         mymap.removeLayer(marker);
@@ -84,13 +92,13 @@ mymap.on('click', function(e) {
         isFirstClick = false;
     } else {
         fetchStations();
-    }      
+    }
 });
 
 function setupTouchInteraction(mymap) {
     let isInteracting = false;
     const interactionStarted = () => isInteracting = true;
-    const interactionEnded = () => setTimeout(() => isInteracting = false, 500); 
+    const interactionEnded = () => setTimeout(() => isInteracting = false, 500);
 
     mymap.on('touchstart', interactionStarted);
     mymap.on('touchmove', interactionStarted); // Touchmove for pinch or drag
@@ -102,6 +110,13 @@ function setupTouchInteraction(mymap) {
     });
     // Disable zoom on double tap
     mymap.doubleClickZoom.disable();
+
+    // Prevent zoom control clicks from propagating to the map on mobile
+    const zoomControl = document.querySelector('.leaflet-control-zoom');
+    if (zoomControl) {
+        L.DomEvent.disableClickPropagation(zoomControl);
+        L.DomEvent.on(zoomControl, 'touchstart touchend', L.DomEvent.stopPropagation);
+    }
 }
 setupTouchInteraction(mymap);
 

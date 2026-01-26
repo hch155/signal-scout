@@ -1,98 +1,151 @@
 ## Tips for Optimal Signal Strength
 
+Ensuring a strong and stable signal for your Customer Premise Equipment (CPE) antennas, Mi-Fi routers, and phones can significantly improve your online experience. Here are some tips to help you align your equipment and maximize signal strength.
 
-<p>Ensuring a strong and stable signal for your Customer Premise Equipment (CPE)'s antennas, Mi-Fi routers, phones can significantly improve your online experience</p>
-<p>Here are some tips to help you align your equipment and maximize signal strength</p>
-
+---
 
 ## Find the Nearest Base Station
 
-<p>Use the provided Google Maps link to locate nearest antenna sector</p>
-<p>Buy SIM card from one of the closest service provider, this ensures that you have the best signal strength & quality</p>
-<p>Align your location with the azimuth of the nearest base station's antenna sector</p>
+- Use the provided Google Maps link to locate the nearest antenna sector
+- Buy a SIM card from one of the closest service providers -- this ensures the best signal strength & quality
+- Align your location with the azimuth of the nearest base station's antenna sector
 
-## Note on Environmental factors
+---
 
-<p>In densely populated areas, be aware of potential signal reflections from buildings that can either enhance or weaken signal quality</p>
-<p>The amount of background users, especially in busy hour can severly impact your user experience (achievable throughput), which in case of dense areas might require switching to different operator</p>
+## Note on Environmental Factors
+
+- In densely populated areas, be aware of potential signal reflections from buildings that can either enhance or weaken signal quality
+- The number of background users, especially during busy hours, can severely impact your user experience (achievable throughput), which in dense areas might require switching to a different operator
+
+---
 
 ## Avoiding Interference
 
-<p>Mind the distance from power lines to reduce Block Error Rate (BLER)</p>
-<p>Be aware of physical obstructions that might block or reflect the signal</p>
+- Mind the distance from power lines to reduce Block Error Rate (BLER)
+- Be aware of physical obstructions that might block or reflect the signal
 
+---
 
 ## Optimize Equipment Placement
 
-<p>To maximize signal reflections ensure your equipment are correctly positioned to take advantage of MIMO (Multiple Input Multiple Output) setups</p>
-<p>Perform multiple speed tests to find the best location for your equipment</p>
+- To maximize signal reflections, ensure your equipment is correctly positioned to take advantage of MIMO (Multiple Input Multiple Output) setups
+- Perform multiple speed tests to find the best location for your equipment
 
-## Devices mode
+---
 
-<p>NSA - Non-stand alone - current scenario - it is necessary for devices to first authenticate to 4G Network in order to attach 5G frequency</p>
+## Device Modes
 
-<p>SA - Stand Alone - planned, can access the network directly to 5G Network</p>
+<p><strong>NSA (Non-Standalone)</strong> -- current scenario -- devices must first authenticate to the 4G network in order to attach a 5G frequency carrier.</p>
 
+<p><strong>SA (Standalone)</strong> -- planned deployment -- devices can access the 5G network directly without a 4G anchor.</p>
 
-## To achieve best throughput it is recommended to test various component carriers & carrier aggregation
+---
 
-<p>In Downlink (Base Station to User Equipment (UE)):</p>
+## Carrier Aggregation & Throughput
 
-<p>- most devices support 4 carrier components in CA (carrier aggregation) in LTE mode only</p>
-<p>- when it comes to 5G mode, NSA, the devices support 1 LTE carrier + 2 NR carriers</p>
+To achieve the best throughput, it is recommended to test various component carriers and carrier aggregation configurations.
 
-<p>In Uplink (UE to Base Station):</p>
+**Downlink** (Base Station to User Equipment):
 
-<p>- mostly devices support 1 or 2 carriers in Uplink</p>
+- Most devices support up to 4 carrier components in CA (Carrier Aggregation) in LTE mode
+- In 5G NSA mode, devices typically support 1 LTE carrier + 2 NR carriers
 
-## Frequencies and bandwidths in Poland
+**Uplink** (User Equipment to Base Station):
 
-<p>Each operator's network configuration consists of more or less similar component carriers:</p>
-<p>LTE800 - band 20 - 5MHz</p>
-<p>LTE900 - b40 - 5MHz</p>
-<p>LTE1800 - b3 - 15MHz</p>
-<p>LTE2100 - b1 - 20MHz</p>
-<p>LTE2600 - b7 - 20MHz</p>
-<p>NR2100 (DSS - Dynamic Spectrum Sharing - shared with LTE2100) - 20MHz</p>
-<p>NR3600 (C-band) - 100MHz</p>
+- Most devices support 1 or 2 carriers in uplink
 
-<p>With 10MHz bandwidth and 256QAM modulation it is possible to achieve around 150Mbps in the best conditions (the closer to base station the better), in reality we can assume it will be around 100Mbps</p>
+---
 
-<p>Device using LTE mode only, on average can aggregate up to 4 component carriers - LTE800 + LTE1800 + LTE2100 + LTE2600 = 60MHz, achieved DL throughput will be around 500-600Mbps, UL around 80Mbps</p>
-   
-<p>Device in NSA mode, LTE2600 + NR3600 = 120MHz, DL throughput resulting on average around 1000-1200Mbps (peak 1500-1600Mbps), UL up to 150Mbps</p>
+## Frequencies and Bandwidths in Poland
 
-<p>Most of the user equipment (minding their capabilities and network configuration priorities) tend to aggregate as most carriers as possible ensuring the best experience as possible</p>
+Each operator's network configuration consists of similar component carriers:
+
+| Band | 3GPP Band | Bandwidth |
+|------|-----------|-----------|
+| LTE800 | B20 | 5 MHz |
+| LTE900 | B8 | 5 MHz |
+| LTE1800 | B3 | 15 MHz |
+| LTE2100 | B1 | 20 MHz |
+| LTE2600 | B7 | 20 MHz |
+| NR2100 (DSS) | n1 | 20 MHz |
+| NR3600 (C-band) | n78 | 100 MHz |
+
+**Achievable throughput examples:**
+
+- With 10 MHz bandwidth and 256QAM modulation: ~100-150 Mbps in optimal conditions
+- **LTE-only** (4CA: LTE800 + LTE1800 + LTE2100 + LTE2600 = 60 MHz): DL ~500-600 Mbps, UL ~80 Mbps
+- **5G NSA** (LTE2600 + NR3600 = 120 MHz): DL ~1000-1200 Mbps (peak 1500-1600 Mbps), UL ~150 Mbps
+
+Most user equipment will aggregate as many carriers as possible for the best experience.
+
+---
 
 ## Understanding Signal Strength and Quality
 
-<p>The metrics RSRP, RSRQ, and SINR are pivotal in evaluating the signal strength and quality of cellular connections, applicable not only to LTE but also to 5G networks. Understanding these can provide users with insight into the robustness of their signal connection.</p>
-<p>RSRP is the most basic measure of signal strength. For LTE and 5G, a higher RSRP value indicates a stronger signal. Signal strength can be broadly categorized as follows:</p>
-<ul>
-    <li>Excellent Signal: RSRP higher than -80 dBm</li>
-    <li>Good Signal: RSRP between -80 dBm and -90 dBm</li>
-    <li>Fair Signal: RSRP between -90 dBm and -100 dBm</li>
-    <li>Poor Signal: RSRP lower than -100 dBm</li>
-</ul>
-<p>RSRQ helps evaluate the quality of the received signal, considering both signal strength and interference levels. It is especially useful in dense network environments. For LTE and 5G:</p>
-<ul>
-    <li>Excellent Quality: RSRQ higher than -10 dB</li>
-    <li>Good Quality: RSRQ between -10 dB and -15 dB</li>
-    <li>Fair Quality: RSRQ between -15 dB and -20 dB</li>
-    <li>Poor Quality: RSRQ lower than -20 dB</li>
-</ul>
-<p>SINR compares the level of the signal to the combined interference and noise. Higher SINR values indicate a clearer and better quality signal. Typical SINR ranges for a good user experience:</p>
-<ul>
-    <li>Excellent Quality: SINR higher than 20 dB</li>
-    <li>Good Quality: SINR between 13 dB and 20 dB</li>
-    <li>Fair Quality: SINR between 0 dB and 13 dB</li>
-    <li>Poor Quality: SINR less than 0 dB</li>
-</ul>
-<p>Monitoring RSRP, RSRQ, and SINR metrics can give users crucial information about their cellular network's signal strength and quality. A stronger RSRP and higher RSRQ and SINR values generally mean a more reliable and faster network connection, which is essential for high-quality voice calls, streaming, and data services. By keeping an eye on these parameters, users can better understand their connectivity status and troubleshoot issues related to poor signal strength or quality.</p>
+The metrics RSRP, RSRQ, and SINR are pivotal in evaluating signal strength and quality of cellular connections, applicable to both LTE and 5G networks.
 
+### RSRP (Reference Signal Received Power)
 
+The most basic measure of signal strength. A higher RSRP value indicates a stronger signal.
 
+| Rating | RSRP Range |
+|--------|------------|
+| Excellent | > -80 dBm |
+| Good | -80 to -90 dBm |
+| Fair | -90 to -100 dBm |
+| Poor | < -100 dBm |
 
+### RSRQ (Reference Signal Received Quality)
 
+Evaluates the quality of the received signal, considering both signal strength and interference levels. Especially useful in dense network environments.
 
+| Rating | RSRQ Range |
+|--------|------------|
+| Excellent | > -10 dB |
+| Good | -10 to -15 dB |
+| Fair | -15 to -20 dB |
+| Poor | < -20 dB |
 
+### SINR (Signal-to-Interference-plus-Noise Ratio)
+
+Compares the signal level to combined interference and noise. Higher values indicate a clearer, better quality signal.
+
+| Rating | SINR Range |
+|--------|------------|
+| Excellent | > 20 dB |
+| Good | 13 to 20 dB |
+| Fair | 0 to 13 dB |
+| Poor | < 0 dB |
+
+Monitoring these metrics gives crucial insight into your cellular network's performance. Stronger RSRP and higher RSRQ/SINR values generally mean a more reliable and faster connection, essential for voice calls, streaming, and data services.
+
+---
+
+## Obtaining Cell Information from Your Device
+
+By using the following codes, you can access the hidden diagnostic menu on your device:
+
+- **iOS:** `*3001#12345#*`
+- **Android:** `*#*#4636#*#*`
+
+### iOS Field Test Mode
+
+When you dial `*3001#12345#*` on an iOS device, it enters Field Test Mode. This hidden feature offers a deeper look into cellular connectivity. Key information available:
+
+- **PLMN** (Public Land Mobile Network) -- identifies the mobile network (MCC + MNC). For example, 26006 = Poland, operator 06
+- **Band Information** -- the specific frequency band your device is using
+- **Bandwidth** -- width of the frequency band (MHz); wider bandwidth allows higher throughput
+- **Cell ID** -- unique identifier for the cell tower; can be used to extract cell ID and base station ID
+- **Radio Access** -- network technology in use (5G, LTE, etc.)
+- **PCI** (Physical Cell ID) -- identifies a physical cell, crucial for handover and physical layer signaling
+- **TAC** (Tracking Area Code) -- used for device tracking and paging procedures
+- **EARFCN DL** -- specifies the downlink frequency channel number in LTE
+
+### Key Signal Metrics
+
+- **RSRP** (Reference Signal Received Power) -- primary indicator of signal strength
+- **RSRQ** (Reference Signal Received Quality) -- assesses signal quality considering interference and noise
+- **SINR** (Signal-to-Interference-plus-Noise Ratio) -- compares signal to background noise; higher is better
+- **ConnectionStats** -- data rates, latency, packet loss, and other connection quality metrics
+- **RACH Attempt** -- monitors device attempts to initiate a connection with the network via Random Access Channel
+- **Serving Cell Info** -- details about the currently connected cell tower including all metrics above

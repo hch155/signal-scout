@@ -1,51 +1,55 @@
 {% extends "base.html" %}
-{% block head %}
 
-<head>
-    <meta charset="UTF-8">
-    <title>Band Statistics</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-</head>
+{% set provider_short = {
+    'P4 Sp. z o.o.': 'Play',
+    'Orange Polska S.A.': 'Orange',
+    'T-Mobile Polska S.A.': 'T-Mobile',
+    'POLKOMTEL Sp. z o.o.': 'Plus'
+} %}
 
-{% endblock %}
 {% block content %}
-    <div class="markdown-content prose lg:prose-xl mx-auto px-6">
-        <h2>Site Statistics</h2>
-        <div id="stats-container">
-        </div>
-    </div>
+    <section class="text-center text-[#333] dark:text-white p-3 md:p-5 mb-2">
+        <h2 class="text-xl font-bold">Network Statistics</h2>
+        <p class="hidden md:block text-lg text-gray-600 dark:text-gray-300">Frequency band deployment and physical site counts across Polish mobile operators</p>
+    </section>
 
-    <body class="bg-gray-800 text-white dark:text-white">
-        <div class="flex justify-center">
-            <table class="table-custom">
-                <thead>
-                    <tr>
-                        <th class="th-custom text-center text-theme-responsive">Band</th>
-                        {% for provider in stats.providers %}
-                            <th class="th-custom text-center text-theme-responsive">{{ provider }}</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for band in stats.sorted_bands %}
-                        <tr>
-                            <td class="td-custom text-center text-theme-responsive">{{ band }}</td>
+    <div class="flex justify-center px-2 md:px-4 pb-10">
+        <div class="w-full max-w-4xl">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 overflow-hidden">
+                <table class="w-full border-collapse text-xs md:text-sm">
+                    <thead>
+                        <tr class="bg-blue-50 dark:bg-gray-700">
+                            <th class="stats-th">Band</th>
                             {% for provider in stats.providers %}
-                                <td class="td-custom text-center text-theme-responsive">{{ stats.bands_data[band].get(provider, 0) }}</td>
+                                <th class="stats-th">
+                                    <span class="md:hidden">{{ provider_short.get(provider, provider) }}</span>
+                                    <span class="hidden md:inline">{{ provider }}</span>
+                                </th>
                             {% endfor %}
                         </tr>
-                    {% endfor %}
-                    <tr>
-                        <td class="td-custom text-center text-theme-responsive">Physical Sites</td>
-                        {% for provider in stats.providers %}
-                            <td class="td-custom text-center text-theme-responsive">{{ stats.physical_sites.get(provider, 0) }}</td>
+                    </thead>
+                    <tbody>
+                        {% for band in stats.sorted_bands %}
+                            <tr class="stats-row">
+                                <td class="stats-td font-semibold">{{ band }}</td>
+                                {% for provider in stats.providers %}
+                                    <td class="stats-td">{{ "{:,}".format(stats.bands_data[band].get(provider, 0)) }}</td>
+                                {% endfor %}
+                            </tr>
                         {% endfor %}
-                    </tr>
-                </tbody>
-            </table>
+                    </tbody>
+                    <tfoot>
+                        <tr class="bg-blue-50 dark:bg-gray-700 font-bold">
+                            <td class="stats-td">Sites</td>
+                            {% for provider in stats.providers %}
+                                <td class="stats-td">{{ "{:,}".format(stats.physical_sites.get(provider, 0)) }}</td>
+                            {% endfor %}
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
         </div>
-    </body>
-    
+    </div>
 {% endblock %}
 
 {% block scripts %}{% endblock %}

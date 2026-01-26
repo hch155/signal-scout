@@ -1,105 +1,110 @@
 ## Tips for Optimal Signal Strength
 
+Ensuring a strong and stable signal for your Customer Premise Equipment (CPE) antennas, Mi-Fi routers, and phones can significantly improve your online experience. Here are some tips to help you align your equipment and maximize signal strength.
 
-<p>Ensuring a strong and stable signal for your Customer Premise Equipment (CPE)'s antennas, Mi-Fi routers, phones can significantly improve your online experience</p>
-<p>Here are some tips to help you align your equipment and maximize signal strength</p>
-
+---
 
 ## Find the Nearest Base Station
 
-<p>Use the provided Google Maps link to locate nearest antenna sector</p>
-<p>Buy SIM card from one of the closest service provider, this ensures that you have the best signal strength & quality</p>
-<p>Align your location with the azimuth of the nearest base station's antenna sector</p>
+- Use the provided Google Maps link to locate the nearest antenna sector
+- Buy a SIM card from one of the closest service providers -- this ensures the best signal strength & quality
+- Align your location with the azimuth of the nearest base station's antenna sector
 
-## Note on Environmental factors
+---
 
-<p>In densely populated areas, be aware of potential signal reflections from buildings that can either enhance or weaken signal quality</p>
-<p>The amount of background users, especially in busy hour can severly impact your user experience (achievable throughput), which in case of dense areas might require switching to different operator</p>
+## Note on Environmental Factors
+
+- In densely populated areas, be aware of potential signal reflections from buildings that can either enhance or weaken signal quality
+- The number of background users, especially during busy hours, can severely impact your user experience (achievable throughput), which in dense areas might require switching to a different operator
+
+---
 
 ## Avoiding Interference
 
-<p>Mind the distance from power lines to reduce Block Error Rate (BLER)</p>
-<p>Be aware of physical obstructions that might block or reflect the signal</p>
+- Mind the distance from power lines to reduce Block Error Rate (BLER)
+- Be aware of physical obstructions that might block or reflect the signal
 
+---
 
 ## Optimize Equipment Placement
 
-<p>To maximize signal reflections ensure your equipment are correctly positioned to take advantage of MIMO (Multiple Input Multiple Output) setups</p>
-<p>Perform multiple speed tests to find the best location for your equipment</p>
+- To maximize signal reflections, ensure your equipment is correctly positioned to take advantage of MIMO (Multiple Input Multiple Output) setups
+- Perform multiple speed tests to find the best location for your equipment
 
-## Devices mode
+---
 
-<p>NSA - Non-stand alone - current scenario - it is necessary for devices to first authenticate to 4G Network in order to attach 5G frequency</p>
+## Device Modes
 
-<p>SA - Stand Alone - planned, can access the network directly to 5G Network</p>
+<p><strong>NSA (Non-Standalone)</strong> -- current scenario -- devices must first authenticate to the 4G network in order to attach a 5G frequency carrier.</p>
 
+<p><strong>SA (Standalone)</strong> -- planned deployment -- devices can access the 5G network directly without a 4G anchor.</p>
 
-## To achieve best throughput it is recommended to test various component carriers & carrier aggregation
+---
 
-<p>In Downlink (Base Station to User Equipment (UE)):</p>
+## Carrier Aggregation & Throughput
 
-<p>- most devices support 4 carrier components in CA (carrier aggregation) in LTE mode only</p>
-<p>- when it comes to 5G mode, NSA, the devices support 1 LTE carrier + 2 NR carriers</p>
+To achieve the best throughput, it is recommended to test various component carriers and carrier aggregation configurations.
 
-<p>In Uplink (UE to Base Station):</p>
+**Downlink** (Base Station to User Equipment):
 
-<p>- mostly devices support 1 or 2 carriers in Uplink</p>
+- Most devices support up to 4 carrier components in CA (Carrier Aggregation) in LTE mode
+- In 5G NSA mode, devices typically support 1 LTE carrier + 2 NR carriers
 
-## Frequencies and bandwidths in Poland
+**Uplink** (User Equipment to Base Station):
 
-<p>Each operator's network configuration consists of more or less similar component carriers:</p>
-<p>LTE800 - band 20 - 5MHz</p>
-<p>LTE900 - b40 - 5MHz</p>
-<p>LTE1800 - b3 - 15MHz</p>
-<p>LTE2100 - b1 - 20MHz</p>
-<p>LTE2600 - b7 - 20MHz</p>
-<p>NR2100 (DSS - Dynamic Spectrum Sharing - shared with LTE2100) - 20MHz</p>
-<p>NR3600 (C-band) - 100MHz</p>
+- Most devices support 1 or 2 carriers in uplink
 
-<p>With 10MHz bandwidth and 256QAM modulation it is possible to achieve around 150Mbps in the best conditions (the closer to base station the better), in reality we can assume it will be around 100Mbps</p>
+---
 
-<p>Device using LTE mode only, on average can aggregate up to 4 component carriers - LTE800 + LTE1800 + LTE2100 + LTE2600 = 60MHz, achieved DL throughput will be around 500-600Mbps, UL around 80Mbps</p>
-   
-<p>Device in NSA mode, LTE2600 + NR3600 = 120MHz, DL throughput resulting on average around 1000-1200Mbps (peak 1500-1600Mbps), UL up to 150Mbps</p>
+## Frequencies and Bandwidths in Poland
 
-<p>Most of the user equipment (minding their capabilities and network configuration priorities) tend to aggregate as most carriers as possible ensuring the best experience as possible</p>
+Each operator's network configuration consists of similar component carriers:
 
-## Obtaining cell information from mobile device
+| Band | 3GPP Band | Bandwidth |
+|------|-----------|-----------|
+| LTE800 | B20 | 5 MHz |
+| LTE900 | B8 | 5 MHz |
+| LTE1800 | B3 | 15 MHz |
+| LTE2100 | B1 | 20 MHz |
+| LTE2600 | B7 | 20 MHz |
+| NR2100 (DSS) | n1 | 20 MHz |
+| NR3600 (C-band) | n78 | 100 MHz |
 
-<p>By using the following codes, you can access hidden menu on your devices: </p>
-<p>iOS: *3001#12345#* </p>
-<p>Android: *#*#4636#*#* </p>
-<br>
-<p><strong>Deep Diving into iOS Field Test Mode: *3001#12345#*</strong></p>
+**Achievable throughput examples:**
 
-<p>When you dial <em>*3001#12345#*</em> on an iOS device, it enters what's known as the Field Test Mode. This hidden feature offers advanced users and technicians a deeper look into the inner workings of their device's cellular connectivity. Here's a breakdown of some of the key information that can be accessed through this mode and what it means:</p>
+- With 10 MHz bandwidth and 256QAM modulation: ~100-150 Mbps in optimal conditions
+- **LTE-only** (4CA: LTE800 + LTE1800 + LTE2100 + LTE2600 = 60 MHz): DL ~500-600 Mbps, UL ~80 Mbps
+- **5G NSA** (LTE2600 + NR3600 = 120 MHz): DL ~1000-1200 Mbps (peak 1500-1600 Mbps), UL ~150 Mbps
 
-<ul>
-    <li>RAT (Radio Access Technology) Serving Cell Info
-        <ul>
-            <li>PLMN (Public Land Mobile Network): Identifies the mobile network that your phone is currently connected to. It is comprised of the MCC (Mobile Country Code) and MNC (Mobile Network Code), uniquely identifying the country and the mobile network operator, respectively. For example, PLMN 26006 indicates an operator in country code 260 (Poland) with an operator ID of 06.</li>
-            <li>Band Information: Refers to the specific frequency band your device is using for its cellular connection. Different bands have varying characteristics in terms of coverage and data speed.</li>
-            <li>Bandwidth: Indicates the width of the frequency band used for the network connection, measured in MHz. A wider bandwidth can allow for higher data throughput.</li>
-            <li>Cell ID: A unique identifier for the cell tower your device is currently connected to. This can be used to pinpoint the location of the tower and extract cell ID and base station ID.</li>
-            <li>Radio Access: This shows the type of network technology in use, such as 5G, LTE, each with its own set of performance characteristics.</li>
-            <li>PCI (Physical Cell ID): An identifier used in LTE (in 5G also) networks to identify a physical cell. It's crucial for the handover process between cells and for signaling on the physical layer.</li>
-            <li>TAC (Tracking Area Code): Used in LTE networks, this code helps in managing device tracking and paging procedures between different areas within the network.</li>
-            <li>EARFCN DL (E-UTRA Absolute Radio Frequency Channel Number for Downlink): Specifies the frequency channel used for the downlink in LTE networks. It's a unique number representing the carrier frequency and helps in identifying the specific frequency used for cellular communication.</li>
-        </ul>
-    </li>
-</ul>
+Most user equipment will aggregate as many carriers as possible for the best experience.
 
-<p><strong>Band</strong></p>
-<p>The Band refers to a specific range of frequencies that cellular networks use to transmit and receive signals. Different bands have different properties in terms of coverage and penetration. For example, lower frequency bands (such as 700 MHz) offer better coverage and indoor penetration but may have lower data throughput compared to higher frequency bands (such as 2600 MHz), which offer higher data rates but have a shorter range and reduced building penetration.</p>
-<p><strong>ConnectionStats</strong></p>
-<p>ConnectionStats likely refers to statistics regarding the device's connection to the network. This can include data rates, latency, packet loss, and other metrics that indicate the quality and reliability of the network connection. These stats are crucial for diagnosing connection problems and optimizing network performance.</p>
-<p><strong>RACH Attempt</strong></p>
-<p>RACH (Random Access Channel) Attempt refers to the process by which a device attempts to initiate a connection with the network. When a device needs to establish a connection for a call or data session, it sends a signal on the RACH. The network then responds, allowing the device to move to a dedicated channel for communication. Monitoring RACH attempts can be important for identifying issues with network access in congested areas or with weak signal strength.</p>
-<p><strong>RSRP, RSRQ, SINR</strong></p>
-<p>These terms relate to the quality of the signal between the device and the network:</p>
-<p>RSRP (Reference Signal Received Power): Measures the power of signals received from the cell. It's a primary indicator of signal strength.</p>
-<p>RSRQ (Reference Signal Received Quality): Provides an assessment of the quality of the received signal. RSRQ takes into account both the signal strength (RSRP) and the level of interference and noise. It's particularly useful for evaluating performance in areas with high cell density.</p>
-<p>SINR (Signal-to-Interference-plus-Noise Ratio): This metric compares the level of the signal to the background noise plus interference from other sources. A higher SINR indicates a better quality of connection, as it suggests that the signal is much clearer compared to the noise and interference.</p>
-<p><strong>Serving Cell Info</strong></p>
-<p>Serving Cell Info provides details about the cell tower (base station) to which the device is currently connected. This can include the cell ID, frequency band, technology (e.g., LTE, 5G), and various performance metrics like RSRP, RSRQ, and SINR mentioned above. This information is vital for understanding the current connection's characteristics and can help in troubleshooting connectivity issues or optimizing network performance.</p>
-<p>Together, these metrics offer a comprehensive view of the device's interaction with the cellular network, highlighting areas of strength and pinpointing potential issues that could affect the user experience. Understanding these elements is key for network engineers, technicians, and enthusiasts who are keen on maximizing cellular network performance and reliability.</p>
+---
+
+## Obtaining Cell Information from Your Device
+
+By using the following codes, you can access the hidden diagnostic menu on your device:
+
+- **iOS:** `*3001#12345#*`
+- **Android:** `*#*#4636#*#*`
+
+### iOS Field Test Mode
+
+When you dial `*3001#12345#*` on an iOS device, it enters Field Test Mode. This hidden feature offers a deeper look into cellular connectivity. Key information available:
+
+- **PLMN** (Public Land Mobile Network) -- identifies the mobile network (MCC + MNC). For example, 26006 = Poland, operator 06
+- **Band Information** -- the specific frequency band your device is using
+- **Bandwidth** -- width of the frequency band (MHz); wider bandwidth allows higher throughput
+- **Cell ID** -- unique identifier for the cell tower; can be used to extract cell ID and base station ID
+- **Radio Access** -- network technology in use (5G, LTE, etc.)
+- **PCI** (Physical Cell ID) -- identifies a physical cell, crucial for handover and physical layer signaling
+- **TAC** (Tracking Area Code) -- used for device tracking and paging procedures
+- **EARFCN DL** -- specifies the downlink frequency channel number in LTE
+
+### Key Signal Metrics
+
+- **RSRP** (Reference Signal Received Power) -- primary indicator of signal strength
+- **RSRQ** (Reference Signal Received Quality) -- assesses signal quality considering interference and noise
+- **SINR** (Signal-to-Interference-plus-Noise Ratio) -- compares signal to background noise; higher is better
+- **ConnectionStats** -- data rates, latency, packet loss, and other connection quality metrics
+- **RACH Attempt** -- monitors device attempts to initiate a connection with the network via Random Access Channel
+- **Serving Cell Info** -- details about the currently connected cell tower including all metrics above

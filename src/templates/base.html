@@ -33,49 +33,49 @@
               <button id="themeToggle" class="text-black dark:text-white mr-8"></button>
           </div>
           
-          <div id="registrationModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center" style="z-index: 5000;">
+          <div id="registrationModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-black dark:bg-opacity-70 hidden flex items-center justify-center" style="z-index: 5000;">
               <div class="container mx-auto h-full flex justify-center items-center">
-                <div class="relative bg-blue-50 dark:bg-gray-500 p-8 rounded-lg shadow-lg max-w-sm mx-auto">
-                  <button class="close-modal dark:text-white absolute top-0 right-0 mt-2 mr-2">Close</button>
+                <div class="relative bg-blue-50 dark:bg-gray-800 dark:border dark:border-gray-700 p-8 rounded-lg shadow-lg dark:shadow-black/40 max-w-sm mx-auto">
+                  <button class="close-modal absolute top-0 right-0 mt-2 mr-3 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white text-xl leading-none">&times;</button>
                   <h2 class="text-center text-xl font-bold mb-4 dark:text-white">Sign up to get exclusive features</h2>
                   <form id="registrationForm" method="POST" action="/register" class="space-y-2">
-                    <input type="text" id="email" name="email" placeholder="Your Email" required pattern="[^@ \t\r\n]+@[^@ \t\r\n]+\.[^@ \t\r\n]+" title="Please enter a valid email address." class="w-full dark:bg-gray-300 p-2 border rounded">
-                    <div class="error-message text-red-500 text-sm mt-1 hidden" id="emailError"></div>
+                    <input type="text" id="email" name="email" placeholder="Your Email" required pattern="[^@ \t\r\n]+@[^@ \t\r\n]+\.[^@ \t\r\n]+" title="Please enter a valid email address." class="w-full dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 p-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400">
+                    <div class="error-message text-red-500 dark:text-red-400 text-sm mt-1 hidden" id="emailError"></div>
 
-                    <div class="flex items-center border rounded dark:bg-gray-300">
-                      <input type="password" id="registrationPassword" name="password" placeholder="Password" class="w-full p-2 dark:bg-gray-300 rounded-l">
-                      <button type="button" id="toggleRegistrationPassword" onclick="passwordVisibilityToggle('registrationPassword', 'confirmRegistrationPassword', 'toggleRegistrationPassword')" tabindex="-1">
+                    <div class="flex items-center border dark:border-gray-600 rounded dark:bg-gray-700">
+                      <input type="password" id="registrationPassword" name="password" placeholder="Password" class="w-full p-2 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400">
+                      <button type="button" id="toggleRegistrationPassword" class="text-gray-500 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white px-2 text-sm whitespace-nowrap" onclick="passwordVisibilityToggle('registrationPassword', 'confirmRegistrationPassword', 'toggleRegistrationPassword')" tabindex="-1">
                         Show
                       </button>
                     </div>
-                    
-                    <div class="error-message text-red-500 text-sm mt-1 hidden" id="passwordError"></div>
-                    <input type="password" id="confirmRegistrationPassword" name="confirm_password" placeholder="Confirm Password" class="w-full dark:bg-gray-300 p-2 border rounded">
-                    <div class="error-message text-red-500 text-sm mt-1 hidden" id="confirmPasswordError"></div>
+
+                    <div class="error-message text-red-500 dark:text-red-400 text-sm mt-1 hidden" id="passwordError"></div>
+                    <input type="password" id="confirmRegistrationPassword" name="confirm_password" placeholder="Confirm Password" class="w-full dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 p-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400">
+                    <div class="error-message text-red-500 dark:text-red-400 text-sm mt-1 hidden" id="confirmPasswordError"></div>
                     <div id="passwordRequirements" class="mt-2">
-                      <p class="password-requirement text-red-500" data-criteria="minLength"><span class="indicator">X</span> At least 8 characters</p>
-                      <p class="password-requirement text-red-500" data-criteria="number"><span class="indicator">X</span> Contains a number</p>
-                      <p class="password-requirement text-red-500" data-criteria="uppercase"><span class="indicator">X</span> Contains an uppercase letter</p>
-                      <p class="password-requirement text-red-500" data-criteria="lowercase"><span class="indicator">X</span> Contains a lowercase letter</p>
-                      <p class="password-requirement text-red-500" data-criteria="specialChar"><span class="indicator">X</span> Contains a special character</p>
-                      <p class="password-requirement text-red-500" data-criteria="passwordMatch"><span class="indicator">X</span> Passwords match</p>
+                      <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="minLength"><span class="indicator">X</span> At least 8 characters</p>
+                      <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="number"><span class="indicator">X</span> Contains a number</p>
+                      <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="uppercase"><span class="indicator">X</span> Contains an uppercase letter</p>
+                      <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="lowercase"><span class="indicator">X</span> Contains a lowercase letter</p>
+                      <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="specialChar"><span class="indicator">X</span> Contains a special character</p>
+                      <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="passwordMatch"><span class="indicator">X</span> Passwords match</p>
                   </div>
                     <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-700">Register</button>
                   </form>
                 </div>
               </div>
           </div>
-          
-          <div id="signInModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center" style="z-index: 5000;">
+
+          <div id="signInModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-black dark:bg-opacity-70 hidden flex items-center justify-center" style="z-index: 5000;">
               <div class="container mx-auto h-full flex justify-center items-center">
-                <div class="relative bg-blue-50 dark:bg-gray-500 p-8 rounded-lg shadow-lg max-w-sm mx-auto">
-                  <button class="close-modal dark:text-white absolute top-0 right-0 mt-2 mr-2">Close</button>
+                <div class="relative bg-blue-50 dark:bg-gray-800 dark:border dark:border-gray-700 p-8 rounded-lg shadow-lg dark:shadow-black/40 max-w-sm mx-auto">
+                  <button class="close-modal absolute top-0 right-0 mt-2 mr-3 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white text-xl leading-none">&times;</button>
                   <h2 class="text-center text-2xl font-bold mb-4 dark:text-white">Sign In</h2>
                   <form id="signInForm" method="POST" action="/login" class="space-y-2">
-                    <input type="text" id="email" name="email" placeholder="Your Email" class="w-full dark:bg-gray-300 p-2 border rounded">
-                    <div class="relative flex items-center dark:bg-gray-300 border rounded w-full">
-                      <input type="password" id="loginPassword" name="password" placeholder="Password" class="w-full p-2 dark:bg-gray-300 rounded-l">
-                      <button type="button" id="toggleLoginPassword" onclick="passwordVisibilityToggle('loginPassword', null, 'toggleLoginPassword')" tabindex="-1">Show</button>
+                    <input type="text" id="email" name="email" placeholder="Your Email" class="w-full dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 p-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400">
+                    <div class="relative flex items-center dark:bg-gray-700 border dark:border-gray-600 rounded w-full">
+                      <input type="password" id="loginPassword" name="password" placeholder="Password" class="w-full p-2 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400">
+                      <button type="button" id="toggleLoginPassword" class="text-gray-500 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white px-2 text-sm whitespace-nowrap" onclick="passwordVisibilityToggle('loginPassword', null, 'toggleLoginPassword')" tabindex="-1">Show</button>
                     </div>
                     <button type="submit" class="w-full bg-blue-500 text-white p-2 mt-4 rounded hover:bg-blue-700">Sign In</button>
                   </form>

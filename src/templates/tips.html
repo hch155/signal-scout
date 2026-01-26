@@ -1,9 +1,18 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div class="markdown-content prose lg:prose-xl mx-auto pb-10 px-5">
-        <div id="tips-content">
-            {{ content|safe }}
+    <section class="text-center text-[#333] dark:text-white p-5 mb-2">
+        <h2 class="text-xl font-bold">Signal Optimization Guide</h2>
+        <p class="text-lg text-gray-600 dark:text-gray-300">Practical advice for maximizing your cellular signal strength and quality</p>
+    </section>
+
+    <div class="flex justify-center px-4 pb-10">
+        <div class="w-full max-w-3xl">
+            <div class="tips-content-wrapper bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-6 md:p-8">
+                <div id="tips-content" class="markdown-content">
+                    {{ content|safe }}
+                </div>
+            </div>
         </div>
     </div>
 {% endblock %}

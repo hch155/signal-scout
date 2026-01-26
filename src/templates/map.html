@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <section class="slogan-section text-center text-[#333] dark:text-white p-5 mb-6">
-        <h2 class="text-x1 font-bold">{{ slogan_title }}</h2>
-        <p class="text-lg">{{ slogan_text }}</p>
+    <section class="slogan-section text-center text-[#333] dark:text-white py-3 px-4">
+        <p class="text-base font-semibold slogan-rotate" data-lines="{{ slogan_title }}|{{ slogan_text }}">{{ slogan_title }}</p>
     </section>
 
     <div class="container-fluid mt-3">
