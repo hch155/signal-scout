@@ -59,9 +59,19 @@
       width: 80%;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
-      min-width: 300px; 
+      min-width: 300px;
     }
   }
+
+.map-height {
+    height: 60vh;
+}
+
+@media (min-width: 768px) {
+    .map-height {
+        height: 65vh;
+    }
+}
 
 .gps-location-control button {
     z-index: 1000;
