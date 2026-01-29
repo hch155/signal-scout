@@ -257,16 +257,25 @@ th[onclick]:hover {
 
 /* Sidebar station cards */
 .sidebar-item {
-  @apply bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border-l-4 transition-all duration-200 cursor-pointer;
+  @apply bg-white dark:bg-gray-800 rounded-lg p-3 md:p-4 shadow-sm border-l-4 transition-all duration-200 cursor-pointer border border-gray-100 dark:border-gray-700;
   border-left-color: #9ca3af;
 }
 
 .sidebar-item:hover {
-  @apply shadow-md transform scale-[1.01];
+  @apply shadow-md transform scale-[1.01] border-gray-200 dark:border-gray-600;
 }
 
 .sidebar-item.selected {
-  @apply ring-2 ring-blue-500 shadow-lg;
+  @apply ring-2 ring-blue-500 dark:ring-blue-400 shadow-lg bg-blue-50 dark:bg-gray-700;
+}
+
+/* Card content dark mode text */
+.sidebar-item h4 {
+  @apply text-gray-900 dark:text-white;
+}
+
+.sidebar-item p {
+  @apply text-gray-700 dark:text-gray-200;
 }
 
 /* Provider color borders */
@@ -292,43 +301,52 @@ th[onclick]:hover {
 }
 
 .signal-bar {
-  @apply w-1 rounded-sm transition-all;
+  @apply w-1.5 rounded-sm transition-all;
   background-color: #d1d5db;
+}
+
+.dark .signal-bar {
+  background-color: #4b5563;
 }
 
 .signal-bar.active {
   background-color: currentColor;
 }
 
-.signal-bar:nth-child(1) { height: 6px; }
-.signal-bar:nth-child(2) { height: 10px; }
-.signal-bar:nth-child(3) { height: 14px; }
-.signal-bar:nth-child(4) { height: 18px; }
+.signal-bar:nth-child(1) { height: 8px; }
+.signal-bar:nth-child(2) { height: 12px; }
+.signal-bar:nth-child(3) { height: 16px; }
+.signal-bar:nth-child(4) { height: 20px; }
 
 .signal-excellent { color: #22c55e; }
-.signal-good { color: #eab308; }
-.signal-fair { color: #f97316; }
-.signal-poor { color: #ef4444; }
+.signal-good { color: #facc15; }
+.signal-fair { color: #fb923c; }
+.signal-poor { color: #f87171; }
+
+.dark .signal-excellent { color: #4ade80; }
+.dark .signal-good { color: #fde047; }
+.dark .signal-fair { color: #fdba74; }
+.dark .signal-poor { color: #fca5a5; }
 
 /* Signal badge */
 .signal-badge {
-  @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold;
+  @apply inline-flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-semibold whitespace-nowrap;
 }
 
 .signal-badge.excellent {
-  @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
+  @apply bg-green-100 text-green-800 dark:bg-green-800/50 dark:text-green-300 dark:border dark:border-green-600;
 }
 
 .signal-badge.good {
-  @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200;
+  @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-800/50 dark:text-yellow-300 dark:border dark:border-yellow-600;
 }
 
 .signal-badge.fair {
-  @apply bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200;
+  @apply bg-orange-100 text-orange-800 dark:bg-orange-800/50 dark:text-orange-300 dark:border dark:border-orange-600;
 }
 
 .signal-badge.poor {
-  @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200;
+  @apply bg-red-100 text-red-800 dark:bg-red-800/50 dark:text-red-300 dark:border dark:border-red-600;
 }
 
 /* Empty state */
@@ -350,39 +368,54 @@ th[onclick]:hover {
 
 /* Stats panel */
 .stats-panel {
-  @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-4;
+  @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 md:p-4 mb-4 border border-gray-200 dark:border-gray-700;
 }
 
 .stats-grid {
-  @apply grid grid-cols-2 md:grid-cols-4 gap-4;
+  @apply grid grid-cols-4 gap-2 md:gap-4;
 }
 
 .stat-item {
-  @apply text-center;
+  @apply text-center p-1 md:p-2;
 }
 
 .stat-value {
-  @apply text-2xl font-bold text-blue-600 dark:text-blue-400;
+  @apply text-lg md:text-2xl font-bold text-blue-600 dark:text-blue-400;
 }
 
 .stat-label {
-  @apply text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide;
+  @apply text-[10px] md:text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide leading-tight;
+}
+
+/* Provider summary row */
+.stats-panel .provider-summary {
+  @apply mt-2 pt-2 md:mt-3 md:pt-3 border-t border-gray-200 dark:border-gray-600 flex flex-wrap gap-2 md:gap-3 text-xs md:text-sm;
+}
+
+.stats-panel .provider-summary span {
+  @apply text-gray-700 dark:text-gray-200;
 }
 
 /* Provider mini badge */
 .provider-dot {
-  @apply w-3 h-3 rounded-full inline-block mr-1.5;
+  @apply w-2.5 h-2.5 md:w-3 md:h-3 rounded-full inline-block mr-1 md:mr-1.5 flex-shrink-0;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.2);
 }
 
-.provider-dot.play { background-color: #8b5cf6; }
-.provider-dot.orange { background-color: #f97316; }
-.provider-dot.tmobile { background-color: #ef4444; }
-.provider-dot.plus { background-color: #3b82f6; }
+.provider-dot.play { background-color: #a78bfa; }
+.provider-dot.orange { background-color: #fb923c; }
+.provider-dot.tmobile { background-color: #f87171; }
+.provider-dot.plus { background-color: #60a5fa; }
+
+.dark .provider-dot.play { background-color: #c4b5fd; }
+.dark .provider-dot.orange { background-color: #fdba74; }
+.dark .provider-dot.tmobile { background-color: #fca5a5; }
+.dark .provider-dot.plus { background-color: #93c5fd; }
 
 /* Copy button */
 .copy-btn {
-  @apply ml-2 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer;
-  font-size: 12px;
+  @apply ml-1 md:ml-2 p-0.5 md:p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer;
+  font-size: 11px;
 }
 
 .copy-btn:active {
@@ -391,10 +424,21 @@ th[onclick]:hover {
 
 /* Bearing indicator */
 .bearing-indicator {
-  @apply inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400;
+  @apply inline-flex items-center gap-0.5 md:gap-1 text-xs md:text-sm text-gray-600 dark:text-gray-300;
 }
 
 .bearing-arrow {
-  @apply text-blue-500 transition-transform;
+  @apply text-blue-500 dark:text-blue-400 transition-transform;
   display: inline-block;
+}
+
+/* Mobile-specific adjustments for sidebar cards */
+@media (max-width: 640px) {
+  .sidebar-item .flex.items-center.justify-between {
+    @apply flex-col items-start gap-1;
+  }
+
+  .sidebar-item .flex.items-center.gap-2 {
+    @apply flex-wrap text-sm;
+  }
 }

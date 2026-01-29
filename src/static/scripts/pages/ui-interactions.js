@@ -652,8 +652,8 @@ function createStatsPanel(stations) {
 
     const providerBadges = Object.entries(providerCounts).map(([name, count]) => {
         const cssClass = name.toLowerCase().replace('-', '');
-        return `<span class="inline-flex items-center text-xs"><span class="provider-dot ${cssClass}"></span>${name}: ${count}</span>`;
-    }).join(' ');
+        return `<span class="inline-flex items-center"><span class="provider-dot ${cssClass}"></span>${name}: ${count}</span>`;
+    }).join('');
 
     const panel = document.createElement('div');
     panel.className = 'stats-panel col-span-full';
@@ -665,18 +665,18 @@ function createStatsPanel(stations) {
             </div>
             <div class="stat-item">
                 <div class="stat-value">${avgDistance}</div>
-                <div class="stat-label">Avg Distance (km)</div>
+                <div class="stat-label">Avg Dist</div>
             </div>
             <div class="stat-item">
                 <div class="stat-value">${nearestStation.distance.toFixed(2)}</div>
-                <div class="stat-label">Nearest (km)</div>
+                <div class="stat-label">Nearest</div>
             </div>
             <div class="stat-item">
                 <div class="stat-value flex justify-center">${createSignalBars(nearestSignal)}</div>
                 <div class="stat-label">Best Signal</div>
             </div>
         </div>
-        <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-3">
+        <div class="provider-summary">
             ${providerBadges}
         </div>
     `;
