@@ -825,23 +825,23 @@ function createSidebarContent(station, index) {
 
     return `
         <div class="dark:text-white">
-            <div class="flex items-center justify-between mb-2">
-                <h4 class="font-bold text-base m-0">${index + 1}. ${station.basestation_id}</h4>
+            <div class="card-header">
+                <h4>${index + 1}. ${station.basestation_id}</h4>
                 <span class="signal-badge ${signal.level}">
                     ${createSignalBars(signal)}
-                    ${signal.label}
+                    <span class="hidden sm:inline">${signal.label}</span>
                 </span>
             </div>
-            <div class="flex items-center gap-2 mb-2">
+            <div class="card-meta">
                 <span class="provider-dot ${providerClass}"></span>
                 <span class="font-medium">${providerShort}</span>
                 <span class="text-gray-500 dark:text-gray-400">•</span>
                 <span>${formattedDistance} km</span>
                 ${bearingHtml}
             </div>
-            <p class="text-sm mb-1"><b>Bands:</b> ${bandsHtml}</p>
-            <p class="text-sm mb-1 text-gray-600 dark:text-gray-400">${station.city}${station.location ? ' • ' + station.location : ''}</p>
-            <p class="text-sm mb-0 text-gray-500 dark:text-gray-500">
+            <p class="text-xs md:text-sm mb-1"><b>Bands:</b> ${bandsHtml}</p>
+            <p class="text-xs md:text-sm mb-1 text-gray-600 dark:text-gray-300">${station.city}${station.location ? ' • ' + station.location : ''}</p>
+            <p class="text-xs md:text-sm mb-0 text-gray-500 dark:text-gray-400">
                 ${coordsText}
                 <button onclick="copyToClipboard('${station.latitude}, ${station.longitude}', this)" class="copy-btn" title="Copy coordinates">📋</button>
             </p>

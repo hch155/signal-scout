@@ -434,11 +434,29 @@ th[onclick]:hover {
 
 /* Mobile-specific adjustments for sidebar cards */
 @media (max-width: 640px) {
-  .sidebar-item .flex.items-center.justify-between {
+  .sidebar-item .card-header {
     @apply flex-col items-start gap-1;
   }
 
-  .sidebar-item .flex.items-center.gap-2 {
-    @apply flex-wrap text-sm;
+  .sidebar-item .card-meta {
+    @apply flex-wrap text-xs gap-1;
   }
+
+  .sidebar-item .signal-badge {
+    @apply mt-1;
+  }
+}
+
+/* Card header layout */
+.card-header {
+  @apply flex items-center justify-between mb-2 gap-2;
+}
+
+.card-header h4 {
+  @apply font-bold text-sm md:text-base m-0 flex-shrink min-w-0;
+  word-break: break-word;
+}
+
+.card-meta {
+  @apply flex items-center gap-1.5 md:gap-2 mb-2 flex-wrap;
 }
