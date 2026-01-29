@@ -508,20 +508,10 @@ function showLoadingSkeleton() {
     }
 }
 
-// Calculate signal strength level based on distance and best frequency band
-function getSignalStrength(distance, frequencyBands) {
-    // Find the best band category for this station
-    let bestBandKey = 'low';
-    for (const band of frequencyBands) {
-        if (['5G3600', 'LTE2600', '5G2600'].includes(band)) {
-            bestBandKey = 'high';
-            break;
-        } else if (['5G2100', 'LTE2100', '5G1800', 'LTE1800'].includes(band)) {
-            bestBandKey = 'mid';
-        }
-    }
-
-    const thresholds = frequencyRanges[bestBandKey];
+// Calculate signal strength level based on distance and currently selected frequency band
+// Uses currentBand (low/mid/high) to match the ring visualization on the map
+function getSignalStrength(distance) {
+    const thresholds = frequencyRanges[currentBand];
     const distanceMeters = distance * 1000;
 
     if (distanceMeters <= thresholds[0]) return { level: 'excellent', bars: 4, label: 'Excellent' };
@@ -641,7 +631,7 @@ function createStatsPanel(stations) {
     const totalStations = stations.length;
     const avgDistance = (stations.reduce((sum, s) => sum + s.distance, 0) / totalStations).toFixed(2);
     const nearestStation = stations.reduce((min, s) => s.distance < min.distance ? s : min, stations[0]);
-    const nearestSignal = getSignalStrength(nearestStation.distance, nearestStation.frequency_bands);
+    const nearestSignal = getSignalStrength(nearestStation.distance);
 
     // Count providers
     const providerCounts = {};
@@ -797,7 +787,7 @@ function createSidebarContent(station, index) {
     const coordsText = `${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}`;
 
     // Get signal strength
-    const signal = getSignalStrength(station.distance, station.frequency_bands);
+    const signal = getSignalStrength(station.distance);
     const providerShort = providerShortNames[station.service_provider] || station.service_provider;
     const providerClass = providerClasses[station.service_provider] || '';
 
