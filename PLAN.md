@@ -20,21 +20,21 @@
 - [x] Add summary stats panel below map (total stations, avg distance, best signal)
 - [x] Show provider distribution chart (pie/bar chart)
 - [ ] Add frequency band coverage summary
-- [ ] Display nearest station quick card with one-click navigation
+- [x] Display nearest station quick card with one-click navigation
 
 ## Phase 2: Map & Visualization Improvements
 
 ### 2.1 Map Enhancements
 - [ ] Add station clustering for zoomed-out views
 - [ ] Implement heatmap layer option for station density
-- [ ] Add line/path from user location to selected station
+- [x] Add line/path from user location to selected station
 - [ ] Show station coverage radius circles (toggle-able)
-- [ ] Add satellite/terrain map layer options
+- [x] Add satellite/terrain map layer options
 
 ### 2.2 Filter & Search UX
 - [ ] Redesign filter panel with better mobile UX
 - [ ] Add quick filter chips below map (e.g., "5G only", "< 1km")
-- [ ] Implement search-as-you-type for base station ID
+- [x] Implement search-as-you-type for base station ID
 - [ ] Add recent searches history
 - [ ] Save filter presets
 

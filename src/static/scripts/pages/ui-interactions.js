@@ -665,12 +665,19 @@ function displayStations(data) {
     updateBTSView(bounds);
 }
 
+// Store stations for quick access
+let currentStations = [];
+
 // Create stats panel showing summary of stations
 function createStatsPanel(stations) {
+    currentStations = stations;
     const totalStations = stations.length;
     const avgDistance = (stations.reduce((sum, s) => sum + s.distance, 0) / totalStations).toFixed(2);
     const nearestStation = stations.reduce((min, s) => s.distance < min.distance ? s : min, stations[0]);
+    const nearestIndex = stations.findIndex(s => s === nearestStation);
     const nearestSignal = getSignalStrength(nearestStation.distance);
+    const providerShort = providerShortNames[nearestStation.service_provider] || nearestStation.service_provider;
+    const providerClass = providerClasses[nearestStation.service_provider] || '';
 
     // Count providers
     const providerCounts = {};
@@ -708,8 +715,57 @@ function createStatsPanel(stations) {
         <div class="provider-summary">
             ${providerBadges}
         </div>
+        <div class="nearest-quick-card" data-index="${nearestIndex}">
+            <div class="quick-card-header">
+                <span class="quick-card-badge">📍 Nearest</span>
+                <span class="quick-card-arrow">→</span>
+            </div>
+            <div class="quick-card-content">
+                <span class="provider-dot ${providerClass}"></span>
+                <span class="font-medium">${nearestStation.basestation_id}</span>
+                <span class="text-gray-500 dark:text-gray-400">•</span>
+                <span>${providerShort}</span>
+                <span class="text-gray-500 dark:text-gray-400">•</span>
+                <span>${nearestStation.distance.toFixed(2)} km</span>
+            </div>
+        </div>
     `;
+
+    // Add click handler for nearest station quick card
+    const quickCard = panel.querySelector('.nearest-quick-card');
+    quickCard.addEventListener('click', function() {
+        const index = parseInt(this.dataset.index);
+        navigateToStation(index);
+    });
+
     return panel;
+}
+
+// Navigate to a station by index
+function navigateToStation(index) {
+    if (!currentStations[index]) return;
+    const station = currentStations[index];
+
+    // Remove previous selection
+    document.querySelectorAll('.sidebar-item.selected').forEach(item => {
+        item.classList.remove('selected');
+    });
+
+    // Select the sidebar item
+    const sidebarItem = document.querySelector(`.sidebar-item[data-index="${index}"]`);
+    if (sidebarItem) {
+        sidebarItem.classList.add('selected');
+        sidebarItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    selectedStationIndex = index;
+    drawConnectionLine(station.latitude, station.longitude);
+
+    // Open marker popup and pan to location
+    if (stationMarkers[index]) {
+        stationMarkers[index].openPopup();
+        mymap.panTo([station.latitude, station.longitude]);
+    }
 }
 
 function createCustomIcon(station, index, providerIconUrl) {
@@ -853,11 +909,13 @@ function createSidebarContent(station, index) {
     // Group frequency bands by type
     const bands5G = station.frequency_bands.filter(b => b.startsWith('5G'));
     const bandsLTE = station.frequency_bands.filter(b => b.startsWith('LTE'));
+    const bandsUMTS = station.frequency_bands.filter(b => b.startsWith('UMTS'));
     const bandsGSM = station.frequency_bands.filter(b => b.startsWith('GSM'));
 
     let bandsHtml = '';
     if (bands5G.length > 0) bandsHtml += `<span class="text-purple-600 dark:text-purple-400 font-medium">5G:</span> ${bands5G.join(', ')} `;
     if (bandsLTE.length > 0) bandsHtml += `<span class="text-blue-600 dark:text-blue-400 font-medium">LTE:</span> ${bandsLTE.join(', ')} `;
+    if (bandsUMTS.length > 0) bandsHtml += `<span class="text-teal-600 dark:text-teal-400 font-medium">3G:</span> ${bandsUMTS.join(', ')} `;
     if (bandsGSM.length > 0) bandsHtml += `<span class="text-gray-600 dark:text-gray-400 font-medium">GSM:</span> ${bandsGSM.join(', ')}`;
 
     return `
@@ -1120,6 +1178,112 @@ document.addEventListener('click', function(event) {
     }
 });
 
+// ── Search-as-you-type for Base Station ID ──
+let searchDebounceTimer = null;
+let searchSuggestionsVisible = false;
+
+function setupBaseStationSearch() {
+    const input = document.getElementById('baseStationIdInput');
+    if (!input) return;
+
+    // Create suggestions container
+    let suggestionsContainer = document.getElementById('bts-suggestions');
+    if (!suggestionsContainer) {
+        suggestionsContainer = document.createElement('div');
+        suggestionsContainer.id = 'bts-suggestions';
+        suggestionsContainer.className = 'bts-suggestions hidden';
+        input.parentElement.style.position = 'relative';
+        input.parentElement.appendChild(suggestionsContainer);
+    }
+
+    input.addEventListener('input', function() {
+        const query = this.value.trim().toUpperCase();
+
+        clearTimeout(searchDebounceTimer);
+
+        if (query.length < 2) {
+            hideSuggestions();
+            return;
+        }
+
+        searchDebounceTimer = setTimeout(() => {
+            searchBaseStations(query);
+        }, 300);
+    });
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            hideSuggestions();
+        }
+    });
+
+    // Hide suggestions when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#searchByBtsContainer')) {
+            hideSuggestions();
+        }
+    });
+}
+
+function searchBaseStations(query) {
+    globalFetch(`/search_stations?q=${encodeURIComponent(query)}&limit=5`)
+        .then(data => {
+            if (data && data.stations && data.stations.length > 0) {
+                showSuggestions(data.stations);
+            } else {
+                hideSuggestions();
+            }
+        })
+        .catch(err => {
+            console.error('Search error:', err);
+            hideSuggestions();
+        });
+}
+
+function showSuggestions(stations) {
+    const container = document.getElementById('bts-suggestions');
+    if (!container) return;
+
+    container.innerHTML = '';
+    stations.forEach(station => {
+        const item = document.createElement('div');
+        item.className = 'suggestion-item';
+        const providerShort = providerShortNames[station.service_provider] || station.service_provider;
+        item.innerHTML = `
+            <span class="font-medium">${station.basestation_id}</span>
+            <span class="text-gray-500 dark:text-gray-400">•</span>
+            <span class="text-xs">${providerShort}</span>
+            <span class="text-gray-500 dark:text-gray-400">•</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">${station.city || 'Unknown'}</span>
+        `;
+        item.addEventListener('click', function() {
+            document.getElementById('baseStationIdInput').value = station.basestation_id;
+            hideSuggestions();
+            // Trigger search
+            currentFilters.lat = station.latitude;
+            currentFilters.lng = station.longitude;
+            fetchStations();
+        });
+        container.appendChild(item);
+    });
+
+    container.classList.remove('hidden');
+    searchSuggestionsVisible = true;
+}
+
+function hideSuggestions() {
+    const container = document.getElementById('bts-suggestions');
+    if (container) {
+        container.classList.add('hidden');
+    }
+    searchSuggestionsVisible = false;
+}
+
+// Initialize search on dynamic content load
+document.getElementById('dynamicContent').addEventListener('DOMNodeInserted', function() {
+    setTimeout(setupBaseStationSearch, 100);
+});
+
 function addRing(lat, lng, radius, color) {
     L.circle([lat, lng], {
         color: color,
@@ -1177,9 +1341,10 @@ function getFrequencyColorForDistance(band, distanceKm) {
     let bandKey;
     if (['5G3600', 'LTE2600', '5G2600'].includes(band)) {
         bandKey = 'high';
-    } else if (['5G2100', 'LTE2100', '5G1800', 'LTE1800'].includes(band)) {
+    } else if (['5G2100', 'LTE2100', '5G1800', 'LTE1800', 'UMTS2100'].includes(band)) {
         bandKey = 'mid';
     } else {
+        // Low band: LTE900, LTE800, LTE700, UMTS900, GSM900, GSM1800, 5G700
         bandKey = 'low';
     }
 

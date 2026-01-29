@@ -232,6 +232,32 @@ def find_station():
     else:
         return jsonify({"error": "Station not found"}), 404
 
+@app.route('/search_stations', methods=['GET'])
+def search_stations():
+    query = request.args.get('q', type=str, default='')
+    limit = request.args.get('limit', type=int, default=5)
+
+    if not query or len(query) < 2 or len(query) > 7:
+        return jsonify({"stations": []})
+
+    if not re.match("^[A-Za-z0-9]+$", query):
+        return jsonify({"stations": []})
+
+    # Search for stations with basestation_id starting with the query
+    stations = BaseStation.query.filter(
+        BaseStation.basestation_id.like(f'{query.upper()}%')
+    ).limit(limit).all()
+
+    stations_data = [{
+        'basestation_id': s.basestation_id,
+        'latitude': s.latitude,
+        'longitude': s.longitude,
+        'city': s.city,
+        'service_provider': s.service_provider,
+    } for s in stations]
+
+    return jsonify({"stations": stations_data})
+
 @app.route('/register', methods=['POST'])
 @limiter.limit("5 per hour")
 def register_user():

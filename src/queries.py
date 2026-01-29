@@ -17,15 +17,17 @@ def haversine(lat1, lon1, lat2, lon2):
 
 def sort_frequency_bands(bands):
     def get_sort_key(band):
-        # Define sorting priority
+        # Define sorting priority: 5G > LTE > UMTS > GSM
         if band.startswith('5G'):
             priority = 1
-        elif 'LTE' in band:
+        elif band.startswith('LTE'):
             priority = 2
-        elif band.endswith('GSM'):
+        elif band.startswith('UMTS'):
             priority = 3
+        elif band.startswith('GSM'):
+            priority = 4
         else:
-            priority = 4 
+            priority = 5
 
         numeric_part = int(''.join(filter(str.isdigit, band))) if any(char.isdigit() for char in band) else 0
         return (priority, -numeric_part, band)  # Sort by priority, then by negative numeric part, then by band name
@@ -135,7 +137,7 @@ def get_band_stats():
 
 def get_stats():
     stats = get_band_stats()
-    band_order = ['5G3600', '5G2600', '5G2100', '5G1800', 'LTE2600', 'LTE2100', 'LTE1800', 'LTE900', 'LTE800', 'GSM900']
+    band_order = ['5G3600', '5G2100', '5G1800', '5G700', 'LTE2600', 'LTE2100', 'LTE1800', 'LTE900', 'LTE800', 'LTE700', 'UMTS2100', 'UMTS900', 'GSM1800', 'GSM900']
     
     def band_sort_key(band):
         if band in band_order:
