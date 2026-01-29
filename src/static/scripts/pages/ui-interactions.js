@@ -767,6 +767,9 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
         this.classList.add('selected');
         selectedStationIndex = index;
 
+        // Draw connection line to this station
+        drawConnectionLine(station.latitude, station.longitude);
+
         // Open the marker popup on map
         if (stationMarkers[index]) {
             stationMarkers[index].openPopup();

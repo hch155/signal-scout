@@ -19,7 +19,82 @@
 }
 
 .markdown-content a {
-    @apply text-blue-500 hover:text-blue-600 dark:text-gray-100;
+    @apply text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300;
+}
+
+.markdown-content h3 {
+    @apply text-lg font-semibold text-gray-700 dark:text-gray-200 mt-5 mb-2;
+}
+
+.markdown-content ul {
+    @apply mb-4 pl-5 space-y-1 list-disc;
+}
+
+.markdown-content ol {
+    @apply mb-4 pl-5 space-y-1 list-decimal;
+}
+
+.markdown-content hr {
+    @apply my-6 border-gray-200 dark:border-gray-700;
+}
+
+.markdown-content code {
+    @apply bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-1.5 py-0.5 rounded text-sm font-mono;
+}
+
+/* Tips page table */
+.markdown-content table {
+    @apply w-full border-collapse mb-4 text-sm border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden mx-auto;
+}
+
+.markdown-content table thead {
+    @apply bg-blue-50 dark:bg-gray-700;
+}
+
+.markdown-content table thead th {
+    @apply text-center p-2 md:p-3 text-gray-700 dark:text-gray-100 font-semibold border-b-2 border-gray-300 dark:border-gray-500;
+}
+
+.markdown-content table tbody td {
+    @apply text-center p-2 md:p-3 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600;
+}
+
+.markdown-content table tbody tr {
+    @apply bg-white dark:bg-gray-800;
+}
+
+.markdown-content table tbody tr:nth-child(even) {
+    @apply bg-gray-50 dark:bg-gray-700;
+}
+
+.markdown-content table tbody tr:hover {
+    @apply bg-blue-50 dark:bg-gray-600;
+}
+
+/* Statistics page table */
+.stats-th {
+    @apply px-2 py-1.5 md:p-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-100 uppercase tracking-wider;
+}
+
+.stats-td {
+    @apply px-2 py-1.5 md:p-3 text-center text-gray-800 dark:text-gray-200;
+}
+
+.stats-row {
+    @apply border-b border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800;
+    transition: background-color 0.15s ease;
+}
+
+.stats-row:nth-child(even) {
+    @apply bg-gray-50 dark:bg-gray-700;
+}
+
+.stats-row:hover {
+    @apply bg-blue-50 dark:bg-gray-600;
+}
+
+.stats-row:last-child {
+    @apply border-b-0;
 }
 
 .text-theme-responsive {
@@ -183,48 +258,58 @@
   transition: opacity 1s;
 }
 
+/* Frequency range container */
+.frequency-range-container {
+  @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 text-xs;
+  max-width: 95vw;
+}
+
 .frequency-range-legend {
   @apply bg-white border border-gray-300 rounded-md p-4 shadow-md mt-5 hidden;
 }
 
-.frequency-table th {
-  @apply border-b-2 border-black;
-}
-
-.frequency-table tbody tr:first-child {
-  @apply border-t-2 border-black;
-}
-
 .frequency-table {
-  @apply w-full border-collapse;
+  @apply w-full border-collapse text-xs;
+}
+
+.frequency-table th {
+  @apply p-1.5 md:p-2 text-center text-[10px] md:text-xs font-semibold border-b-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700;
 }
 
 .frequency-table td {
-  @apply text-center;
+  @apply p-1.5 md:p-2 text-center text-[10px] md:text-xs;
 }
 
-th[onclick] {
-  @apply cursor-pointer;
-}
-
-th[onclick]:hover {
-  @apply bg-blue-500 dark:bg-gray-800 dark:hover:bg-gray-500;
-}
-
-.highlighted-column {
-  @apply bg-blue-100 dark:bg-gray-400;
+.frequency-table tbody tr:first-child {
+  @apply border-t border-gray-300 dark:border-gray-600;
 }
 
 .frequency-table tbody tr td {
-  @apply border-b border-gray-300;
+  @apply border-b border-gray-200 dark:border-gray-600;
 }
 
 .frequency-table th, .frequency-table td {
-  @apply border-l border-gray-300;
+  @apply border-l border-gray-200 dark:border-gray-600;
+}
+
+.frequency-table th:first-child, .frequency-table td:first-child {
+  @apply border-l-0;
 }
 
 .frequency-table th:last-child, .frequency-table td:last-child {
   @apply border-r-0;
+}
+
+th[onclick] {
+  @apply cursor-pointer transition-colors;
+}
+
+th[onclick]:hover {
+  @apply bg-blue-100 dark:bg-gray-600;
+}
+
+.highlighted-column {
+  @apply bg-blue-100 dark:bg-blue-900/30;
 }
 
 .text-yellow-600 { 
