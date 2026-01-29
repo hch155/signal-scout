@@ -106,6 +106,37 @@
     }
 }
 
+/* ── Connection line animation ── */
+.connection-line {
+    animation: dash-animation 1s linear infinite;
+}
+
+@keyframes dash-animation {
+    to {
+        stroke-dashoffset: -20;
+    }
+}
+
+/* ── Layer control dark mode ── */
+.dark .leaflet-control-layers {
+    background-color: #1f2937;
+    color: #e5e7eb;
+    border-color: #374151;
+}
+
+.dark .leaflet-control-layers-toggle {
+    background-color: #1f2937;
+}
+
+.dark .leaflet-control-layers-base label,
+.dark .leaflet-control-layers-overlays label {
+    color: #e5e7eb;
+}
+
+.dark .leaflet-control-layers-separator {
+    border-top-color: #374151;
+}
+
 /* ── Statistics table ── */
 
 .stats-th {

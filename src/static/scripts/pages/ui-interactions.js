@@ -9,7 +9,20 @@ const lightTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{
 
 const darkTileLayer = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-});  
+});
+
+const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri'
+});
+
+// Add layer control for map styles
+const baseMaps = {
+    "Street": lightTileLayer,
+    "Dark": darkTileLayer,
+    "Satellite": satelliteLayer
+};
+
+L.control.layers(baseMaps, null, { position: 'topright' }).addTo(mymap);
 
 const greenIcon = new L.Icon({ 
 iconUrl: 'static/css/images/marker-icon-green.png', shadowUrl: 'static/css/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
@@ -33,13 +46,15 @@ const initialFilters = () => ({
 });
 
 let locationSetInitially = false;
-let currentFilters = initialFilters();  
+let currentFilters = initialFilters();
 let stationMarkers = [];
 let marker;
 let userSubmittedLocation = null;
 let countryBoundaries;
 let isFirstClick = true;
 let currentBand = 'low';
+let connectionLine = null; // Line from user to selected station
+let currentStations = []; // Store current stations for reference
 
 const frequencyRanges = {
     high: [200, 500, 1000, 1500], // high band frequency distance radius
@@ -460,6 +475,32 @@ function clearStationMarkers() { // clearing markers when new location is submit
         mymap.removeLayer(stationMarkers[i]);
     }
     stationMarkers = []; // Reset the array
+    clearConnectionLine();
+}
+
+// Draw line from user location to a station
+function drawConnectionLine(stationLat, stationLng) {
+    clearConnectionLine();
+    if (currentFilters.lat && currentFilters.lng) {
+        connectionLine = L.polyline([
+            [currentFilters.lat, currentFilters.lng],
+            [stationLat, stationLng]
+        ], {
+            color: '#3b82f6',
+            weight: 3,
+            opacity: 0.7,
+            dashArray: '10, 10',
+            className: 'connection-line'
+        }).addTo(mymap);
+    }
+}
+
+// Clear the connection line
+function clearConnectionLine() {
+    if (connectionLine) {
+        mymap.removeLayer(connectionLine);
+        connectionLine = null;
+    }
 } 
 
 function showLoadingSkeleton() {
@@ -489,21 +530,21 @@ function displayStations(data) {
     sidebarContent.innerHTML = ''; // Clear existing sidebar content (and skeletons)
     let stations;
     let bounds = [];
-    
+
     if (Array.isArray(data)) {
-        // Data is just the list of stations
         stations = data;
     } else if (data && Array.isArray(data.stations)) {
-        // Data is an object containing stations and possibly other information
         stations = data.stations;
     }
+
+    currentStations = stations; // Store for later reference
 
     stations.forEach((station, index) => {
         addStationMarker(station, index);
         addStationInfoToSidebar(station, index, sidebarContent);
-        
-    let latLng = L.latLng(station.latitude, station.longitude);
-        bounds.push(latLng); 
+
+        let latLng = L.latLng(station.latitude, station.longitude);
+        bounds.push(latLng);
     });
 
     function updateBTSView(bounds) {
@@ -543,6 +584,11 @@ function addStationMarker(station, index) {
 
     let tooltipContent = `${index + 1}. ${station.basestation_id}`; // tooltip
     stationMarker.bindTooltip(tooltipContent);
+
+    // Draw connection line when marker is clicked
+    stationMarker.on('click', function() {
+        drawConnectionLine(station.latitude, station.longitude);
+    });
 }
 
 function addStationInfoToSidebar(station, index, sidebarContent) {
