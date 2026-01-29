@@ -376,15 +376,22 @@ th[onclick]:hover {
 }
 
 .stat-item {
-  @apply text-center p-1 md:p-2;
+  @apply text-center p-1 md:p-2 flex flex-col justify-end;
 }
 
 .stat-value {
-  @apply text-lg md:text-2xl font-bold text-blue-600 dark:text-blue-400;
+  @apply text-lg md:text-2xl font-bold text-blue-600 dark:text-blue-400 flex items-center justify-center;
+  min-height: 28px;
+}
+
+@media (min-width: 768px) {
+  .stat-value {
+    min-height: 36px;
+  }
 }
 
 .stat-label {
-  @apply text-[10px] md:text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide leading-tight;
+  @apply text-[10px] md:text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide leading-tight mt-1;
 }
 
 /* Provider summary row */
