@@ -144,6 +144,18 @@
     }
 }
 
+/* ── Map container responsive ── */
+
+.map-height {
+    height: 60vh;
+}
+
+@media (min-width: 768px) {
+    .map-height {
+        height: 65vh;
+    }
+}
+
 /* ── Map controls ── */
 
 .gps-location-control button {

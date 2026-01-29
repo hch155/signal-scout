@@ -436,10 +436,11 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
         }
         if (data && Array.isArray(data.stations)) {
             updateBTSCount(data.count);
-            showSidebar(); 
+            showSidebar();
             displayStations(data.stations);
             addRingsForLocation(lat,lng);
             applyFrequencyColors();
+            scrollToSidebar();
         }
     })
 }
@@ -447,6 +448,15 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
 function showSidebar() {
     let sidebar = document.getElementById('sidebar');
     sidebar.classList.remove('hidden');
+}
+
+function scrollToSidebar() {
+    let sidebar = document.getElementById('sidebar');
+    if (sidebar && window.innerWidth < 768) {
+        setTimeout(function() {
+            sidebar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 2000);
+    }
 }
 
 function hideSidebar() {
@@ -651,6 +661,7 @@ function fetchStations() {
             addRingsForLocation(currentFilters.lat, currentFilters.lng);
         }
         applyFrequencyColors();
+        scrollToSidebar();
     })
     .catch(error => {
         console.error('Failed to process station data:', error);
