@@ -1,4 +1,9 @@
-node_modules/
+tools/
+mobile/node_modules/
+mobile/ios/App/Pods/
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/local.properties
 flask_session/
 __pycache__/
 .env

@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <section class="slogan-section text-center text-[#333] dark:text-white py-3 px-4">
+    <section class="slogan-section text-center text-[#333] dark:text-white py-1 md:py-3 px-4">
         <p class="text-base font-semibold slogan-rotate" data-lines="{{ slogan_title }}|{{ slogan_text }}">{{ slogan_title }}</p>
     </section>
 
-    <div class="container-fluid mt-3">
+    <div class="container-fluid mt-1 md:mt-3">
         <div class="flex justify-center">
-            <div class="w-4/5 mb-5">
-                <div id="map-container" class="relative w-full mb-5" style="height: 65vh;">
+            <div class="w-9/12 md:w-4/5 mb-5">
+                <div id="map-container" class="relative w-full mb-3 md:mb-5 map-height">
                     <div id="mapid" class="h-full w-full"></div>
                 </div>
-                <div id="sidebar" class="grid grid-cols-3 gap-5 pb-10">
+                <div id="sidebar" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-5 pb-10">
                 </div>
             </div>
         </div>

@@ -15,13 +15,12 @@ const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/
     attribution: 'Tiles &copy; Esri'
 });
 
-// Add layer control for map styles
+// Layer control for map styles
 const baseMaps = {
     "Street": lightTileLayer,
     "Dark": darkTileLayer,
     "Satellite": satelliteLayer
 };
-
 L.control.layers(baseMaps, null, { position: 'topright' }).addTo(mymap);
 
 const greenIcon = new L.Icon({ 
@@ -31,9 +30,25 @@ iconUrl: 'static/css/images/marker-icon-green.png', shadowUrl: 'static/css/image
 const providerColors = {
     'P4 Sp. z o.o.': 'violet', // purple/violet marker for Play
     'Orange Polska S.A.': 'orange',
-    'T-Mobile Polska S.A.': 'red', 
+    'T-Mobile Polska S.A.': 'red',
     'POLKOMTEL Sp. z o.o.': 'blue'
 };
+
+const providerClasses = {
+    'P4 Sp. z o.o.': 'play',
+    'Orange Polska S.A.': 'orange',
+    'T-Mobile Polska S.A.': 'tmobile',
+    'POLKOMTEL Sp. z o.o.': 'plus'
+};
+
+const providerShortNames = {
+    'P4 Sp. z o.o.': 'Play',
+    'Orange Polska S.A.': 'Orange',
+    'T-Mobile Polska S.A.': 'T-Mobile',
+    'POLKOMTEL Sp. z o.o.': 'Plus'
+};
+
+let selectedStationIndex = null;
 
 const initialFilters = () => ({
     lat: null,
@@ -53,8 +68,7 @@ let userSubmittedLocation = null;
 let countryBoundaries;
 let isFirstClick = true;
 let currentBand = 'low';
-let connectionLine = null; // Line from user to selected station
-let currentStations = []; // Store current stations for reference
+let connectionLine = null;
 
 const frequencyRanges = {
     high: [200, 500, 1000, 1500], // high band frequency distance radius
@@ -451,10 +465,11 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
         }
         if (data && Array.isArray(data.stations)) {
             updateBTSCount(data.count);
-            showSidebar(); 
+            showSidebar();
             displayStations(data.stations);
             addRingsForLocation(lat,lng);
             applyFrequencyColors();
+            scrollToSidebar();
         }
     })
 }
@@ -462,6 +477,15 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
 function showSidebar() {
     let sidebar = document.getElementById('sidebar');
     sidebar.classList.remove('hidden');
+}
+
+function scrollToSidebar() {
+    let sidebar = document.getElementById('sidebar');
+    if (sidebar && window.innerWidth < 768) {
+        setTimeout(function() {
+            sidebar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 2000);
+    }
 }
 
 function hideSidebar() {
@@ -501,7 +525,7 @@ function clearConnectionLine() {
         mymap.removeLayer(connectionLine);
         connectionLine = null;
     }
-} 
+}
 
 function showLoadingSkeleton() {
     let sidebarContent = document.getElementById('sidebar');
@@ -523,9 +547,81 @@ function showLoadingSkeleton() {
     }
 }
 
+// Calculate signal strength level based on distance and currently selected frequency band
+// Uses currentBand (low/mid/high) to match the ring visualization on the map
+function getSignalStrength(distance) {
+    const thresholds = frequencyRanges[currentBand];
+    const distanceMeters = distance * 1000;
+
+    if (distanceMeters <= thresholds[0]) return { level: 'excellent', bars: 4, label: 'Excellent' };
+    if (distanceMeters <= thresholds[1]) return { level: 'good', bars: 3, label: 'Good' };
+    if (distanceMeters <= thresholds[2]) return { level: 'fair', bars: 2, label: 'Fair' };
+    return { level: 'poor', bars: 1, label: 'Poor' };
+}
+
+// Calculate bearing from user location to station
+function calculateBearing(lat1, lng1, lat2, lng2) {
+    const toRad = deg => deg * Math.PI / 180;
+    const toDeg = rad => rad * 180 / Math.PI;
+
+    const dLng = toRad(lng2 - lng1);
+    const y = Math.sin(dLng) * Math.cos(toRad(lat2));
+    const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+              Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng);
+
+    let bearing = toDeg(Math.atan2(y, x));
+    return (bearing + 360) % 360;
+}
+
+// Get compass direction from bearing
+function getCompassDirection(bearing) {
+    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    const index = Math.round(bearing / 45) % 8;
+    return directions[index];
+}
+
+// Copy to clipboard helper
+function copyToClipboard(text, button) {
+    navigator.clipboard.writeText(text).then(() => {
+        const originalText = button.innerHTML;
+        button.innerHTML = '✓';
+        button.style.color = '#22c55e';
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.style.color = '';
+        }, 1500);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+    });
+}
+
+// Generate signal bars HTML
+function createSignalBars(signal) {
+    let barsHtml = '';
+    for (let i = 1; i <= 4; i++) {
+        const active = i <= signal.bars ? 'active' : '';
+        barsHtml += `<div class="signal-bar ${active}"></div>`;
+    }
+    return `<div class="signal-indicator signal-${signal.level}">${barsHtml}</div>`;
+}
+
+// Show empty state when no stations found
+function showEmptyState() {
+    let sidebarContent = document.getElementById('sidebar');
+    sidebarContent.innerHTML = `
+        <div class="empty-state col-span-full">
+            <div class="empty-state-icon">📡</div>
+            <div class="empty-state-title">No stations found</div>
+            <div class="empty-state-text">Try adjusting your filters or clicking a different location on the map.</div>
+        </div>
+    `;
+    sidebarContent.classList.remove('hidden');
+}
+
 function displayStations(data) {
     clearStationMarkers(); // Clear existing markers
     clearRings();
+    selectedStationIndex = null;
     let sidebarContent = document.getElementById('sidebar');
     sidebarContent.innerHTML = ''; // Clear existing sidebar content (and skeletons)
     let stations;
@@ -537,7 +633,15 @@ function displayStations(data) {
         stations = data.stations;
     }
 
-    currentStations = stations; // Store for later reference
+    // Handle empty results
+    if (!stations || stations.length === 0) {
+        showEmptyState();
+        return;
+    }
+
+    // Add stats panel
+    const statsPanel = createStatsPanel(stations);
+    sidebarContent.appendChild(statsPanel);
 
     stations.forEach((station, index) => {
         addStationMarker(station, index);
@@ -548,7 +652,6 @@ function displayStations(data) {
     });
 
     function updateBTSView(bounds) {
-        // Adjusts map to fit given bounds with padding and reduces zoom level for an optimal view if bounds are not empty.
         if (bounds.length > 0) {
             let boundsLatLng = L.latLngBounds(bounds);
             mymap.fitBounds(boundsLatLng, { padding: [50, 50] });
@@ -557,9 +660,56 @@ function displayStations(data) {
             if (newZoom < currentZoom) {
                 mymap.setZoom(newZoom);
             }
-        } 
+        }
     }
     updateBTSView(bounds);
+}
+
+// Create stats panel showing summary of stations
+function createStatsPanel(stations) {
+    const totalStations = stations.length;
+    const avgDistance = (stations.reduce((sum, s) => sum + s.distance, 0) / totalStations).toFixed(2);
+    const nearestStation = stations.reduce((min, s) => s.distance < min.distance ? s : min, stations[0]);
+    const nearestSignal = getSignalStrength(nearestStation.distance);
+
+    // Count providers
+    const providerCounts = {};
+    stations.forEach(s => {
+        const shortName = providerShortNames[s.service_provider] || s.service_provider;
+        providerCounts[shortName] = (providerCounts[shortName] || 0) + 1;
+    });
+
+    const providerBadges = Object.entries(providerCounts).map(([name, count]) => {
+        const cssClass = name.toLowerCase().replace('-', '');
+        return `<span class="inline-flex items-center"><span class="provider-dot ${cssClass}"></span>${name}: ${count}</span>`;
+    }).join('');
+
+    const panel = document.createElement('div');
+    panel.className = 'stats-panel col-span-full';
+    panel.innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-value">${totalStations}</div>
+                <div class="stat-label">Stations</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${avgDistance}</div>
+                <div class="stat-label">Avg Dist</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${nearestStation.distance.toFixed(2)}</div>
+                <div class="stat-label">Nearest</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value flex justify-center">${createSignalBars(nearestSignal)}</div>
+                <div class="stat-label">Best Signal</div>
+            </div>
+        </div>
+        <div class="provider-summary">
+            ${providerBadges}
+        </div>
+    `;
+    return panel;
 }
 
 function createCustomIcon(station, index, providerIconUrl) {
@@ -592,18 +742,48 @@ function addStationMarker(station, index) {
 }
 
 function addStationInfoToSidebar(station, index, sidebarContent) {
-    let stationInfo = createSidebarContent(station, index);
     let stationInfoDiv = document.createElement('div');
-    stationInfoDiv.className = 'sidebar-item';
-    stationInfoDiv.innerHTML = stationInfo;
+    const providerClass = providerClasses[station.service_provider] || '';
+    stationInfoDiv.className = `sidebar-item provider-${providerClass}`;
+    stationInfoDiv.dataset.index = index;
+
+    // Create the card content
+    stationInfoDiv.innerHTML = createSidebarContent(station, index);
     sidebarContent.appendChild(stationInfoDiv);
+
+    // Add click handler for selection
+    stationInfoDiv.addEventListener('click', function(e) {
+        // Don't trigger if clicking a link or button
+        if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON' || e.target.closest('a') || e.target.closest('button')) {
+            return;
+        }
+
+        // Remove selected class from previous selection
+        document.querySelectorAll('.sidebar-item.selected').forEach(item => {
+            item.classList.remove('selected');
+        });
+
+        // Add selected class to this item
+        this.classList.add('selected');
+        selectedStationIndex = index;
+
+        // Open the marker popup on map
+        if (stationMarkers[index]) {
+            stationMarkers[index].openPopup();
+            mymap.panTo([station.latitude, station.longitude]);
+        }
+    });
+
+    // Add links container
+    const linksDiv = document.createElement('div');
+    linksDiv.className = 'flex flex-wrap gap-2 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700';
 
     let googleMapsLink = document.createElement('a');
     googleMapsLink.href = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
     googleMapsLink.target = '_blank';
-    googleMapsLink.textContent = 'View on Google Maps';
-    googleMapsLink.className = 'no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold';
-    stationInfoDiv.appendChild(googleMapsLink);
+    googleMapsLink.textContent = 'Google Maps';
+    googleMapsLink.className = 'text-xs no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold';
+    linksDiv.appendChild(googleMapsLink);
 
     // Add compass button if supported and user location is available
     if (window.CompassModule && window.CompassModule.isSupported() && currentFilters.lat && currentFilters.lng) {
@@ -614,8 +794,11 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
             currentFilters.lat,
             currentFilters.lng
         );
-        stationInfoDiv.appendChild(compassBtn);
+        compassBtn.className += ' text-xs';
+        linksDiv.appendChild(compassBtn);
     }
+
+    stationInfoDiv.appendChild(linksDiv);
 }
 
 function createPopupContent(station, index) {
@@ -640,20 +823,62 @@ function createPopupContent(station, index) {
 }
 
 function createSidebarContent(station, index) {
-    let formattedLat = station.latitude.toFixed(5);
-    let formattedLng = station.longitude.toFixed(5);
-    let formattedDistance = station.distance.toFixed(2);
-    let latHemisphere = station.latitude >= 0 ? 'N' : 'S';
-    let lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
+    const formattedLat = station.latitude.toFixed(5);
+    const formattedLng = station.longitude.toFixed(5);
+    const formattedDistance = station.distance.toFixed(2);
+    const latHemisphere = station.latitude >= 0 ? 'N' : 'S';
+    const lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
+    const coordsText = `${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}`;
+
+    // Get signal strength
+    const signal = getSignalStrength(station.distance);
+    const providerShort = providerShortNames[station.service_provider] || station.service_provider;
+    const providerClass = providerClasses[station.service_provider] || '';
+
+    // Calculate bearing if user location is available
+    let bearingHtml = '';
+    if (currentFilters.lat && currentFilters.lng) {
+        const bearing = calculateBearing(currentFilters.lat, currentFilters.lng, station.latitude, station.longitude);
+        const direction = getCompassDirection(bearing);
+        bearingHtml = `
+            <span class="bearing-indicator ml-2">
+                <span class="bearing-arrow" style="transform: rotate(${bearing}deg)">↑</span>
+                ${direction} (${Math.round(bearing)}°)
+            </span>`;
+    }
+
+    // Group frequency bands by type
+    const bands5G = station.frequency_bands.filter(b => b.startsWith('5G'));
+    const bandsLTE = station.frequency_bands.filter(b => b.startsWith('LTE'));
+    const bandsGSM = station.frequency_bands.filter(b => b.startsWith('GSM'));
+
+    let bandsHtml = '';
+    if (bands5G.length > 0) bandsHtml += `<span class="text-purple-600 dark:text-purple-400 font-medium">5G:</span> ${bands5G.join(', ')} `;
+    if (bandsLTE.length > 0) bandsHtml += `<span class="text-blue-600 dark:text-blue-400 font-medium">LTE:</span> ${bandsLTE.join(', ')} `;
+    if (bandsGSM.length > 0) bandsHtml += `<span class="text-gray-600 dark:text-gray-400 font-medium">GSM:</span> ${bandsGSM.join(', ')}`;
+
     return `
-        <div class="sidebar-item dark:text-white">
-            <h4>${index + 1}. ${station.basestation_id}</h4>
-            <p><b>Service Provider:</b> ${station.service_provider}</p>
-            <p><b>Distance:</b> ${formattedDistance}km</p>
-            <p><b>Frequency Bands:</b> ${station.frequency_bands.join(", ")}</p>
-            <p><b>City:</b> ${station.city}</p>
-            <p><b>Location:</b> ${station.location}</p>
-            <p><b>Coordinates:</b> ${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}</p>
+        <div class="dark:text-white">
+            <div class="card-header">
+                <h4>${index + 1}. ${station.basestation_id}</h4>
+                <span class="signal-badge ${signal.level}">
+                    ${createSignalBars(signal)}
+                    <span class="hidden sm:inline">${signal.label}</span>
+                </span>
+            </div>
+            <div class="card-meta">
+                <span class="provider-dot ${providerClass}"></span>
+                <span class="font-medium">${providerShort}</span>
+                <span class="text-gray-500 dark:text-gray-400">•</span>
+                <span>${formattedDistance} km</span>
+                ${bearingHtml}
+            </div>
+            <p class="text-xs md:text-sm mb-1"><b>Bands:</b> ${bandsHtml}</p>
+            <p class="text-xs md:text-sm mb-1 text-gray-600 dark:text-gray-300">${station.city}${station.location ? ' • ' + station.location : ''}</p>
+            <p class="text-xs md:text-sm mb-0 text-gray-500 dark:text-gray-400">
+                ${coordsText}
+                <button onclick="copyToClipboard('${station.latitude}, ${station.longitude}', this)" class="copy-btn" title="Copy coordinates">📋</button>
+            </p>
         </div>`;
 }
 
@@ -697,6 +922,7 @@ function fetchStations() {
             addRingsForLocation(currentFilters.lat, currentFilters.lng);
         }
         applyFrequencyColors();
+        scrollToSidebar();
     })
     .catch(error => {
         console.error('Failed to process station data:', error);
