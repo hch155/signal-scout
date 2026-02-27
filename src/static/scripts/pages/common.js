@@ -337,31 +337,6 @@ function passwordVisibilityToggle(passwordInputId, confirmPasswordInputId, toggl
   toggleButton.addEventListener('touchend', () => togglePassword(false));
 }
 
-function submitForm(url, formData) {
-  globalFetch(url, {
-      method: 'POST',
-      body: formData,
-  })
-  .then(data => {
-      if (data.success) {
-          // window.location.href = '/path';
-          resetUIAndListeners();
-          showToast('Registration successful!', 'success');
-          if (url === '/login') {
-              localStorage.setItem('loggedIn', 'true');
-              checkLoginStateAndUpdateUI();
-          }
-          
-      } else {
-        showToast('Registration failed: Email already in use.', 'error');
-      }
-  })
-  .catch(error => {
-      console.error('Error:', error);
-      showToast('An error occurred during registration. Please try again.', 'error');
-  });
-}
-
 function handleSignInSubmit(e) {
   e.preventDefault();
   const formData = new FormData(e.target);

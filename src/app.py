@@ -7,7 +7,7 @@ from database import db
 from models import BaseStation, User
 from sqlalchemy import or_
 from collections import defaultdict
-from queries import get_all_stations, find_nearest_stations, haversine, get_band_stats, get_stats, get_latitude_segment
+from queries import get_all_stations, find_nearest_stations, haversine, get_band_stats, get_stats
 from dotenv import load_dotenv
 from datetime import timedelta
 import markdown, os, random, re
@@ -130,16 +130,13 @@ def submit_location():
         session['user_location'] = {'lat': data['lat'], 'lng': data['lng']} 
         user_lat = data['lat']
         user_lng = data['lng']
-        user_segment = get_latitude_segment(user_lat)
         limit = data.get('limit', 9)
         max_distance = data.get('max_distance', None)
 
-        stations = BaseStation.query.filter_by(latitude_segment=user_segment).all()
         nearest_stations = find_nearest_stations(user_lat, user_lng, limit=limit, max_distance=max_distance)
         
-        if nearest_stations is None or not nearest_stations.get('stations'): # If the key 'stations' does not exist, .get() returns None by default, if faulty (e.g empty list) None or False
-            print("No stations found or an error occurred")
-            return jsonify({'error': 'No stations found or an error occurred'}), 500
+        if nearest_stations is None or not nearest_stations.get('stations'):
+            return jsonify({'stations': [], 'count': 0})
         return jsonify(nearest_stations)
 
     except Exception as e:

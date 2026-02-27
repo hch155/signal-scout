@@ -300,11 +300,16 @@ filterControl.onAdd = function(map) {
                         <label><input type="checkbox" name="frequency_bands" value="5G3600"> 5G3600</label>
                         <label><input type="checkbox" name="frequency_bands" value="5G2100"> 5G2100</label>
                         <label><input type="checkbox" name="frequency_bands" value="5G1800"> 5G1800</label>
+                        <label><input type="checkbox" name="frequency_bands" value="5G700"> 5G700</label>
                         <label><input type="checkbox" name="frequency_bands" value="LTE2600"> LTE2600</label>
                         <label><input type="checkbox" name="frequency_bands" value="LTE2100"> LTE2100</label>
                         <label><input type="checkbox" name="frequency_bands" value="LTE1800"> LTE1800</label>
                         <label><input type="checkbox" name="frequency_bands" value="LTE900"> LTE900</label>
                         <label><input type="checkbox" name="frequency_bands" value="LTE800"> LTE800</label>
+                        <label><input type="checkbox" name="frequency_bands" value="LTE700"> LTE700</label>
+                        <label><input type="checkbox" name="frequency_bands" value="UMTS2100"> UMTS2100</label>
+                        <label><input type="checkbox" name="frequency_bands" value="UMTS900"> UMTS900</label>
+                        <label><input type="checkbox" name="frequency_bands" value="GSM1800"> GSM1800</label>
                         <label><input type="checkbox" name="frequency_bands" value="GSM900"> GSM900</label>
                     </div>
                 </div>
@@ -991,21 +996,17 @@ function fetchStations() {
 }
 
 function resetFiltersUI() {
-    document.querySelectorAll('input[type="range"]').forEach(slider => {
-        document.getElementById('nearestBtsRange').value = 6;
-        document.getElementById('withinDistanceRange').value = 3;
-        document.getElementById('nearestBtsValue').textContent = 6;
-        document.getElementById('withinDistanceValue').textContent = 3;
-    });
+    document.getElementById('nearestBtsRange').value = '';
+    document.getElementById('withinDistanceRange').value = '';
 
     document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
         checkbox.checked = false;
     });
     const center = mymap.getCenter();
     currentFilters = {
-        ...initialFilters(), // spread
-        lat: center.lat,   
-        lng: center.lng     
+        ...initialFilters(),
+        lat: currentFilters.lat || center.lat,
+        lng: currentFilters.lng || center.lng
     };
 }    
 
@@ -1280,9 +1281,11 @@ function hideSuggestions() {
 }
 
 // Initialize search on dynamic content load
-document.getElementById('dynamicContent').addEventListener('DOMNodeInserted', function() {
-    setTimeout(setupBaseStationSearch, 100);
-});
+new MutationObserver(function(mutations, observer) {
+    if (document.getElementById('baseStationIdInput')) {
+        setupBaseStationSearch();
+    }
+}).observe(document.getElementById('dynamicContent'), { childList: true });
 
 function addRing(lat, lng, radius, color) {
     L.circle([lat, lng], {
@@ -1365,41 +1368,44 @@ function applyFrequencyColors() {
     const sidebarItems = document.querySelectorAll('.sidebar-item');
 
     sidebarItems.forEach((item) => {
-
+        // Extract distance from .card-meta span (format: "X.XX km")
         let distance = null;
-        item.querySelectorAll('p').forEach(p => {
-            if (p.textContent.includes('Distance:')) {
-                const distanceMatch = p.textContent.match(/Distance:\s*(\d+\.?\d*)km/);
-                if (distanceMatch) {
-                    distance = parseFloat(distanceMatch[1]);
-                }
+        const metaSpans = item.querySelectorAll('.card-meta span');
+        metaSpans.forEach(span => {
+            const distanceMatch = span.textContent.match(/^(\d+\.?\d*)\s*km$/);
+            if (distanceMatch) {
+                distance = parseFloat(distanceMatch[1]);
             }
         });
 
         if (distance !== null) {
-
-            // Find the paragraph with frequency bands
+            // Find the paragraph with bands (uses "Bands:" label)
             item.querySelectorAll('p').forEach(p => {
-                if (p.textContent.includes('Frequency Bands:')) {
-                    // Split and process each band from this paragraph
-                    const bandsContent = p.textContent.split('Frequency Bands:')[1].trim();
-                    const bandsList = bandsContent.split(',');
-                    // Clear the original content
-                    p.innerHTML = '<b>Frequency Bands:</b> ';
-
-                    bandsList.forEach((band, bandIndex) => {
-                        const color = getFrequencyColorForDistance(band.trim(), distance);
-                        // Create a span for each band with the appropriate color
-                        const span = document.createElement('span');
-                        span.textContent = band.trim();
-                        span.className = `text-${color}-600`;
-                        p.appendChild(span);
-
-                        // Adding commas between bands, but not after the last band
-                        if (bandIndex < bandsList.length - 1) {
-                            p.innerHTML += ', ';
-                        }
+                if (p.innerHTML.includes('Bands:')) {
+                    // Collect all band text from existing spans
+                    const bandSpans = p.querySelectorAll('span[class*="text-"]');
+                    const bandsList = [];
+                    bandSpans.forEach(span => {
+                        span.textContent.split(',').forEach(b => {
+                            const trimmed = b.trim();
+                            if (trimmed) bandsList.push(trimmed);
+                        });
                     });
+
+                    if (bandsList.length > 0) {
+                        // Rebuild with distance-based colors
+                        p.innerHTML = '<b>Bands:</b> ';
+                        bandsList.forEach((band, bandIndex) => {
+                            const color = getFrequencyColorForDistance(band, distance);
+                            const span = document.createElement('span');
+                            span.textContent = band;
+                            span.className = `text-${color}-600`;
+                            p.appendChild(span);
+                            if (bandIndex < bandsList.length - 1) {
+                                p.appendChild(document.createTextNode(', '));
+                            }
+                        });
+                    }
                 }
             });
         }

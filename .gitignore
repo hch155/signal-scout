@@ -13,6 +13,7 @@ __pycache__/
 certs/
 venv/
 src/static/dist/pages/*.map
+src/instance/stations.db.bak
 performance_scripts/
 
 **/.terraform/*
