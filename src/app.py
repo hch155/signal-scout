@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, make_response
+from flask import Flask, render_template, request, jsonify, session
 from flask_bcrypt import Bcrypt
 from flask_session import Session
 from flask_limiter import Limiter
@@ -10,12 +10,15 @@ from collections import defaultdict
 from queries import get_all_stations, find_nearest_stations, haversine, get_band_stats, get_stats
 from dotenv import load_dotenv
 from datetime import timedelta
-import markdown, os, random, re
+import markdown, os, random, re, logging, secrets
+
+load_dotenv()
 
 app = Flask(__name__)
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000 if os.getenv('ENV') == 'PRODUCTION' else 0
 bcrypt = Bcrypt(app)
-load_dotenv()
+logging.basicConfig(level=logging.INFO)
 
 # Database configuration
 
@@ -63,9 +66,26 @@ limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["16 per 
 def rate_limit_exceeded(e):
     return '<html><body><h1>Rate Limit Exceeded</h1><p>Please wait a minute before making new requests.</p><img src="/static/limitexceededfresh.png" alt="Rate Limit Exceeded"></body></html>', 429
 
-@app.before_request # Ensure session changes are acknowledged and persisted by Flask
-def session_handling():
-    session.modified = True  # Inform the session it has been modified
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
+
+def generate_csrf_token():
+    if '_csrf_token' not in session:
+        session['_csrf_token'] = secrets.token_hex(32)
+    return session['_csrf_token']
+
+app.jinja_env.globals['csrf_token'] = generate_csrf_token
+
+def validate_csrf():
+    token = request.form.get('_csrf_token') or request.headers.get('X-CSRF-Token')
+    if not token or token != session.get('_csrf_token'):
+        return False
+    return True
 
 SLOGANS = [
     ("On the Move?", "Navigate to the Nearest Base Stations for Uninterrupted Connectivity!"),
@@ -124,34 +144,42 @@ def favicon():
 
 
 @app.route('/submit_location', methods=['POST'])
+@limiter.limit("30 per minute")
 def submit_location():
     try:
         data = request.get_json()
-        session['user_location'] = {'lat': data['lat'], 'lng': data['lng']} 
-        user_lat = data['lat']
-        user_lng = data['lng']
+        user_lat = float(data['lat'])
+        user_lng = float(data['lng'])
+
+        if not (49.0 <= user_lat <= 55.5 and 14.0 <= user_lng <= 24.2):
+            return jsonify({'error': 'Coordinates outside supported area'}), 400
+
+        session['user_location'] = {'lat': user_lat, 'lng': user_lng}
         limit = data.get('limit', 9)
         max_distance = data.get('max_distance', None)
 
         nearest_stations = find_nearest_stations(user_lat, user_lng, limit=limit, max_distance=max_distance)
-        
+
         if nearest_stations is None or not nearest_stations.get('stations'):
             return jsonify({'stations': [], 'count': 0})
         return jsonify(nearest_stations)
 
     except Exception as e:
-        print(f"Error in submit_location: {e}")
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f"Error in submit_location: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
 
 @app.route('/stations', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_stations():
     try:
         user_lat = request.args.get('lat')
         user_lng = request.args.get('lng')
-        
-        if user_lat and user_lng:    
+
+        if user_lat and user_lng:
             user_lat = float(user_lat)
             user_lng = float(user_lng)
+            if not (49.0 <= user_lat <= 55.5 and 14.0 <= user_lng <= 24.2):
+                return jsonify({'error': 'Coordinates outside supported area'}), 400
         else:
             user_location = session.get('user_location')
             if user_location:
@@ -204,8 +232,7 @@ def get_stations():
         return jsonify({"stations": stations_data, "count": filtered_count})
 
     except Exception as e:
-        # Log the error for debugging
-        print(f"Error fetching stations: {str(e)}")
+        app.logger.error(f"Error fetching stations: {e}")
         return jsonify({"error": "An error occurred while fetching stations."}), 500
 
 @app.route('/find_station', methods=['GET'])
@@ -230,6 +257,7 @@ def find_station():
         return jsonify({"error": "Station not found"}), 404
 
 @app.route('/search_stations', methods=['GET'])
+@limiter.limit("30 per minute")
 def search_stations():
     query = request.args.get('q', type=str, default='')
     limit = request.args.get('limit', type=int, default=5)
@@ -258,6 +286,9 @@ def search_stations():
 @app.route('/register', methods=['POST'])
 @limiter.limit("5 per hour")
 def register_user():
+    if not validate_csrf():
+        return jsonify({'error': 'Invalid request'}), 403
+
     email = request.form.get('email')
     password = request.form.get('password')
     confirm_password = request.form.get('confirm_password')
@@ -290,12 +321,16 @@ def register_user():
 @app.route('/login', methods=['POST'])
 @limiter.limit("3 per minute")
 def login_user():
+    if not validate_csrf():
+        return jsonify({'error': 'Invalid request'}), 403
+
     email = request.form.get('email')
     password = request.form.get('password')
- 
+
     user = User.query.filter_by(email=email).first()
 
     if user and bcrypt.check_password_hash(user.password_hash, password):
+        session.clear()
         session['user_id'] = user.id
         return jsonify({"success": True, "message": "Logged in successfully."}), 200
     else:
@@ -312,14 +347,6 @@ def session_check():
     is_logged_in = 'user_id' in session
     return jsonify({"logged_in": is_logged_in})
 
-@app.route('/debug_session')
-def debug_session():
-    session_info = {
-        "logged_in": 'user_id' in session,
-        "session_permanent": session.permanent,
-        "session_lifetime": str(app.permanent_session_lifetime),
-    }
-    return jsonify(session_info)
 
 if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() in ['true', '1', 't']

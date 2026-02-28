@@ -500,14 +500,6 @@ function executeCurrentPageAction() {
   }
 }
 
-function debugSession() {
-  fetch('/debug_session')
-  .then(response => response.json())
-  .then(data => {
-      console.log('Debug Session:', data);
-  })
-  .catch(error => console.error('Error debugging session:', error));
-}
 
 function initializeSloganRotate() {
   const el = document.querySelector('.slogan-rotate');

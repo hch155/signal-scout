@@ -9,7 +9,7 @@ function loadTipsContent() {
         .then(htmlContent => {
             const contentContainer = document.getElementById('tips-content');
             if (contentContainer) {
-                contentContainer.innerHTML = htmlContent;
+                contentContainer.innerHTML = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(htmlContent) : htmlContent;
             } else {
                 console.error('Content container not found');
             }
