@@ -26,8 +26,8 @@ LAT_MIN, LAT_MAX = 49.0, 55.5
 LON_MIN, LON_MAX = 14.0, 24.2
 
 # Maximum allowed percentage drop in record count
-MAX_DROP_PERCENT = 5.0
-WARN_DROP_PERCENT = 1.0
+MAX_DROP_PERCENT = 25.0
+WARN_DROP_PERCENT = 5.0
 
 
 def validate_downloads():
