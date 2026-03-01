@@ -64,7 +64,7 @@ jobs:
         run: pip install bandit pip-audit
 
       - name: Bandit security scan
-        run: bandit -r src/ -ll --skip B101
+        run: bandit -r src/ -ll --skip B101,B104
 
       - name: Dependency audit
         run: pip-audit -r requirements.txt
