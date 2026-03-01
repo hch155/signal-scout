@@ -102,13 +102,7 @@ def home():
     return render_template('map.html', slogan_title=slogan_title, slogan_text=slogan_text)
 
 def get_html_content_from_markdown(file_name):
-
-    if os.environ.get('ENV') == 'PRODUCTION':
-        base_path = 'src/content'
-    else:
-        base_path = 'content'
-
-    file_path = os.path.join(base_path, file_name)
+    file_path = os.path.join(basedir, 'content', file_name)
 
     with open(file_path, 'r') as file:
         markdown_content = file.read()
