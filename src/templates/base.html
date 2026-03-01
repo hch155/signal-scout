@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/output.css') }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <script defer src="{{ url_for('static', filename='dist/pages/common.min.js') }}"></script>
     <script defer src="{{ url_for('static', filename='dist/pages/tips-interactions.min.js') }}"></script>
     {% block head_extra %}{% endblock %}
@@ -38,6 +39,7 @@
                   <button class="close-modal absolute top-0 right-0 mt-2 mr-3 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white text-xl leading-none">&times;</button>
                   <h2 class="text-center text-xl font-bold mb-4 dark:text-white">Sign up to get exclusive features</h2>
                   <form id="registrationForm" method="POST" action="/register" class="space-y-2">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <input type="text" id="email" name="email" placeholder="Your Email" required pattern="[^@ \t\r\n]+@[^@ \t\r\n]+\.[^@ \t\r\n]+" title="Please enter a valid email address." class="w-full dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 p-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400">
                     <div class="error-message text-red-500 dark:text-red-400 text-sm mt-1 hidden" id="emailError"></div>
 
@@ -71,6 +73,7 @@
                   <button class="close-modal absolute top-0 right-0 mt-2 mr-3 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white text-xl leading-none">&times;</button>
                   <h2 class="text-center text-2xl font-bold mb-4 dark:text-white">Sign In</h2>
                   <form id="signInForm" method="POST" action="/login" class="space-y-2">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <input type="text" id="email" name="email" placeholder="Your Email" class="w-full dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 p-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400">
                     <div class="relative flex items-center dark:bg-gray-700 border dark:border-gray-600 rounded w-full">
                       <input type="password" id="loginPassword" name="password" placeholder="Password" class="w-full p-2 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400">
