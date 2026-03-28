@@ -28,24 +28,24 @@ iconUrl: 'static/css/images/marker-icon-green.png', shadowUrl: 'static/css/image
 });
 
 const providerColors = {
-    'P4 Sp. z o.o.': 'violet', // purple/violet marker for Play
+    'P4 sp. z o.o.': 'violet', // purple/violet marker for Play
     'Orange Polska S.A.': 'orange',
     'T-Mobile Polska S.A.': 'red',
-    'POLKOMTEL Sp. z o.o.': 'blue'
+    'Polkomtel sp. z o.o.': 'green'
 };
 
 const providerClasses = {
-    'P4 Sp. z o.o.': 'play',
+    'P4 sp. z o.o.': 'play',
     'Orange Polska S.A.': 'orange',
     'T-Mobile Polska S.A.': 'tmobile',
-    'POLKOMTEL Sp. z o.o.': 'plus'
+    'Polkomtel sp. z o.o.': 'plus'
 };
 
 const providerShortNames = {
-    'P4 Sp. z o.o.': 'Play',
+    'P4 sp. z o.o.': 'Play',
     'Orange Polska S.A.': 'Orange',
     'T-Mobile Polska S.A.': 'T-Mobile',
-    'POLKOMTEL Sp. z o.o.': 'Plus'
+    'Polkomtel sp. z o.o.': 'Plus'
 };
 
 let selectedStationIndex = null;

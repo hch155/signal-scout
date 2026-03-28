@@ -5,6 +5,9 @@ import os
 
 class BaseStation(db.Model):
     __tablename__ = 'base_station'
+    __table_args__ = (
+        db.Index('ix_segment_provider_band', 'latitude_segment', 'service_provider', 'frequency_band'),
+    )
     id = db.Column(db.Integer, primary_key=True)
     basestation_id = db.Column(db.String, nullable=True)
     city = db.Column(db.String, nullable=True)

@@ -14,7 +14,6 @@ importlib_resources==6.4.0
 itsdangerous==2.1.2
 Jinja2==3.1.6
 limits==3.10.1
-load-dotenv==0.1.0
 Markdown==3.6
 markdown-it-py==3.0.0
 MarkupSafe==2.1.5
@@ -25,10 +24,9 @@ openpyxl==3.1.2
 ordered-set==4.1.0
 packaging==24.0
 pandas==2.2.2
-prometheus_client==0.20.0
 Pygments==2.17.2
 python-dateutil==2.9.0.post0
-python-dotenv==1.0.1
+python-dotenv==1.1.0
 pytz==2024.1
 requests==2.32.4
 rich==13.7.1

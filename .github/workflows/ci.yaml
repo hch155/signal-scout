@@ -68,4 +68,4 @@ jobs:
 
       - name: Dependency audit
         run: pip-audit -r requirements.txt
-        continue-on-error: true
+        continue-on-error: false

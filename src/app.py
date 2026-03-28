@@ -6,7 +6,6 @@ from flask_limiter.util import get_remote_address
 from database import db
 from models import BaseStation, User
 from sqlalchemy import or_
-from collections import defaultdict
 from queries import get_all_stations, find_nearest_stations, haversine, get_band_stats, get_stats
 from dotenv import load_dotenv
 from datetime import timedelta
@@ -34,21 +33,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 with app.app_context():
     db.create_all()
-          
-"""
-if os.getenv('ENV') == 'production':
-    app.config['SQLALCHEMY_BINDS'] = {
-        'users': os.getenv('COCKROACH_DB_URI')
-    }
-else:
-    app.config['SQLALCHEMY_BINDS'] = {
-        'users': 'sqlite:///./instance/users.db'
-    }
-"""
 
 # HTTPS encryption for Flask
 
-ssl_context = (os.getenv('SSL_CERT_PATH'), os.getenv('SSL_KEY_PATH'))
 
 # Session configuration
 
@@ -290,7 +277,7 @@ def register_user():
     if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+$", email):
         return "Invalid email address.", 400
 
-    if not re.fullmatch(r"(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*\W).{8,}$", password):
+    if not re.fullmatch(r"(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^\w\s]).{8,64}$", password):
         return "Password does not meet criteria.", 400
 
     if password != confirm_password:
@@ -332,7 +319,9 @@ def login_user():
 
 @app.route('/logout', methods=['POST'])
 def logout():
-    session.pop('user_id', None) 
+    if not validate_csrf():
+        return jsonify({'error': 'Invalid request'}), 403
+    session.pop('user_id', None)
     return jsonify({"success": True, "message": "You have been logged out."}), 200
 
 
