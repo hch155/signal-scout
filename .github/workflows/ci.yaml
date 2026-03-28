@@ -67,5 +67,5 @@ jobs:
         run: bandit -r src/ -ll --skip B101,B104
 
       - name: Dependency audit
-        run: pip-audit -r requirements.txt
+        run: pip-audit -r requirements.txt --ignore-vuln CVE-2026-4539  # pygments - no fix available yet
         continue-on-error: false
