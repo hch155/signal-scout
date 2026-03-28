@@ -11,7 +11,7 @@ Flask-SQLAlchemy==3.1.1
 greenlet==3.0.3
 gunicorn==23.0.0
 importlib_resources==6.4.0
-itsdangerous==2.1.2
+itsdangerous==2.2.0
 Jinja2==3.1.6
 limits==3.10.1
 Markdown==3.8.1
