@@ -168,9 +168,9 @@ class QueriesTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_logout_without_login(self):
-        """Logout without being logged in should still succeed."""
+        """Logout without being logged in should return 403 (CSRF required)."""
         response = self.client.post('/logout')
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
 
 
 if __name__ == '__main__':
