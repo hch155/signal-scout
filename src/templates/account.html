@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <section class="text-center text-[#333] dark:text-white p-3 md:p-5 mb-2">
+        <h2 class="text-xl font-bold">Your account</h2>
+        <p class="hidden md:block text-lg text-gray-600 dark:text-gray-300">
+            API key &amp; tier for programmatic access.
+        </p>
+    </section>
+
+    <div class="flex justify-center px-2 md:px-4 pb-10">
+        <div class="w-full max-w-3xl">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-4">
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Email</p>
+                    <p class="font-medium dark:text-white">{{ user.email }}</p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Tier</p>
+                    <p class="font-medium dark:text-white">{{ user.api_tier }}</p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">API key</p>
+                    <div class="flex items-center gap-2 mt-1">
+                        <code id="api-key-value"
+                              class="font-mono text-sm break-all p-2 bg-gray-100 dark:bg-gray-700 dark:text-white rounded flex-1">{{ user.api_key }}</code>
+                        <button id="copy-api-key" class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded">Copy</button>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        Send as <code>X-API-Key: &lt;value&gt;</code> on requests to
+                        <code>/stations</code>, <code>/find_station</code>,
+                        <code>/search_stations</code>. Higher rate limit + bypasses Referer check.
+                    </p>
+                </div>
+
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                        Lost your key, or rotating it after a leak?
+                    </p>
+                    <button id="regen-api-key"
+                            class="bg-red-500 hover:bg-red-700 text-white text-sm font-bold py-2 px-3 rounded">
+                        Regenerate API key
+                    </button>
+                    <p id="regen-status" class="text-sm mt-2"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script defer src="{{ url_for('static', filename='dist/pages/account.min.js') }}"></script>
+{% endblock %}

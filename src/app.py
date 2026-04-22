@@ -19,6 +19,13 @@ from observability import (
     requests_by_user_agent_class_total,
     classify_user_agent,
 )
+from api_access import (
+    require_api_access,
+    ensure_user_api_columns,
+    generate_api_key,
+    is_honeypot,
+    record_honeypot_hit,
+)
 from dotenv import load_dotenv
 from datetime import timedelta
 import markdown, os, random, re, logging, secrets
@@ -49,6 +56,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 with app.app_context():
     db.create_all()
+# Add api_key / api_tier columns to existing prod users.db (no-op on fresh DB).
+# When the app grows to multiple DB engines this gets replaced by Alembic.
+ensure_user_api_columns(app, db)
 
 # HTTPS encryption for Flask
 
@@ -244,6 +254,7 @@ def submit_location():
 
 @app.route('/stations', methods=['GET'])
 @limiter.limit("30 per minute")
+@require_api_access(endpoint_label='stations')
 def get_stations():
     try:
         user_lat = request.args.get('lat')
@@ -323,10 +334,17 @@ def get_stations():
         return jsonify({"error": "An error occurred while fetching stations."}), 500
 
 @app.route('/find_station', methods=['GET'])
+@require_api_access(endpoint_label='find_station')
 def find_station():
     basestation_id = request.args.get('basestation_id', type=str)
     if not basestation_id or len(basestation_id) > 7 or not re.match("^[A-Za-z0-9]+$", basestation_id):
         return jsonify({"error": "Request cannot be processed"}), 400
+
+    # Honeypot: known fake IDs return 404 (looks like a normal miss to the
+    # caller) but increment a tripwire counter so we know we're being scraped.
+    if is_honeypot(basestation_id):
+        record_honeypot_hit(basestation_id, endpoint='find_station')
+        return jsonify({"error": "Station not found"}), 404
 
     station = BaseStation.query.filter_by(basestation_id=basestation_id).first()
     if station:
@@ -345,9 +363,15 @@ def find_station():
 
 @app.route('/search_stations', methods=['GET'])
 @limiter.limit("30 per minute")
+@require_api_access(endpoint_label='search_stations')
 def search_stations():
     station_search_total.labels(endpoint='search_stations').inc()
     query = request.args.get('q', type=str, default='')
+
+    # Honeypot: prefix-search for a known-fake ID also trips the wire.
+    if query and is_honeypot(query):
+        record_honeypot_hit(query, endpoint='search_stations')
+        return jsonify({"stations": []})
     limit = request.args.get('limit', type=int, default=5)
 
     if not query or len(query) < 2 or len(query) > 7:
@@ -397,8 +421,13 @@ def register_user():
 
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
  
-    try:    
-        user = User(email=email, password_hash=hashed_password)
+    try:
+        user = User(
+            email=email,
+            password_hash=hashed_password,
+            api_key=generate_api_key(),
+            api_tier='free',
+        )
         db.session.add(user)
         db.session.commit()
         return jsonify({"success": True, "message": "User registered successfully."}), 200
@@ -453,6 +482,39 @@ def logout():
 def session_check():
     is_logged_in = 'user_id' in session
     return jsonify({"logged_in": is_logged_in})
+
+
+@app.route('/account', methods=['GET'])
+def account_page():
+    if 'user_id' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+    user = User.query.get(session['user_id'])
+    if not user:
+        session.pop('user_id', None)
+        return jsonify({"error": "Authentication required"}), 401
+    # Backfill in case the user was created before the migration ran.
+    if not user.api_key:
+        user.api_key = generate_api_key()
+        user.api_tier = user.api_tier or 'free'
+        db.session.commit()
+    return render_template('account.html', user=user)
+
+
+@app.route('/account/regenerate_api_key', methods=['POST'])
+@limiter.limit("3 per hour")
+def regenerate_api_key():
+    if not validate_csrf():
+        csrf_failures_total.labels(endpoint='regenerate_api_key').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    if 'user_id' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+    user = User.query.get(session['user_id'])
+    if not user:
+        session.pop('user_id', None)
+        return jsonify({"error": "Authentication required"}), 401
+    user.api_key = generate_api_key()
+    db.session.commit()
+    return jsonify({"success": True, "api_key": user.api_key}), 200
 
 
 if __name__ == '__main__':

@@ -72,9 +72,46 @@ def app(_session_tmpdir, _stations_db_path):
     yield flask_app
 
 
+def _client_with_default_referer(app):
+    """Test client that injects a same-origin Referer header on every call.
+
+    PR #5 added a Referer / Origin gate on GET data endpoints. Real browsers
+    set Referer automatically; the test client doesn't. We inject it so
+    legacy tests don't need to change. Tests that explicitly want to
+    exercise the access gate use the `raw_client` fixture instead.
+    """
+    c = app.test_client()
+    original_open = c.open
+
+    def open_with_referer(*args, **kwargs):
+        headers = kwargs.get('headers') or {}
+        # Werkzeug accepts both Header objects and lists; normalize to dict.
+        if hasattr(headers, 'items'):
+            existing = {k.lower(): v for k, v in headers.items()}
+        else:
+            existing = {k.lower(): v for k, v in headers}
+        if 'referer' not in existing:
+            if isinstance(headers, dict):
+                headers = {**headers, 'Referer': 'http://localhost/'}
+            else:
+                headers = list(headers) + [('Referer', 'http://localhost/')]
+            kwargs['headers'] = headers
+        return original_open(*args, **kwargs)
+
+    c.open = open_with_referer
+    return c
+
+
 @pytest.fixture
 def client(app):
-    """Fresh test client per test."""
+    """Fresh test client per test (with same-origin Referer auto-injected)."""
+    return _client_with_default_referer(app)
+
+
+@pytest.fixture
+def raw_client(app):
+    """Test client with NO default headers — used by tests that exercise
+    the access-control gate itself (anonymous-without-Referer rejection)."""
     return app.test_client()
 
 

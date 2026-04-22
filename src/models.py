@@ -36,6 +36,11 @@ class User(db.Model):
     status = db.Column(db.String(80), default='active')
     last_password_change = db.Column(db.DateTime, default=datetime.utcnow)
     last_password_reset_request = db.Column(db.DateTime)
+    # PR #5: API access. Indexed for the X-API-Key header lookup hot path.
+    # api_tier values: 'free' (default), 'pro', 'enterprise' — the latter
+    # two unlock higher per-tier rate limits and bypass the Referer check.
+    api_key = db.Column(db.String(64), unique=True, index=True)
+    api_tier = db.Column(db.String(32), default='free')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

@@ -48,6 +48,9 @@ BANDS = [
 
 NUM_REQUESTS = 100
 session = requests.Session()
+# PR #5: GET data endpoints require either an API key OR same-origin Referer.
+# Set Referer to the scrape target so we behave like a browser.
+session.headers.update({"Referer": BASE_URL + "/"})
 
 # Fetch CSRF token from the home page meta tag once. POST /submit_location
 # requires it (added in PR #1) — otherwise every POST measurement is 403.

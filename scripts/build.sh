@@ -37,7 +37,7 @@ JS_SRC_DIR="$ROOT_DIR/src/static/scripts/pages"
 JS_DIST_DIR="$ROOT_DIR/src/static/dist/pages"
 mkdir -p "$JS_DIST_DIR"
 
-JS_FILES=(common compass map-initialization tips-interactions ui-interactions)
+JS_FILES=(common compass map-initialization tips-interactions ui-interactions account)
 
 for name in "${JS_FILES[@]}"; do
   "$ES_BIN" \

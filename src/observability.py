@@ -85,6 +85,29 @@ requests_by_user_agent_class_total = Counter(
     labelnames=("ua_class",),
 )
 
+# ── PR #5: API access control counters ────────────────────────────────────
+
+api_referer_blocked_total = Counter(
+    "signal_scout_api_referer_blocked_total",
+    "API requests rejected because they had no API key AND no same-origin "
+    "Referer/Origin header — strong scraping signal.",
+    labelnames=("endpoint",),
+)
+
+api_key_used_total = Counter(
+    "signal_scout_api_key_used_total",
+    "API requests authorized via X-API-Key (or browser session), labelled "
+    "by tier.",
+    labelnames=("tier",),
+)
+
+honeypot_hit_total = Counter(
+    "signal_scout_honeypot_hit_total",
+    "Lookups against fake basestation IDs reserved as scrape tripwires. "
+    "Any non-zero value is alert-worthy.",
+    labelnames=("endpoint",),
+)
+
 
 _BOT_UA_PATTERNS = (
     ("googlebot", "googlebot"),
