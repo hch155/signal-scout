@@ -1,4 +1,16 @@
 function loadTipsContent() {
+    const contentContainer = document.getElementById('tips-content');
+    if (!contentContainer) {
+        console.error('Content container not found');
+        return;
+    }
+
+    if (typeof DOMPurify === 'undefined' || typeof DOMPurify.sanitize !== 'function') {
+        contentContainer.textContent = 'Tips temporarily unavailable. Please refresh the page.';
+        console.error('DOMPurify unavailable — refusing to render unsanitized content');
+        return;
+    }
+
     fetch('/tips/content')
         .then(response => {
             if (!response.ok) {
@@ -7,14 +19,12 @@ function loadTipsContent() {
             return response.text();
         })
         .then(htmlContent => {
-            const contentContainer = document.getElementById('tips-content');
-            if (contentContainer) {
-                contentContainer.innerHTML = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(htmlContent) : htmlContent;
-            } else {
-                console.error('Content container not found');
-            }
+            contentContainer.innerHTML = DOMPurify.sanitize(htmlContent);
         })
-        .catch(error => console.error('Error loading tips content:', error));
+        .catch(error => {
+            contentContainer.textContent = 'Tips temporarily unavailable. Please refresh the page.';
+            console.error('Error loading tips content:', error);
+        });
 }
 
 window.loadTipsContent = loadTipsContent;

@@ -3,11 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Signal-Scout</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+          integrity="sha384-VzLXTJGPSyTLX6d96AxgkKvE/LRb7ECGyTxuwtpjHnVWVZs2gp5RDjeM/tgBnVdM"
+          crossorigin="anonymous" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/output.css') }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"
+            integrity="sha384-cwS6YdhLI7XS60eoDiC+egV0qHp8zI+Cms46R0nbn8JrmoAzV9uFL60etMZhAnSu"
+            crossorigin="anonymous"></script>
     <script defer src="{{ url_for('static', filename='dist/pages/common.min.js') }}"></script>
     <script defer src="{{ url_for('static', filename='dist/pages/tips-interactions.min.js') }}"></script>
     {% block head_extra %}{% endblock %}
@@ -29,7 +35,7 @@
           <div class="flex items-center space-x-4">
               <button id="signInBtn" class="inline-flex items-center text-black dark:text-white">Login</button>
               <button id="registerBtn" class="inline-flex items-center mr-8 text-black dark:text-white">Sign Up</button>
-              <button id="logoutButton" class="inline-flex items-center mr-8 text-black dark:text-white" style="display:none;" onclick="logoutUser()">Logout</button>
+              <button id="logoutButton" class="inline-flex items-center mr-8 text-black dark:text-white" style="display:none;">Logout</button>
               <button id="themeToggle" class="text-black dark:text-white mr-8"></button>
           </div>
           
@@ -45,7 +51,11 @@
 
                     <div class="flex items-center border dark:border-gray-600 rounded dark:bg-gray-700">
                       <input type="password" id="registrationPassword" name="password" placeholder="Password" class="w-full p-2 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400">
-                      <button type="button" id="toggleRegistrationPassword" class="text-gray-500 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white px-2 text-sm whitespace-nowrap" onclick="passwordVisibilityToggle('registrationPassword', 'confirmRegistrationPassword', 'toggleRegistrationPassword')" tabindex="-1">
+                      <button type="button" id="toggleRegistrationPassword"
+                              class="text-gray-500 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white px-2 text-sm whitespace-nowrap"
+                              data-toggle-password="registrationPassword"
+                              data-toggle-confirm="confirmRegistrationPassword"
+                              tabindex="-1">
                         Show
                       </button>
                     </div>
@@ -77,7 +87,10 @@
                     <input type="text" id="email" name="email" placeholder="Your Email" class="w-full dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 p-2 border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400">
                     <div class="relative flex items-center dark:bg-gray-700 border dark:border-gray-600 rounded w-full">
                       <input type="password" id="loginPassword" name="password" placeholder="Password" class="w-full p-2 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400">
-                      <button type="button" id="toggleLoginPassword" class="text-gray-500 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white px-2 text-sm whitespace-nowrap" onclick="passwordVisibilityToggle('loginPassword', null, 'toggleLoginPassword')" tabindex="-1">Show</button>
+                      <button type="button" id="toggleLoginPassword"
+                              class="text-gray-500 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white px-2 text-sm whitespace-nowrap"
+                              data-toggle-password="loginPassword"
+                              tabindex="-1">Show</button>
                     </div>
                     <button type="submit" class="w-full bg-blue-500 text-white p-2 mt-4 rounded hover:bg-blue-700">Sign In</button>
                   </form>
@@ -109,10 +122,6 @@
             © 2025 Signal-Scout | <a href="https://github.com/hch155" class="underline hover:no-underline">Hubert Cylwik</a>
     </footer>
 
-    <script>
-          
-    </script>
-    
     {% block scripts %}{% endblock %}
 
 {% block code %}{% endblock %}

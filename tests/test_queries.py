@@ -3,17 +3,28 @@ import json
 from app import app
 
 
+CSRF_TOKEN = 'test-csrf-token'
+
+
+def _seed_csrf(client):
+    """Plant a known CSRF token in the test client's session so POST handlers accept it."""
+    with client.session_transaction() as sess:
+        sess['_csrf_token'] = CSRF_TOKEN
+
+
 class QueriesTestCase(unittest.TestCase):
     def setUp(self):
         app.config['TESTING'] = True
         self.client = app.test_client()
 
     def test_submit_location(self):
+        _seed_csrf(self.client)
         location_data = {'lat': 53.19122467094173, 'lng': 23.170166015625004}
         response = self.client.post(
             '/submit_location',
             data=json.dumps(location_data),
             content_type='application/json',
+            headers={'X-CSRF-Token': CSRF_TOKEN},
         )
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.data.decode('utf-8'))
@@ -30,22 +41,36 @@ class QueriesTestCase(unittest.TestCase):
 
     def test_submit_location_out_of_bounds(self):
         """Coordinates outside Poland should return 400."""
+        _seed_csrf(self.client)
         location_data = {'lat': 0.0, 'lng': 0.0}
         response = self.client.post(
             '/submit_location',
             data=json.dumps(location_data),
             content_type='application/json',
+            headers={'X-CSRF-Token': CSRF_TOKEN},
         )
         self.assertEqual(response.status_code, 400)
 
     def test_submit_location_missing_data(self):
-        """Missing lat/lng should return 500."""
+        """Missing lat/lng should return 400."""
+        _seed_csrf(self.client)
         response = self.client.post(
             '/submit_location',
             data=json.dumps({}),
             content_type='application/json',
+            headers={'X-CSRF-Token': CSRF_TOKEN},
         )
-        self.assertIn(response.status_code, [400, 500])
+        self.assertEqual(response.status_code, 400)
+
+    def test_submit_location_without_csrf(self):
+        """POST /submit_location without CSRF token must be rejected."""
+        location_data = {'lat': 52.23, 'lng': 21.00}
+        response = self.client.post(
+            '/submit_location',
+            data=json.dumps(location_data),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 403)
 
     def test_stations_without_location(self):
         """GET /stations without session location should return 400."""
@@ -146,6 +171,19 @@ class QueriesTestCase(unittest.TestCase):
         self.assertEqual(response.headers.get('X-Content-Type-Options'), 'nosniff')
         self.assertEqual(response.headers.get('X-Frame-Options'), 'DENY')
         self.assertIn('Strict-Transport-Security', response.headers)
+        self.assertIn('Content-Security-Policy', response.headers)
+        self.assertEqual(response.headers.get('Referrer-Policy'), 'strict-origin-when-cross-origin')
+        self.assertIn('Permissions-Policy', response.headers)
+        # CSP must not relax script-src with unsafe-inline (defeats XSS defense)
+        csp = response.headers['Content-Security-Policy']
+        self.assertIn("script-src 'self'", csp)
+        self.assertNotIn("'unsafe-inline'", csp.split('script-src')[1].split(';')[0])
+
+    def test_csrf_meta_tag_in_home(self):
+        """Home page must expose csrf-token meta tag for fetch-based POSTs."""
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'<meta name="csrf-token"', response.data)
 
     def test_home_page(self):
         """Home page should return 200."""

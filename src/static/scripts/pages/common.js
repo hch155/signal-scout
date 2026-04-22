@@ -9,9 +9,42 @@ document.addEventListener('DOMContentLoaded', function() {
   initializeScrollToTop();
   initializePasswordValidation();
   initializeSloganRotate();
+  initializeLogoutButton();
+  initializePasswordToggles();
 });
 
 window.addEventListener('resize', adjustFooterPosition);
+
+function getCsrfToken() {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  return meta ? meta.getAttribute('content') : '';
+}
+window.getCsrfToken = getCsrfToken;
+
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/\//g, '&#x2F;');
+}
+window.escapeHtml = escapeHtml;
+
+function initializeLogoutButton() {
+  const btn = document.getElementById('logoutButton');
+  if (btn) btn.addEventListener('click', logoutUser);
+}
+
+function initializePasswordToggles() {
+  document.querySelectorAll('[data-toggle-password]').forEach(btn => {
+    const passwordId = btn.getAttribute('data-toggle-password');
+    const confirmId = btn.getAttribute('data-toggle-confirm') || null;
+    passwordVisibilityToggle(passwordId, confirmId, btn.id);
+  });
+}
 
 function globalFetch(url, options) {
   return fetch(url, options)
@@ -373,7 +406,10 @@ function submitForm(url, formData) {
 }
 
 function logoutUser() {
-  globalFetch('/logout', { method: 'POST' })
+  globalFetch('/logout', {
+    method: 'POST',
+    headers: { 'X-CSRF-Token': getCsrfToken() }
+  })
   .then(data => {
       if (data.success) {
           localStorage.removeItem('loggedIn');

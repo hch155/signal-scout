@@ -192,19 +192,25 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
                 <thead class="text-gray-700 font-bold dark:text-white">
                     <tr>
                         <th>Signal Strength</th>
-                        <th class="column-high" onclick="changeFrequency('high')">High Band Frequency<br>(5G3600, L2600) (km)</th>
-                        <th class="column-mid" onclick="changeFrequency('mid')">Mid Band Frequency <br>(5G/L2100, L1800) (km)</th>
-                        <th class="column-low" onclick="changeFrequency('low')">Low Band Frequency<br>(L900, L800, G900) (km)</th>
+                        <th class="column-high" data-band="high">High Band Frequency<br>(5G3600, L2600) (km)</th>
+                        <th class="column-mid" data-band="mid">Mid Band Frequency <br>(5G/L2100, L1800) (km)</th>
+                        <th class="column-low" data-band="low">Low Band Frequency<br>(L900, L800, G900) (km)</th>
                     </tr>
                 </thead>
                 <tbody class="text-gray-700 font-bold dark:text-white divide-y divide-gray-200">
                     <tr class="bg-green-600 dark:bg-green-700"><td>Excellent</td><td>0.2</td><td>0.3</td><td>0.5</td></tr>
                     <tr class="bg-yellow-300 dark:bg-yellow-400"><td>Good</td><td>0.5</td><td>0.75</td><td>1.5</td></tr>
                     <tr class="bg-orange-400 dark:bg-orange-400"><td>Fair</td><td>1.0</td><td>1.5</td><td>3.0</td></tr>
-                    <tr class="bg-red-500 dark:bg-red-600"><td>Poor</td><td>1.5</td><td>2.0</td><td>5.0</td></tr>   
+                    <tr class="bg-red-500 dark:bg-red-600"><td>Poor</td><td>1.5</td><td>2.0</td><td>5.0</td></tr>
                 </tbody>
             </table>
         `;
+        legendDiv.querySelectorAll('th[data-band]').forEach(th => {
+            L.DomEvent.on(th, 'click', function(e) {
+                L.DomEvent.stop(e);
+                changeFrequency(th.getAttribute('data-band'));
+            });
+        });
 
         L.DomEvent.on(toggleBtn, 'click', function() {
             legendDiv.classList.toggle('hidden');
@@ -455,6 +461,7 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRF-Token': getCsrfToken()
         },
         body: JSON.stringify(requestData)
     })
@@ -692,8 +699,8 @@ function createStatsPanel(stations) {
     });
 
     const providerBadges = Object.entries(providerCounts).map(([name, count]) => {
-        const cssClass = name.toLowerCase().replace('-', '');
-        return `<span class="inline-flex items-center"><span class="provider-dot ${cssClass}"></span>${name}: ${count}</span>`;
+        const cssClass = escapeHtml(name.toLowerCase().replace('-', ''));
+        return `<span class="inline-flex items-center"><span class="provider-dot ${cssClass}"></span>${escapeHtml(name)}: ${Number(count)}</span>`;
     }).join('');
 
     const panel = document.createElement('div');
@@ -701,11 +708,11 @@ function createStatsPanel(stations) {
     panel.innerHTML = `
         <div class="stats-grid">
             <div class="stat-item">
-                <div class="stat-value">${totalStations}</div>
+                <div class="stat-value">${Number(totalStations)}</div>
                 <div class="stat-label">Stations</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value">${avgDistance}</div>
+                <div class="stat-value">${escapeHtml(avgDistance)}</div>
                 <div class="stat-label">Avg Dist</div>
             </div>
             <div class="stat-item">
@@ -720,16 +727,16 @@ function createStatsPanel(stations) {
         <div class="provider-summary">
             ${providerBadges}
         </div>
-        <div class="nearest-quick-card" data-index="${nearestIndex}">
+        <div class="nearest-quick-card" data-index="${Number(nearestIndex)}">
             <div class="quick-card-header">
                 <span class="quick-card-badge">📍 Nearest</span>
                 <span class="quick-card-arrow">→</span>
             </div>
             <div class="quick-card-content">
-                <span class="provider-dot ${providerClass}"></span>
-                <span class="font-medium">${nearestStation.basestation_id}</span>
+                <span class="provider-dot ${escapeHtml(providerClass)}"></span>
+                <span class="font-medium">${escapeHtml(nearestStation.basestation_id)}</span>
                 <span class="text-gray-500 dark:text-gray-400">•</span>
-                <span>${providerShort}</span>
+                <span>${escapeHtml(providerShort)}</span>
                 <span class="text-gray-500 dark:text-gray-400">•</span>
                 <span>${nearestStation.distance.toFixed(2)} km</span>
             </div>
@@ -812,6 +819,15 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
     stationInfoDiv.innerHTML = createSidebarContent(station, index);
     sidebarContent.appendChild(stationInfoDiv);
 
+    // Wire copy-coords button (replaces previous inline onclick — CSP-safe)
+    const copyBtn = stationInfoDiv.querySelector('button[data-copy-coords]');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            copyToClipboard(copyBtn.getAttribute('data-copy-coords'), copyBtn);
+        });
+    }
+
     // Add click handler for selection
     stationInfoDiv.addEventListener('click', function(e) {
         // Don't trigger if clicking a link or button
@@ -866,23 +882,24 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
 }
 
 function createPopupContent(station, index) {
-    let formattedLat = station.latitude.toFixed(5);
-    let formattedLng = station.longitude.toFixed(5);
-    let formattedDistance = station.distance.toFixed(2);
-    let latHemisphere = station.latitude >= 0 ? 'N' : 'S';
-    let lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
-    let googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;  
+    const formattedLat = station.latitude.toFixed(5);
+    const formattedLng = station.longitude.toFixed(5);
+    const formattedDistance = station.distance.toFixed(2);
+    const latHemisphere = station.latitude >= 0 ? 'N' : 'S';
+    const lngHemisphere = station.longitude >= 0 ? 'E' : 'W';
+    const googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(station.latitude)},${encodeURIComponent(station.longitude)}`;
+    const bands = Array.isArray(station.frequency_bands) ? station.frequency_bands.join(', ') : '';
 
     return `
         <div class="bg-blue-50 dark:bg-gray-800 dark:text-white p-1 rounded-lg">
-            <b>${index + 1}. Service Provider:</b> ${station.service_provider}<br>
+            <b>${Number(index) + 1}. Service Provider:</b> ${escapeHtml(station.service_provider)}<br>
             <b>Distance:</b> ${formattedDistance}km<br>
-            <b>Base Station ID:</b> ${station.basestation_id}<br>
-            <b>Frequency Bands:</b> ${station.frequency_bands.join(", ")}<br>
-            <b>City:</b> ${station.city}<br>
-            <b>Location:</b> ${station.location}<br>
+            <b>Base Station ID:</b> ${escapeHtml(station.basestation_id)}<br>
+            <b>Frequency Bands:</b> ${escapeHtml(bands)}<br>
+            <b>City:</b> ${escapeHtml(station.city)}<br>
+            <b>Location:</b> ${escapeHtml(station.location)}<br>
             <b>Coordinates:</b> ${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}<br>
-            <a href="${googleMapsLink}" target="_blank" class="no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold">View on Google Maps</a>
+            <a href="${escapeHtml(googleMapsLink)}" target="_blank" rel="noopener noreferrer" class="no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold">View on Google Maps</a>
         </div>`;
 }
 
@@ -906,44 +923,58 @@ function createSidebarContent(station, index) {
         const direction = getCompassDirection(bearing);
         bearingHtml = `
             <span class="bearing-indicator ml-2">
-                <span class="bearing-arrow" style="transform: rotate(${bearing}deg)">↑</span>
-                ${direction} (${Math.round(bearing)}°)
+                <span class="bearing-arrow" style="transform: rotate(${Number(bearing)}deg)">↑</span>
+                ${escapeHtml(direction)} (${Math.round(bearing)}°)
             </span>`;
     }
 
-    // Group frequency bands by type
-    const bands5G = station.frequency_bands.filter(b => b.startsWith('5G'));
-    const bandsLTE = station.frequency_bands.filter(b => b.startsWith('LTE'));
-    const bandsUMTS = station.frequency_bands.filter(b => b.startsWith('UMTS'));
-    const bandsGSM = station.frequency_bands.filter(b => b.startsWith('GSM'));
+    // Group frequency bands by type. Each individual band sits in its own
+    // <span class="band-chip">…</span> so applyFrequencyColors() can recolor
+    // them per RSRP-signal-level. Labels stay as plain bold text — they would
+    // otherwise be picked up by the band-color rebuild and replace real values.
+    const bandsArr = Array.isArray(station.frequency_bands) ? station.frequency_bands : [];
+    const bands5G = bandsArr.filter(b => b.startsWith('5G'));
+    const bandsLTE = bandsArr.filter(b => b.startsWith('LTE'));
+    const bandsUMTS = bandsArr.filter(b => b.startsWith('UMTS'));
+    const bandsGSM = bandsArr.filter(b => b.startsWith('GSM'));
 
-    let bandsHtml = '';
-    if (bands5G.length > 0) bandsHtml += `<span class="text-purple-600 dark:text-purple-400 font-medium">5G:</span> ${bands5G.join(', ')} `;
-    if (bandsLTE.length > 0) bandsHtml += `<span class="text-blue-600 dark:text-blue-400 font-medium">LTE:</span> ${bandsLTE.join(', ')} `;
-    if (bandsUMTS.length > 0) bandsHtml += `<span class="text-teal-600 dark:text-teal-400 font-medium">3G:</span> ${bandsUMTS.join(', ')} `;
-    if (bandsGSM.length > 0) bandsHtml += `<span class="text-gray-600 dark:text-gray-400 font-medium">GSM:</span> ${bandsGSM.join(', ')}`;
+    function bandGroup(label, bands) {
+        if (bands.length === 0) return '';
+        const chips = bands.map(b => `<span class="band-chip">${escapeHtml(b)}</span>`).join(', ');
+        return `<b>${label}</b> ${chips} `;
+    }
+
+    const bandsHtml =
+        bandGroup('5G:', bands5G) +
+        bandGroup('LTE:', bandsLTE) +
+        bandGroup('3G:', bandsUMTS) +
+        bandGroup('GSM:', bandsGSM);
+
+    const cityLocation = station.location
+        ? `${escapeHtml(station.city)} • ${escapeHtml(station.location)}`
+        : escapeHtml(station.city);
 
     return `
         <div class="dark:text-white">
             <div class="card-header">
-                <h4>${index + 1}. ${station.basestation_id}</h4>
-                <span class="signal-badge ${signal.level}">
+                <h4>${Number(index) + 1}. ${escapeHtml(station.basestation_id)}</h4>
+                <span class="signal-badge ${escapeHtml(signal.level)}">
                     ${createSignalBars(signal)}
-                    <span class="hidden sm:inline">${signal.label}</span>
+                    <span class="hidden sm:inline">${escapeHtml(signal.label)}</span>
                 </span>
             </div>
             <div class="card-meta">
-                <span class="provider-dot ${providerClass}"></span>
-                <span class="font-medium">${providerShort}</span>
+                <span class="provider-dot ${escapeHtml(providerClass)}"></span>
+                <span class="font-medium">${escapeHtml(providerShort)}</span>
                 <span class="text-gray-500 dark:text-gray-400">•</span>
                 <span>${formattedDistance} km</span>
                 ${bearingHtml}
             </div>
             <p class="text-xs md:text-sm mb-1"><b>Bands:</b> ${bandsHtml}</p>
-            <p class="text-xs md:text-sm mb-1 text-gray-600 dark:text-gray-300">${station.city}${station.location ? ' • ' + station.location : ''}</p>
+            <p class="text-xs md:text-sm mb-1 text-gray-600 dark:text-gray-300">${cityLocation}</p>
             <p class="text-xs md:text-sm mb-0 text-gray-500 dark:text-gray-400">
                 ${coordsText}
-                <button onclick="copyToClipboard('${station.latitude}, ${station.longitude}', this)" class="copy-btn" title="Copy coordinates">📋</button>
+                <button data-copy-coords="${formattedLat}, ${formattedLng}" class="copy-btn" title="Copy coordinates">📋</button>
             </p>
         </div>`;
 }
@@ -1250,13 +1281,27 @@ function showSuggestions(stations) {
         const item = document.createElement('div');
         item.className = 'suggestion-item';
         const providerShort = providerShortNames[station.service_provider] || station.service_provider;
-        item.innerHTML = `
-            <span class="font-medium">${station.basestation_id}</span>
-            <span class="text-gray-500 dark:text-gray-400">•</span>
-            <span class="text-xs">${providerShort}</span>
-            <span class="text-gray-500 dark:text-gray-400">•</span>
-            <span class="text-xs text-gray-500 dark:text-gray-400">${station.city || 'Unknown'}</span>
-        `;
+
+        const idEl = document.createElement('span');
+        idEl.className = 'font-medium';
+        idEl.textContent = station.basestation_id;
+
+        const sep1 = document.createElement('span');
+        sep1.className = 'text-gray-500 dark:text-gray-400';
+        sep1.textContent = '•';
+
+        const providerEl = document.createElement('span');
+        providerEl.className = 'text-xs';
+        providerEl.textContent = providerShort;
+
+        const sep2 = sep1.cloneNode(true);
+
+        const cityEl = document.createElement('span');
+        cityEl.className = 'text-xs text-gray-500 dark:text-gray-400';
+        cityEl.textContent = station.city || 'Unknown';
+
+        item.append(idEl, sep1, providerEl, sep2, cityEl);
+
         item.addEventListener('click', function() {
             document.getElementById('baseStationIdInput').value = station.basestation_id;
             hideSuggestions();
@@ -1379,34 +1424,13 @@ function applyFrequencyColors() {
         });
 
         if (distance !== null) {
-            // Find the paragraph with bands (uses "Bands:" label)
-            item.querySelectorAll('p').forEach(p => {
-                if (p.innerHTML.includes('Bands:')) {
-                    // Collect all band text from existing spans
-                    const bandSpans = p.querySelectorAll('span[class*="text-"]');
-                    const bandsList = [];
-                    bandSpans.forEach(span => {
-                        span.textContent.split(',').forEach(b => {
-                            const trimmed = b.trim();
-                            if (trimmed) bandsList.push(trimmed);
-                        });
-                    });
-
-                    if (bandsList.length > 0) {
-                        // Rebuild with distance-based colors
-                        p.innerHTML = '<b>Bands:</b> ';
-                        bandsList.forEach((band, bandIndex) => {
-                            const color = getFrequencyColorForDistance(band, distance);
-                            const span = document.createElement('span');
-                            span.textContent = band;
-                            span.className = `text-${color}-600`;
-                            p.appendChild(span);
-                            if (bandIndex < bandsList.length - 1) {
-                                p.appendChild(document.createTextNode(', '));
-                            }
-                        });
-                    }
-                }
+            // Recolor each .band-chip in place so labels (5G:/LTE:/3G:/GSM:)
+            // and per-group separators stay intact.
+            item.querySelectorAll('.band-chip').forEach(chip => {
+                const band = chip.textContent.trim();
+                if (!band) return;
+                const color = getFrequencyColorForDistance(band, distance);
+                chip.className = `band-chip text-${color}-600 dark:text-${color}-400 font-medium`;
             });
         }
     });

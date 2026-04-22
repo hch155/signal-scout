@@ -53,12 +53,38 @@ limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["16 per 
 def rate_limit_exceeded(e):
     return '<html><body><h1>Rate Limit Exceeded</h1><p>Please wait a minute before making new requests.</p><img src="/static/limitexceededfresh.png" alt="Rate Limit Exceeded"></body></html>', 429
 
+CSP_POLICY = (
+    "default-src 'self'; "
+    "script-src 'self' https://cdn.jsdelivr.net https://unpkg.com; "
+    "style-src 'self' 'unsafe-inline' https://unpkg.com; "
+    "img-src 'self' data: blob: "
+    "https://*.tile.openstreetmap.org https://tiles.stadiamaps.com "
+    "https://server.arcgisonline.com https://unpkg.com; "
+    "font-src 'self' data:; "
+    "connect-src 'self'; "
+    "frame-ancestors 'none'; "
+    "base-uri 'self'; "
+    "form-action 'self'; "
+    "object-src 'none'"
+)
+
+PERMISSIONS_POLICY = (
+    "geolocation=(self), camera=(), microphone=(), payment=(), "
+    "usb=(), magnetometer=(self), gyroscope=(self), accelerometer=(self)"
+)
+
+
 @app.after_request
 def set_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Content-Security-Policy'] = CSP_POLICY
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = PERMISSIONS_POLICY
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
     return response
 
 def generate_csrf_token():
@@ -127,8 +153,12 @@ def favicon():
 @app.route('/submit_location', methods=['POST'])
 @limiter.limit("30 per minute")
 def submit_location():
+    if not validate_csrf():
+        return jsonify({'error': 'Invalid request'}), 403
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
+        if 'lat' not in data or 'lng' not in data:
+            return jsonify({'error': 'Missing coordinates'}), 400
         user_lat = float(data['lat'])
         user_lng = float(data['lng'])
 
@@ -145,8 +175,10 @@ def submit_location():
             return jsonify({'stations': [], 'count': 0})
         return jsonify(nearest_stations)
 
-    except Exception as e:
-        app.logger.error(f"Error in submit_location: {e}")
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid coordinates'}), 400
+    except Exception:
+        app.logger.exception("Error in submit_location")
         return jsonify({'error': 'An error occurred'}), 500
 
 @app.route('/stations', methods=['GET'])
@@ -212,8 +244,10 @@ def get_stations():
 
         return jsonify({"stations": stations_data, "count": filtered_count})
 
-    except Exception as e:
-        app.logger.error(f"Error fetching stations: {e}")
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid parameter values."}), 400
+    except Exception:
+        app.logger.exception("Error fetching stations")
         return jsonify({"error": "An error occurred while fetching stations."}), 500
 
 @app.route('/find_station', methods=['GET'])
@@ -294,9 +328,9 @@ def register_user():
         db.session.add(user)
         db.session.commit()
         return jsonify({"success": True, "message": "User registered successfully."}), 200
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        app.logger.error(f"Error registering user: {e}")
+        app.logger.exception("Error registering user")
         return jsonify({"success": False, "message": "Registration failed due to a server error."}), 500
     
 @app.route('/login', methods=['POST'])
@@ -311,9 +345,22 @@ def login_user():
     user = User.query.filter_by(email=email).first()
 
     if user and bcrypt.check_password_hash(user.password_hash, password):
+        # Rotate the session to defend against fixation, but preserve the
+        # CSRF token so the browser's <meta name="csrf-token"> remains valid
+        # for the next POST (e.g. /logout). Otherwise every authenticated
+        # POST after login would 403 until a full page reload.
+        preserved_csrf = session.get('_csrf_token')
         session.clear()
+        if preserved_csrf:
+            session['_csrf_token'] = preserved_csrf
+        else:
+            preserved_csrf = generate_csrf_token()
         session['user_id'] = user.id
-        return jsonify({"success": True, "message": "Logged in successfully."}), 200
+        return jsonify({
+            "success": True,
+            "message": "Logged in successfully.",
+            "csrf_token": preserved_csrf,
+        }), 200
     else:
         return jsonify({"success": False, "message": "Invalid email or password."}), 401
 
