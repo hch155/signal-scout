@@ -14,3 +14,13 @@ tools/
 .github/
 certs/
 flask_session/
+src/flask_session/
+src/instance/users.db
+src/instance/*.db.bak
+ops/
+docs/
+mobile/
+base_station_data/
+.coverage
+htmlcov/
+*.log

@@ -69,6 +69,12 @@ ensure_user_api_columns(app, db)
 app.config["SESSION_PERMANENT"] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config["SESSION_TYPE"] = "filesystem"
+# Session dir is configurable so production can put it on a writable
+# tmpfs/volume outside the read-only app source. Falls back to default
+# (./flask_session/) for local dev.
+_session_dir = os.getenv("SESSION_FILE_DIR")
+if _session_dir:
+    app.config["SESSION_FILE_DIR"] = _session_dir
 app.config["SESSION_COOKIE_SAMESITE"] = 'Lax'  # SameSite attribute for all session cookies
 # Secure cookie only over HTTPS in production. On http://localhost the
 # Secure flag drops the cookie entirely, which would block CSRF flow during
