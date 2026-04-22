@@ -14,6 +14,10 @@ from observability import (
     rate_limit_hits_total,
     station_search_total,
     empty_result_total,
+    provider_filter_used_total,
+    band_filter_used_total,
+    requests_by_user_agent_class_total,
+    classify_user_agent,
 )
 from dotenv import load_dotenv
 from datetime import timedelta
@@ -72,25 +76,55 @@ def rate_limit_exceeded(e):
     rate_limit_hits_total.labels(endpoint=request.endpoint or "unknown").inc()
     return '<html><body><h1>Rate Limit Exceeded</h1><p>Please wait a minute before making new requests.</p><img src="/static/limitexceededfresh.png" alt="Rate Limit Exceeded"></body></html>', 429
 
-CSP_POLICY = (
-    "default-src 'self'; "
-    "script-src 'self' https://cdn.jsdelivr.net https://unpkg.com; "
-    "style-src 'self' 'unsafe-inline' https://unpkg.com; "
-    "img-src 'self' data: blob: "
-    "https://*.tile.openstreetmap.org https://tiles.stadiamaps.com "
-    "https://server.arcgisonline.com https://unpkg.com; "
-    "font-src 'self' data:; "
-    "connect-src 'self'; "
-    "frame-ancestors 'none'; "
-    "base-uri 'self'; "
-    "form-action 'self'; "
-    "object-src 'none'"
-)
+def _build_csp_policy() -> str:
+    """CSP composed at startup so the Plausible host (env-driven) is allowed
+    in script-src + connect-src only when configured. Keeps the CSP strict
+    by default and avoids opening allowances no one is using."""
+    plausible_url = os.getenv('PLAUSIBLE_SCRIPT_URL', '').strip()
+    plausible_origin = ''
+    if plausible_url:
+        # Trim path/query to leave just scheme+host for CSP.
+        from urllib.parse import urlparse
+        parsed = urlparse(plausible_url)
+        if parsed.scheme and parsed.netloc:
+            plausible_origin = f"{parsed.scheme}://{parsed.netloc}"
+
+    script_extras = ' ' + plausible_origin if plausible_origin else ''
+    connect_extras = ' ' + plausible_origin if plausible_origin else ''
+
+    return (
+        "default-src 'self'; "
+        f"script-src 'self' https://cdn.jsdelivr.net https://unpkg.com{script_extras}; "
+        "style-src 'self' 'unsafe-inline' https://unpkg.com; "
+        "img-src 'self' data: blob: "
+        "https://*.tile.openstreetmap.org https://tiles.stadiamaps.com "
+        "https://server.arcgisonline.com https://unpkg.com; "
+        "font-src 'self' data:; "
+        f"connect-src 'self'{connect_extras}; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'; "
+        "object-src 'none'"
+    )
+
+
+CSP_POLICY = _build_csp_policy()
 
 PERMISSIONS_POLICY = (
     "geolocation=(self), camera=(), microphone=(), payment=(), "
     "usb=(), magnetometer=(self), gyroscope=(self), accelerometer=(self)"
 )
+
+
+@app.after_request
+def _record_user_agent_class(response):
+    # Skip /metrics + /healthz so probes don't dominate the bucket counts.
+    if request.path in ('/metrics', '/healthz'):
+        return response
+    requests_by_user_agent_class_total.labels(
+        ua_class=classify_user_agent(request.headers.get('User-Agent'))
+    ).inc()
+    return response
 
 
 @app.after_request
@@ -112,6 +146,11 @@ def generate_csrf_token():
     return session['_csrf_token']
 
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
+
+# Plausible Analytics — script + domain set via env. Both must be present
+# to render the tracker; either missing → tracker silently disabled.
+app.jinja_env.globals['plausible_script_url'] = os.getenv('PLAUSIBLE_SCRIPT_URL', '')
+app.jinja_env.globals['plausible_domain'] = os.getenv('PLAUSIBLE_DOMAIN', '')
 
 def validate_csrf():
     token = request.form.get('_csrf_token') or request.headers.get('X-CSRF-Token')
@@ -240,6 +279,14 @@ def get_stations():
         raw_service_providers = request.args.getlist('service_provider')
 
         cleaned_service_providers = [provider.rstrip("'") for provider in raw_service_providers]
+
+        # Track which providers / bands users actually filter on — answers
+        # "what's worth highlighting in the UI" once we have promotion-driven
+        # traffic. Bounded cardinality (≤4 providers, ≤14 bands).
+        for provider in cleaned_service_providers:
+            provider_filter_used_total.labels(provider=provider).inc()
+        for band in frequency_bands:
+            band_filter_used_total.labels(band=band).inc()
 
         station_search_total.labels(endpoint='stations').inc()
         result = find_nearest_stations(user_lat, user_lng, max_distance=max_distance, limit=limit, service_providers=cleaned_service_providers, frequency_bands=frequency_bands)

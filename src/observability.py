@@ -52,6 +52,91 @@ station_search_total = Counter(
     labelnames=("endpoint",),
 )
 
+# ── App-domain usage counters (what Plausible can't see) ────────────────────
+# Plausible covers visitors, sources, pages. These cover *what users do
+# inside the app* — bands/providers filtered, compass tapped — so the owner
+# can decide which UI to invest in.
+
+provider_filter_used_total = Counter(
+    "signal_scout_provider_filter_used_total",
+    "Number of /stations queries filtering by a specific service provider.",
+    labelnames=("provider",),
+)
+
+band_filter_used_total = Counter(
+    "signal_scout_band_filter_used_total",
+    "Number of /stations queries filtering by a specific frequency band.",
+    labelnames=("band",),
+)
+
+compass_used_total = Counter(
+    "signal_scout_compass_used_total",
+    "Compass-mode activation count (mobile users navigating to a station).",
+)
+
+# ── User-agent class counter (low-cardinality bot/browser bucket) ───────────
+# Raw User-Agent has unbounded cardinality — bucket into ~9 classes server-
+# side and label by bucket only. Lets us alert on bot-traffic spikes and
+# answer "is this growth real human visitors or scraping?".
+
+requests_by_user_agent_class_total = Counter(
+    "signal_scout_requests_by_user_agent_class_total",
+    "HTTP requests classified by user-agent bucket.",
+    labelnames=("ua_class",),
+)
+
+
+_BOT_UA_PATTERNS = (
+    ("googlebot", "googlebot"),
+    ("bingbot", "bingbot"),
+    ("yandex", "other_bot"),
+    ("baiduspider", "other_bot"),
+    ("duckduckbot", "other_bot"),
+    ("slurp", "other_bot"),         # Yahoo
+    ("applebot", "other_bot"),
+    ("facebookexternalhit", "other_bot"),
+    ("twitterbot", "other_bot"),
+    ("ahrefsbot", "other_bot"),
+    ("semrushbot", "other_bot"),
+    ("mj12bot", "other_bot"),
+    ("dotbot", "other_bot"),
+    ("petalbot", "other_bot"),
+    ("uptimerobot", "other_bot"),
+    ("pingdom", "other_bot"),
+    ("bot", "other_bot"),           # generic catch-all (also matches "robot")
+    ("crawler", "other_bot"),
+    ("spider", "other_bot"),
+)
+
+_CLI_UA_PREFIXES = ("curl/", "wget/", "python-requests/", "go-http-client/", "okhttp/", "java/", "httpx/")
+
+
+def classify_user_agent(ua: str | None) -> str:
+    """Bucket a User-Agent string into one of ~9 low-cardinality classes."""
+    if not ua:
+        return "unknown"
+    lower = ua.lower()
+
+    for needle, bucket in _BOT_UA_PATTERNS:
+        if needle in lower:
+            return bucket
+
+    if any(lower.startswith(p) for p in _CLI_UA_PREFIXES):
+        return "cli"
+
+    # Browser detection — order matters (Edge/Opera report Chrome, Chromium
+    # reports Safari, etc.). Detect the more specific brand first.
+    if "edg/" in lower or "edge/" in lower:
+        return "browser_other"
+    if "firefox/" in lower:
+        return "browser_firefox"
+    if "chrome/" in lower or "chromium/" in lower:
+        return "browser_chrome"
+    if "safari/" in lower:
+        return "browser_safari"
+
+    return "unknown"
+
 empty_result_total = Counter(
     "signal_scout_empty_result_total",
     "Successful station-fetch responses that returned zero stations "

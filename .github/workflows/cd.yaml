@@ -41,15 +41,21 @@ jobs:
         env:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           METRICS_BEARER_TOKEN: ${{ secrets.METRICS_BEARER_TOKEN }}
+          PLAUSIBLE_DOMAIN: ${{ secrets.PLAUSIBLE_DOMAIN }}
+          PLAUSIBLE_SCRIPT_URL: ${{ secrets.PLAUSIBLE_SCRIPT_URL }}
+        # --min-instances=1 keeps one warm instance, eliminating cold-start
+        # latency for both real visitors and the 60s metrics scrape from the
+        # NUC (consistent series, no scrape gaps from cold spin-up).
         run: |
           gcloud run deploy signal-scout \
             --image europe-central2-docker.pkg.dev/GCP_PROJECT_ID/signal-scout-repo/signal-scout:latest \
             --region europe-central2 \
             --allow-unauthenticated \
             --project GCP_PROJECT_ID \
+            --min-instances=1 \
             --max-instances=4 \
             --memory=1Gi \
-            --update-env-vars SECRET_KEY="${SECRET_KEY}",ENV=PRODUCTION,METRICS_BEARER_TOKEN="${METRICS_BEARER_TOKEN}"
+            --update-env-vars SECRET_KEY="${SECRET_KEY}",ENV=PRODUCTION,METRICS_BEARER_TOKEN="${METRICS_BEARER_TOKEN}",PLAUSIBLE_DOMAIN="${PLAUSIBLE_DOMAIN}",PLAUSIBLE_SCRIPT_URL="${PLAUSIBLE_SCRIPT_URL}"
 
         
 

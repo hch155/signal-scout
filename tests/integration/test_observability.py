@@ -126,3 +126,73 @@ def test_metrics_endpoint_excluded_from_request_metrics(client, monkeypatch):
     # Both responses are valid prometheus text; we don't strictly forbid the
     # exporter from counting /metrics itself — just sanity that it returns OK.
     assert body1 and body2
+
+
+# ── PR #4: usage analytics counters ─────────────────────────────────────────
+
+def test_provider_filter_counter_increments(client, monkeypatch):
+    monkeypatch.setenv("METRICS_BEARER_TOKEN", "supersecret")
+    client.get(
+        "/stations?lat=52.2297&lng=21.0122&limit=3"
+        "&service_provider=Orange Polska S.A."
+    )
+    body = _scrape(client)
+    assert "signal_scout_provider_filter_used_total" in body
+    assert 'provider="Orange Polska S.A."' in body
+
+
+def test_band_filter_counter_increments(client, monkeypatch):
+    monkeypatch.setenv("METRICS_BEARER_TOKEN", "supersecret")
+    client.get("/stations?lat=52.2297&lng=21.0122&limit=3&frequency_bands=LTE1800")
+    body = _scrape(client)
+    assert "signal_scout_band_filter_used_total" in body
+    assert 'band="LTE1800"' in body
+
+
+def test_user_agent_class_counter_buckets_browsers(client, monkeypatch):
+    monkeypatch.setenv("METRICS_BEARER_TOKEN", "supersecret")
+    client.get("/", headers={
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    })
+    body = _scrape(client)
+    assert "signal_scout_requests_by_user_agent_class_total" in body
+    assert 'ua_class="browser_chrome"' in body
+
+
+def test_user_agent_class_counter_buckets_googlebot(client, monkeypatch):
+    monkeypatch.setenv("METRICS_BEARER_TOKEN", "supersecret")
+    client.get("/", headers={
+        "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+    })
+    body = _scrape(client)
+    assert 'ua_class="googlebot"' in body
+
+
+def test_user_agent_class_counter_buckets_curl_as_cli(client, monkeypatch):
+    monkeypatch.setenv("METRICS_BEARER_TOKEN", "supersecret")
+    client.get("/", headers={"User-Agent": "curl/8.4.0"})
+    body = _scrape(client)
+    assert 'ua_class="cli"' in body
+
+
+def test_user_agent_class_skips_metrics_and_healthz(client, monkeypatch):
+    """Probes shouldn't dominate ua_class counts. /metrics and /healthz are
+    excluded from the after_request hook."""
+    monkeypatch.setenv("METRICS_BEARER_TOKEN", "supersecret")
+    # Hit /healthz with a clearly bot-looking UA — bucket should NOT increment.
+    before = _scrape(client)
+    client.get("/healthz", headers={"User-Agent": "Googlebot"})
+    after = _scrape(client)
+    # The body strings should be identical for the googlebot label since
+    # /healthz is excluded. Approximation: googlebot label either absent in
+    # both, or unchanged.
+    import re
+    pat = re.compile(
+        r'signal_scout_requests_by_user_agent_class_total\{ua_class="googlebot"\} (\S+)'
+    )
+    m_before = pat.search(before)
+    m_after = pat.search(after)
+    val_before = float(m_before.group(1)) if m_before else 0.0
+    val_after = float(m_after.group(1)) if m_after else 0.0
+    assert val_after == val_before
