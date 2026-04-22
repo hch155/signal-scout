@@ -7,6 +7,7 @@ from database import db
 from models import BaseStation, User
 from sqlalchemy import or_
 from queries import get_all_stations, find_nearest_stations, haversine, get_band_stats, get_stats
+from config import settings
 from observability import (
     init_observability,
     csrf_failures_total,
@@ -34,20 +35,16 @@ import markdown, os, random, re, logging, secrets
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000 if os.getenv('ENV') == 'PRODUCTION' else 0
+app.config['SECRET_KEY'] = settings.secret_key
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = settings.static_max_age
 bcrypt = Bcrypt(app)
 logging.basicConfig(level=logging.INFO)
 
 # Database configuration
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-stations_db_path = os.getenv(
-    'STATIONS_DB_PATH', os.path.join(basedir, 'instance', 'stations.db')
-)
-users_db_path = os.getenv(
-    'USERS_DB_PATH', os.path.join(basedir, 'instance', 'users.db')
-)
+stations_db_path = settings.stations_db_path or os.path.join(basedir, 'instance', 'stations.db')
+users_db_path = settings.users_db_path or os.path.join(basedir, 'instance', 'users.db')
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{stations_db_path}'
 app.config['SQLALCHEMY_BINDS'] = {
@@ -69,17 +66,13 @@ ensure_user_api_columns(app, db)
 app.config["SESSION_PERMANENT"] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config["SESSION_TYPE"] = "filesystem"
-# Session dir is configurable so production can put it on a writable
-# tmpfs/volume outside the read-only app source. Falls back to default
-# (./flask_session/) for local dev.
-_session_dir = os.getenv("SESSION_FILE_DIR")
-if _session_dir:
-    app.config["SESSION_FILE_DIR"] = _session_dir
+if settings.session_file_dir:
+    app.config["SESSION_FILE_DIR"] = settings.session_file_dir
 app.config["SESSION_COOKIE_SAMESITE"] = 'Lax'  # SameSite attribute for all session cookies
 # Secure cookie only over HTTPS in production. On http://localhost the
 # Secure flag drops the cookie entirely, which would block CSRF flow during
 # local dev / perf tests. Production env sets ENV=PRODUCTION (cd.yaml).
-app.config["SESSION_COOKIE_SECURE"] = os.getenv('ENV') == 'PRODUCTION'
+app.config["SESSION_COOKIE_SECURE"] = settings.cookie_secure
 app.config["SESSION_COOKIE_HTTPONLY"] = True  # Prevent JavaScript access to session cookie, prevent XSS scripting attacks
 Session(app)
 
@@ -100,7 +93,7 @@ def _build_csp_policy() -> str:
     """CSP composed at startup so the Plausible host (env-driven) is allowed
     in script-src + connect-src only when configured. Keeps the CSP strict
     by default and avoids opening allowances no one is using."""
-    plausible_url = os.getenv('PLAUSIBLE_SCRIPT_URL', '').strip()
+    plausible_url = settings.plausible_script_url.strip()
     plausible_origin = ''
     if plausible_url:
         # Trim path/query to leave just scheme+host for CSP.
@@ -169,8 +162,8 @@ app.jinja_env.globals['csrf_token'] = generate_csrf_token
 
 # Plausible Analytics — script + domain set via env. Both must be present
 # to render the tracker; either missing → tracker silently disabled.
-app.jinja_env.globals['plausible_script_url'] = os.getenv('PLAUSIBLE_SCRIPT_URL', '')
-app.jinja_env.globals['plausible_domain'] = os.getenv('PLAUSIBLE_DOMAIN', '')
+app.jinja_env.globals['plausible_script_url'] = settings.plausible_script_url
+app.jinja_env.globals['plausible_domain'] = settings.plausible_domain
 
 def validate_csrf():
     token = request.form.get('_csrf_token') or request.headers.get('X-CSRF-Token')
@@ -405,126 +398,21 @@ def search_stations():
 
     return jsonify({"stations": stations_data})
 
-@app.route('/register', methods=['POST'])
-@limiter.limit("5 per hour")
-def register_user():
-    if not validate_csrf():
-        csrf_failures_total.labels(endpoint='register').inc()
-        return jsonify({'error': 'Invalid request'}), 403
-
-    email = request.form.get('email')
-    password = request.form.get('password')
-    confirm_password = request.form.get('confirm_password')
-
-    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+$", email):
-        return "Invalid email address.", 400
-
-    if not re.fullmatch(r"(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^\w\s]).{8,64}$", password):
-        return "Password does not meet criteria.", 400
-
-    if password != confirm_password:
-        return jsonify({'error': 'Passwords do not match.'}), 400
-
-    existing_user = User.query.filter_by(email=email).first()
-    if existing_user is not None:
-        return 'Email already registered.'
-
-    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
- 
-    try:
-        user = User(
-            email=email,
-            password_hash=hashed_password,
-            api_key=generate_api_key(),
-            api_tier='free',
-        )
-        db.session.add(user)
-        db.session.commit()
-        return jsonify({"success": True, "message": "User registered successfully."}), 200
-    except Exception:
-        db.session.rollback()
-        app.logger.exception("Error registering user")
-        return jsonify({"success": False, "message": "Registration failed due to a server error."}), 500
-    
-@app.route('/login', methods=['POST'])
-@limiter.limit("3 per minute")
-def login_user():
-    if not validate_csrf():
-        csrf_failures_total.labels(endpoint='login').inc()
-        return jsonify({'error': 'Invalid request'}), 403
-
-    email = request.form.get('email')
-    password = request.form.get('password')
-
-    user = User.query.filter_by(email=email).first()
-
-    if user and bcrypt.check_password_hash(user.password_hash, password):
-        # Rotate the session to defend against fixation, but preserve the
-        # CSRF token so the browser's <meta name="csrf-token"> remains valid
-        # for the next POST (e.g. /logout). Otherwise every authenticated
-        # POST after login would 403 until a full page reload.
-        preserved_csrf = session.get('_csrf_token')
-        session.clear()
-        if preserved_csrf:
-            session['_csrf_token'] = preserved_csrf
-        else:
-            preserved_csrf = generate_csrf_token()
-        session['user_id'] = user.id
-        return jsonify({
-            "success": True,
-            "message": "Logged in successfully.",
-            "csrf_token": preserved_csrf,
-        }), 200
-    else:
-        login_failures_total.inc()
-        return jsonify({"success": False, "message": "Invalid email or password."}), 401
-
-@app.route('/logout', methods=['POST'])
-def logout():
-    if not validate_csrf():
-        csrf_failures_total.labels(endpoint='logout').inc()
-        return jsonify({'error': 'Invalid request'}), 403
-    session.pop('user_id', None)
-    return jsonify({"success": True, "message": "You have been logged out."}), 200
-
-
-@app.route('/session_check')
-def session_check():
-    is_logged_in = 'user_id' in session
-    return jsonify({"logged_in": is_logged_in})
-
-
-@app.route('/account', methods=['GET'])
-def account_page():
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required"}), 401
-    user = User.query.get(session['user_id'])
-    if not user:
-        session.pop('user_id', None)
-        return jsonify({"error": "Authentication required"}), 401
-    # Backfill in case the user was created before the migration ran.
-    if not user.api_key:
-        user.api_key = generate_api_key()
-        user.api_tier = user.api_tier or 'free'
-        db.session.commit()
-    return render_template('account.html', user=user)
-
-
-@app.route('/account/regenerate_api_key', methods=['POST'])
-@limiter.limit("3 per hour")
-def regenerate_api_key():
-    if not validate_csrf():
-        csrf_failures_total.labels(endpoint='regenerate_api_key').inc()
-        return jsonify({'error': 'Invalid request'}), 403
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required"}), 401
-    user = User.query.get(session['user_id'])
-    if not user:
-        session.pop('user_id', None)
-        return jsonify({"error": "Authentication required"}), 401
-    user.api_key = generate_api_key()
-    db.session.commit()
-    return jsonify({"success": True, "api_key": user.api_key}), 200
+# Auth routes (register / login / logout / session_check / account /
+# regenerate_api_key) live in the auth_routes module as a Flask blueprint.
+# Wired here so dependency order (db, bcrypt, limiter, validate_csrf, etc.)
+# is unambiguous.
+from auth_routes import register_auth_routes
+register_auth_routes(
+    app,
+    bcrypt=bcrypt,
+    db=db,
+    limiter=limiter,
+    validate_csrf=validate_csrf,
+    generate_api_key=generate_api_key,
+    csrf_failures_total=csrf_failures_total,
+    login_failures_total=login_failures_total,
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -735,9 +623,7 @@ app.add_url_rule('/api/v1/healthz', endpoint='api_v1_healthz',
 
 
 if __name__ == '__main__':
-    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() in ['true', '1', 't']
-    port = int(os.environ.get('PORT', 8080))
-    app.run(debug=debug_mode,
+    app.run(debug=settings.debug,
             host='0.0.0.0',
-            port=port)
+            port=settings.port)
             #ssl_context=('/etc/ssl/localcerts/localhost+2.pem', '/etc/ssl/localcerts/localhost+2-key.pem'))
