@@ -7,6 +7,14 @@ from database import db
 from models import BaseStation, User
 from sqlalchemy import or_
 from queries import get_all_stations, find_nearest_stations, haversine, get_band_stats, get_stats
+from observability import (
+    init_observability,
+    csrf_failures_total,
+    login_failures_total,
+    rate_limit_hits_total,
+    station_search_total,
+    empty_result_total,
+)
 from dotenv import load_dotenv
 from datetime import timedelta
 import markdown, os, random, re, logging, secrets
@@ -56,8 +64,12 @@ Session(app)
 
 limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["16 per minute"])
 
+# Wire Prometheus exporter (/metrics with bearer-token auth) and /healthz.
+init_observability(app)
+
 @app.errorhandler(429)
 def rate_limit_exceeded(e):
+    rate_limit_hits_total.labels(endpoint=request.endpoint or "unknown").inc()
     return '<html><body><h1>Rate Limit Exceeded</h1><p>Please wait a minute before making new requests.</p><img src="/static/limitexceededfresh.png" alt="Rate Limit Exceeded"></body></html>', 429
 
 CSP_POLICY = (
@@ -161,6 +173,7 @@ def favicon():
 @limiter.limit("30 per minute")
 def submit_location():
     if not validate_csrf():
+        csrf_failures_total.labels(endpoint='submit_location').inc()
         return jsonify({'error': 'Invalid request'}), 403
     try:
         data = request.get_json(silent=True) or {}
@@ -176,9 +189,11 @@ def submit_location():
         limit = data.get('limit', 9)
         max_distance = data.get('max_distance', None)
 
+        station_search_total.labels(endpoint='submit_location').inc()
         nearest_stations = find_nearest_stations(user_lat, user_lng, limit=limit, max_distance=max_distance)
 
         if nearest_stations is None or not nearest_stations.get('stations'):
+            empty_result_total.inc()
             return jsonify({'stations': [], 'count': 0})
         return jsonify(nearest_stations)
 
@@ -226,9 +241,12 @@ def get_stations():
 
         cleaned_service_providers = [provider.rstrip("'") for provider in raw_service_providers]
 
+        station_search_total.labels(endpoint='stations').inc()
         result = find_nearest_stations(user_lat, user_lng, max_distance=max_distance, limit=limit, service_providers=cleaned_service_providers, frequency_bands=frequency_bands)
         stations = result.get("stations", [])
         stations_count = result.get("count", 0)
+        if stations_count == 0:
+            empty_result_total.inc()
 
         if frequency_bands:
             stations = [station for station in stations if set(frequency_bands).issubset(set(station['frequency_bands']))]
@@ -281,6 +299,7 @@ def find_station():
 @app.route('/search_stations', methods=['GET'])
 @limiter.limit("30 per minute")
 def search_stations():
+    station_search_total.labels(endpoint='search_stations').inc()
     query = request.args.get('q', type=str, default='')
     limit = request.args.get('limit', type=int, default=5)
 
@@ -309,6 +328,7 @@ def search_stations():
 @limiter.limit("5 per hour")
 def register_user():
     if not validate_csrf():
+        csrf_failures_total.labels(endpoint='register').inc()
         return jsonify({'error': 'Invalid request'}), 403
 
     email = request.form.get('email')
@@ -344,6 +364,7 @@ def register_user():
 @limiter.limit("3 per minute")
 def login_user():
     if not validate_csrf():
+        csrf_failures_total.labels(endpoint='login').inc()
         return jsonify({'error': 'Invalid request'}), 403
 
     email = request.form.get('email')
@@ -369,11 +390,13 @@ def login_user():
             "csrf_token": preserved_csrf,
         }), 200
     else:
+        login_failures_total.inc()
         return jsonify({"success": False, "message": "Invalid email or password."}), 401
 
 @app.route('/logout', methods=['POST'])
 def logout():
     if not validate_csrf():
+        csrf_failures_total.labels(endpoint='logout').inc()
         return jsonify({'error': 'Invalid request'}), 403
     session.pop('user_id', None)
     return jsonify({"success": True, "message": "You have been logged out."}), 200

@@ -34,3 +34,4 @@ override.tf.json
 *_override.tf.json
 .coverage
 htmlcov/
+ops/.env
