@@ -22,8 +22,12 @@ logging.basicConfig(level=logging.INFO)
 # Database configuration
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-stations_db_path = os.path.join(basedir, 'instance', 'stations.db')
-users_db_path = os.path.join(basedir, 'instance', 'users.db')
+stations_db_path = os.getenv(
+    'STATIONS_DB_PATH', os.path.join(basedir, 'instance', 'stations.db')
+)
+users_db_path = os.getenv(
+    'USERS_DB_PATH', os.path.join(basedir, 'instance', 'users.db')
+)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{stations_db_path}'
 app.config['SQLALCHEMY_BINDS'] = {
@@ -43,7 +47,10 @@ app.config["SESSION_PERMANENT"] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SESSION_COOKIE_SAMESITE"] = 'Lax'  # SameSite attribute for all session cookies
-app.config["SESSION_COOKIE_SECURE"] = True  # Only send cookies over HTTPS
+# Secure cookie only over HTTPS in production. On http://localhost the
+# Secure flag drops the cookie entirely, which would block CSRF flow during
+# local dev / perf tests. Production env sets ENV=PRODUCTION (cd.yaml).
+app.config["SESSION_COOKIE_SECURE"] = os.getenv('ENV') == 'PRODUCTION'
 app.config["SESSION_COOKIE_HTTPONLY"] = True  # Prevent JavaScript access to session cookie, prevent XSS scripting attacks
 Session(app)
 

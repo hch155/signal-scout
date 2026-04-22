@@ -1,0 +1,43 @@
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "-m", "not smoke and not slow",
+]
+markers = [
+    "unit: pure-function tests, no DB or Flask",
+    "integration: Flask test_client + isolated test DB",
+    "e2e: Playwright headless browser against live_server",
+    "smoke: read-only tests against the production deployment (signal-scout.com); skipped by default",
+    "slow: long-running tests (rate limits, big iterations); opt in with -m slow",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:flask_session.*",
+    "ignore::UserWarning:flask_limiter.*",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "src/__init__.py",
+    "src/database.py",
+    "src/flask_session/*",
+    "src/instance/*",
+    "src/static/*",
+    "src/templates/*",
+    "src/content/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+precision = 1
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]

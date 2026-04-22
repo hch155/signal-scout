@@ -49,6 +49,21 @@ BANDS = [
 NUM_REQUESTS = 100
 session = requests.Session()
 
+# Fetch CSRF token from the home page meta tag once. POST /submit_location
+# requires it (added in PR #1) — otherwise every POST measurement is 403.
+import re as _re
+_csrf_token = None
+
+
+def _ensure_csrf_token():
+    global _csrf_token
+    if _csrf_token:
+        return _csrf_token
+    r = session.get(f"{BASE_URL}/", verify=False, timeout=10)
+    m = _re.search(r'<meta name="csrf-token" content="([^"]+)"', r.text)
+    _csrf_token = m.group(1) if m else ""
+    return _csrf_token
+
 
 def random_submit_location():
     lat, lng = random.choice(LOCATIONS)
@@ -57,8 +72,10 @@ def random_submit_location():
     lng += random.uniform(-0.05, 0.05)
     limit = random.choice([3, 6, 9])
     payload = {"lat": lat, "lng": lng, "limit": limit}
+    headers = {"X-CSRF-Token": _ensure_csrf_token()}
     start = time.perf_counter()
-    r = session.post(f"{BASE_URL}/submit_location", json=payload, verify=False)
+    r = session.post(f"{BASE_URL}/submit_location", json=payload,
+                     headers=headers, verify=False)
     elapsed = time.perf_counter() - start
     return elapsed, r.status_code
 
