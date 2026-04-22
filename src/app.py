@@ -26,6 +26,7 @@ from api_access import (
     is_honeypot,
     record_honeypot_hit,
 )
+from api_docs import init_api_docs
 from dotenv import load_dotenv
 from datetime import timedelta
 import markdown, os, random, re, logging, secrets
@@ -80,6 +81,9 @@ limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["16 per 
 
 # Wire Prometheus exporter (/metrics with bearer-token auth) and /healthz.
 init_observability(app)
+
+# OpenAPI / Swagger UI on /api/v1/docs/, spec on /api/v1/openapi.json.
+init_api_docs(app)
 
 @app.errorhandler(429)
 def rate_limit_exceeded(e):
@@ -515,6 +519,213 @@ def regenerate_api_key():
     user.api_key = generate_api_key()
     db.session.commit()
     return jsonify({"success": True, "api_key": user.api_key}), 200
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# /api/v1/ — versioned aliases of the public endpoints. The legacy unprefixed
+# routes above stay for back-compat (browser JS still calls them); the
+# Swagger UI / OpenAPI spec only documents the /api/v1/ surface.
+# Each wrapper carries the YAML docstring flasgger reads from.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def api_v1_get_stations():
+    """
+    Find stations near a coordinate.
+    ---
+    tags: [Stations]
+    parameters:
+      - in: query
+        name: lat
+        required: true
+        schema: {type: number, format: double, minimum: 49.0, maximum: 55.5}
+        description: Latitude (Polish national bounds).
+        example: 52.2297
+      - in: query
+        name: lng
+        required: true
+        schema: {type: number, format: double, minimum: 14.0, maximum: 24.2}
+        description: Longitude.
+        example: 21.0122
+      - in: query
+        name: limit
+        schema: {type: integer, minimum: 1, maximum: 10, default: 9}
+      - in: query
+        name: max_distance
+        schema: {type: number, minimum: 0.1, maximum: 10}
+        description: Filter to stations within this radius (km). When set, `limit` is ignored.
+      - in: query
+        name: service_provider
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+              - Orange Polska S.A.
+              - P4 sp. z o.o.
+              - Polkomtel sp. z o.o.
+              - T-Mobile Polska S.A.
+        description: Repeat to OR-filter by multiple operators.
+      - in: query
+        name: frequency_bands
+        schema:
+          type: array
+          items: {type: string}
+        description: Repeat to filter by 5G/LTE/UMTS/GSM bands (e.g. LTE1800, 5G2100).
+    responses:
+      200:
+        description: Stations within bounds, sorted by distance ascending.
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/StationsResponse'}
+      400:
+        description: Invalid parameters (out-of-bounds coords, limit > 10, etc.).
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Error'}
+      403:
+        description: No API key and no same-origin Referer.
+      429:
+        description: Tier rate limit exceeded.
+    """
+    return get_stations()
+
+
+def api_v1_find_station():
+    """
+    Lookup a single station by ID.
+    ---
+    tags: [Stations]
+    parameters:
+      - in: query
+        name: basestation_id
+        required: true
+        schema: {type: string, pattern: '^[A-Za-z0-9]{1,7}$'}
+        example: T1234
+    responses:
+      200:
+        description: Station found.
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Station'}
+      400:
+        description: Invalid ID format (non-alphanumeric, > 7 chars).
+      403:
+        description: No API key and no same-origin Referer.
+      404:
+        description: No station with that ID.
+    """
+    return find_station()
+
+
+def api_v1_search_stations():
+    """
+    Autocomplete BTS IDs by prefix.
+    ---
+    tags: [Stations]
+    parameters:
+      - in: query
+        name: q
+        required: true
+        schema: {type: string, minLength: 2, maxLength: 7, pattern: '^[A-Za-z0-9]+$'}
+        description: Prefix to match (case-insensitive).
+        example: T10
+      - in: query
+        name: limit
+        schema: {type: integer, default: 5}
+    responses:
+      200:
+        description: Matching stations (may be empty list).
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                stations:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      basestation_id: {type: string}
+                      latitude: {type: number}
+                      longitude: {type: number}
+                      city: {type: string}
+                      service_provider: {type: string}
+      403:
+        description: No API key and no same-origin Referer.
+    """
+    return search_stations()
+
+
+def api_v1_submit_location():
+    """
+    Submit user location and return nearest stations.
+    ---
+    tags: [Stations]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [lat, lng]
+            properties:
+              lat: {type: number, minimum: 49.0, maximum: 55.5}
+              lng: {type: number, minimum: 14.0, maximum: 24.2}
+              limit: {type: integer, minimum: 1, maximum: 10, default: 9}
+              max_distance: {type: number, minimum: 0.1, maximum: 10}
+    parameters:
+      - in: header
+        name: X-CSRF-Token
+        required: true
+        schema: {type: string}
+        description: From the `<meta name="csrf-token">` tag on /. Required for POST.
+    responses:
+      200:
+        description: Nearest stations, plus the location is saved on the session.
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/StationsResponse'}
+      400:
+        description: Out-of-bounds coords or missing lat/lng.
+      403:
+        description: Missing or wrong X-CSRF-Token.
+      429:
+        description: Rate limit (30 per minute).
+    """
+    return submit_location()
+
+
+def api_v1_healthz():
+    """
+    Liveness probe. Cheap (no DB hit), no auth.
+    ---
+    tags: [System]
+    responses:
+      200:
+        description: App is alive.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: {type: string, example: ok}
+                service: {type: string, example: signal-scout}
+                version: {type: string, example: dev}
+    """
+    from flask import current_app
+    return current_app.view_functions['healthz']()
+
+
+app.add_url_rule('/api/v1/stations', endpoint='api_v1_stations',
+                 view_func=api_v1_get_stations, methods=['GET'])
+app.add_url_rule('/api/v1/find_station', endpoint='api_v1_find_station',
+                 view_func=api_v1_find_station, methods=['GET'])
+app.add_url_rule('/api/v1/search_stations', endpoint='api_v1_search_stations',
+                 view_func=api_v1_search_stations, methods=['GET'])
+app.add_url_rule('/api/v1/submit_location', endpoint='api_v1_submit_location',
+                 view_func=api_v1_submit_location, methods=['POST'])
+app.add_url_rule('/api/v1/healthz', endpoint='api_v1_healthz',
+                 view_func=api_v1_healthz, methods=['GET'])
 
 
 if __name__ == '__main__':
