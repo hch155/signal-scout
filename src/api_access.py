@@ -245,6 +245,15 @@ def ensure_user_api_columns(app, db) -> None:
                     "ALTER TABLE user ADD COLUMN api_tier VARCHAR(32) "
                     "DEFAULT 'free'"
                 ))
+            # PR #16: 2FA TOTP columns. SQLite does not allow non-constant
+            # defaults in ALTER TABLE; for the boolean we coalesce in app
+            # code (`user.totp_enabled or False`), so default-NULL is fine.
+            if 'totp_secret' not in existing:
+                conn.execute(text("ALTER TABLE user ADD COLUMN totp_secret VARCHAR(64)"))
+            if 'totp_enabled' not in existing:
+                conn.execute(text("ALTER TABLE user ADD COLUMN totp_enabled BOOLEAN DEFAULT 0"))
+            if 'recovery_codes_json' not in existing:
+                conn.execute(text("ALTER TABLE user ADD COLUMN recovery_codes_json TEXT"))
 
         # Backfill api_key for any rows that lack one.
         users_without_key = User.query.filter(

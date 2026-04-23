@@ -28,6 +28,7 @@ prometheus-flask-exporter==0.23.2
 Pygments==2.19.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
+pyotp==2.9.0
 pytz==2024.1
 requests==2.33.1
 rich==15.0.0

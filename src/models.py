@@ -41,6 +41,15 @@ class User(db.Model):
     # two unlock higher per-tier rate limits and bypass the Referer check.
     api_key = db.Column(db.String(64), unique=True, index=True)
     api_tier = db.Column(db.String(32), default='free')
+    # PR #16: 2FA TOTP. totp_secret is the raw base32 secret (matches what
+    # pyotp emits); kept in plaintext for now, following the same trade-off
+    # as User.api_key. Encrypting at rest is a follow-up once we introduce
+    # a KMS key. totp_enabled gates the login flow: only True after the
+    # user has successfully verified a code during setup. recovery_codes is
+    # a JSON array of bcrypt hashes (one per single-use recovery code).
+    totp_secret = db.Column(db.String(64))
+    totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    recovery_codes_json = db.Column(db.Text)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

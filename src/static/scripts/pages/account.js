@@ -119,6 +119,95 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', () => revokeKey(parseInt(btn.dataset.revokeId, 10)));
   });
 
+  // ── 2FA TOTP (PR #16) ───────────────────────────────────────────────
+  const totpSetupBtn = document.getElementById('totp-setup-btn');
+  const totpSetupBox = document.getElementById('totp-setup-box');
+  if (totpSetupBtn && totpSetupBox) {
+    totpSetupBtn.addEventListener('click', () => {
+      globalFetch('/account/2fa/setup', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': getCsrfToken() },
+      }).then(data => {
+        if (data && data.success) {
+          document.getElementById('totp-secret').textContent = data.secret;
+          document.getElementById('totp-uri').textContent = data.otpauth_uri;
+          totpSetupBox.classList.remove('hidden');
+          totpSetupBtn.disabled = true;
+        } else {
+          alert((data && data.error) || 'Setup failed.');
+        }
+      }).catch(e => alert('Error: ' + e.message));
+    });
+  }
+
+  const totpVerifyForm = document.getElementById('totp-verify-form');
+  if (totpVerifyForm) {
+    totpVerifyForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const fd = new FormData(totpVerifyForm);
+      const status = document.getElementById('totp-verify-status');
+      status.textContent = 'Verifying…';
+      status.className = 'text-sm mt-2 text-gray-500';
+      globalFetch('/account/2fa/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+        body: JSON.stringify({ code: fd.get('code') }),
+      }).then(data => {
+        if (data && data.success) {
+          status.textContent = '2FA enabled.';
+          status.className = 'text-sm mt-2 text-green-600 dark:text-green-400';
+          const box = document.getElementById('totp-recovery-box');
+          const list = document.getElementById('totp-recovery-list');
+          if (box && list && Array.isArray(data.recovery_codes)) {
+            list.textContent = '';
+            data.recovery_codes.forEach(c => {
+              const li = document.createElement('li');
+              li.textContent = c;
+              list.appendChild(li);
+            });
+            box.classList.remove('hidden');
+          }
+        } else {
+          status.textContent = (data && data.error) || 'Verify failed.';
+          status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+        }
+      }).catch(e => {
+        status.textContent = 'Error: ' + e.message;
+        status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+      });
+    });
+  }
+
+  const totpDisableForm = document.getElementById('totp-disable-form');
+  if (totpDisableForm) {
+    totpDisableForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!confirm('Disable 2FA? Your account will only be protected by your password.')) return;
+      const fd = new FormData(totpDisableForm);
+      const status = document.getElementById('totp-disable-status');
+      status.textContent = 'Disabling…';
+      status.className = 'text-sm mt-2 text-gray-500';
+      globalFetch('/account/2fa/disable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+        body: JSON.stringify({
+          current_password: fd.get('current_password'),
+          code: fd.get('code'),
+        }),
+      }).then(data => {
+        if (data && data.success) {
+          window.location.reload();
+        } else {
+          status.textContent = (data && data.error) || 'Disable failed.';
+          status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+        }
+      }).catch(e => {
+        status.textContent = 'Error: ' + e.message;
+        status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+      });
+    });
+  }
+
   // ── Delete account form ─────────────────────────────────────────────
   const deleteForm = document.getElementById('delete-form');
   const deleteStatus = document.getElementById('delete-status');

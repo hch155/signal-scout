@@ -147,6 +147,20 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
                          endpoint="revoke_api_key",
                          view_func=limiter.limit("20 per hour")(revoke_api_key),
                          methods=["POST"])
+    # PR #16: 2FA TOTP. Start/verify/disable + the second-step login
+    # verification after a correct password.
+    auth_bp.add_url_rule("/account/2fa/setup", endpoint="totp_setup",
+                         view_func=limiter.limit("10 per hour")(totp_setup),
+                         methods=["POST"])
+    auth_bp.add_url_rule("/account/2fa/verify", endpoint="totp_verify",
+                         view_func=limiter.limit("10 per hour")(totp_verify),
+                         methods=["POST"])
+    auth_bp.add_url_rule("/account/2fa/disable", endpoint="totp_disable",
+                         view_func=limiter.limit("5 per hour")(totp_disable),
+                         methods=["POST"])
+    auth_bp.add_url_rule("/login/totp", endpoint="login_totp",
+                         view_func=limiter.limit("10 per minute")(login_totp),
+                         methods=["POST"])
 
     app.register_blueprint(auth_bp)
 
@@ -210,6 +224,21 @@ def login_user():
         # tag on the page stays usable for next POST (PR #1 fix).
         import secrets
         preserved_csrf = session.get('_csrf_token') or secrets.token_hex(32)
+
+        # PR #16: if the user has 2FA enabled, password alone is not enough.
+        # Park the user_id in a half-session bucket and require a TOTP code
+        # at /login/totp before graduating to a real logged-in session.
+        if user.totp_enabled:
+            session.clear()
+            session['_csrf_token'] = preserved_csrf
+            session['pending_2fa_user_id'] = user.id
+            return jsonify({
+                "success": False,
+                "totp_required": True,
+                "message": "2FA code required.",
+                "csrf_token": preserved_csrf,
+            }), 200
+
         session.clear()
         session['_csrf_token'] = preserved_csrf
         session['user_id'] = user.id
@@ -546,3 +575,200 @@ def revoke_api_key(key_id: int):
         logger.exception("revoke_api_key commit failed for key_id=%s", key_id)
         return jsonify({'error': 'Could not revoke key'}), 500
     return jsonify({'success': True}), 200
+
+
+# ── PR #16: 2FA TOTP ───────────────────────────────────────────────────────
+
+_ISSUER = "signal-scout"
+# Valid codes allowed ±1 window (30s before/after) to tolerate clock skew.
+_TOTP_VALID_WINDOW = 1
+_RECOVERY_CODE_COUNT = 10
+
+
+def _pyotp():
+    # Lazy import so the module stays importable if pyotp is absent (unlikely
+    # — pinned in requirements.txt — but keeps the blueprint self-contained).
+    import pyotp
+    return pyotp
+
+
+def _generate_recovery_codes() -> list[str]:
+    """10 human-friendly single-use codes. Lowercase base32, hyphen-separated
+    for easier manual entry when the user loses their authenticator app."""
+    import secrets as _s
+    alphabet = 'abcdefghjkmnpqrstvwxyz23456789'  # no 0/O/1/I/l ambiguity
+    codes = []
+    for _ in range(_RECOVERY_CODE_COUNT):
+        part_a = ''.join(_s.choice(alphabet) for _ in range(5))
+        part_b = ''.join(_s.choice(alphabet) for _ in range(5))
+        codes.append(f"{part_a}-{part_b}")
+    return codes
+
+
+def totp_setup():
+    """Step 1: generate a secret + provisioning URI. No DB commit yet —
+    the secret only becomes 'real' after totp_verify confirms the user
+    has successfully scanned the QR and can produce a valid code."""
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='totp_setup').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    user, err = _current_user_or_401()
+    if err:
+        return err
+    if user.totp_enabled:
+        return jsonify({'error': '2FA already enabled. Disable first to reconfigure.'}), 400
+
+    pyotp = _pyotp()
+    secret = pyotp.random_base32()
+    uri = pyotp.TOTP(secret).provisioning_uri(name=user.email, issuer_name=_ISSUER)
+
+    # Park the candidate secret in the session. totp_verify moves it onto
+    # the user row after the user proves possession with a valid code.
+    session['pending_totp_secret'] = secret
+    return jsonify({
+        'success': True,
+        'secret': secret,
+        'otpauth_uri': uri,
+    }), 200
+
+
+def totp_verify():
+    """Step 2: user submits a code; we verify against pending_totp_secret,
+    move the secret onto User.totp_secret, flip totp_enabled=True, mint
+    fresh recovery codes (returned ONCE here — never again)."""
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='totp_verify').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    user, err = _current_user_or_401()
+    if err:
+        return err
+
+    payload = request.get_json(silent=True) or request.form
+    code = (payload.get('code') or '').strip().replace(' ', '')
+    pending = session.get('pending_totp_secret')
+    if not pending:
+        return jsonify({'error': 'No setup in progress. Call /account/2fa/setup first.'}), 400
+    if not code:
+        return jsonify({'error': 'Code is required'}), 400
+    if not _pyotp().TOTP(pending).verify(code, valid_window=_TOTP_VALID_WINDOW):
+        return jsonify({'error': 'Invalid code'}), 401
+
+    # Accept: move secret to user, enable, mint recovery codes.
+    import json as _json
+    recovery = _generate_recovery_codes()
+    recovery_hashes = [
+        _bcrypt().generate_password_hash(c).decode('utf-8') for c in recovery
+    ]
+    user.totp_secret = pending
+    user.totp_enabled = True
+    user.recovery_codes_json = _json.dumps(recovery_hashes)
+    session.pop('pending_totp_secret', None)
+    _audit('2fa.enabled', user.id)
+    try:
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+        logger.exception("totp_verify commit failed for user_id=%s", user.id)
+        return jsonify({'error': 'Could not save 2FA'}), 500
+    return jsonify({
+        'success': True,
+        'recovery_codes': recovery,
+    }), 200
+
+
+def totp_disable():
+    """Require password + valid TOTP code to turn 2FA off. Clears secret
+    and recovery codes."""
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='totp_disable').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    user, err = _current_user_or_401()
+    if err:
+        return err
+    if not user.totp_enabled:
+        return jsonify({'error': '2FA is not enabled'}), 400
+
+    payload = request.get_json(silent=True) or request.form
+    password = payload.get('current_password') or ''
+    code = (payload.get('code') or '').strip().replace(' ', '')
+
+    if not _bcrypt().check_password_hash(user.password_hash, password):
+        _login_failures_total().inc()
+        return jsonify({'error': 'Current password is incorrect'}), 401
+    if not _pyotp().TOTP(user.totp_secret).verify(code, valid_window=_TOTP_VALID_WINDOW):
+        return jsonify({'error': 'Invalid 2FA code'}), 401
+
+    user.totp_secret = None
+    user.totp_enabled = False
+    user.recovery_codes_json = None
+    _audit('2fa.disabled', user.id)
+    try:
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+        logger.exception("totp_disable commit failed for user_id=%s", user.id)
+        return jsonify({'error': 'Could not save'}), 500
+    return jsonify({'success': True}), 200
+
+
+def login_totp():
+    """Second step of login for 2FA users. Consumes the pending_2fa_user_id
+    marker set by login_user(). Accepts either a TOTP code OR a one-shot
+    recovery code. On success: promote to a full session."""
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='login_totp').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    pending = session.get('pending_2fa_user_id')
+    if not pending:
+        return jsonify({'error': 'No 2FA step in progress'}), 400
+    user = _db().session.get(User, pending)
+    if not user or not user.totp_enabled:
+        session.pop('pending_2fa_user_id', None)
+        return jsonify({'error': 'No 2FA step in progress'}), 400
+
+    payload = request.get_json(silent=True) or request.form
+    code = (payload.get('code') or '').strip().replace(' ', '')
+
+    used_recovery = False
+    ok = False
+    if code:
+        if _pyotp().TOTP(user.totp_secret).verify(code, valid_window=_TOTP_VALID_WINDOW):
+            ok = True
+        else:
+            # Try as a recovery code: compare against each stored hash.
+            import json as _json
+            hashes = _json.loads(user.recovery_codes_json or '[]')
+            for idx, h in enumerate(list(hashes)):
+                if _bcrypt().check_password_hash(h, code):
+                    # Single-use: remove that hash from the list.
+                    hashes.pop(idx)
+                    user.recovery_codes_json = _json.dumps(hashes)
+                    ok = True
+                    used_recovery = True
+                    break
+
+    if not ok:
+        _login_failures_total().inc()
+        _audit('login.2fa_fail', user.id)
+        try:
+            _db().session.commit()
+        except Exception:
+            _db().session.rollback()
+        return jsonify({'error': 'Invalid code'}), 401
+
+    import secrets
+    preserved_csrf = session.get('_csrf_token') or secrets.token_hex(32)
+    session.clear()
+    session['_csrf_token'] = preserved_csrf
+    session['user_id'] = user.id
+    _audit('login.success',
+           user.id,
+           {'via': 'recovery_code'} if used_recovery else {'via': 'totp'})
+    try:
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+    return jsonify({
+        'success': True,
+        'csrf_token': preserved_csrf,
+    }), 200
