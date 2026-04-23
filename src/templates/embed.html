@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Signal-Scout — Embedded BTS Map</title>
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+          integrity="sha384-VzLXTJGPSyTLX6d96AxgkKvE/LRb7ECGyTxuwtpjHnVWVZs2gp5RDjeM/tgBnVdM"
+          crossorigin="anonymous" />
+    <style>
+        html, body { margin: 0; padding: 0; height: 100%; font-family: system-ui, sans-serif; }
+        #embed-map { height: 100vh; width: 100vw; }
+        .powered-by {
+            position: absolute; bottom: 8px; right: 8px; z-index: 1000;
+            background: rgba(255,255,255,0.85); padding: 2px 8px; border-radius: 4px;
+            font-size: 11px; color: #444; text-decoration: none;
+        }
+        .powered-by:hover { background: white; }
+        .locate-btn {
+            position: absolute; top: 12px; left: 60px; z-index: 1000;
+            background: white; border: 1px solid #ccc; border-radius: 4px;
+            padding: 6px 12px; font-size: 13px; cursor: pointer;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+        .locate-btn:hover { background: #f3f4f6; }
+        .locate-btn[disabled] { opacity: 0.6; cursor: wait; }
+        .locate-prompt {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; background: white; border: 1px solid #ccc;
+            border-radius: 6px; padding: 10px 14px; font-size: 13px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: none;
+            max-width: 320px; text-align: center;
+        }
+        .locate-prompt.visible { display: block; }
+        .locate-prompt button {
+            margin-top: 8px; padding: 6px 14px; border: none; border-radius: 4px;
+            background: #3b82f6; color: white; cursor: pointer; font-size: 13px;
+        }
+        .locate-error {
+            position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; background: #fef2f2; border: 1px solid #fca5a5;
+            color: #991b1b; padding: 8px 12px; border-radius: 4px;
+            font-size: 12px; display: none;
+        }
+        .locate-error.visible { display: block; }
+    </style>
+</head>
+<body>
+    <div id="embed-map" role="application" aria-label="Map of nearby cellular base stations"></div>
+
+    <button id="locate-btn" class="locate-btn" type="button"
+            aria-label="Use my location to find nearest stations">
+        📍 Use my location
+    </button>
+
+    {% if not has_coords %}
+    <div id="locate-prompt" class="locate-prompt visible" role="dialog">
+        <div>Show stations near you?</div>
+        <button id="locate-prompt-yes" type="button">Yes, use my location</button>
+    </div>
+    {% endif %}
+
+    <div id="locate-error" class="locate-error" role="alert"></div>
+
+    <a class="powered-by" href="{{ canonical_origin }}/" target="_blank" rel="noopener">
+        Powered by Signal-Scout
+    </a>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"
+            crossorigin="anonymous"></script>
+    <script>
+    (function() {
+        var DEFAULT_LAT = {{ lat }}, DEFAULT_LNG = {{ lng }}, DEFAULT_ZOOM = {{ zoom }};
+        var LIMIT = {{ limit }};
+        var AUTO_LOCATE = {{ 'true' if auto_locate else 'false' }};
+        var HAS_COORDS = {{ 'true' if has_coords else 'false' }};
+
+        var map = L.map('embed-map').setView([DEFAULT_LAT, DEFAULT_LNG], DEFAULT_ZOOM);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        var markers = [];
+        var userMarker = null;
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
+
+        function showError(msg) {
+            var el = document.getElementById('locate-error');
+            el.textContent = msg;
+            el.classList.add('visible');
+            setTimeout(function() { el.classList.remove('visible'); }, 6000);
+        }
+
+        function hidePrompt() {
+            var p = document.getElementById('locate-prompt');
+            if (p) p.classList.remove('visible');
+        }
+
+        function loadStations(lat, lng) {
+            // Same-origin fetch — works because the embed page is served
+            // from signal-scout.com (or the CANONICAL_ORIGIN). The /api/v1/
+            // gate accepts the embed page itself as same-origin Referer.
+            return fetch('/api/v1/stations?lat=' + lat + '&lng=' + lng + '&limit=' + LIMIT)
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(data) {
+                    // Clear previous markers
+                    markers.forEach(function(m) { map.removeLayer(m); });
+                    markers = [];
+                    if (!data || !data.stations) return;
+                    var bounds = [[lat, lng]];
+                    data.stations.forEach(function(s, i) {
+                        var m = L.marker([s.latitude, s.longitude])
+                            .bindPopup(
+                                '<b>' + (i + 1) + '. ' + escapeHtml(s.basestation_id) + '</b><br>' +
+                                escapeHtml(s.service_provider) + '<br>' +
+                                s.distance + ' km'
+                            ).addTo(map);
+                        markers.push(m);
+                        bounds.push([s.latitude, s.longitude]);
+                    });
+                    if (bounds.length > 1) {
+                        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+                    }
+                });
+        }
+
+        function placeUser(lat, lng) {
+            if (userMarker) map.removeLayer(userMarker);
+            userMarker = L.circleMarker([lat, lng], {
+                radius: 8, color: '#3b82f6', weight: 2, fillOpacity: 0.5
+            }).addTo(map).bindPopup('You are here').openPopup();
+        }
+
+        function locate() {
+            var btn = document.getElementById('locate-btn');
+            if (!('geolocation' in navigator)) {
+                showError("Geolocation isn't available in this browser.");
+                return;
+            }
+            btn.disabled = true;
+            btn.textContent = '⏳ Locating…';
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    var lat = pos.coords.latitude, lng = pos.coords.longitude;
+                    if (lat < 49.0 || lat > 55.5 || lng < 14.0 || lng > 24.2) {
+                        showError("You're outside the supported area (Poland).");
+                        btn.disabled = false;
+                        btn.textContent = '📍 Use my location';
+                        return;
+                    }
+                    placeUser(lat, lng);
+                    map.setView([lat, lng], 13);
+                    loadStations(lat, lng).finally(function() {
+                        btn.disabled = false;
+                        btn.textContent = '📍 Use my location';
+                        hidePrompt();
+                    });
+                },
+                function(err) {
+                    var msg = 'Location request failed.';
+                    if (err.code === 1) msg = 'Permission denied. ' +
+                        '(The embedding page must include allow="geolocation" on the iframe.)';
+                    if (err.code === 3) msg = 'Location request timed out.';
+                    showError(msg);
+                    btn.disabled = false;
+                    btn.textContent = '📍 Use my location';
+                },
+                { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
+            );
+        }
+
+        document.getElementById('locate-btn').addEventListener('click', locate);
+        var promptBtn = document.getElementById('locate-prompt-yes');
+        if (promptBtn) promptBtn.addEventListener('click', function() {
+            hidePrompt();
+            locate();
+        });
+
+        // Initial load: if URL had coords, load stations immediately. If
+        // auto-locate is on AND user already granted permission to this
+        // origin, the browser may resolve without re-prompting.
+        if (HAS_COORDS) {
+            loadStations(DEFAULT_LAT, DEFAULT_LNG);
+        }
+        // AUTO_LOCATE without HAS_COORDS → wait for user click on the
+        // prompt to comply with browser permission policy (most browsers
+        // suppress geolocation prompts that fire without a user gesture
+        // in cross-origin iframes).
+    })();
+    </script>
+</body>
+</html>

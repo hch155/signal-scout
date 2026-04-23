@@ -4,7 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Signal-Scout</title>
+
+    {# ── SEO ─────────────────────────────────────────────────────────── #}
+    <title>{% block title %}Signal-Scout — Find Nearest Cellular Base Stations in Poland{% endblock %}</title>
+    <meta name="description" content="{% block description %}Interactive map of 188,000+ cellular base stations across Poland. Find the nearest tower from any major operator (Orange, Play, Plus, T-Mobile) and check coverage by frequency band.{% endblock %}">
+    <link rel="canonical" href="{% block canonical %}{{ canonical_origin }}{{ request.path }}{% endblock %}">
+    <meta name="robots" content="{% block robots %}index,follow{% endblock %}">
+
+    {# Open Graph #}
+    <meta property="og:site_name" content="Signal-Scout">
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:url" content="{{ canonical_origin }}{{ request.path }}">
+    <meta property="og:title" content="{% block og_title %}{{ self.title() }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ self.description() }}{% endblock %}">
+    <meta property="og:image" content="{{ canonical_origin }}{{ url_for('static', filename='og-image.png') }}">
+    <meta property="og:locale" content="en_US">
+
+    {# Twitter #}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ self.og_title() }}">
+    <meta name="twitter:description" content="{{ self.og_description() }}">
+    <meta name="twitter:image" content="{{ canonical_origin }}{{ url_for('static', filename='og-image.png') }}">
+
     <link rel="stylesheet"
           href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
           integrity="sha384-VzLXTJGPSyTLX6d96AxgkKvE/LRb7ECGyTxuwtpjHnVWVZs2gp5RDjeM/tgBnVdM"
@@ -21,6 +42,26 @@
     {% endif %}
     <script defer src="{{ url_for('static', filename='dist/pages/common.min.js') }}"></script>
     <script defer src="{{ url_for('static', filename='dist/pages/tips-interactions.min.js') }}"></script>
+
+    {# JSON-LD structured data — discoverable by search engines as a
+       WebApplication. Per-page block override for richer schemas. #}
+    <script type="application/ld+json">
+    {% block jsonld %}{
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Signal-Scout",
+      "url": "{{ canonical_origin }}/",
+      "description": "Interactive map of cellular base stations in Poland.",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }{% endblock %}
+    </script>
+
     {% block head_extra %}{% endblock %}
   </head>
   <body class="bg-gradient-to-t from-custom-blue-start via-custom-blue-mid to-custom-blue-end dark:from-custom-dark-start dark:via-custom-dark-mid dark:to-custom-dark-end flex flex-col min-h-screen">
@@ -109,7 +150,8 @@
           <h1 class="text-md font-bold text-red-500">Rate Limit Exceeded</h1>
           <p>Please wait a minute before making new requests.</p>
           <div>Retry in <span id="countdown">60</span> seconds.</div>
-          <img src="/static/limitexceededfresh.png" alt="Rate Limit Exceeded">
+          <img src="/static/limitexceededfresh.png" alt="Rate Limit Exceeded"
+               loading="lazy" decoding="async" width="320" height="240">
       </div>
     </div>
   

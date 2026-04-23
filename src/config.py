@@ -74,6 +74,19 @@ class Config:
     # ── Honeypot ─────────────────────────────────────────────────────────
     honeypot_bts_ids_raw: str = field(default_factory=lambda: _str("HONEYPOT_BTS_IDS"))
 
+    # ── Embed widget ────────────────────────────────────────────────────
+    # Comma-separated list of origins allowed to iframe /embed/* (sets
+    # CSP `frame-ancestors`). Use literal '*' (single entry) to allow any
+    # origin — only do this if you really mean public widget.
+    # Empty / unset → /embed/* still served, but iframing blocked by
+    # `frame-ancestors 'none'` like the rest of the app.
+    embed_allowed_origins_raw: str = field(default_factory=lambda: _str("EMBED_ALLOWED_ORIGINS"))
+
+    # ── SEO ─────────────────────────────────────────────────────────────
+    # Public canonical origin used in OG / canonical / sitemap. Falls back
+    # to https://www.signal-scout.com which matches the apex DNS.
+    canonical_origin: str = field(default_factory=lambda: _str("CANONICAL_ORIGIN", "https://www.signal-scout.com"))
+
     # ── Derived properties ───────────────────────────────────────────────
     @property
     def is_production(self) -> bool:
@@ -93,6 +106,10 @@ class Config:
     @property
     def honeypot_bts_ids(self) -> set[str]:
         return {x.strip().upper() for x in self.honeypot_bts_ids_raw.split(",") if x.strip()}
+
+    @property
+    def embed_allowed_origins(self) -> list[str]:
+        return [x.strip() for x in self.embed_allowed_origins_raw.split(",") if x.strip()]
 
 
 # Module-level singleton. Imported as `from config import settings`.

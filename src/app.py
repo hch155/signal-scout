@@ -128,6 +128,13 @@ PERMISSIONS_POLICY = (
     "usb=(), magnetometer=(self), gyroscope=(self), accelerometer=(self)"
 )
 
+# /embed/* widget needs geolocation permitted to ANY embedding origin so
+# cross-site iframes can prompt the user. Camera/mic/payment stay denied.
+EMBED_PERMISSIONS_POLICY = (
+    "geolocation=*, camera=(), microphone=(), payment=(), "
+    "usb=(), magnetometer=(self), gyroscope=(self), accelerometer=(self)"
+)
+
 
 @app.after_request
 def _record_user_agent_class(response):
@@ -140,17 +147,36 @@ def _record_user_agent_class(response):
     return response
 
 
+def _csp_for_path(path: str) -> str:
+    """CSP varies per route family. /embed/* relaxes frame-ancestors so
+    allowed origins can iframe the widget; everything else stays locked."""
+    if path.startswith('/embed/') and settings.embed_allowed_origins:
+        ancestors = ' '.join(settings.embed_allowed_origins)
+        return CSP_POLICY.replace("frame-ancestors 'none'",
+                                  f"frame-ancestors {ancestors}")
+    return CSP_POLICY
+
+
 @app.after_request
 def set_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-    response.headers['Content-Security-Policy'] = CSP_POLICY
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-    response.headers['Permissions-Policy'] = PERMISSIONS_POLICY
+    response.headers['Permissions-Policy'] = (
+        EMBED_PERMISSIONS_POLICY
+        if request.path.startswith('/embed/')
+        else PERMISSIONS_POLICY
+    )
     response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
     response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
+    response.headers['Content-Security-Policy'] = _csp_for_path(request.path)
+    # X-Frame-Options is the legacy sibling of frame-ancestors. For /embed/*
+    # we drop it entirely so allowed origins can frame; modern browsers
+    # honor frame-ancestors over XFO when both are present, but old browsers
+    # see XFO=DENY first and refuse — so it must go.
+    if not request.path.startswith('/embed/') or not settings.embed_allowed_origins:
+        response.headers['X-Frame-Options'] = 'DENY'
     return response
 
 def generate_csrf_token():
@@ -164,6 +190,7 @@ app.jinja_env.globals['csrf_token'] = generate_csrf_token
 # to render the tracker; either missing → tracker silently disabled.
 app.jinja_env.globals['plausible_script_url'] = settings.plausible_script_url
 app.jinja_env.globals['plausible_domain'] = settings.plausible_domain
+app.jinja_env.globals['canonical_origin'] = settings.canonical_origin
 
 def validate_csrf():
     token = request.form.get('_csrf_token') or request.headers.get('X-CSRF-Token')
@@ -397,6 +424,103 @@ def search_stations():
     } for s in stations]
 
     return jsonify({"stations": stations_data})
+
+@app.route('/robots.txt')
+def robots_txt():
+    """Search-engine crawler directives. Allows public pages, blocks API
+    + auth + admin + embed widget surfaces (no SEO value, also reduces
+    scrape volume from well-behaved crawlers)."""
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Allow: /data\n"
+        "Allow: /stats\n"
+        "Allow: /tips\n"
+        "Disallow: /api/\n"
+        "Disallow: /embed/\n"
+        "Disallow: /account\n"
+        "Disallow: /login\n"
+        "Disallow: /register\n"
+        "Disallow: /logout\n"
+        "Disallow: /metrics\n"
+        "Disallow: /healthz\n"
+        "Disallow: /find_station\n"
+        "Disallow: /search_stations\n"
+        "Disallow: /stations\n"
+        "Disallow: /submit_location\n"
+        "Disallow: /session_check\n"
+        "\n"
+        f"Sitemap: {settings.canonical_origin}/sitemap.xml\n"
+    )
+    from flask import Response
+    return Response(body, mimetype='text/plain')
+
+
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    """Lists the public pages we want indexed. Static set — small enough
+    to inline. Add per-station sitemap pages later if /find_station/<id>
+    becomes a public surface."""
+    from flask import Response
+    pages = [
+        ('/',     '1.0', 'daily'),
+        ('/data', '0.8', 'monthly'),
+        ('/stats', '0.8', 'monthly'),
+        ('/tips', '0.7', 'monthly'),
+    ]
+    origin = settings.canonical_origin
+    body = ['<?xml version="1.0" encoding="UTF-8"?>',
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for path, prio, freq in pages:
+        body.append(f'  <url>')
+        body.append(f'    <loc>{origin}{path}</loc>')
+        body.append(f'    <changefreq>{freq}</changefreq>')
+        body.append(f'    <priority>{prio}</priority>')
+        body.append(f'  </url>')
+    body.append('</urlset>')
+    return Response('\n'.join(body), mimetype='application/xml')
+
+
+@app.route('/embed/widget')
+def embed_widget():
+    """Embeddable map widget for client iframes.
+
+    Stripped chrome (no header, no footer, no auth UI) so the embed looks
+    like a native part of the embedding page. CSP frame-ancestors is
+    overridden by the after_request hook based on EMBED_ALLOWED_ORIGINS.
+
+    Query params:
+      lat, lng — optional starting coordinate (defaults to Warsaw)
+      zoom     — optional zoom level (default 12)
+      limit    — max stations to show (default 5, max 10)
+    """
+    raw_lat = request.args.get('lat')
+    raw_lng = request.args.get('lng')
+    has_coords = raw_lat is not None and raw_lng is not None
+    try:
+        lat = float(raw_lat) if has_coords else 52.2297
+        lng = float(raw_lng) if has_coords else 21.0122
+        zoom = max(5, min(int(request.args.get('zoom', 12 if has_coords else 6)), 17))
+        limit = max(1, min(int(request.args.get('limit', 5)), 10))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid parameters'}), 400
+
+    if has_coords and not (49.0 <= lat <= 55.5 and 14.0 <= lng <= 24.2):
+        return jsonify({'error': 'Coordinates outside supported area'}), 400
+
+    # auto=1 → request browser geolocation immediately on page load.
+    # When no coords were provided, default to auto-prompt; otherwise
+    # only auto-prompt if explicitly requested by query.
+    auto = request.args.get('auto', '0' if has_coords else '1') in ('1', 'true', 'yes')
+
+    return render_template(
+        'embed.html',
+        lat=lat, lng=lng, zoom=zoom, limit=limit,
+        auto_locate=auto,
+        has_coords=has_coords,
+        canonical_origin=settings.canonical_origin,
+    )
+
 
 # Auth routes (register / login / logout / session_check / account /
 # regenerate_api_key) live in the auth_routes module as a Flask blueprint.

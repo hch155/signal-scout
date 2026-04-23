@@ -1,5 +1,29 @@
 {% extends "base.html" %}
 
+{% block title %}Signal-Scout — Find the Nearest Cellular Base Station in Poland{% endblock %}
+{% block description %}Click anywhere on the map to discover the nearest LTE / 5G / GSM towers from Orange, Play, Plus and T-Mobile. Live data on 188,000+ Polish base stations across all frequency bands.{% endblock %}
+
+{% block jsonld %}{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Signal-Scout",
+  "url": "{{ canonical_origin }}/",
+  "description": "Interactive map for finding the nearest cellular base stations in Poland.",
+  "applicationCategory": "MapApplication",
+  "operatingSystem": "Any",
+  "browserRequirements": "Requires JavaScript and HTML5 geolocation",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "areaServed": { "@type": "Country", "name": "Poland" },
+  "featureList": [
+    "Find nearest base stations by clicking on map",
+    "Filter by service provider (Orange, Play, Plus, T-Mobile)",
+    "Filter by frequency band (5G, LTE, UMTS, GSM)",
+    "RSRP signal strength color coding",
+    "Compass-mode navigation to selected station",
+    "Public REST API with OpenAPI documentation"
+  ]
+}{% endblock %}
+
 {% block content %}
     <section class="slogan-section text-center text-[#333] dark:text-white py-1 md:py-3 px-4">
         <p class="text-base font-semibold slogan-rotate" data-lines="{{ slogan_title }}|{{ slogan_text }}">{{ slogan_title }}</p>
