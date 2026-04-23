@@ -172,11 +172,34 @@ def _record_user_agent_class(response):
 
 def _csp_for_path(path: str) -> str:
     """CSP varies per route family. /embed/* relaxes frame-ancestors so
-    allowed origins can iframe the widget; everything else stays locked."""
+    allowed origins can iframe the widget; /api/v1/docs/ (Swagger UI) needs
+    'unsafe-inline' in script-src because flasgger renders an inline
+    <script>window.onload = ...</script> block to bootstrap the UI —
+    without that the page hangs on LOADING forever. Swagger also loads
+    Google Fonts CSS which needs the fonts.googleapis.com origin in
+    style-src + font-src.
+    Everything else stays locked."""
     if path.startswith('/embed/') and settings.embed_allowed_origins:
         ancestors = ' '.join(settings.embed_allowed_origins)
         return CSP_POLICY.replace("frame-ancestors 'none'",
                                   f"frame-ancestors {ancestors}")
+    if path.startswith('/api/v1/docs') or path.startswith('/api/v1/flasgger_static'):
+        policy = CSP_POLICY
+        # Permit the inline Swagger bootstrap script.
+        policy = policy.replace(
+            "script-src 'self'",
+            "script-src 'self' 'unsafe-inline'",
+        )
+        # Allow Google Fonts CSS + font files used by Swagger UI.
+        policy = policy.replace(
+            "style-src 'self' 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        )
+        policy = policy.replace(
+            "font-src 'self' data:",
+            "font-src 'self' data: https://fonts.gstatic.com",
+        )
+        return policy
     return CSP_POLICY
 
 
