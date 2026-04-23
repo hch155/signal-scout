@@ -46,6 +46,14 @@ jobs:
         # --min-instances=1 keeps one warm instance, eliminating cold-start
         # latency for both real visitors and the 60s metrics scrape from the
         # NUC (consistent series, no scrape gaps from cold spin-up).
+        # Stability bumps (PR-#1-#10 brought in flasgger + prometheus exporter
+        # + extra modules → boot-time memory pressure on 1Gi caused intermittent
+        # OOM-kills + 503 flap):
+        #   --memory=2Gi          : cushion for boot allocation
+        #   --cpu=1               : explicit (default 1, but make it deterministic)
+        #   --timeout=60          : default 300s — keep low so stuck workers cycle fast
+        #   --max-instances=2     : reduce blast radius if one instance crashes
+        #     (was 4 — most traffic comfortably fits in 2 with --min-instances=1)
         run: |
           gcloud run deploy signal-scout \
             --image europe-central2-docker.pkg.dev/GCP_PROJECT_ID/signal-scout-repo/signal-scout:latest \
@@ -53,8 +61,10 @@ jobs:
             --allow-unauthenticated \
             --project GCP_PROJECT_ID \
             --min-instances=1 \
-            --max-instances=4 \
-            --memory=1Gi \
+            --max-instances=2 \
+            --memory=2Gi \
+            --cpu=1 \
+            --timeout=60 \
             --update-env-vars SECRET_KEY="${SECRET_KEY}",ENV=PRODUCTION,METRICS_BEARER_TOKEN="${METRICS_BEARER_TOKEN}",PLAUSIBLE_DOMAIN="${PLAUSIBLE_DOMAIN}",PLAUSIBLE_SCRIPT_URL="${PLAUSIBLE_SCRIPT_URL}"
 
         
