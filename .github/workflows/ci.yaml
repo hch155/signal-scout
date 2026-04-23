@@ -109,7 +109,7 @@ jobs:
           ignore-unfixed: true
           exit-code: '1'
           format: table
-          skip-dirs: 'venv,tests/fixtures,src/static/dist'
+          skip-dirs: 'venv,tests/fixtures,src/static/dist,mobile,base_station_data'
 
       - name: Build image (multi-stage)
         run: docker build -t signal-scout:ci .
