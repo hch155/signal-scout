@@ -257,6 +257,11 @@ def ensure_user_api_columns(app, db) -> None:
             # PR #19: company column for the simplified account UI.
             if 'company' not in existing:
                 conn.execute(text("ALTER TABLE user ADD COLUMN company VARCHAR(120)"))
+            # PR #26: account lockout columns.
+            if 'failed_login_attempts' not in existing:
+                conn.execute(text("ALTER TABLE user ADD COLUMN failed_login_attempts INTEGER NOT NULL DEFAULT 0"))
+            if 'locked_until' not in existing:
+                conn.execute(text("ALTER TABLE user ADD COLUMN locked_until DATETIME"))
 
         # Backfill api_key for any rows that lack one.
         users_without_key = User.query.filter(

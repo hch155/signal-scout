@@ -119,6 +119,96 @@ def test_login_wrong_password_returns_401(csrf_client, csrf_token):
     assert r.status_code == 401
 
 
+# ── PR #26: account lockout ─────────────────────────────────────────────────
+
+def test_login_locks_account_after_5_failed_attempts(csrf_client, csrf_token, app):
+    csrf_client.post("/register", data={
+        "_csrf_token": csrf_token, "email": "lock@example.com",
+        "password": VALID_PASSWORD, "confirm_password": VALID_PASSWORD,
+    })
+    # 5 wrong attempts → 5th locks the account
+    for i in range(5):
+        r = csrf_client.post("/login", data={
+            "_csrf_token": csrf_token, "email": "lock@example.com",
+            "password": f"WrongPw1!{i}",
+        })
+        assert r.status_code == 401, f"attempt {i+1} expected 401, got {r.status_code}"
+
+    # 6th attempt — even with correct password — is locked out (403)
+    r = csrf_client.post("/login", data={
+        "_csrf_token": csrf_token, "email": "lock@example.com",
+        "password": VALID_PASSWORD,
+    })
+    assert r.status_code == 403, r.data
+    body = r.get_json()
+    assert body.get("locked") is True
+    assert "locked_until" in body
+
+    # DB shows the lockout state
+    from models import User
+    with app.app_context():
+        u = User.query.filter_by(email="lock@example.com").first()
+        assert u.failed_login_attempts >= 5
+        assert u.locked_until is not None
+
+
+def test_login_success_resets_failed_attempts(csrf_client, csrf_token, app):
+    from models import User
+    csrf_client.post("/register", data={
+        "_csrf_token": csrf_token, "email": "reset@example.com",
+        "password": VALID_PASSWORD, "confirm_password": VALID_PASSWORD,
+    })
+    # 3 wrong attempts (below threshold)
+    for i in range(3):
+        csrf_client.post("/login", data={
+            "_csrf_token": csrf_token, "email": "reset@example.com",
+            "password": "WrongPw1!",
+        })
+    with app.app_context():
+        u = User.query.filter_by(email="reset@example.com").first()
+        assert u.failed_login_attempts == 3
+        assert u.locked_until is None
+
+    # Now correct → counter resets
+    r = csrf_client.post("/login", data={
+        "_csrf_token": csrf_token, "email": "reset@example.com",
+        "password": VALID_PASSWORD,
+    })
+    assert r.status_code == 200
+    with app.app_context():
+        u = User.query.filter_by(email="reset@example.com").first()
+        assert u.failed_login_attempts == 0
+        assert u.locked_until is None
+
+
+def test_lockout_expires_after_window(csrf_client, csrf_token, app):
+    """After locked_until passes, login proceeds normally."""
+    from models import User
+    from datetime import datetime, timedelta
+    from database import db
+    csrf_client.post("/register", data={
+        "_csrf_token": csrf_token, "email": "expire@example.com",
+        "password": VALID_PASSWORD, "confirm_password": VALID_PASSWORD,
+    })
+    # Manually backdate the lockout — simulates "lockout window passed"
+    with app.app_context():
+        u = User.query.filter_by(email="expire@example.com").first()
+        u.failed_login_attempts = 5
+        u.locked_until = datetime.utcnow() - timedelta(minutes=1)
+        db.session.commit()
+
+    # Correct password should succeed because lockout expired
+    r = csrf_client.post("/login", data={
+        "_csrf_token": csrf_token, "email": "expire@example.com",
+        "password": VALID_PASSWORD,
+    })
+    assert r.status_code == 200, r.data
+    with app.app_context():
+        u = User.query.filter_by(email="expire@example.com").first()
+        assert u.failed_login_attempts == 0
+        assert u.locked_until is None
+
+
 # ── Logout ──────────────────────────────────────────────────────────────────
 
 def test_logout_without_csrf_403(client):

@@ -55,6 +55,14 @@ class User(db.Model):
     # but no longer surfaced in the UI — the simplified account page asks
     # only for company. Future PR can drop the unused columns.
     company = db.Column(db.String(120))
+    # PR #26: account lockout. Counter bumped on each failed /login;
+    # reset on success. Once it hits LOCKOUT_THRESHOLD, locked_until is
+    # stamped with now + LOCKOUT_DURATION; subsequent login attempts are
+    # refused with 403 until the timestamp passes. Two columns rather than
+    # one packed value so an ops-side manual reset only needs to clear
+    # locked_until without losing audit context.
+    failed_login_attempts = db.Column(db.Integer, default=0, nullable=False)
+    locked_until = db.Column(db.DateTime)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

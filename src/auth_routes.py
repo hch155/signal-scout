@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from flask import Blueprint, jsonify, render_template, request, session
 
@@ -65,6 +65,16 @@ def _csrf_failures_total():
 
 def _login_failures_total():
     return _deps["login_failures_total"]
+
+
+# PR #26: account lockout config. After this many wrong-password attempts
+# in a row, the account is locked for LOCKOUT_DURATION. Counter resets on
+# successful login (any path — password OR password+TOTP). Window matches
+# typical industry baselines (5/15min — long enough to deter brute-force,
+# short enough that a real user who fat-fingered isn't locked out
+# overnight).
+LOCKOUT_THRESHOLD = 5
+LOCKOUT_DURATION = timedelta(minutes=15)
 
 
 # ── PR #15: audit log ──────────────────────────────────────────────────────
@@ -113,8 +123,13 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
     auth_bp.add_url_rule("/register", endpoint="register",
                          view_func=limiter.limit("5 per hour")(register_user),
                          methods=["POST"])
+    # PR #26: bumped from 3/min to 10/min. Per-IP rate limit was defending
+    # against slow per-account brute-force; that job now belongs to
+    # the per-account lockout (5 wrong → 15-min freeze). Higher per-IP
+    # cap means a real user typing a wrong password 4× isn't immediately
+    # 429'd, while the account itself still locks out attackers.
     auth_bp.add_url_rule("/login", endpoint="login",
-                         view_func=limiter.limit("3 per minute")(login_user),
+                         view_func=limiter.limit("10 per minute")(login_user),
                          methods=["POST"])
     auth_bp.add_url_rule("/logout", endpoint="logout",
                          view_func=logout, methods=["POST"])
@@ -227,7 +242,36 @@ def login_user():
 
     user = User.query.filter_by(email=email).first()
 
+    # PR #26: account lockout. If the user is currently locked, bounce
+    # without spending a bcrypt round (cheap defence; brute-forcer can't
+    # use the locked account as a pollard for distinguishing valid emails
+    # via timing). 403 + how-long.
+    if user is not None and user.locked_until is not None:
+        if user.locked_until > datetime.utcnow():
+            _login_failures_total().inc()
+            _audit('login.locked', user.id, {
+                "locked_until": user.locked_until.isoformat() + 'Z',
+            })
+            try:
+                _db().session.commit()
+            except Exception:
+                _db().session.rollback()
+            return jsonify({
+                "success": False,
+                "locked": True,
+                "message": "Account is temporarily locked due to too many failed attempts.",
+                "locked_until": user.locked_until.isoformat() + 'Z',
+            }), 403
+        # Lockout window expired — clear the stamp and let the request
+        # proceed normally. Counter is cleared on the success path; if
+        # this attempt also fails, it counts toward a fresh lock.
+        user.locked_until = None
+
     if user and _bcrypt().check_password_hash(user.password_hash, password):
+        # Successful auth — reset lockout state.
+        user.failed_login_attempts = 0
+        user.locked_until = None
+
         # Rotate session against fixation, preserve CSRF token so the meta
         # tag on the page stays usable for next POST (PR #1 fix).
         import secrets
@@ -240,6 +284,10 @@ def login_user():
             session.clear()
             session['_csrf_token'] = preserved_csrf
             session['pending_2fa_user_id'] = user.id
+            try:
+                _db().session.commit()  # persist the failed-attempts reset
+            except Exception:
+                _db().session.rollback()
             return jsonify({
                 "success": False,
                 "totp_required": True,
@@ -263,10 +311,16 @@ def login_user():
     else:
         _login_failures_total().inc()
         if user is not None:
-            # We know which account got the failed attempt — log it to the
-            # right user's audit trail. Anonymous failures (unknown email)
-            # still bump the metric but don't get a per-user row.
-            _audit('login.fail', user.id, {"reason": "bad_password"})
+            # PR #26: bump counter; lock if past threshold.
+            user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+            audit_meta: dict = {"reason": "bad_password",
+                                "attempts": user.failed_login_attempts}
+            if user.failed_login_attempts >= LOCKOUT_THRESHOLD:
+                user.locked_until = datetime.utcnow() + LOCKOUT_DURATION
+                audit_meta["locked_until"] = user.locked_until.isoformat() + 'Z'
+                _audit('account.locked', user.id, audit_meta)
+            else:
+                _audit('login.fail', user.id, audit_meta)
             try:
                 _db().session.commit()
             except Exception:
