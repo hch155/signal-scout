@@ -4,13 +4,16 @@
     <section class="text-center text-[#333] dark:text-white p-3 md:p-5 mb-2">
         <h2 class="text-xl font-bold">Your account</h2>
         <p class="hidden md:block text-lg text-gray-600 dark:text-gray-300">
-            API key &amp; tier for programmatic access.
+            Profile, security, and API access.
         </p>
     </section>
 
     <div class="flex justify-center px-2 md:px-4 pb-10">
-        <div class="w-full max-w-3xl">
+        <div class="w-full max-w-3xl space-y-6">
+
+            {# ── API access (existing) ─────────────────────────────────── #}
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-4">
+                <h3 class="text-lg font-semibold dark:text-white">API access</h3>
                 <div>
                     <p class="text-sm text-gray-500 dark:text-gray-400">Email</p>
                     <p class="font-medium dark:text-white">{{ user.email }}</p>
@@ -45,6 +48,113 @@
                     </button>
                     <p id="regen-status" class="text-sm mt-2"></p>
                 </div>
+            </div>
+
+            {# ── Profile ──────────────────────────────────────────────── #}
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3">
+                <h3 class="text-lg font-semibold dark:text-white">Profile</h3>
+                <form id="profile-form" class="space-y-3">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+                    <label class="block">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Full name</span>
+                        <input type="text" name="full_name" maxlength="100"
+                               value="{{ user.full_name or '' }}"
+                               class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </label>
+
+                    <label class="block">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Bio</span>
+                        <textarea name="bio" maxlength="500" rows="3"
+                                  class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">{{ user.bio or '' }}</textarea>
+                    </label>
+
+                    <label class="block">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Profile picture URL (https only)</span>
+                        <input type="url" name="profile_picture" maxlength="255"
+                               value="{{ user.profile_picture or '' }}"
+                               placeholder="https://example.com/me.jpg"
+                               class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </label>
+
+                    <label class="block">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Date of birth</span>
+                        <input type="date" name="date_of_birth"
+                               value="{{ user.date_of_birth.strftime('%Y-%m-%d') if user.date_of_birth else '' }}"
+                               class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </label>
+
+                    <button type="submit"
+                            class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded">
+                        Save profile
+                    </button>
+                    <p id="profile-status" class="text-sm mt-2"></p>
+                </form>
+            </div>
+
+            {# ── Change password ──────────────────────────────────────── #}
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3">
+                <h3 class="text-lg font-semibold dark:text-white">Change password</h3>
+                <form id="password-form" class="space-y-3">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+                    <label class="block">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Current password</span>
+                        <input type="password" name="current_password" required autocomplete="current-password"
+                               class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </label>
+
+                    <label class="block">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">New password</span>
+                        <input type="password" name="new_password" required autocomplete="new-password"
+                               class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </label>
+
+                    <label class="block">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Confirm new password</span>
+                        <input type="password" name="confirm_password" required autocomplete="new-password"
+                               class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </label>
+
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        At least 8 characters, with a number, uppercase, lowercase and a symbol.
+                    </p>
+
+                    <button type="submit"
+                            class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded">
+                        Update password
+                    </button>
+                    <p id="password-status" class="text-sm mt-2"></p>
+                </form>
+            </div>
+
+            {# ── Danger zone ─────────────────────────────────────────── #}
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border border-red-300 dark:border-red-700">
+                <h3 class="text-lg font-semibold text-red-600 dark:text-red-400">Danger zone</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-300">
+                    Permanently delete your account and API key. This cannot be undone.
+                </p>
+                <form id="delete-form" class="space-y-3">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+                    <label class="block">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Confirm with your password</span>
+                        <input type="password" name="current_password" required autocomplete="current-password"
+                               class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-red-500">
+                    </label>
+
+                    <label class="block">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Type <code>DELETE</code> to confirm</span>
+                        <input type="text" name="confirm_phrase" required autocomplete="off"
+                               class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-red-500">
+                    </label>
+
+                    <button type="submit"
+                            class="bg-red-600 hover:bg-red-800 text-white text-sm font-bold py-2 px-3 rounded">
+                        Delete my account
+                    </button>
+                    <p id="delete-status" class="text-sm mt-2"></p>
+                </form>
             </div>
         </div>
     </div>
