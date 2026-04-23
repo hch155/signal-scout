@@ -90,6 +90,44 @@ def test_profile_dob_bad_format_rejected(authed_client, csrf_token):
     assert r.status_code == 400
 
 
+def test_profile_company_field_persists(authed_client, csrf_token, app):
+    """PR #19: simplified profile UI posts only `company`. Verify it lands."""
+    r = authed_client.post("/account/profile",
+                           data=json.dumps({"company": "Acme Corp."}),
+                           content_type="application/json",
+                           headers={"X-CSRF-Token": csrf_token})
+    assert r.status_code == 200, r.data
+    with app.app_context():
+        u = User.query.first()
+        assert u.company == "Acme Corp."
+
+
+def test_profile_company_only_does_not_clear_legacy_fields(authed_client, csrf_token, app):
+    """PR #19: only-update-fields-present semantics — POSTing just company
+    must NOT NULL out previously-set full_name/bio."""
+    authed_client.post("/account/profile",
+                       data=json.dumps({"full_name": "Alice", "bio": "hi"}),
+                       content_type="application/json",
+                       headers={"X-CSRF-Token": csrf_token})
+    authed_client.post("/account/profile",
+                       data=json.dumps({"company": "Acme"}),
+                       content_type="application/json",
+                       headers={"X-CSRF-Token": csrf_token})
+    with app.app_context():
+        u = User.query.first()
+        assert u.company == "Acme"
+        assert u.full_name == "Alice"
+        assert u.bio == "hi"
+
+
+def test_profile_company_too_long_rejected(authed_client, csrf_token):
+    r = authed_client.post("/account/profile",
+                           data=json.dumps({"company": "x" * 121}),
+                           content_type="application/json",
+                           headers={"X-CSRF-Token": csrf_token})
+    assert r.status_code == 400
+
+
 def test_profile_anon_returns_401(client, csrf_token):
     with client.session_transaction() as sess:
         sess["_csrf_token"] = csrf_token

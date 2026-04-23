@@ -50,6 +50,11 @@ class User(db.Model):
     totp_secret = db.Column(db.String(64))
     totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
     recovery_codes_json = db.Column(db.Text)
+    # PR #19: company name. The full_name/bio/profile_picture/date_of_birth
+    # columns above are kept for back-compat with the /account/profile route
+    # but no longer surfaced in the UI — the simplified account page asks
+    # only for company. Future PR can drop the unused columns.
+    company = db.Column(db.String(120))
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

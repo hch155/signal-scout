@@ -229,38 +229,23 @@
                 {% endif %}
             </div>
 
-            {# ── Profile ──────────────────────────────────────────────── #}
+            {# ── Profile (simplified in PR #19) ───────────────────────── #}
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3">
                 <h3 class="text-lg font-semibold dark:text-white">Profile</h3>
                 <form id="profile-form" class="space-y-3">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
-                    <label class="block">
-                        <span class="text-sm text-gray-500 dark:text-gray-400">Full name</span>
-                        <input type="text" name="full_name" maxlength="100"
-                               value="{{ user.full_name or '' }}"
-                               class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </label>
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Email</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ user.email }}</p>
+                    </div>
 
                     <label class="block">
-                        <span class="text-sm text-gray-500 dark:text-gray-400">Bio</span>
-                        <textarea name="bio" maxlength="500" rows="3"
-                                  class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">{{ user.bio or '' }}</textarea>
-                    </label>
-
-                    <label class="block">
-                        <span class="text-sm text-gray-500 dark:text-gray-400">Profile picture URL (https only)</span>
-                        <input type="url" name="profile_picture" maxlength="255"
-                               value="{{ user.profile_picture or '' }}"
-                               placeholder="https://example.com/me.jpg"
-                               class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </label>
-
-                    <label class="block">
-                        <span class="text-sm text-gray-500 dark:text-gray-400">Date of birth</span>
-                        <input type="date" name="date_of_birth"
-                               value="{{ user.date_of_birth.strftime('%Y-%m-%d') if user.date_of_birth else '' }}"
-                               class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Company</span>
+                        <input type="text" name="company" maxlength="120"
+                               value="{{ user.company or '' }}"
+                               placeholder="Acme Corp."
+                               class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </label>
 
                     <button type="submit"
@@ -308,7 +293,7 @@
             </div>
 
             {# ── Danger zone ─────────────────────────────────────────── #}
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border border-red-300 dark:border-red-700">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-2 border-red-500 dark:border-red-500">
                 <h3 class="text-lg font-semibold text-red-600 dark:text-red-400">Danger zone</h3>
                 <p class="text-sm text-gray-600 dark:text-gray-300">
                     Permanently delete your account and API key. This cannot be undone.
@@ -329,7 +314,7 @@
                     </label>
 
                     <button type="submit"
-                            class="bg-red-600 hover:bg-red-800 text-white text-sm font-bold py-2 px-3 rounded">
+                            class="bg-red-500 hover:bg-red-700 text-white text-sm font-bold py-2 px-3 rounded">
                         Delete my account
                     </button>
                     <p id="delete-status" class="text-sm mt-2"></p>

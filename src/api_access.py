@@ -254,6 +254,9 @@ def ensure_user_api_columns(app, db) -> None:
                 conn.execute(text("ALTER TABLE user ADD COLUMN totp_enabled BOOLEAN DEFAULT 0"))
             if 'recovery_codes_json' not in existing:
                 conn.execute(text("ALTER TABLE user ADD COLUMN recovery_codes_json TEXT"))
+            # PR #19: company column for the simplified account UI.
+            if 'company' not in existing:
+                conn.execute(text("ALTER TABLE user ADD COLUMN company VARCHAR(120)"))
 
         # Backfill api_key for any rows that lack one.
         users_without_key = User.query.filter(
