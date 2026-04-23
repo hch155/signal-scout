@@ -10,7 +10,7 @@
 # CVE hits, faster Cloud Run cold starts, smaller attack surface.
 
 # ── Builder ─────────────────────────────────────────────────────────────────
-FROM python:3.12.2-slim AS builder
+FROM python:3.12-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -22,7 +22,7 @@ COPY requirements.txt .
 RUN pip wheel --wheel-dir=/wheels -r requirements.txt
 
 # ── Runtime ─────────────────────────────────────────────────────────────────
-FROM python:3.12.2-slim AS runtime
+FROM python:3.12-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -34,8 +34,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Gunicorn (Cloud Run sends SIGTERM on scale-down — without an init that
 # reaps zombies, Gunicorn workers occasionally hang the shutdown for the
 # default 30s grace period).
+# `apt-get upgrade -y` pulls in security-fixed Debian packages that are
+# newer than the base image's frozen snapshot — closes ~tens of HIGH/CRIT
+# CVEs that Trivy flags on stale base images.
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends wget tini \
+    && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Non-root user with a known UID so volume mounts behave consistently
