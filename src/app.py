@@ -270,13 +270,28 @@ def home():
     slogan_title, slogan_text = random.choice(SLOGANS)
     return render_template('map.html', slogan_title=slogan_title, slogan_text=slogan_text)
 
+# PR #27: per-file (path, mtime) → rendered-html cache. /data, /tips,
+# /stats render markdown on every request — perf logs showed it
+# dominates p95 (~150ms). Markdown content lives in committed files that
+# only change at deploy time, so a process-local cache keyed by mtime
+# auto-invalidates without manual flush. Bounded implicitly by the small
+# number of .md files in src/content/.
+_MARKDOWN_HTML_CACHE: dict[str, tuple[float, str]] = {}
+
+
 def get_html_content_from_markdown(file_name):
     file_path = os.path.join(basedir, 'content', file_name)
-
+    try:
+        mtime = os.path.getmtime(file_path)
+    except OSError:
+        mtime = 0.0
+    cached = _MARKDOWN_HTML_CACHE.get(file_path)
+    if cached and cached[0] == mtime:
+        return cached[1]
     with open(file_path, 'r') as file:
         markdown_content = file.read()
     html_content = markdown.markdown(markdown_content, extensions=['tables', 'fenced_code'])
-
+    _MARKDOWN_HTML_CACHE[file_path] = (mtime, html_content)
     return html_content
 
 @app.route('/data')
