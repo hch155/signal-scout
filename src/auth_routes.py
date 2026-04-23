@@ -19,13 +19,14 @@ the blueprint object is defined here, the app pulls it in via init_app().
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from datetime import datetime, date
 
 from flask import Blueprint, jsonify, render_template, request, session
 
-from models import User, ApiKey
+from models import User, ApiKey, AuditEvent
 
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,29 @@ def _csrf_failures_total():
 
 def _login_failures_total():
     return _deps["login_failures_total"]
+
+
+# ── PR #15: audit log ──────────────────────────────────────────────────────
+
+def _audit(event_type: str, user_id: int, meta: dict | None = None) -> None:
+    """Record a security-sensitive action against `user_id`. Caller is
+    responsible for committing the txn — we add the row to the session so
+    it lands atomically with whatever business write triggered it."""
+    try:
+        ev = AuditEvent(
+            user_id=user_id,
+            event_type=event_type,
+            ip_address=(request.headers.get('X-Forwarded-For')
+                        or request.remote_addr or '')[:64],
+            user_agent=(request.headers.get('User-Agent') or '')[:256],
+            meta_json=json.dumps(meta) if meta else None,
+        )
+        _db().session.add(ev)
+    except Exception:
+        # Audit is best-effort — never let a failed log break the user-facing
+        # action. Log+continue.
+        logger.exception("Failed to record audit event %s for user_id=%s",
+                         event_type, user_id)
 
 
 def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
@@ -189,6 +213,11 @@ def login_user():
         session.clear()
         session['_csrf_token'] = preserved_csrf
         session['user_id'] = user.id
+        _audit('login.success', user.id)
+        try:
+            _db().session.commit()
+        except Exception:
+            _db().session.rollback()
         return jsonify({
             "success": True,
             "message": "Logged in successfully.",
@@ -196,6 +225,15 @@ def login_user():
         }), 200
     else:
         _login_failures_total().inc()
+        if user is not None:
+            # We know which account got the failed attempt — log it to the
+            # right user's audit trail. Anonymous failures (unknown email)
+            # still bump the metric but don't get a per-user row.
+            _audit('login.fail', user.id, {"reason": "bad_password"})
+            try:
+                _db().session.commit()
+            except Exception:
+                _db().session.rollback()
         return jsonify({"success": False, "message": "Invalid email or password."}), 401
 
 
@@ -208,7 +246,14 @@ def logout():
     # state is dropped. Combined with the Cache-Control: no-store header on
     # /account, this closes the "Back-button shows my account after logout"
     # leak.
+    user_id = session.get('user_id')
     session.clear()
+    if user_id:
+        _audit('logout', user_id)
+        try:
+            _db().session.commit()
+        except Exception:
+            _db().session.rollback()
     return jsonify({"success": True, "message": "You have been logged out."}), 200
 
 
@@ -236,7 +281,15 @@ def account_page():
                 .filter_by(user_id=user.id)
                 .order_by(ApiKey.revoked_at.is_(None).desc(), ApiKey.created_at.desc())
                 .all())
-    return render_template('account.html', user=user, api_keys=api_keys)
+    # PR #15: surface the user's last 20 audit events so they can spot
+    # logins they don't recognize, password changes they didn't initiate, etc.
+    audit_events = (AuditEvent.query
+                    .filter_by(user_id=user.id)
+                    .order_by(AuditEvent.created_at.desc())
+                    .limit(20)
+                    .all())
+    return render_template('account.html', user=user,
+                           api_keys=api_keys, audit_events=audit_events)
 
 
 def regenerate_api_key():
@@ -317,6 +370,7 @@ def update_profile():
     user.bio = bio
     user.profile_picture = profile_picture
     user.date_of_birth = parsed_dob
+    _audit('profile.updated', user.id)
     try:
         _db().session.commit()
     except Exception:
@@ -354,6 +408,7 @@ def change_password():
 
     user.password_hash = _bcrypt().generate_password_hash(new).decode('utf-8')
     user.last_password_change = datetime.utcnow()
+    _audit('password.changed', user.id)
     # Rotate session as a precaution: a stolen cookie should not survive a
     # password change. Preserve the CSRF token so the client's open form keeps
     # working for the success-toast follow-up.
@@ -438,6 +493,13 @@ def create_api_key():
     ak = ApiKey(user_id=user.id, name=name, key=new_key_value)
     _db().session.add(ak)
     try:
+        _db().session.flush()  # need ak.id for the audit meta below
+    except Exception:
+        _db().session.rollback()
+        logger.exception("create_api_key flush failed for user_id=%s", user.id)
+        return jsonify({'error': 'Could not create key'}), 500
+    _audit('apikey.created', user.id, {'name': name, 'key_id': ak.id})
+    try:
         _db().session.commit()
     except Exception:
         _db().session.rollback()
@@ -476,6 +538,7 @@ def revoke_api_key(key_id: int):
     # User.api_key directly sees the same picture.
     if ak.name == 'default' and user.api_key == ak.key:
         user.api_key = None
+    _audit('apikey.revoked', user.id, {'name': ak.name, 'key_id': ak.id})
     try:
         _db().session.commit()
     except Exception:

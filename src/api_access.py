@@ -150,6 +150,9 @@ def _resolve_api_key() -> User | None:
     ak = ApiKey.query.filter_by(key=raw, revoked_at=None).first()
     if ak is not None:
         ak.last_used_at = datetime.utcnow()
+        # PR #15: per-key call counter. Cheap inline UPDATE in the same txn
+        # as last_used_at — gives /account an honest "calls" column.
+        ak.total_calls = (ak.total_calls or 0) + 1
         try:
             db.session.commit()
         except Exception:

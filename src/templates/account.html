@@ -66,6 +66,7 @@
                             <th class="py-1 pr-2">Key</th>
                             <th class="py-1 pr-2">Created</th>
                             <th class="py-1 pr-2">Last used</th>
+                            <th class="py-1 pr-2">Calls</th>
                             <th class="py-1 pr-2">Status</th>
                             <th class="py-1 pr-2"></th>
                         </tr>
@@ -79,6 +80,7 @@
                             <td class="py-2 pr-2 text-gray-500 dark:text-gray-400">
                                 {% if k.last_used_at %}{{ k.last_used_at.strftime('%Y-%m-%d %H:%M') }}{% else %}never{% endif %}
                             </td>
+                            <td class="py-2 pr-2 text-gray-500 dark:text-gray-400">{{ k.total_calls or 0 }}</td>
                             <td class="py-2 pr-2">
                                 {% if k.revoked_at %}
                                     <span class="text-red-600 dark:text-red-400">revoked</span>
@@ -115,6 +117,40 @@
                         <code id="new-key-value" class="font-mono text-xs break-all dark:text-white"></code>
                     </div>
                 </form>
+            </div>
+
+            {# ── Recent activity (PR #15) ─────────────────────────────── #}
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3">
+                <h3 class="text-lg font-semibold dark:text-white">Recent activity</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Logins, password changes, key creations and revokes — last 20.
+                    Spot a login from an IP you don't recognize?
+                    Change your password and revoke any leaked keys.
+                </p>
+                {% if audit_events %}
+                <table class="w-full text-sm">
+                    <thead class="text-left text-gray-500 dark:text-gray-400">
+                        <tr>
+                            <th class="py-1 pr-2">When</th>
+                            <th class="py-1 pr-2">Event</th>
+                            <th class="py-1 pr-2">IP</th>
+                            <th class="py-1 pr-2">Agent</th>
+                        </tr>
+                    </thead>
+                    <tbody class="dark:text-white">
+                        {% for e in audit_events %}
+                        <tr class="border-t border-gray-200 dark:border-gray-700">
+                            <td class="py-2 pr-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ e.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td class="py-2 pr-2 font-mono text-xs">{{ e.event_type }}</td>
+                            <td class="py-2 pr-2 font-mono text-xs">{{ e.ip_address or '-' }}</td>
+                            <td class="py-2 pr-2 text-gray-500 dark:text-gray-400 text-xs truncate max-w-xs" title="{{ e.user_agent or '' }}">{{ (e.user_agent or '')[:60] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-sm text-gray-500 dark:text-gray-400 italic">No activity logged yet.</p>
+                {% endif %}
             </div>
 
             {# ── Profile ──────────────────────────────────────────────── #}

@@ -70,6 +70,10 @@ class ApiKey(db.Model):
     key = db.Column(db.String(64), unique=True, index=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     last_used_at = db.Column(db.DateTime)
+    # PR #15: per-key call counter. Bumped in api_access middleware alongside
+    # last_used_at on every authenticated API hit (single-row UPDATE in the
+    # same txn — cheap on SQLite).
+    total_calls = db.Column(db.Integer, default=0, nullable=False)
     # Soft-delete: revoked keys can't authenticate but are kept around so the
     # user can see what was active when (audit trail, rotation history).
     revoked_at = db.Column(db.DateTime)
@@ -79,3 +83,38 @@ class ApiKey(db.Model):
     @property
     def is_active(self) -> bool:
         return self.revoked_at is None
+
+
+class AuditEvent(db.Model):
+    """PR #15: per-user audit trail of security-sensitive actions.
+
+    Written by the auth_routes hooks for login/logout/password/profile/
+    delete/api-key flows. Surfaced in the /account "Recent activity" card
+    so users can spot suspicious activity (e.g. login from an IP they
+    don't recognize) and rotate credentials if needed.
+
+    FK has ON DELETE CASCADE so /account/delete also wipes the audit
+    history — keeps GDPR right-to-erasure clean.
+    """
+    __bind_key__ = 'users'
+    __tablename__ = 'audit_event'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer,
+                        db.ForeignKey('user.id', ondelete='CASCADE'),
+                        nullable=False, index=True)
+    event_type = db.Column(db.String(40), nullable=False, index=True)
+    # Snapshot of request metadata at the moment of the event. Truncated
+    # generously so a malicious UA header can't bloat a row.
+    ip_address = db.Column(db.String(64))
+    user_agent = db.Column(db.String(256))
+    # JSON-encoded extra context (e.g. login.fail → {"reason":"bad_password"};
+    # apikey.created → {"name":"iOS app","key_id":42}).
+    meta_json = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           nullable=False, index=True)
+
+    user = db.relationship('User',
+                           backref=db.backref('audit_events',
+                                              cascade='all, delete-orphan',
+                                              lazy='dynamic'))
