@@ -4,6 +4,18 @@ on:
   push:
     branches: [main]
 
+# Serialise CD runs so concurrent merges (e.g. three PRs landing within
+# the same minute) don't trigger three parallel `gcloud builds submit`
+# calls. Cloud Build polling has a 60-req/min/project quota that gets
+# blown when 3+ builds run side-by-side, surfacing as
+# `RESOURCE_EXHAUSTED 429 cloudbuild.googleapis.com/get_requests`.
+# `cancel-in-progress: false` keeps the in-flight build to completion;
+# subsequent ones queue. Newest commit always wins because GitHub
+# coalesces queued runs to the latest in the group.
+concurrency:
+  group: cd-cloud-run
+  cancel-in-progress: false
+
 
 jobs:
   deploy:
