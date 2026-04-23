@@ -119,19 +119,37 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', () => revokeKey(parseInt(btn.dataset.revokeId, 10)));
   });
 
-  // ── 2FA TOTP (PR #16) ───────────────────────────────────────────────
+  // ── 2FA TOTP (rebuilt PR #25) ──────────────────────────────────────
+  // Shared "render setup payload + un-hide the QR/verify card" — used by
+  // both initial setup and regenerate. Calls the appropriate endpoint
+  // and pipes {secret, otpauth_uri, qr_svg} into the shared #totp-setup-box.
+  function showTotpSetupPayload(data) {
+    const box = document.getElementById('totp-setup-box');
+    if (!data || !data.success || !box) return false;
+    document.getElementById('totp-secret').textContent = data.secret;
+    document.getElementById('totp-uri').textContent = data.otpauth_uri;
+    const qrHost = document.getElementById('totp-qr');
+    if (qrHost && typeof data.qr_svg === 'string' && data.qr_svg.startsWith('<svg')) {
+      // Server-rendered SVG — parse via DOMParser then attach. innerHTML
+      // would also work since the SVG is from our server, but DOMParser
+      // is the defense-in-depth path.
+      const parsed = new DOMParser().parseFromString(data.qr_svg, 'image/svg+xml');
+      qrHost.textContent = '';
+      qrHost.appendChild(parsed.documentElement);
+    }
+    box.classList.remove('hidden');
+    return true;
+  }
+
+  // Setup (when 2FA disabled)
   const totpSetupBtn = document.getElementById('totp-setup-btn');
-  const totpSetupBox = document.getElementById('totp-setup-box');
-  if (totpSetupBtn && totpSetupBox) {
+  if (totpSetupBtn) {
     totpSetupBtn.addEventListener('click', () => {
       globalFetch('/account/2fa/setup', {
         method: 'POST',
         headers: { 'X-CSRF-Token': getCsrfToken() },
       }).then(data => {
-        if (data && data.success) {
-          document.getElementById('totp-secret').textContent = data.secret;
-          document.getElementById('totp-uri').textContent = data.otpauth_uri;
-          totpSetupBox.classList.remove('hidden');
+        if (showTotpSetupPayload(data)) {
           totpSetupBtn.disabled = true;
         } else {
           alert((data && data.error) || 'Setup failed.');
@@ -140,6 +158,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Regenerate (when 2FA enabled): two-step — show password-confirm form,
+  // then on its submit call /account/2fa/regenerate which returns the
+  // same setup payload as /setup.
+  const totpRegenBtn = document.getElementById('totp-regen-btn');
+  const totpRegenConfirmForm = document.getElementById('totp-regen-confirm-form');
+  if (totpRegenBtn && totpRegenConfirmForm) {
+    totpRegenBtn.addEventListener('click', () => {
+      totpRegenConfirmForm.classList.toggle('hidden');
+    });
+    totpRegenConfirmForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const fd = new FormData(totpRegenConfirmForm);
+      const status = document.getElementById('totp-regen-status');
+      status.textContent = 'Generating…';
+      status.className = 'text-sm mt-2 text-gray-500';
+      globalFetch('/account/2fa/regenerate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+        body: JSON.stringify({ current_password: fd.get('current_password') }),
+      }).then(data => {
+        if (showTotpSetupPayload(data)) {
+          status.textContent = 'New secret ready — verify below.';
+          status.className = 'text-sm mt-2 text-green-600 dark:text-green-400';
+        } else {
+          status.textContent = (data && data.error) || 'Regenerate failed.';
+          status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+        }
+      }).catch(e => {
+        status.textContent = 'Error: ' + e.message;
+        status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+      });
+    });
+  }
+
+  // Verify (shared between setup + regenerate paths)
   const totpVerifyForm = document.getElementById('totp-verify-form');
   if (totpVerifyForm) {
     totpVerifyForm.addEventListener('submit', (e) => {
@@ -178,7 +231,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Disable (when 2FA enabled): button toggles the form, form submit calls API.
+  const totpDisableShowBtn = document.getElementById('totp-disable-show-btn');
   const totpDisableForm = document.getElementById('totp-disable-form');
+  if (totpDisableShowBtn && totpDisableForm) {
+    totpDisableShowBtn.addEventListener('click', () => {
+      totpDisableForm.classList.toggle('hidden');
+    });
+  }
   if (totpDisableForm) {
     totpDisableForm.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -206,6 +266,39 @@ document.addEventListener('DOMContentLoaded', () => {
         status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
       });
     });
+  }
+
+  // ── Live password requirements on /account change-password ────────
+  // Reuses the same data-criteria DOM contract as the registration modal
+  // (see common.js initializePasswordValidation). Inputs have unique IDs
+  // so they don't collide with the registration modal's inputs.
+  const newPwdInput = document.getElementById('changePasswordNew');
+  const confirmPwdInput = document.getElementById('changePasswordConfirm');
+  const reqsRoot = document.getElementById('changePasswordRequirements');
+  if (newPwdInput && confirmPwdInput && reqsRoot) {
+    const update = () => {
+      const pw = newPwdInput.value;
+      const cf = confirmPwdInput.value;
+      const checks = {
+        minLength: pw.length >= 8,
+        number: /\d/.test(pw),
+        uppercase: /[A-Z]/.test(pw),
+        lowercase: /[a-z]/.test(pw),
+        specialChar: /[!@#$%^&*(),.?":{}|<>]/.test(pw),
+        passwordMatch: pw.length >= 8 && pw === cf,
+      };
+      reqsRoot.querySelectorAll('.password-requirement').forEach(el => {
+        const ok = checks[el.dataset.criteria];
+        el.classList.toggle('text-red-500', !ok);
+        el.classList.toggle('dark:text-red-400', !ok);
+        el.classList.toggle('text-green-600', ok);
+        el.classList.toggle('dark:text-green-400', ok);
+        const ind = el.querySelector('.indicator');
+        if (ind) ind.textContent = ok ? '✓' : '✗';
+      });
+    };
+    newPwdInput.addEventListener('input', update);
+    confirmPwdInput.addEventListener('input', update);
   }
 
   // ── Delete account form ─────────────────────────────────────────────

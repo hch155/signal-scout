@@ -62,6 +62,49 @@ def test_setup_returns_secret_and_uri(authed_client, csrf_token):
     assert body["otpauth_uri"].startswith("otpauth://totp/")
     # Issuer is encoded in the URI
     assert "signal-scout" in body["otpauth_uri"]
+    # PR #25: setup also returns a server-rendered QR (SVG) so the user
+    # doesn't have to type the secret manually.
+    assert body.get("qr_svg", "").startswith("<svg")
+
+
+KNOWN_PW_REGEN = "Aa1!aaaaaa"
+
+
+def test_regenerate_requires_password(authed_client, csrf_token, app):
+    _enable_2fa(authed_client, csrf_token, app)
+    # No password → 401
+    r = authed_client.post("/account/2fa/regenerate",
+                           data=json.dumps({"current_password": "WRONG-PW1!"}),
+                           content_type="application/json",
+                           headers={"X-CSRF-Token": csrf_token})
+    assert r.status_code == 401
+    # Right password → 200 + new secret + qr_svg
+    r = authed_client.post("/account/2fa/regenerate",
+                           data=json.dumps({"current_password": KNOWN_PW_REGEN}),
+                           content_type="application/json",
+                           headers={"X-CSRF-Token": csrf_token})
+    assert r.status_code == 200, r.data
+    body = r.get_json()
+    assert body["success"] is True
+    assert len(body["secret"]) >= 16
+    assert body["otpauth_uri"].startswith("otpauth://totp/")
+    assert body["qr_svg"].startswith("<svg")
+
+
+def test_regenerate_when_2fa_off_returns_400(authed_client, csrf_token):
+    # 2FA not enabled — regenerate should refuse and tell caller to use setup
+    r = authed_client.post("/account/2fa/regenerate",
+                           data=json.dumps({"current_password": KNOWN_PW_REGEN}),
+                           content_type="application/json",
+                           headers={"X-CSRF-Token": csrf_token})
+    assert r.status_code == 400
+
+
+def test_regenerate_no_csrf_403(authed_client):
+    r = authed_client.post("/account/2fa/regenerate",
+                           data=json.dumps({"current_password": KNOWN_PW_REGEN}),
+                           content_type="application/json")
+    assert r.status_code == 403
 
 
 def test_verify_with_wrong_code_fails(authed_client, csrf_token):

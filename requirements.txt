@@ -30,6 +30,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 pyotp==2.9.0
 pytz==2024.1
+segno==1.6.1
 requests==2.33.1
 rich==15.0.0
 six==1.16.0

@@ -161,6 +161,14 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
     auth_bp.add_url_rule("/login/totp", endpoint="login_totp",
                          view_func=limiter.limit("10 per minute")(login_totp),
                          methods=["POST"])
+    # PR #25: rotate the TOTP secret without disabling 2FA outright. Same
+    # contract as setup → returns secret + QR + new recovery codes — but
+    # only callable when 2FA is currently enabled and only after password
+    # confirmation. Old secret + recovery codes invalidated atomically on
+    # totp_verify success.
+    auth_bp.add_url_rule("/account/2fa/regenerate", endpoint="totp_regenerate",
+                         view_func=limiter.limit("5 per hour")(totp_regenerate),
+                         methods=["POST"])
 
     app.register_blueprint(auth_bp)
 
@@ -638,6 +646,14 @@ def totp_setup():
     secret = pyotp.random_base32()
     uri = pyotp.TOTP(secret).provisioning_uri(name=user.email, issuer_name=_ISSUER)
 
+    # Render the URI as an SVG QR code so the user can scan with their
+    # phone instead of typing the secret manually. segno is a pure-Python
+    # QR lib (no Pillow); svg_inline() returns an XML string we can drop
+    # straight into the page via DOMParser.
+    import segno
+    qr = segno.make(uri, error='M')
+    qr_svg = qr.svg_inline(scale=5, dark='#111827', light='#ffffff', border=2)
+
     # Park the candidate secret in the session. totp_verify moves it onto
     # the user row after the user proves possession with a valid code.
     session['pending_totp_secret'] = secret
@@ -645,6 +661,7 @@ def totp_setup():
         'success': True,
         'secret': secret,
         'otpauth_uri': uri,
+        'qr_svg': qr_svg,
     }), 200
 
 
@@ -787,4 +804,44 @@ def login_totp():
     return jsonify({
         'success': True,
         'csrf_token': preserved_csrf,
+    }), 200
+
+
+def totp_regenerate():
+    """PR #25: rotate TOTP secret without disabling 2FA. Mints a new
+    candidate secret + QR (parked in session like setup), but caller must
+    confirm with current password first to prove possession of the
+    account. The current secret keeps working until totp_verify is called
+    with a code from the new authenticator entry — at which point the
+    swap is atomic (new secret + new recovery codes, old ones invalidated)."""
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='totp_regenerate').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    user, err = _current_user_or_401()
+    if err:
+        return err
+    if not user.totp_enabled:
+        return jsonify({'error': '2FA is not enabled — use /account/2fa/setup instead'}), 400
+
+    payload = request.get_json(silent=True) or request.form
+    password = payload.get('current_password') or ''
+    if not _bcrypt().check_password_hash(user.password_hash, password):
+        _login_failures_total().inc()
+        return jsonify({'error': 'Current password is incorrect'}), 401
+
+    pyotp = _pyotp()
+    secret = pyotp.random_base32()
+    uri = pyotp.TOTP(secret).provisioning_uri(name=user.email, issuer_name=_ISSUER)
+    import segno
+    qr_svg = segno.make(uri, error='M').svg_inline(
+        scale=5, dark='#111827', light='#ffffff', border=2)
+
+    # Park as pending — totp_verify swaps it onto the user row when the
+    # caller proves they got it into their authenticator.
+    session['pending_totp_secret'] = secret
+    return jsonify({
+        'success': True,
+        'secret': secret,
+        'otpauth_uri': uri,
+        'qr_svg': qr_svg,
     }), 200

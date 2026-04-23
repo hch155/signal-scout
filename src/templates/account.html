@@ -83,14 +83,14 @@
                             <td class="py-2 pr-2 text-gray-500 dark:text-gray-400">{{ k.total_calls or 0 }}</td>
                             <td class="py-2 pr-2">
                                 {% if k.revoked_at %}
-                                    <span class="text-red-600 dark:text-red-400">revoked</span>
+                                    <span class="inline-block px-2 py-0.5 rounded bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200 text-xs font-semibold">revoked</span>
                                 {% else %}
-                                    <span class="text-green-600 dark:text-green-400">active</span>
+                                    <span class="inline-block px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs font-semibold">active</span>
                                 {% endif %}
                             </td>
                             <td class="py-2 pr-2 text-right">
                                 {% if not k.revoked_at %}
-                                <button data-revoke-id="{{ k.id }}" class="text-red-600 hover:underline text-xs">Revoke</button>
+                                <button data-revoke-id="{{ k.id }}" class="text-red-600 dark:text-red-400 hover:underline text-xs font-medium">Revoke</button>
                                 {% endif %}
                             </td>
                         </tr>
@@ -153,80 +153,118 @@
                 {% endif %}
             </div>
 
-            {# ── 2FA TOTP (PR #16) ────────────────────────────────────── #}
+            {# ── 2FA TOTP (rebuilt PR #25) ────────────────────────────── #}
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3">
-                <h3 class="text-lg font-semibold dark:text-white">Two-factor authentication (TOTP)</h3>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Two-factor authentication (TOTP)</h3>
+
                 {% if user.totp_enabled %}
-                    <p class="text-sm text-green-600 dark:text-green-400">
-                        2FA is <strong>enabled</strong>. Every login asks for a 6-digit code from your authenticator app.
+                    <p class="text-sm text-gray-700 dark:text-gray-200">
+                        Status:
+                        <span class="inline-block px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs font-semibold align-middle">enabled</span>
+                        — every login asks for a 6-digit code from your authenticator app.
                     </p>
-                    <form id="totp-disable-form" class="space-y-3">
-                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                        <label class="block">
-                            <span class="text-sm text-gray-500 dark:text-gray-400">Current password</span>
-                            <input type="password" name="current_password" required
-                                   class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded">
-                        </label>
-                        <label class="block">
-                            <span class="text-sm text-gray-500 dark:text-gray-400">Current 6-digit code</span>
-                            <input type="text" name="code" required pattern="[0-9 ]{6,7}" maxlength="7"
-                                   inputmode="numeric"
-                                   class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded">
-                        </label>
-                        <button type="submit"
+
+                    <div class="flex gap-2">
+                        <button id="totp-regen-btn"
+                                class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded">
+                            Regenerate
+                        </button>
+                        <button id="totp-disable-show-btn"
                                 class="bg-red-500 hover:bg-red-700 text-white text-sm font-bold py-2 px-3 rounded">
                             Disable 2FA
                         </button>
+                    </div>
+
+                    {# Disable confirmation form, hidden by default #}
+                    <form id="totp-disable-form" class="hidden space-y-3 mt-3 p-3 bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded">
+                        <p class="text-xs text-red-700 dark:text-red-200">
+                            Re-confirm to disable. Account will only be protected by your password.
+                        </p>
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                        <label class="block">
+                            <span class="text-sm text-gray-700 dark:text-gray-200">Current password</span>
+                            <input type="password" name="current_password" required
+                                   class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
+                        </label>
+                        <label class="block">
+                            <span class="text-sm text-gray-700 dark:text-gray-200">Current 6-digit code</span>
+                            <input type="text" name="code" required pattern="[0-9 ]{6,7}" maxlength="7"
+                                   inputmode="numeric"
+                                   class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
+                        </label>
+                        <button type="submit"
+                                class="bg-red-500 hover:bg-red-700 text-white text-sm font-bold py-2 px-3 rounded">
+                            Confirm disable
+                        </button>
                         <p id="totp-disable-status" class="text-sm mt-2"></p>
                     </form>
+
+                    {# Regenerate password-confirm form, hidden by default. On
+                       success, the SAME #totp-setup-box / #totp-verify-form is
+                       reused — that's why those live below this branch too. #}
+                    <form id="totp-regen-confirm-form" class="hidden space-y-3 mt-3 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 rounded">
+                        <p class="text-xs text-gray-700 dark:text-gray-200">
+                            Confirm with your current password — we'll mint a new secret you can pair with your authenticator. The current code keeps working until the new one is verified.
+                        </p>
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                        <label class="block">
+                            <span class="text-sm text-gray-700 dark:text-gray-200">Current password</span>
+                            <input type="password" name="current_password" required
+                                   class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
+                        </label>
+                        <button type="submit"
+                                class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded">
+                            Generate new secret
+                        </button>
+                        <p id="totp-regen-status" class="text-sm mt-2"></p>
+                    </form>
                 {% else %}
-                    <p class="text-sm text-gray-600 dark:text-gray-300">
-                        Add a 6-digit code from a TOTP authenticator (Google Authenticator,
-                        Authy, 1Password, Bitwarden) to every login.
+                    <p class="text-sm text-gray-700 dark:text-gray-200">
+                        Add a 6-digit code from a TOTP authenticator (Google Authenticator, Authy, 1Password, Bitwarden) to every login.
                     </p>
                     <button id="totp-setup-btn"
                             class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded">
                         Set up 2FA
                     </button>
-
-                    <div id="totp-setup-box" class="hidden mt-3 space-y-2 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 rounded">
-                        <p class="text-xs text-gray-700 dark:text-gray-200">
-                            Add this account to your authenticator. Either scan the QR your
-                            app generates from this URI, or paste the secret manually:
-                        </p>
-                        <div>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">Secret</p>
-                            <code id="totp-secret" class="font-mono text-xs break-all dark:text-white"></code>
-                        </div>
-                        <div>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">Provisioning URI</p>
-                            <code id="totp-uri" class="font-mono text-xs break-all dark:text-white"></code>
-                        </div>
-                        <form id="totp-verify-form" class="space-y-2">
-                            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                            <label class="block">
-                                <span class="text-sm text-gray-500 dark:text-gray-400">Enter the 6-digit code shown in your app to confirm</span>
-                                <input type="text" name="code" required pattern="[0-9 ]{6,7}" maxlength="7"
-                                       inputmode="numeric"
-                                       class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded">
-                            </label>
-                            <button type="submit"
-                                    class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded">
-                                Verify and enable
-                            </button>
-                            <p id="totp-verify-status" class="text-sm mt-2"></p>
-                        </form>
-                    </div>
-
-                    <div id="totp-recovery-box" class="hidden mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded">
-                        <p class="text-xs text-yellow-800 dark:text-yellow-200 mb-2">
-                            <strong>Save these recovery codes somewhere safe.</strong> Each
-                            works once, in case you lose access to your authenticator app.
-                            They will not be shown again.
-                        </p>
-                        <ul id="totp-recovery-list" class="font-mono text-sm dark:text-white space-y-1"></ul>
-                    </div>
                 {% endif %}
+
+                {# Shared setup/verify box. JS un-hides it after either
+                   /account/2fa/setup or /account/2fa/regenerate succeeds. #}
+                <div id="totp-setup-box" class="hidden mt-3 space-y-3 p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">
+                    <p class="text-sm text-gray-700 dark:text-gray-200">
+                        Scan this QR code with your authenticator (or paste the secret manually):
+                    </p>
+                    <div id="totp-qr" class="flex justify-center bg-white p-3 rounded"></div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Secret</p>
+                        <code id="totp-secret" class="font-mono text-xs break-all text-gray-900 dark:text-gray-100"></code>
+                    </div>
+                    <details class="text-xs">
+                        <summary class="cursor-pointer text-gray-500 dark:text-gray-400">Show provisioning URI</summary>
+                        <code id="totp-uri" class="font-mono text-xs break-all text-gray-700 dark:text-gray-300 mt-1 block"></code>
+                    </details>
+                    <form id="totp-verify-form" class="space-y-2 pt-2 border-t border-gray-300 dark:border-gray-600">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                        <label class="block">
+                            <span class="text-sm text-gray-700 dark:text-gray-200">Enter the 6-digit code shown in your app</span>
+                            <input type="text" name="code" required pattern="[0-9 ]{6,7}" maxlength="7"
+                                   inputmode="numeric"
+                                   class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
+                        </label>
+                        <button type="submit"
+                                class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded">
+                            Verify and enable
+                        </button>
+                        <p id="totp-verify-status" class="text-sm mt-2"></p>
+                    </form>
+                </div>
+
+                <div id="totp-recovery-box" class="hidden mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded">
+                    <p class="text-xs text-yellow-800 dark:text-yellow-200 mb-2">
+                        <strong>Save these recovery codes somewhere safe.</strong> Each works once, in case you lose access to your authenticator app. They will not be shown again.
+                    </p>
+                    <ul id="totp-recovery-list" class="font-mono text-sm text-gray-900 dark:text-white space-y-1"></ul>
+                </div>
             </div>
 
             {# ── Profile (simplified in PR #19) ───────────────────────── #}
@@ -270,19 +308,24 @@
 
                     <label class="block">
                         <span class="text-sm text-gray-500 dark:text-gray-400">New password</span>
-                        <input type="password" name="new_password" required autocomplete="new-password"
+                        <input type="password" id="changePasswordNew" name="new_password" required autocomplete="new-password"
                                class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </label>
 
                     <label class="block">
                         <span class="text-sm text-gray-500 dark:text-gray-400">Confirm new password</span>
-                        <input type="password" name="confirm_password" required autocomplete="new-password"
+                        <input type="password" id="changePasswordConfirm" name="confirm_password" required autocomplete="new-password"
                                class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </label>
 
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                        At least 8 characters, with a number, uppercase, lowercase and a symbol.
-                    </p>
+                    <div id="changePasswordRequirements" class="text-xs space-y-0.5">
+                        <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="minLength"><span class="indicator">✗</span> At least 8 characters</p>
+                        <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="number"><span class="indicator">✗</span> Contains a number</p>
+                        <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="uppercase"><span class="indicator">✗</span> Contains an uppercase letter</p>
+                        <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="lowercase"><span class="indicator">✗</span> Contains a lowercase letter</p>
+                        <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="specialChar"><span class="indicator">✗</span> Contains a special character</p>
+                        <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="passwordMatch"><span class="indicator">✗</span> Passwords match</p>
+                    </div>
 
                     <button type="submit"
                             class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded">
