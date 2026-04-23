@@ -101,7 +101,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Trivy filesystem scan (HIGH/CRITICAL)
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           scan-type: fs
           scan-ref: .
@@ -115,7 +115,7 @@ jobs:
         run: docker build -t signal-scout:ci .
 
       - name: Trivy image scan (HIGH/CRITICAL)
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           scan-type: image
           image-ref: signal-scout:ci
