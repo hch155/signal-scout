@@ -56,12 +56,19 @@ def test_submit_location_invalid_types(csrf_client, csrf_token):
 
 
 @pytest.mark.parametrize("lat,lng,expected", [
-    (49.0, 14.0, 200),    # corner
-    (55.5, 24.2, 200),    # opposite corner
-    (48.99, 14.0, 400),   # just outside south
-    (55.51, 24.0, 400),   # just outside north
-    (52.0, 13.99, 400),   # west of bound
-    (52.0, 24.21, 400),   # east of bound
+    # PR #29 relaxed the strict PL bounds to ±0.05° (~5 km buffer) so
+    # a user clicking just over a border isn't abruptly 400'd.
+    # Strict PL corners still pass.
+    (49.0, 14.0, 200),    # south-west corner (strict PL)
+    (55.5, 24.2, 200),    # north-east corner (strict PL)
+    # Inside the 5-km buffer → accepted.
+    (48.96, 14.0, 200),   # 4 km south of strict PL
+    (55.54, 24.0, 200),   # 4 km north of strict PL
+    # Outside the buffer → rejected.
+    (48.90, 14.0, 400),   # too far south
+    (55.60, 24.0, 400),   # too far north
+    (52.0, 13.90, 400),   # too far west
+    (52.0, 24.30, 400),   # too far east
 ])
 def test_submit_location_boundary_coords(csrf_client, csrf_token, lat, lng, expected):
     r = _post_json(csrf_client, "/submit_location",

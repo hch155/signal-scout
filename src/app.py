@@ -101,6 +101,18 @@ def _make_session_permanent():
 
 limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["16 per minute"])
 
+# PL geographic bounds for input validation. Strict PL would be
+# 49.0–55.5°N / 14.0–24.2°E — but the dataset includes some maritime
+# stations in the Polish EEZ (latarnie, offshore wind), and a user
+# clicking just over the German / Czech / Belarussian / Lithuanian
+# border by 1-2 km shouldn't get a curt 400. ±0.05° (~5 km) buffer.
+PL_LAT_MIN, PL_LAT_MAX = 48.95, 55.55
+PL_LNG_MIN, PL_LNG_MAX = 13.95, 24.25
+
+
+def _coords_in_bounds(lat: float, lng: float) -> bool:
+    return PL_LAT_MIN <= lat <= PL_LAT_MAX and PL_LNG_MIN <= lng <= PL_LNG_MAX
+
 # Wire Prometheus exporter (/metrics with bearer-token auth) and /healthz.
 init_observability(app)
 
@@ -334,10 +346,23 @@ def submit_location():
         user_lat = float(data['lat'])
         user_lng = float(data['lng'])
 
-        if not (49.0 <= user_lat <= 55.5 and 14.0 <= user_lng <= 24.2):
+        if not _coords_in_bounds(user_lat, user_lng):
             return jsonify({'error': 'Coordinates outside supported area'}), 400
 
         session['user_location'] = {'lat': user_lat, 'lng': user_lng}
+        # PR #29: persist saved location to User row so the snapshot/diff
+        # feed in /account/changes has a centre point. Best-effort: a write
+        # failure here must NOT break the user-facing /submit_location flow.
+        if 'user_id' in session:
+            try:
+                user = db.session.get(User, session['user_id'])
+                if user is not None:
+                    user.last_location_lat = user_lat
+                    user.last_location_lng = user_lng
+                    db.session.commit()
+            except Exception:
+                db.session.rollback()
+                app.logger.exception("Could not persist user location")
         limit = data.get('limit', 9)
         max_distance = data.get('max_distance', None)
 
@@ -366,7 +391,7 @@ def get_stations():
         if user_lat and user_lng:
             user_lat = float(user_lat)
             user_lng = float(user_lng)
-            if not (49.0 <= user_lat <= 55.5 and 14.0 <= user_lng <= 24.2):
+            if not _coords_in_bounds(user_lat, user_lng):
                 return jsonify({'error': 'Coordinates outside supported area'}), 400
         else:
             user_location = session.get('user_location')
@@ -578,7 +603,7 @@ def embed_widget():
     except (TypeError, ValueError):
         return jsonify({'error': 'Invalid parameters'}), 400
 
-    if has_coords and not (49.0 <= lat <= 55.5 and 14.0 <= lng <= 24.2):
+    if has_coords and not _coords_in_bounds(lat, lng):
         return jsonify({'error': 'Coordinates outside supported area'}), 400
 
     # auto=1 → request browser geolocation immediately on page load.

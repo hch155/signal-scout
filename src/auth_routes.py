@@ -26,7 +26,7 @@ from datetime import datetime, date, timedelta
 
 from flask import Blueprint, jsonify, render_template, request, session
 
-from models import User, ApiKey, AuditEvent
+from models import User, ApiKey, AuditEvent, UserStationSnapshot
 
 
 logger = logging.getLogger(__name__)
@@ -184,6 +184,12 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
     auth_bp.add_url_rule("/account/2fa/regenerate", endpoint="totp_regenerate",
                          view_func=limiter.limit("5 per hour")(totp_regenerate),
                          methods=["POST"])
+    # PR #29: per-user station diff feed.
+    auth_bp.add_url_rule("/account/snapshot", endpoint="take_snapshot",
+                         view_func=limiter.limit("6 per hour")(take_snapshot),
+                         methods=["POST"])
+    auth_bp.add_url_rule("/account/changes", endpoint="changes_page",
+                         view_func=changes_page, methods=["GET"])
 
     app.register_blueprint(auth_bp)
 
@@ -899,3 +905,168 @@ def totp_regenerate():
         'otpauth_uri': uri,
         'qr_svg': qr_svg,
     }), 200
+
+
+# ── PR #29: per-user station diff feed ────────────────────────────────────
+
+# Default snapshot radius if the caller doesn't specify one. 5 km was the
+# initial pick but it's too tight in rural areas (Bieszczady, north-east —
+# typically 0-3 BTS within 5 km). 15 km covers most of Poland reasonably
+# while still keeping payloads compact in cities (~100-200 stations max).
+# Caller can override per-snapshot via JSON `radius_km`. Adaptive radius
+# (auto-grow until N ≥ 10) is roadmapped.
+SNAPSHOT_RADIUS_KM = 15.0
+SNAPSHOT_RADIUS_MIN_KM = 1.0
+SNAPSHOT_RADIUS_MAX_KM = 50.0
+
+
+def _compute_snapshot_payload(user: 'User', radius_km: float = SNAPSHOT_RADIUS_KM):
+    """Run find_nearest_stations around the user's saved location and
+    return (centre_lat, centre_lng, stations_list) suitable for
+    serialising into UserStationSnapshot.stations_json. None-return when
+    the user has no saved location yet.
+    """
+    if user.last_location_lat is None or user.last_location_lng is None:
+        return None
+    from queries import find_nearest_stations
+    result = find_nearest_stations(
+        user.last_location_lat, user.last_location_lng,
+        max_distance=radius_km,
+        limit=None,
+    )
+    return (user.last_location_lat, user.last_location_lng,
+            result.get('stations', []))
+
+
+def _station_key(st: dict) -> str:
+    """Stable identity of a BTS row within a snapshot. basestation_id can
+    be null in the dataset, so fall back to (lat, lng, provider) when
+    missing."""
+    bid = st.get('basestation_id')
+    if bid:
+        return str(bid).upper()
+    return f"{st.get('latitude'):.6f},{st.get('longitude'):.6f},{st.get('service_provider') or '-'}"
+
+
+def compute_snapshot_diff(prev: list[dict], curr: list[dict]) -> dict:
+    """Compare two snapshot station lists; return added / removed /
+    band_changed sub-lists."""
+    prev_by_id = {_station_key(s): s for s in prev}
+    curr_by_id = {_station_key(s): s for s in curr}
+
+    added = [curr_by_id[k] for k in curr_by_id.keys() - prev_by_id.keys()]
+    removed = [prev_by_id[k] for k in prev_by_id.keys() - curr_by_id.keys()]
+    band_changed = []
+    for k in curr_by_id.keys() & prev_by_id.keys():
+        prev_bands = set(prev_by_id[k].get('frequency_bands') or [])
+        curr_bands = set(curr_by_id[k].get('frequency_bands') or [])
+        if prev_bands != curr_bands:
+            band_changed.append({
+                'station': curr_by_id[k],
+                'added_bands': sorted(curr_bands - prev_bands),
+                'removed_bands': sorted(prev_bands - curr_bands),
+            })
+    return {'added': added, 'removed': removed, 'band_changed': band_changed}
+
+
+def take_snapshot():
+    """POST /account/snapshot — capture a fresh snapshot at the user's
+    saved location. Idempotent-ish: will record a new snapshot every
+    call (rate-limited to 6/hour) so the user can force a refresh after
+    importing a new stations.db. Long-term this endpoint is also the
+    hook the monthly refresh job will call on behalf of each user.
+
+    Accepts JSON `{radius_km: float}` — clamped to [1, 50]. Default 15.
+    Rural users (Bieszczady etc.) need a wider radius than urban users
+    to get a meaningful sample.
+    """
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='take_snapshot').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    user, err = _current_user_or_401()
+    if err:
+        return err
+
+    body = request.get_json(silent=True) or {}
+    raw_radius = body.get('radius_km')
+    radius = SNAPSHOT_RADIUS_KM
+    if raw_radius is not None:
+        try:
+            radius = float(raw_radius)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'radius_km must be a number'}), 400
+        if radius < SNAPSHOT_RADIUS_MIN_KM or radius > SNAPSHOT_RADIUS_MAX_KM:
+            return jsonify({
+                'error': f'radius_km must be between {SNAPSHOT_RADIUS_MIN_KM} and {SNAPSHOT_RADIUS_MAX_KM}',
+            }), 400
+
+    payload = _compute_snapshot_payload(user, radius_km=radius)
+    if payload is None:
+        return jsonify({
+            'error': 'No saved location yet — click the map once while logged in.',
+        }), 400
+    centre_lat, centre_lng, stations = payload
+
+    import json as _json
+    snap = UserStationSnapshot(
+        user_id=user.id,
+        centre_lat=centre_lat,
+        centre_lng=centre_lng,
+        radius_km=radius,
+        stations_json=_json.dumps(stations),
+    )
+    _db().session.add(snap)
+    try:
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+        logger.exception("take_snapshot commit failed for user_id=%s", user.id)
+        return jsonify({'error': 'Could not save snapshot'}), 500
+    _audit('snapshot.taken', user.id, {
+        'radius_km': radius,
+        'count': len(stations),
+    })
+    try:
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+    return jsonify({
+        'success': True,
+        'snapshot_id': snap.id,
+        'count': len(stations),
+        'taken_at': snap.taken_at.isoformat() + 'Z',
+    }), 200
+
+
+def changes_page():
+    """GET /account/changes — render the diff between the user's two most
+    recent snapshots (or 'no changes yet' placeholder). Light-weight: no
+    pagination, last-2 only; we can expand to history later if someone
+    asks."""
+    user, err = _current_user_or_401()
+    if err:
+        return err
+
+    import json as _json
+    snaps = (UserStationSnapshot.query
+             .filter_by(user_id=user.id)
+             .order_by(UserStationSnapshot.taken_at.desc())
+             .limit(2)
+             .all())
+
+    if not snaps:
+        return render_template('account_changes.html', user=user,
+                               snapshots=[], diff=None)
+
+    curr = _json.loads(snaps[0].stations_json)
+    if len(snaps) == 1:
+        # Only one snapshot → nothing to diff against yet.
+        return render_template('account_changes.html', user=user,
+                               snapshots=snaps, diff=None,
+                               current_count=len(curr))
+
+    prev = _json.loads(snaps[1].stations_json)
+    diff = compute_snapshot_diff(prev, curr)
+    return render_template('account_changes.html', user=user,
+                           snapshots=snaps, diff=diff,
+                           current_count=len(curr))

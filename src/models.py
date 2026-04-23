@@ -55,6 +55,12 @@ class User(db.Model):
     # but no longer surfaced in the UI — the simplified account page asks
     # only for company. Future PR can drop the unused columns.
     company = db.Column(db.String(120))
+    # PR #29: per-user station diff feed.
+    # last_location_* is the centre of the snapshot radius. Persisted by
+    # /submit_location whenever a logged-in user clicks the map. Anonymous
+    # users + users who never clicked have NULL → no snapshots.
+    last_location_lat = db.Column(db.Float)
+    last_location_lng = db.Column(db.Float)
     # PR #26: account lockout. Counter bumped on each failed /login;
     # reset on success. Once it hits LOCKOUT_THRESHOLD, locked_until is
     # stamped with now + LOCKOUT_DURATION; subsequent login attempts are
@@ -138,5 +144,39 @@ class AuditEvent(db.Model):
 
     user = db.relationship('User',
                            backref=db.backref('audit_events',
+                                              cascade='all, delete-orphan',
+                                              lazy='dynamic'))
+
+
+class UserStationSnapshot(db.Model):
+    """PR #29: per-user station snapshot. Captures the list of BTS within
+    `radius_km` of the user's saved location at `taken_at`. Diffs are
+    computed on the fly when /account/changes renders, comparing
+    consecutive snapshots — no separate diff table.
+
+    JSON payload format: list of {basestation_id, service_provider,
+    location, latitude, longitude, frequency_bands: [...], distance}.
+
+    FK ON DELETE CASCADE so /account/delete wipes the trail (GDPR).
+    """
+    __bind_key__ = 'users'
+    __tablename__ = 'user_station_snapshot'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer,
+                        db.ForeignKey('user.id', ondelete='CASCADE'),
+                        nullable=False, index=True)
+    taken_at = db.Column(db.DateTime, default=datetime.utcnow,
+                         nullable=False, index=True)
+    # Centre of the snapshot — copied from User.last_location_* at the
+    # moment the snapshot was taken so we can render diffs even after
+    # the user moves their saved location.
+    centre_lat = db.Column(db.Float, nullable=False)
+    centre_lng = db.Column(db.Float, nullable=False)
+    radius_km = db.Column(db.Float, default=5.0, nullable=False)
+    stations_json = db.Column(db.Text, nullable=False)
+
+    user = db.relationship('User',
+                           backref=db.backref('station_snapshots',
                                               cascade='all, delete-orphan',
                                               lazy='dynamic'))

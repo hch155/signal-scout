@@ -262,6 +262,11 @@ def ensure_user_api_columns(app, db) -> None:
                 conn.execute(text("ALTER TABLE user ADD COLUMN failed_login_attempts INTEGER NOT NULL DEFAULT 0"))
             if 'locked_until' not in existing:
                 conn.execute(text("ALTER TABLE user ADD COLUMN locked_until DATETIME"))
+            # PR #29: per-user station diff feed.
+            if 'last_location_lat' not in existing:
+                conn.execute(text("ALTER TABLE user ADD COLUMN last_location_lat FLOAT"))
+            if 'last_location_lng' not in existing:
+                conn.execute(text("ALTER TABLE user ADD COLUMN last_location_lng FLOAT"))
 
         # Backfill api_key for any rows that lack one.
         users_without_key = User.query.filter(
