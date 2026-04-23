@@ -76,7 +76,13 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["gunicorn", \
      "--workers=2", \
+     "--preload", \
      "--timeout=30", \
      "--bind=0.0.0.0:8080", \
      "--access-logfile=-", \
      "src.app:app"]
+# --preload: import app ONCE in master before forking workers. Critical
+# for SQLite + db.create_all() — without preload, every worker calls
+# create_all in parallel and racing CREATE TABLE causes
+# "table already exists" sqlite3.OperationalError → worker boot crash
+# → intermittent 500s on prod.
