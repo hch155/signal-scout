@@ -50,7 +50,10 @@ def test_login_fail_writes_audit_for_known_user(client, csrf_token, app):
     fails = _events_for(app, event_type='login.fail')
     assert len(fails) == 1
     meta = json.loads(fails[0].meta_json)
-    assert meta == {"reason": "bad_password"}
+    # PR #26 added an "attempts" counter to the meta payload; assert
+    # subset rather than exact equality to keep the test forward-compatible.
+    assert meta.get("reason") == "bad_password"
+    assert isinstance(meta.get("attempts"), int)
 
 
 def test_login_fail_for_unknown_email_does_not_audit(client, csrf_token, app):
