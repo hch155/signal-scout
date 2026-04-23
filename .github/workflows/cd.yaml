@@ -65,6 +65,7 @@ jobs:
             --memory=2Gi \
             --cpu=1 \
             --timeout=60 \
+            --session-affinity \
             --update-env-vars SECRET_KEY="${SECRET_KEY}",ENV=PRODUCTION,METRICS_BEARER_TOKEN="${METRICS_BEARER_TOKEN}",PLAUSIBLE_DOMAIN="${PLAUSIBLE_DOMAIN}",PLAUSIBLE_SCRIPT_URL="${PLAUSIBLE_SCRIPT_URL}"
 
         
