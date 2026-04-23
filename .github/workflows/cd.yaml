@@ -46,23 +46,33 @@ jobs:
         # --min-instances=1 keeps one warm instance, eliminating cold-start
         # latency for both real visitors and the 60s metrics scrape from the
         # NUC (consistent series, no scrape gaps from cold spin-up).
-        # Stability bumps (PR-#1-#10 brought in flasgger + prometheus exporter
-        # + extra modules → boot-time memory pressure on 1Gi caused intermittent
-        # OOM-kills + 503 flap):
-        #   --memory=2Gi          : cushion for boot allocation
-        #   --cpu=1               : explicit (default 1, but make it deterministic)
-        #   --timeout=60          : default 300s — keep low so stuck workers cycle fast
-        #   --max-instances=2     : reduce blast radius if one instance crashes
-        #     (was 4 — most traffic comfortably fits in 2 with --min-instances=1)
+        # Cost-optimized config for hobby/pre-promotion traffic (~$1/mo
+        # historical baseline). Signed-cookie sessions (no Flask-Session
+        # filesystem state) make scale-to-zero safe — no per-instance state.
+        #
+        #   --min-instances=0   : scales to zero when idle. ~$0 baseline cost.
+        #                         Cold start ~1-3s on first request after idle.
+        #   --max-instances=2   : caps peak; even if scraper goes wild, ≤2 instances.
+        #   --memory=1Gi        : back to original. App boots fine in 1Gi
+        #                         per local Docker test; the earlier 503s were
+        #                         CSRF-related, not OOM (now fixed by signed
+        #                         cookies). If 503s return → bump to 2Gi.
+        #   --timeout=60        : keep low so stuck workers cycle fast
+        #   --session-affinity  : kept as belt-and-suspenders (signed cookies
+        #                         already make sessions instance-agnostic, but
+        #                         affinity helps RPS uniformity for hot caches)
+        #
+        # When promoting the app: flip --min-instances=1 + --memory=2Gi to
+        # eliminate cold-starts for users (~$5-8/mo).
         run: |
           gcloud run deploy signal-scout \
             --image europe-central2-docker.pkg.dev/GCP_PROJECT_ID/signal-scout-repo/signal-scout:latest \
             --region europe-central2 \
             --allow-unauthenticated \
             --project GCP_PROJECT_ID \
-            --min-instances=1 \
+            --min-instances=0 \
             --max-instances=2 \
-            --memory=2Gi \
+            --memory=1Gi \
             --cpu=1 \
             --timeout=60 \
             --session-affinity \
