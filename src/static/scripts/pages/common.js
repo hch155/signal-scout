@@ -416,9 +416,11 @@ function logoutUser() {
           clearLoginForm();
           resetUIAndListeners();
           clearSensitiveSessionData();
-          executeCurrentPageAction();
           window.dispatchEvent(new CustomEvent('userLoggedOut'));
-          showToast('Logged out', 'success');
+          // Hard navigate to home with replace() so /account (or any other
+          // authenticated page) does not stay in the Back-button history
+          // showing its previously-rendered, now-stale HTML.
+          window.location.replace('/');
       } else {
           console.error('Logout failed:', data.message);
       }
