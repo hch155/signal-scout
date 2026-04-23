@@ -34,6 +34,23 @@ jobs:
       - name: Use gcloud CLI
         run: gcloud info
 
+      - name: Ensure GCS bucket for users.db persistence (idempotent)
+        # PR #11: persist users.db across deploys via Cloud Run gcsfuse volume.
+        # Bucket name is project-prefixed (must be globally unique). Single-region
+        # to match the Cloud Run region for low latency. Uniform access (no ACLs).
+        # Re-runs are safe — already-exists is the success path.
+        run: |
+          BUCKET="GCP_PROJECT_ID-users-db"
+          if ! gcloud storage buckets describe "gs://${BUCKET}" --project=GCP_PROJECT_ID >/dev/null 2>&1; then
+            gcloud storage buckets create "gs://${BUCKET}" \
+              --project=GCP_PROJECT_ID \
+              --location=europe-central2 \
+              --uniform-bucket-level-access
+            echo "  ✓ created gs://${BUCKET}"
+          else
+            echo "  ⏭  gs://${BUCKET} already exists"
+          fi
+
       - name: Build and push Docker image
         run: gcloud builds submit --tag europe-central2-docker.pkg.dev/GCP_PROJECT_ID/signal-scout-repo/signal-scout:latest .
         
@@ -76,7 +93,10 @@ jobs:
             --cpu=1 \
             --timeout=60 \
             --session-affinity \
-            --update-env-vars SECRET_KEY="${SECRET_KEY}",ENV=PRODUCTION,METRICS_BEARER_TOKEN="${METRICS_BEARER_TOKEN}",PLAUSIBLE_DOMAIN="${PLAUSIBLE_DOMAIN}",PLAUSIBLE_SCRIPT_URL="${PLAUSIBLE_SCRIPT_URL}"
+            --execution-environment=gen2 \
+            --add-volume=name=users-db,type=cloud-storage,bucket=GCP_PROJECT_ID-users-db \
+            --add-volume-mount=volume=users-db,mount-path=/mnt/users-db \
+            --update-env-vars SECRET_KEY="${SECRET_KEY}",ENV=PRODUCTION,METRICS_BEARER_TOKEN="${METRICS_BEARER_TOKEN}",PLAUSIBLE_DOMAIN="${PLAUSIBLE_DOMAIN}",PLAUSIBLE_SCRIPT_URL="${PLAUSIBLE_SCRIPT_URL}",USERS_DB_PATH=/mnt/users-db/users.db
 
         
 
