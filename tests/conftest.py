@@ -134,9 +134,14 @@ def _isolate_users_table(app):
     key/audit/snapshot flows are independent. Children first."""
     yield
     from database import db
-    from models import User, ApiKey, AuditEvent, UserStationSnapshot
+    from models import (
+        User, ApiKey, AuditEvent, UserLocation, UserStationSnapshot,
+    )
     with app.app_context():
+        # Snapshots reference UserLocation via FK — wipe them first so the
+        # location delete below doesn't trip a constraint.
         db.session.query(UserStationSnapshot).delete()
+        db.session.query(UserLocation).delete()
         db.session.query(AuditEvent).delete()
         db.session.query(ApiKey).delete()
         db.session.query(User).delete()

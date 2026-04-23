@@ -50,6 +50,114 @@
                 </div>
             </div>
 
+            {# ── Saved locations (PR #30) ─────────────────────────────── #}
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold dark:text-white">Saved locations</h3>
+                    <button id="loc-add-btn"
+                            class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-1.5 px-3 rounded">
+                        + Add
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Save up to 20 named places (home, work, parents, cabin…). Each one gets
+                    its own station-change feed; toggle alerts off to silence email digests
+                    for that location without losing its history.
+                </p>
+
+                <table class="w-full text-sm">
+                    <thead class="text-left text-gray-500 dark:text-gray-400">
+                        <tr>
+                            <th class="py-1 pr-2">Name</th>
+                            <th class="py-1 pr-2">Coords</th>
+                            <th class="py-1 pr-2">Radius</th>
+                            <th class="py-1 pr-2">Alerts</th>
+                            <th class="py-1 pr-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="locations-tbody" class="dark:text-white">
+                        {% for loc in locations %}
+                        <tr data-loc-id="{{ loc.id }}" class="border-t border-gray-200 dark:border-gray-700">
+                            <td class="py-2 pr-2 font-medium">
+                                {{ loc.name }}
+                                {% if loc.description %}
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ loc.description }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="py-2 pr-2 font-mono text-xs">{{ "%.4f" % loc.lat }}, {{ "%.4f" % loc.lng }}</td>
+                            <td class="py-2 pr-2">{{ "%.0f" % loc.radius_km }} km</td>
+                            <td class="py-2 pr-2">
+                                {% if loc.alerting_enabled %}
+                                    <span class="inline-block px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs font-semibold">on</span>
+                                {% else %}
+                                    <span class="inline-block px-2 py-0.5 rounded bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200 text-xs font-semibold">off</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-2 pr-2 text-right space-x-2 whitespace-nowrap">
+                                <a href="/account/locations/{{ loc.id }}/changes"
+                                   class="text-blue-600 dark:text-blue-400 hover:underline text-xs font-medium">Details</a>
+                                <button data-loc-toggle-id="{{ loc.id }}" data-current="{{ '1' if loc.alerting_enabled else '0' }}"
+                                        class="text-gray-600 dark:text-gray-300 hover:underline text-xs font-medium">
+                                    {{ 'Mute' if loc.alerting_enabled else 'Unmute' }}
+                                </button>
+                                <button data-loc-delete-id="{{ loc.id }}"
+                                        class="text-red-600 dark:text-red-400 hover:underline text-xs font-medium">Delete</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <form id="create-location-form" class="hidden space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <label class="block">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Name (e.g. "Home", "Office")</span>
+                        <input type="text" name="name" required maxlength="80"
+                               class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </label>
+                    <label class="block">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Description (optional)</span>
+                        <input type="text" name="description" maxlength="255"
+                               class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="block">
+                            <span class="text-sm text-gray-500 dark:text-gray-400">Latitude</span>
+                            <input type="number" name="lat" required step="any" min="48.95" max="55.55"
+                                   class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </label>
+                        <label class="block">
+                            <span class="text-sm text-gray-500 dark:text-gray-400">Longitude</span>
+                            <input type="number" name="lng" required step="any" min="13.95" max="24.25"
+                                   class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </label>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="block">
+                            <span class="text-sm text-gray-500 dark:text-gray-400">Radius (km)</span>
+                            <input type="number" name="radius_km" min="1" max="50" step="1" value="15"
+                                   class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </label>
+                        <label class="flex items-center gap-2 mt-6">
+                            <input type="checkbox" name="alerting_enabled" checked
+                                   class="rounded border-gray-300 dark:border-gray-600">
+                            <span class="text-sm text-gray-700 dark:text-gray-200">Email me when stations change here</span>
+                        </label>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="submit"
+                                class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded">
+                            Save location
+                        </button>
+                        <button type="button" id="loc-cancel-btn"
+                                class="bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-white text-sm font-bold py-2 px-3 rounded">
+                            Cancel
+                        </button>
+                    </div>
+                    <p id="create-location-status" class="text-sm mt-2"></p>
+                </form>
+            </div>
+
             {# ── Named API keys (PR #14) ──────────────────────────────── #}
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3">
                 <h3 class="text-lg font-semibold dark:text-white">API keys</h3>

@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <section class="text-center text-[#333] dark:text-white p-3 md:p-5 mb-2">
+        <h2 class="text-xl font-bold">Changes — {{ location.name }}</h2>
+        <p class="hidden md:block text-lg text-gray-600 dark:text-gray-300">
+            What changed in the BTS dataset within {{ "%.0f" % location.radius_km }} km of this saved location.
+        </p>
+    </section>
+
+    <div class="flex justify-center px-2 md:px-4 pb-10">
+        <div class="w-full max-w-3xl space-y-6">
+
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Location details</h3>
+                    <a href="/account" class="text-sm text-blue-500 hover:underline">← Back to account</a>
+                </div>
+                <p class="text-sm text-gray-700 dark:text-gray-200">
+                    <span class="font-medium">{{ location.name }}</span>
+                    {% if location.description %}
+                        — <span class="text-gray-500 dark:text-gray-400">{{ location.description }}</span>
+                    {% endif %}
+                </p>
+                <p class="text-sm text-gray-700 dark:text-gray-200">
+                    Centre: <code class="font-mono">{{ "%.4f" % location.lat }}, {{ "%.4f" % location.lng }}</code>
+                    · Radius: {{ "%.0f" % location.radius_km }} km
+                    · Alerts:
+                    {% if location.alerting_enabled %}
+                        <span class="inline-block px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs font-semibold">on</span>
+                    {% else %}
+                        <span class="inline-block px-2 py-0.5 rounded bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200 text-xs font-semibold">off</span>
+                    {% endif %}
+                </p>
+                <form id="loc-snapshot-form" class="space-y-3" data-loc-id="{{ location.id }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit"
+                            class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded">
+                        Take snapshot now
+                    </button>
+                    <p id="loc-snapshot-status" class="text-sm mt-2"></p>
+                </form>
+            </div>
+
+            {% if snapshots and not diff %}
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-2">
+                    <p class="text-sm text-gray-700 dark:text-gray-200">
+                        First snapshot captured {{ snapshots[0].taken_at.strftime('%Y-%m-%d %H:%M') }} — {{ current_count }} stations within radius. Take another snapshot after the next stations.db refresh to see what changed.
+                    </p>
+                </div>
+            {% endif %}
+
+            {% if not snapshots %}
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-2">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 italic">
+                        No snapshots yet for this location. Click "Take snapshot now" to capture the current state.
+                    </p>
+                </div>
+            {% endif %}
+
+            {% if diff %}
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        Changes between {{ snapshots[1].taken_at.strftime('%Y-%m-%d %H:%M') }} and {{ snapshots[0].taken_at.strftime('%Y-%m-%d %H:%M') }}
+                    </h3>
+                    <div class="flex gap-3 flex-wrap text-sm">
+                        <span class="inline-block px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">{{ diff.added|length }} added</span>
+                        <span class="inline-block px-2 py-0.5 rounded bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">{{ diff.removed|length }} removed</span>
+                        <span class="inline-block px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">{{ diff.band_changed|length }} bands changed</span>
+                    </div>
+                </div>
+
+                {% if diff.added %}
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-2">
+                    <h4 class="font-semibold text-green-700 dark:text-green-300">New stations ({{ diff.added|length }})</h4>
+                    <ul class="text-sm text-gray-700 dark:text-gray-200 space-y-1">
+                        {% for s in diff.added %}
+                        <li><code class="font-mono text-xs">{{ s.basestation_id or '-' }}</code> · {{ s.service_provider or '-' }} · {{ s.location or s.city or '' }} · {{ s.frequency_bands|join(', ') }} · {{ "%.2f" % s.distance }} km</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if diff.removed %}
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-2">
+                    <h4 class="font-semibold text-red-700 dark:text-red-300">Removed stations ({{ diff.removed|length }})</h4>
+                    <ul class="text-sm text-gray-700 dark:text-gray-200 space-y-1">
+                        {% for s in diff.removed %}
+                        <li><code class="font-mono text-xs">{{ s.basestation_id or '-' }}</code> · {{ s.service_provider or '-' }} · {{ s.location or s.city or '' }} · {{ s.frequency_bands|join(', ') }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if diff.band_changed %}
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-2">
+                    <h4 class="font-semibold text-yellow-700 dark:text-yellow-300">Frequency-band changes ({{ diff.band_changed|length }})</h4>
+                    <ul class="text-sm text-gray-700 dark:text-gray-200 space-y-2">
+                        {% for c in diff.band_changed %}
+                        <li>
+                            <code class="font-mono text-xs">{{ c.station.basestation_id or '-' }}</code> · {{ c.station.service_provider or '-' }} · {{ c.station.location or c.station.city or '' }}
+                            {% if c.added_bands %}<br><span class="text-green-600 dark:text-green-400">+ {{ c.added_bands|join(', ') }}</span>{% endif %}
+                            {% if c.removed_bands %}<br><span class="text-red-600 dark:text-red-400">− {{ c.removed_bands|join(', ') }}</span>{% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if not diff.added and not diff.removed and not diff.band_changed %}
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 italic">
+                        No changes between these two snapshots — same stations, same frequency bands.
+                    </p>
+                </div>
+                {% endif %}
+            {% endif %}
+
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const form = document.getElementById('loc-snapshot-form');
+        const status = document.getElementById('loc-snapshot-status');
+        if (!form) return;
+        const locId = form.dataset.locId;
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            status.textContent = 'Taking snapshot…';
+            status.className = 'text-sm mt-2 text-gray-500';
+            globalFetch('/account/locations/' + locId + '/snapshot', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': getCsrfToken(),
+                },
+                body: '{}',
+            }).then(data => {
+                if (data && data.success) {
+                    status.textContent = `Snapshot saved (${data.count} stations). Reloading…`;
+                    status.className = 'text-sm mt-2 text-green-600 dark:text-green-400';
+                    setTimeout(() => window.location.reload(), 900);
+                } else {
+                    status.textContent = (data && data.error) || 'Snapshot failed.';
+                    status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+                }
+            }).catch(e => {
+                status.textContent = 'Error: ' + e.message;
+                status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+            });
+        });
+    });
+    </script>
+{% endblock %}

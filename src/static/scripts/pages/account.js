@@ -301,6 +301,110 @@ document.addEventListener('DOMContentLoaded', () => {
     confirmPwdInput.addEventListener('input', update);
   }
 
+  // ── Saved locations (PR #30) ────────────────────────────────────────
+  // Add / cancel / submit-create / delete / mute-toggle. Inline form
+  // un-hides on click of "+ Add", collapses on cancel.
+  const locAddBtn = document.getElementById('loc-add-btn');
+  const locCancelBtn = document.getElementById('loc-cancel-btn');
+  const locForm = document.getElementById('create-location-form');
+  const locStatus = document.getElementById('create-location-status');
+
+  if (locAddBtn && locForm) {
+    locAddBtn.addEventListener('click', () => {
+      locForm.classList.toggle('hidden');
+      if (!locForm.classList.contains('hidden')) {
+        const nameInput = locForm.querySelector('input[name="name"]');
+        if (nameInput) nameInput.focus();
+      }
+    });
+  }
+  if (locCancelBtn && locForm) {
+    locCancelBtn.addEventListener('click', () => {
+      locForm.classList.add('hidden');
+      locForm.reset();
+      if (locStatus) locStatus.textContent = '';
+    });
+  }
+  if (locForm && locStatus) {
+    locForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const fd = new FormData(locForm);
+      const body = {
+        name: fd.get('name'),
+        description: fd.get('description') || null,
+        lat: parseFloat(fd.get('lat')),
+        lng: parseFloat(fd.get('lng')),
+        radius_km: parseFloat(fd.get('radius_km') || '15'),
+        alerting_enabled: fd.get('alerting_enabled') === 'on',
+      };
+      locStatus.textContent = 'Saving…';
+      locStatus.className = 'text-sm mt-2 text-gray-500';
+
+      globalFetch('/account/locations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': getCsrfToken(),
+        },
+        body: JSON.stringify(body),
+      }).then(data => {
+        if (data && data.success && data.location) {
+          locStatus.textContent = 'Location saved. Reloading…';
+          locStatus.className = 'text-sm mt-2 text-green-600 dark:text-green-400';
+          // Easiest path to refresh the table + audit log: full reload.
+          setTimeout(() => window.location.reload(), 500);
+        } else {
+          locStatus.textContent = (data && data.error) || 'Failed.';
+          locStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+        }
+      }).catch(err => {
+        locStatus.textContent = 'Error: ' + err.message;
+        locStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+      });
+    });
+  }
+
+  document.querySelectorAll('button[data-loc-delete-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.locDeleteId, 10);
+      if (!confirm('Delete this location and all its snapshots?')) return;
+      globalFetch('/account/locations/' + id + '/delete', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': getCsrfToken() },
+      }).then(data => {
+        if (data && data.success) {
+          const row = document.querySelector(`tr[data-loc-id="${id}"]`);
+          if (row) row.remove();
+        } else {
+          alert((data && data.error) || 'Delete failed.');
+        }
+      }).catch(err => alert('Error: ' + err.message));
+    });
+  });
+
+  document.querySelectorAll('button[data-loc-toggle-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.locToggleId, 10);
+      const wantOn = btn.dataset.current !== '1';
+      globalFetch('/account/locations/' + id, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': getCsrfToken(),
+        },
+        body: JSON.stringify({ alerting_enabled: wantOn }),
+      }).then(data => {
+        if (data && data.success && data.location) {
+          // Reload to keep the table label, badge, and audit log in sync —
+          // fewer ways for the rendered state to drift from the server.
+          window.location.reload();
+        } else {
+          alert((data && data.error) || 'Update failed.');
+        }
+      }).catch(err => alert('Error: ' + err.message));
+    });
+  });
+
   // ── Delete account form ─────────────────────────────────────────────
   const deleteForm = document.getElementById('delete-form');
   const deleteStatus = document.getElementById('delete-status');

@@ -26,7 +26,7 @@ from datetime import datetime, date, timedelta
 
 from flask import Blueprint, jsonify, render_template, request, session
 
-from models import User, ApiKey, AuditEvent, UserStationSnapshot
+from models import User, ApiKey, AuditEvent, UserLocation, UserStationSnapshot
 
 
 logger = logging.getLogger(__name__)
@@ -190,6 +190,31 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
                          methods=["POST"])
     auth_bp.add_url_rule("/account/changes", endpoint="changes_page",
                          view_func=changes_page, methods=["GET"])
+    # PR #30: multiple named saved locations + per-location snapshots.
+    # Rate limits sized so a normal user (≤20 locations cap) cannot trip
+    # them in normal use, while bulk script abuse is rejected. Snapshot
+    # is the heaviest (runs find_nearest_stations) — kept tightest.
+    auth_bp.add_url_rule("/account/locations", endpoint="create_location",
+                         view_func=limiter.limit("20 per hour")(create_location),
+                         methods=["POST"])
+    auth_bp.add_url_rule("/account/locations/<int:loc_id>",
+                         endpoint="get_location",
+                         view_func=get_location, methods=["GET"])
+    auth_bp.add_url_rule("/account/locations/<int:loc_id>",
+                         endpoint="update_location",
+                         view_func=limiter.limit("30 per hour")(update_location),
+                         methods=["POST"])
+    auth_bp.add_url_rule("/account/locations/<int:loc_id>/delete",
+                         endpoint="delete_location",
+                         view_func=limiter.limit("10 per hour")(delete_location),
+                         methods=["POST"])
+    auth_bp.add_url_rule("/account/locations/<int:loc_id>/snapshot",
+                         endpoint="take_location_snapshot",
+                         view_func=limiter.limit("10 per hour")(take_location_snapshot),
+                         methods=["POST"])
+    auth_bp.add_url_rule("/account/locations/<int:loc_id>/changes",
+                         endpoint="location_changes_page",
+                         view_func=location_changes_page, methods=["GET"])
 
     app.register_blueprint(auth_bp)
 
@@ -385,8 +410,15 @@ def account_page():
                     .order_by(AuditEvent.created_at.desc())
                     .limit(20)
                     .all())
+    # PR #30: list of named saved locations (newest first), shown in a
+    # dedicated card on /account with create/edit/delete inline.
+    locations = (UserLocation.query
+                 .filter_by(user_id=user.id)
+                 .order_by(UserLocation.created_at.desc())
+                 .all())
     return render_template('account.html', user=user,
-                           api_keys=api_keys, audit_events=audit_events)
+                           api_keys=api_keys, audit_events=audit_events,
+                           locations=locations)
 
 
 def regenerate_api_key():
@@ -1068,5 +1100,344 @@ def changes_page():
     prev = _json.loads(snaps[1].stations_json)
     diff = compute_snapshot_diff(prev, curr)
     return render_template('account_changes.html', user=user,
+                           snapshots=snaps, diff=diff,
+                           current_count=len(curr))
+
+
+# ── PR #30: multiple named user locations + per-location snapshots ────────
+
+# Sanity cap so a single user can't fill the table. Locations are tiny
+# (≈80 bytes/row) but each one carries its own snapshot history; 20 is
+# generous for the "home / work / parents / cabin" use case while still
+# bounding worst-case storage.
+_MAX_LOCATIONS_PER_USER = 20
+_LOC_NAME_MAX = 80
+_LOC_DESC_MAX = 255
+# Per-location snapshot radius bounds — same window as the legacy single-
+# location snapshot so behaviour matches once a user migrates.
+_LOC_RADIUS_MIN_KM = 1.0
+_LOC_RADIUS_MAX_KM = 50.0
+_LOC_RADIUS_DEFAULT_KM = 15.0
+
+
+def _coords_in_pl_bounds(lat: float, lng: float) -> bool:
+    """PL bounds with the same ±5 km buffer used by app._coords_in_bounds.
+    Lazy-import (instead of a module-level import) so this blueprint can
+    still load if app.py changes signature in a future PR."""
+    try:
+        from app import _coords_in_bounds
+        return _coords_in_bounds(lat, lng)
+    except Exception:
+        # Fallback to literal bounds (matches src/app.py PL_LAT/LNG_*).
+        return 48.95 <= lat <= 55.55 and 13.95 <= lng <= 24.25
+
+
+def _serialize_location(loc: UserLocation) -> dict:
+    return {
+        'id': loc.id,
+        'name': loc.name,
+        'description': loc.description,
+        'lat': loc.lat,
+        'lng': loc.lng,
+        'radius_km': loc.radius_km,
+        'alerting_enabled': bool(loc.alerting_enabled),
+        'created_at': loc.created_at.isoformat() + 'Z',
+        'updated_at': (loc.updated_at.isoformat() + 'Z') if loc.updated_at else None,
+    }
+
+
+def _location_for_user_or_404(user: User, loc_id: int) -> UserLocation | None:
+    loc = _db().session.get(UserLocation, loc_id)
+    if loc is None or loc.user_id != user.id:
+        # Same response for not-found and not-owned so a malicious caller
+        # can't enumerate other users' location IDs (mirrors the ApiKey
+        # ownership pattern).
+        return None
+    return loc
+
+
+def _parse_location_payload(payload, *, partial: bool):
+    """Pull (name, description, lat, lng, radius_km, alerting_enabled) out
+    of the request body, validating types/lengths/bounds. Returns
+    (parsed_dict, error_response_or_none). For `partial=True` (update),
+    fields absent from the payload are not included in the dict — the
+    caller only writes what was sent."""
+    out: dict = {}
+
+    if 'name' in payload:
+        name = (payload.get('name') or '').strip()
+        if not name:
+            return None, (jsonify({'error': 'name is required'}), 400)
+        if len(name) > _LOC_NAME_MAX:
+            return None, (jsonify({'error': 'name too long'}), 400)
+        out['name'] = name
+    elif not partial:
+        return None, (jsonify({'error': 'name is required'}), 400)
+
+    if 'description' in payload:
+        desc = (payload.get('description') or '').strip() or None
+        if desc and len(desc) > _LOC_DESC_MAX:
+            return None, (jsonify({'error': 'description too long'}), 400)
+        out['description'] = desc
+
+    # lat/lng — both must change together if either is present, since one
+    # without the other puts the centre somewhere unintended.
+    has_lat = 'lat' in payload
+    has_lng = 'lng' in payload
+    if has_lat != has_lng:
+        return None, (jsonify({'error': 'lat and lng must be sent together'}), 400)
+    if has_lat and has_lng:
+        try:
+            lat = float(payload.get('lat'))
+            lng = float(payload.get('lng'))
+        except (TypeError, ValueError):
+            return None, (jsonify({'error': 'lat and lng must be numbers'}), 400)
+        if not _coords_in_pl_bounds(lat, lng):
+            return None, (jsonify({'error': 'Coordinates outside supported area'}), 400)
+        out['lat'] = lat
+        out['lng'] = lng
+    elif not partial:
+        return None, (jsonify({'error': 'lat and lng are required'}), 400)
+
+    if 'radius_km' in payload:
+        try:
+            radius = float(payload.get('radius_km'))
+        except (TypeError, ValueError):
+            return None, (jsonify({'error': 'radius_km must be a number'}), 400)
+        if radius < _LOC_RADIUS_MIN_KM or radius > _LOC_RADIUS_MAX_KM:
+            return None, (jsonify({
+                'error': f'radius_km must be between {_LOC_RADIUS_MIN_KM} and {_LOC_RADIUS_MAX_KM}',
+            }), 400)
+        out['radius_km'] = radius
+
+    if 'alerting_enabled' in payload:
+        raw = payload.get('alerting_enabled')
+        if isinstance(raw, bool):
+            out['alerting_enabled'] = raw
+        elif isinstance(raw, str):
+            out['alerting_enabled'] = raw.strip().lower() in ('1', 'true', 'yes', 'on')
+        else:
+            out['alerting_enabled'] = bool(raw)
+
+    return out, None
+
+
+def create_location():
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='create_location').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    user, err = _current_user_or_401()
+    if err:
+        return err
+
+    payload = request.get_json(silent=True) or request.form
+    parsed, perr = _parse_location_payload(payload, partial=False)
+    if perr is not None:
+        return perr
+
+    # Hard cap so a single user can't fill the table (and so the
+    # /account UI list stays scannable).
+    existing = UserLocation.query.filter_by(user_id=user.id).count()
+    if existing >= _MAX_LOCATIONS_PER_USER:
+        return jsonify({
+            'error': f'Location limit reached ({_MAX_LOCATIONS_PER_USER}). Delete one first.',
+        }), 400
+
+    loc = UserLocation(
+        user_id=user.id,
+        name=parsed['name'],
+        description=parsed.get('description'),
+        lat=parsed['lat'],
+        lng=parsed['lng'],
+        radius_km=parsed.get('radius_km', _LOC_RADIUS_DEFAULT_KM),
+        alerting_enabled=parsed.get('alerting_enabled', True),
+    )
+    _db().session.add(loc)
+    try:
+        _db().session.flush()  # need loc.id for the audit meta
+    except Exception:
+        _db().session.rollback()
+        logger.exception("create_location flush failed for user_id=%s", user.id)
+        return jsonify({'error': 'Could not create location'}), 500
+    _audit('location.created', user.id, {
+        'name': loc.name, 'location_id': loc.id,
+        'radius_km': loc.radius_km,
+        'alerting_enabled': bool(loc.alerting_enabled),
+    })
+    try:
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+        logger.exception("create_location commit failed for user_id=%s", user.id)
+        return jsonify({'error': 'Could not create location'}), 500
+
+    return jsonify({'success': True, 'location': _serialize_location(loc)}), 200
+
+
+def get_location(loc_id: int):
+    user, err = _current_user_or_401()
+    if err:
+        return err
+    loc = _location_for_user_or_404(user, loc_id)
+    if loc is None:
+        return jsonify({'error': 'Not found'}), 404
+    return jsonify({'success': True, 'location': _serialize_location(loc)}), 200
+
+
+def update_location(loc_id: int):
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='update_location').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    user, err = _current_user_or_401()
+    if err:
+        return err
+    loc = _location_for_user_or_404(user, loc_id)
+    if loc is None:
+        return jsonify({'error': 'Not found'}), 404
+
+    payload = request.get_json(silent=True) or request.form
+    parsed, perr = _parse_location_payload(payload, partial=True)
+    if perr is not None:
+        return perr
+    if not parsed:
+        return jsonify({'error': 'no fields to update'}), 400
+
+    changed: list[str] = []
+    for field, val in parsed.items():
+        if getattr(loc, field) != val:
+            setattr(loc, field, val)
+            changed.append(field)
+
+    _audit('location.updated', user.id, {
+        'location_id': loc.id, 'fields': changed,
+    })
+    try:
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+        logger.exception("update_location commit failed for loc_id=%s", loc_id)
+        return jsonify({'error': 'Could not save location'}), 500
+    return jsonify({'success': True, 'location': _serialize_location(loc)}), 200
+
+
+def delete_location(loc_id: int):
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='delete_location').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    user, err = _current_user_or_401()
+    if err:
+        return err
+    loc = _location_for_user_or_404(user, loc_id)
+    if loc is None:
+        return jsonify({'error': 'Not found'}), 404
+
+    name = loc.name  # capture before delete
+    try:
+        _db().session.delete(loc)  # cascades to user_station_snapshot
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+        logger.exception("delete_location commit failed for loc_id=%s", loc_id)
+        return jsonify({'error': 'Could not delete location'}), 500
+    _audit('location.deleted', user.id, {'location_id': loc_id, 'name': name})
+    try:
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+    return jsonify({'success': True}), 200
+
+
+def take_location_snapshot(loc_id: int):
+    """POST /account/locations/<id>/snapshot — capture a fresh snapshot
+    scoped to the given UserLocation. Mirrors the legacy /account/snapshot
+    semantics but pulls centre + radius from the UserLocation row instead
+    of User.last_location_*. Tagged with `user_location_id` so
+    /account/locations/<id>/changes can scope its diff to this location."""
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='take_location_snapshot').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    user, err = _current_user_or_401()
+    if err:
+        return err
+    loc = _location_for_user_or_404(user, loc_id)
+    if loc is None:
+        return jsonify({'error': 'Not found'}), 404
+
+    from queries import find_nearest_stations
+    result = find_nearest_stations(
+        loc.lat, loc.lng,
+        max_distance=loc.radius_km,
+        limit=None,
+    )
+    stations = result.get('stations', []) if result else []
+
+    import json as _json
+    snap = UserStationSnapshot(
+        user_id=user.id,
+        user_location_id=loc.id,
+        centre_lat=loc.lat,
+        centre_lng=loc.lng,
+        radius_km=loc.radius_km,
+        stations_json=_json.dumps(stations),
+    )
+    _db().session.add(snap)
+    try:
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+        logger.exception("take_location_snapshot commit failed for loc_id=%s", loc_id)
+        return jsonify({'error': 'Could not save snapshot'}), 500
+    _audit('snapshot.taken', user.id, {
+        'location_id': loc.id,
+        'radius_km': loc.radius_km,
+        'count': len(stations),
+    })
+    try:
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+    return jsonify({
+        'success': True,
+        'snapshot_id': snap.id,
+        'count': len(stations),
+        'taken_at': snap.taken_at.isoformat() + 'Z',
+    }), 200
+
+
+def location_changes_page(loc_id: int):
+    """GET /account/locations/<id>/changes — diff of the two most recent
+    snapshots scoped to this location. Same render contract as
+    /account/changes but the snapshot query is filtered on
+    user_location_id so each saved location has its own independent feed."""
+    user, err = _current_user_or_401()
+    if err:
+        return err
+    loc = _location_for_user_or_404(user, loc_id)
+    if loc is None:
+        return jsonify({'error': 'Not found'}), 404
+
+    import json as _json
+    snaps = (UserStationSnapshot.query
+             .filter_by(user_id=user.id, user_location_id=loc.id)
+             .order_by(UserStationSnapshot.taken_at.desc())
+             .limit(2)
+             .all())
+
+    if not snaps:
+        return render_template('account_location_changes.html',
+                               user=user, location=loc,
+                               snapshots=[], diff=None)
+
+    curr = _json.loads(snaps[0].stations_json)
+    if len(snaps) == 1:
+        return render_template('account_location_changes.html',
+                               user=user, location=loc,
+                               snapshots=snaps, diff=None,
+                               current_count=len(curr))
+
+    prev = _json.loads(snaps[1].stations_json)
+    diff = compute_snapshot_diff(prev, curr)
+    return render_template('account_location_changes.html',
+                           user=user, location=loc,
                            snapshots=snaps, diff=diff,
                            current_count=len(curr))

@@ -297,6 +297,27 @@ def ensure_user_api_columns(app, db) -> None:
                         "ALTER TABLE api_key ADD COLUMN total_calls INTEGER NOT NULL DEFAULT 0"
                     ))
 
+        # PR #30: user_station_snapshot may have been created in PR #29
+        # without the user_location_id column. db.create_all above
+        # creates the new user_location table but, like above, won't
+        # add columns to existing tables. ALTER explicitly so old prod
+        # snapshots keep loading and new ones can stamp the FK.
+        # Re-inspect after create_all so we see the freshly-created table.
+        insp_post = inspect(engine)
+        if 'user_station_snapshot' in insp_post.get_table_names():
+            snap_cols = {c['name'] for c in insp_post.get_columns('user_station_snapshot')}
+            if 'user_location_id' not in snap_cols:
+                with engine.begin() as conn:
+                    conn.execute(text(
+                        "ALTER TABLE user_station_snapshot "
+                        "ADD COLUMN user_location_id INTEGER"
+                    ))
+                    conn.execute(text(
+                        "CREATE INDEX IF NOT EXISTS "
+                        "ix_user_station_snapshot_user_location_id "
+                        "ON user_station_snapshot (user_location_id)"
+                    ))
+
         for u in User.query.filter(User.api_key.isnot(None)).all():
             already = ApiKey.query.filter_by(user_id=u.id, key=u.api_key).first()
             if already is None:
