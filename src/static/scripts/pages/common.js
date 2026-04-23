@@ -441,12 +441,14 @@ function checkLoginStateAndUpdateUI() {
         safelyUpdateDisplay('signInModal', 'none');
         safelyUpdateDisplay('signInBtn', 'none');
         safelyUpdateDisplay('registerBtn', 'none');
+        safelyUpdateDisplay('accountLink', 'inline-flex');
         safelyUpdateDisplay('logoutButton', 'block');
       } else {
         safelyUpdateDisplay('registrationModal', 'none');
         safelyUpdateDisplay('signInModal', 'none');
         safelyUpdateDisplay('signInBtn', 'block');
         safelyUpdateDisplay('registerBtn', 'block');
+        safelyUpdateDisplay('accountLink', 'none');
         safelyUpdateDisplay('logoutButton', 'none');
       }
     })
@@ -478,6 +480,7 @@ function adjustUIForLoggedOutState() {
 
   safelyUpdateDisplay('signInBtn', 'block');
   safelyUpdateDisplay('registerBtn', 'block');
+  safelyUpdateDisplay('accountLink', 'none');
   safelyUpdateDisplay('logoutButton', 'none');
 }
 
