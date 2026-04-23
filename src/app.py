@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session
 from flask_bcrypt import Bcrypt
-from flask_session import Session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from database import db
@@ -61,20 +60,26 @@ ensure_user_api_columns(app, db)
 # HTTPS encryption for Flask
 
 
-# Session configuration
-
-app.config["SESSION_PERMANENT"] = True
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
-app.config["SESSION_TYPE"] = "filesystem"
-if settings.session_file_dir:
-    app.config["SESSION_FILE_DIR"] = settings.session_file_dir
-app.config["SESSION_COOKIE_SAMESITE"] = 'Lax'  # SameSite attribute for all session cookies
+# Session configuration — Flask's *default* signed-cookie session
+# (itsdangerous-backed). Stateless: session payload lives in the cookie
+# itself, no server-side store. Critical for Cloud Run multi-instance:
+# previous Flask-Session filesystem storage put session per-instance and
+# requests bouncing between instances broke CSRF (cookie X on instance A,
+# absent on instance B → 403). Signed cookies sidestep this entirely.
+# Session payload is tiny (~150 bytes: _csrf_token + user_id + user_location)
+# — well below the ~4KB cookie limit.
+app.permanent_session_lifetime = timedelta(days=7)
+app.config["SESSION_COOKIE_SAMESITE"] = 'Lax'
 # Secure cookie only over HTTPS in production. On http://localhost the
 # Secure flag drops the cookie entirely, which would block CSRF flow during
 # local dev / perf tests. Production env sets ENV=PRODUCTION (cd.yaml).
 app.config["SESSION_COOKIE_SECURE"] = settings.cookie_secure
-app.config["SESSION_COOKIE_HTTPONLY"] = True  # Prevent JavaScript access to session cookie, prevent XSS scripting attacks
-Session(app)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+# Make every session permanent so PERMANENT_SESSION_LIFETIME applies (default
+# would expire on browser close). Done via before_request so it stays one place.
+@app.before_request
+def _make_session_permanent():
+    session.permanent = True
 
 limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["16 per minute"])
 
