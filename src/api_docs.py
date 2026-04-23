@@ -54,16 +54,9 @@ SWAGGER_TEMPLATE: dict = {
             "name": "Proprietary",
         },
     },
-    "servers": [
-        {
-            "url": "https://signal-scout.run.app",
-            "description": "Production (Cloud Run)",
-        },
-        {
-            "url": "http://127.0.0.1:8080",
-            "description": "Local dev",
-        },
-    ],
+    # Filled in by init_api_docs() based on ENV — in prod we don't want
+    # to dangle "http://127.0.0.1:8080" in front of public users.
+    "servers": [],
     "components": {
         "securitySchemes": {
             "ApiKeyAuth": {
@@ -176,10 +169,27 @@ SWAGGER_CONFIG: dict = {
 
 
 def init_api_docs(app: Flask) -> Swagger:
-    """Register flasgger on the app + relax CSP for the Swagger UI assets.
+    """Register flasgger on the app.
 
-    Swagger UI loads its own bundled CSS / JS / fonts — flasgger serves them
-    from /api/v1/flasgger_static so they're same-origin and our existing
-    CSP `script-src 'self'` allows them. No extra origins needed.
+    Picks the `servers` list per-environment so the dropdown only shows
+    targets that actually make sense from the page the user is on:
+    - PRODUCTION: prod Cloud Run URL (+ apex once domain mapping is done)
+    - non-prod : Local dev so a developer running 127.0.0.1:8080 can
+      hit "Try it out" against their own instance.
     """
-    return Swagger(app, template=SWAGGER_TEMPLATE, config=SWAGGER_CONFIG)
+    import os
+    is_prod = (os.getenv('ENV') or '').upper() == 'PRODUCTION'
+    template = dict(SWAGGER_TEMPLATE)
+    if is_prod:
+        template['servers'] = [
+            {"url": "https://signal-scout.run.app",
+             "description": "Production (Cloud Run)"},
+            # Apex (signal-scout.com) is currently a path-stripping 302 →
+            # only useful as a target after Cloud Run Domain Mapping lands
+            # (see ROADMAP). Re-enable then.
+        ]
+    else:
+        template['servers'] = [
+            {"url": "http://127.0.0.1:8080", "description": "Local dev"},
+        ]
+    return Swagger(app, template=template, config=SWAGGER_CONFIG)
