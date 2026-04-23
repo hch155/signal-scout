@@ -50,6 +50,73 @@
                 </div>
             </div>
 
+            {# ── Named API keys (PR #14) ──────────────────────────────── #}
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3">
+                <h3 class="text-lg font-semibold dark:text-white">API keys</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Create one key per integration so you can revoke them
+                    individually if leaked. Keys are shown in full only at
+                    creation — copy then.
+                </p>
+
+                <table class="w-full text-sm">
+                    <thead class="text-left text-gray-500 dark:text-gray-400">
+                        <tr>
+                            <th class="py-1 pr-2">Name</th>
+                            <th class="py-1 pr-2">Key</th>
+                            <th class="py-1 pr-2">Created</th>
+                            <th class="py-1 pr-2">Last used</th>
+                            <th class="py-1 pr-2">Status</th>
+                            <th class="py-1 pr-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="api-keys-tbody" class="dark:text-white">
+                        {% for k in api_keys %}
+                        <tr data-key-id="{{ k.id }}" class="border-t border-gray-200 dark:border-gray-700">
+                            <td class="py-2 pr-2 font-medium">{{ k.name }}</td>
+                            <td class="py-2 pr-2 font-mono text-xs">{{ k.key[:8] }}…{{ k.key[-4:] }}</td>
+                            <td class="py-2 pr-2 text-gray-500 dark:text-gray-400">{{ k.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td class="py-2 pr-2 text-gray-500 dark:text-gray-400">
+                                {% if k.last_used_at %}{{ k.last_used_at.strftime('%Y-%m-%d %H:%M') }}{% else %}never{% endif %}
+                            </td>
+                            <td class="py-2 pr-2">
+                                {% if k.revoked_at %}
+                                    <span class="text-red-600 dark:text-red-400">revoked</span>
+                                {% else %}
+                                    <span class="text-green-600 dark:text-green-400">active</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-2 pr-2 text-right">
+                                {% if not k.revoked_at %}
+                                <button data-revoke-id="{{ k.id }}" class="text-red-600 hover:underline text-xs">Revoke</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <form id="create-key-form" class="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <label class="block">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Name (e.g. "iOS app", "monitoring script")</span>
+                        <input type="text" name="name" required maxlength="80"
+                               class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </label>
+                    <button type="submit"
+                            class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded">
+                        Create API key
+                    </button>
+                    <p id="create-key-status" class="text-sm mt-2"></p>
+                    <div id="new-key-display" class="hidden mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded">
+                        <p class="text-xs text-yellow-800 dark:text-yellow-200 mb-1">
+                            Copy now — this is the only time the full value will be shown.
+                        </p>
+                        <code id="new-key-value" class="font-mono text-xs break-all dark:text-white"></code>
+                    </div>
+                </form>
+            </div>
+
             {# ── Profile ──────────────────────────────────────────────── #}
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3">
                 <h3 class="text-lg font-semibold dark:text-white">Profile</h3>

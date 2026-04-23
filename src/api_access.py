@@ -37,7 +37,10 @@ from urllib.parse import urlparse
 
 from flask import current_app, g, jsonify, request, session
 
-from models import User
+from datetime import datetime
+
+from database import db
+from models import User, ApiKey
 from observability import (
     api_referer_blocked_total,
     api_key_used_total,
@@ -132,10 +135,26 @@ def _has_valid_browser_origin() -> bool:
 # ── API key resolution ─────────────────────────────────────────────────────
 
 def _resolve_api_key() -> User | None:
-    """If a valid X-API-Key header is present, return the matching User."""
+    """If a valid X-API-Key header is present, return the matching User.
+
+    Resolution order (PR #14 multi-key):
+    1. ApiKey table — active (not revoked) keys, user → tier from User.api_tier.
+       Bumps last_used_at on the ApiKey row so the /account UI can show
+       freshness and the user can spot stale keys to revoke.
+    2. Legacy User.api_key column — kept during the migration window so any
+       in-flight clients using the original key keep working.
+    """
     raw = request.headers.get('X-API-Key', '').strip()
     if not raw or len(raw) > 128:
         return None
+    ak = ApiKey.query.filter_by(key=raw, revoked_at=None).first()
+    if ak is not None:
+        ak.last_used_at = datetime.utcnow()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        return ak.user
     return User.query.filter_by(api_key=raw).first()
 
 
@@ -234,6 +253,21 @@ def ensure_user_api_columns(app, db) -> None:
                 u.api_tier = 'free'
         if users_without_key:
             db.session.commit()
+
+        # PR #14: ensure the ApiKey table exists and migrate every existing
+        # User.api_key into it as a row named "default". Idempotent — re-runs
+        # find existing rows and skip.
+        db.create_all(bind_key='users')  # creates ApiKey if missing; noop otherwise
+        for u in User.query.filter(User.api_key.isnot(None)).all():
+            already = ApiKey.query.filter_by(user_id=u.id, key=u.api_key).first()
+            if already is None:
+                db.session.add(ApiKey(
+                    user_id=u.id,
+                    name='default',
+                    key=u.api_key,
+                    created_at=u.registration_date or datetime.utcnow(),
+                ))
+        db.session.commit()
 
 
 def generate_api_key() -> str:

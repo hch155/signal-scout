@@ -25,7 +25,7 @@ from datetime import datetime, date
 
 from flask import Blueprint, jsonify, render_template, request, session
 
-from models import User
+from models import User, ApiKey
 
 
 logger = logging.getLogger(__name__)
@@ -113,6 +113,15 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
                          methods=["POST"])
     auth_bp.add_url_rule("/account/delete", endpoint="delete_account",
                          view_func=limiter.limit("3 per hour")(delete_account),
+                         methods=["POST"])
+    # PR #14: multi-key API. Create/revoke are rate-limited to discourage
+    # the "spray ten keys to find one that bypasses a per-tier limit" pattern.
+    auth_bp.add_url_rule("/account/keys", endpoint="create_api_key",
+                         view_func=limiter.limit("10 per hour")(create_api_key),
+                         methods=["POST"])
+    auth_bp.add_url_rule("/account/keys/<int:key_id>/revoke",
+                         endpoint="revoke_api_key",
+                         view_func=limiter.limit("20 per hour")(revoke_api_key),
                          methods=["POST"])
 
     app.register_blueprint(auth_bp)
@@ -219,7 +228,15 @@ def account_page():
         user.api_key = _generate_api_key()
         user.api_tier = user.api_tier or 'free'
         _db().session.commit()
-    return render_template('account.html', user=user)
+    # PR #14: list of named keys for this user, newest first. Active keys
+    # first, then revoked ones (history). The legacy User.api_key has its
+    # mirrored "default" ApiKey row from the migration; show it the same as
+    # any other key.
+    api_keys = (ApiKey.query
+                .filter_by(user_id=user.id)
+                .order_by(ApiKey.revoked_at.is_(None).desc(), ApiKey.created_at.desc())
+                .all())
+    return render_template('account.html', user=user, api_keys=api_keys)
 
 
 def regenerate_api_key():
@@ -383,4 +400,86 @@ def delete_account():
         logger.exception("delete_account commit failed for user_id=%s", user_id)
         return jsonify({'error': 'Could not delete account'}), 500
     session.clear()
+    return jsonify({'success': True}), 200
+
+
+# ── PR #14: multi-key API ──────────────────────────────────────────────────
+
+_MAX_KEY_NAME_LEN = 80
+# Cap on simultaneously-active keys per user. Keeps the /account UI sane and
+# discourages key sprawl (each unrevoked key is a leak risk).
+_MAX_ACTIVE_KEYS_PER_USER = 10
+
+
+def create_api_key():
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='create_api_key').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    user, err = _current_user_or_401()
+    if err:
+        return err
+
+    payload = request.get_json(silent=True) or request.form
+    name = (payload.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'name is required'}), 400
+    if len(name) > _MAX_KEY_NAME_LEN:
+        return jsonify({'error': 'name too long'}), 400
+
+    active_count = ApiKey.query.filter_by(
+        user_id=user.id, revoked_at=None
+    ).count()
+    if active_count >= _MAX_ACTIVE_KEYS_PER_USER:
+        return jsonify({
+            'error': f'Active key limit reached ({_MAX_ACTIVE_KEYS_PER_USER}). Revoke one first.'
+        }), 400
+
+    new_key_value = _generate_api_key()
+    ak = ApiKey(user_id=user.id, name=name, key=new_key_value)
+    _db().session.add(ak)
+    try:
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+        logger.exception("create_api_key commit failed for user_id=%s", user.id)
+        return jsonify({'error': 'Could not create key'}), 500
+
+    return jsonify({
+        'success': True,
+        'id': ak.id,
+        'name': ak.name,
+        'key': ak.key,
+        'created_at': ak.created_at.isoformat() + 'Z',
+    }), 200
+
+
+def revoke_api_key(key_id: int):
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='revoke_api_key').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    user, err = _current_user_or_401()
+    if err:
+        return err
+
+    ak = _db().session.get(ApiKey, key_id)
+    if ak is None or ak.user_id != user.id:
+        # Same response for not-found and not-owned so a malicious caller
+        # can't enumerate other users' key IDs.
+        return jsonify({'error': 'Not found'}), 404
+    if ak.revoked_at is not None:
+        return jsonify({'error': 'Already revoked'}), 400
+
+    from datetime import datetime
+    ak.revoked_at = datetime.utcnow()
+    # If the user revoked the legacy "default" key (the one mirrored on
+    # User.api_key), also clear the column so anyone still reading
+    # User.api_key directly sees the same picture.
+    if ak.name == 'default' and user.api_key == ak.key:
+        user.api_key = None
+    try:
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+        logger.exception("revoke_api_key commit failed for key_id=%s", key_id)
+        return jsonify({'error': 'Could not revoke key'}), 500
     return jsonify({'success': True}), 200

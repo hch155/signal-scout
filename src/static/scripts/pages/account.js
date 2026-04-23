@@ -73,6 +73,52 @@ document.addEventListener('DOMContentLoaded', () => {
     },
   });
 
+  // ── Create new named API key (PR #14) ───────────────────────────────
+  const createKeyForm = document.getElementById('create-key-form');
+  const createKeyStatus = document.getElementById('create-key-status');
+  const newKeyBox = document.getElementById('new-key-display');
+  const newKeyValue = document.getElementById('new-key-value');
+  if (createKeyForm && createKeyStatus) {
+    createKeyForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const fd = new FormData(createKeyForm);
+      const body = { name: fd.get('name') };
+      createKeyStatus.textContent = 'Creating…';
+      createKeyStatus.className = 'text-sm mt-2 text-gray-500';
+
+      globalFetch('/account/keys', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': getCsrfToken(),
+        },
+        body: JSON.stringify(body),
+      }).then(data => {
+        if (data && data.success && data.key) {
+          createKeyStatus.textContent = 'Key created.';
+          createKeyStatus.className = 'text-sm mt-2 text-green-600 dark:text-green-400';
+          if (newKeyBox && newKeyValue) {
+            newKeyValue.textContent = data.key;
+            newKeyBox.classList.remove('hidden');
+          }
+          appendKeyRow(data);
+          createKeyForm.reset();
+        } else {
+          const err = (data && data.error) || 'Failed.';
+          createKeyStatus.textContent = err;
+          createKeyStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+        }
+      }).catch(err => {
+        createKeyStatus.textContent = 'Error: ' + err.message;
+        createKeyStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+      });
+    });
+  }
+
+  document.querySelectorAll('button[data-revoke-id]').forEach(btn => {
+    btn.addEventListener('click', () => revokeKey(parseInt(btn.dataset.revokeId, 10)));
+  });
+
   // ── Delete account form ─────────────────────────────────────────────
   const deleteForm = document.getElementById('delete-form');
   const deleteStatus = document.getElementById('delete-status');
@@ -146,4 +192,52 @@ function wireForm({ formId, statusId, url, okMsg, onSuccess }) {
       statusEl.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
     });
   });
+}
+
+function revokeKey(keyId) {
+  if (!confirm('Revoke this API key? Any client using it will get 403.')) return;
+  globalFetch('/account/keys/' + keyId + '/revoke', {
+    method: 'POST',
+    headers: { 'X-CSRF-Token': getCsrfToken() },
+  }).then(data => {
+    if (data && data.success) {
+      const row = document.querySelector(`tr[data-key-id="${keyId}"]`);
+      if (row) {
+        // Mark row as revoked: replace status cell + remove revoke button.
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 5) {
+          cells[4].innerHTML = '<span class="text-red-600 dark:text-red-400">revoked</span>';
+        }
+        const btn = row.querySelector('button[data-revoke-id]');
+        if (btn) btn.remove();
+      }
+    } else {
+      alert((data && data.error) || 'Revoke failed.');
+    }
+  }).catch(err => alert('Error: ' + err.message));
+}
+
+function appendKeyRow(data) {
+  const tbody = document.getElementById('api-keys-tbody');
+  if (!tbody) return;
+  const tr = document.createElement('tr');
+  tr.dataset.keyId = data.id;
+  tr.className = 'border-t border-gray-200 dark:border-gray-700';
+  const masked = data.key.slice(0, 8) + '…' + data.key.slice(-4);
+  // textContent on every cell — never innerHTML — defends against XSS in the
+  // user-chosen `name` field.
+  const tdName = document.createElement('td'); tdName.className = 'py-2 pr-2 font-medium'; tdName.textContent = data.name; tr.appendChild(tdName);
+  const tdKey  = document.createElement('td'); tdKey.className  = 'py-2 pr-2 font-mono text-xs'; tdKey.textContent = masked; tr.appendChild(tdKey);
+  const tdC    = document.createElement('td'); tdC.className    = 'py-2 pr-2 text-gray-500 dark:text-gray-400'; tdC.textContent = data.created_at.slice(0, 10); tr.appendChild(tdC);
+  const tdL    = document.createElement('td'); tdL.className    = 'py-2 pr-2 text-gray-500 dark:text-gray-400'; tdL.textContent = 'never'; tr.appendChild(tdL);
+  const tdS    = document.createElement('td'); tdS.className    = 'py-2 pr-2'; tdS.innerHTML = '<span class="text-green-600 dark:text-green-400">active</span>'; tr.appendChild(tdS);
+  const tdA    = document.createElement('td'); tdA.className    = 'py-2 pr-2 text-right';
+  const btn = document.createElement('button');
+  btn.dataset.revokeId = data.id;
+  btn.className = 'text-red-600 hover:underline text-xs';
+  btn.textContent = 'Revoke';
+  btn.addEventListener('click', () => revokeKey(data.id));
+  tdA.appendChild(btn);
+  tr.appendChild(tdA);
+  tbody.appendChild(tr);
 }

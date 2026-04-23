@@ -130,11 +130,13 @@ def csrf_token() -> str:
 
 @pytest.fixture(autouse=True)
 def _isolate_users_table(app):
-    """Wipe users between tests so register/login flows are independent."""
+    """Wipe users (and ApiKey rows) between tests so register/login/key flows
+    are independent. ApiKey is FK-bound to User, so delete it first."""
     yield
     from database import db
-    from models import User
+    from models import User, ApiKey
     with app.app_context():
+        db.session.query(ApiKey).delete()
         db.session.query(User).delete()
         db.session.commit()
 
