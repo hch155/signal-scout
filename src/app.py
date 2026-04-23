@@ -200,6 +200,18 @@ def set_security_headers(response):
     # see XFO=DENY first and refuse — so it must go.
     if not request.path.startswith('/embed/') or not settings.embed_allowed_origins:
         response.headers['X-Frame-Options'] = 'DENY'
+    # Authenticated pages must not be cached: after logout the browser would
+    # otherwise serve the rendered HTML (with email + API key) from BFCache /
+    # disk cache on Back-button or direct URL re-entry, even though the
+    # server-side session is gone. no-store + Vary: Cookie kills both BFCache
+    # and intermediary caches for any response that depended on session state.
+    if 'user_id' in session or request.path.startswith('/account'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        existing_vary = response.headers.get('Vary', '')
+        if 'Cookie' not in existing_vary:
+            response.headers['Vary'] = (existing_vary + ', Cookie').lstrip(', ')
     return response
 
 def generate_csrf_token():

@@ -135,6 +135,26 @@ def test_full_login_logout_cycle(authed_client, csrf_token):
     assert authed_client.get("/session_check").get_json() == {"logged_in": False}
 
 
+def test_account_response_has_no_store_cache_header(authed_client):
+    """Authenticated /account must set Cache-Control: no-store so the browser
+    does not serve a stale rendered page (with email + API key) from BFCache
+    after the user logs out and hits Back."""
+    r = authed_client.get("/account")
+    assert r.status_code == 200
+    cc = r.headers.get("Cache-Control", "")
+    assert "no-store" in cc, f"missing no-store on /account: {cc!r}"
+
+
+def test_account_inaccessible_after_logout(authed_client, csrf_token):
+    """After POST /logout, GET /account must return 401 even using the same
+    cookie jar — the session is fully cleared, not just user_id popped."""
+    assert authed_client.get("/account").status_code == 200
+    r = authed_client.post("/logout", headers={"X-CSRF-Token": csrf_token})
+    assert r.status_code == 200
+    after = authed_client.get("/account")
+    assert after.status_code == 401, f"/account should be 401 post-logout, got {after.status_code}"
+
+
 # ── Tips gating ─────────────────────────────────────────────────────────────
 
 def test_tips_anonymous_uses_tips_md(client):

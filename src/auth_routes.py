@@ -181,7 +181,12 @@ def logout():
     if not _validate_csrf():
         _csrf_failures_total().labels(endpoint='logout').inc()
         return jsonify({'error': 'Invalid request'}), 403
-    session.pop('user_id', None)
+    # Full session.clear() (not just session.pop('user_id')) so the next
+    # request gets a brand-new CSRF token and any other server-side session
+    # state is dropped. Combined with the Cache-Control: no-store header on
+    # /account, this closes the "Back-button shows my account after logout"
+    # leak.
+    session.clear()
     return jsonify({"success": True, "message": "You have been logged out."}), 200
 
 
