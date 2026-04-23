@@ -142,11 +142,11 @@ def _build_csp_policy() -> str:
 
     return (
         "default-src 'self'; "
-        f"script-src 'self' https://cdn.jsdelivr.net https://unpkg.com{script_extras}; "
-        "style-src 'self' 'unsafe-inline' https://unpkg.com; "
+        f"script-src 'self'{script_extras}; "
+        "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: blob: "
         "https://*.tile.openstreetmap.org https://tiles.stadiamaps.com "
-        "https://server.arcgisonline.com https://unpkg.com; "
+        "https://server.arcgisonline.com; "
         "font-src 'self' data:; "
         f"connect-src 'self'{connect_extras}; "
         "frame-ancestors 'none'; "

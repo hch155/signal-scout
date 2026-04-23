@@ -54,9 +54,7 @@
 {% endblock %}
 
 {% block scripts %}
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-            integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"
-            crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='vendor/leaflet-1.9.4.js') }}"></script>
 {% endblock %}
 
 {% block code %}{% endblock %}
