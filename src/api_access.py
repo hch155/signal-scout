@@ -269,7 +269,21 @@ def ensure_user_api_columns(app, db) -> None:
         # PR #14: ensure the ApiKey table exists and migrate every existing
         # User.api_key into it as a row named "default". Idempotent — re-runs
         # find existing rows and skip.
-        db.create_all(bind_key='users')  # creates ApiKey if missing; noop otherwise
+        db.create_all(bind_key='users')  # creates ApiKey/AuditEvent if missing; noop otherwise
+
+        # PR #20 hot-fix: db.create_all() does NOT add columns to existing
+        # tables. ApiKey on prod was created in PR #14 *before* total_calls
+        # existed, so we must ALTER it explicitly here. Without this, the
+        # next deploy that reads ApiKey.total_calls (every X-API-Key
+        # request) hits "no such column" and crashes container boot.
+        if 'api_key' in insp.get_table_names():
+            ak_cols = {c['name'] for c in insp.get_columns('api_key')}
+            if 'total_calls' not in ak_cols:
+                with engine.begin() as conn:
+                    conn.execute(text(
+                        "ALTER TABLE api_key ADD COLUMN total_calls INTEGER NOT NULL DEFAULT 0"
+                    ))
+
         for u in User.query.filter(User.api_key.isnot(None)).all():
             already = ApiKey.query.filter_by(user_id=u.id, key=u.api_key).first()
             if already is None:
