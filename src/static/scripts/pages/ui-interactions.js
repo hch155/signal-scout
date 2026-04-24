@@ -668,38 +668,187 @@ function renderCoverageGaps(lat, lng) {
                 ? `Full coverage at this spot — all ${total} bands within reach.`
                 : `${dead} of ${total} band${total > 1 ? 's' : ''} dead at this spot. ${covered} covered.`;
 
-            const rows = data.gaps.map(g => {
+            // PR #47.3: build the row DOM directly (was: template
+            // string) so each band can carry a click handler that
+            // highlights its nearest BTS on the map.
+            widget.textContent = '';
+            const title = document.createElement('div');
+            title.className = 'text-sm font-semibold text-gray-900 dark:text-white mb-1';
+            title.textContent = 'Coverage at this spot';
+            widget.appendChild(title);
+
+            const summaryEl = document.createElement('div');
+            summaryEl.className = `text-xs ${summaryClass} mb-2`;
+            summaryEl.textContent = summaryText;
+            widget.appendChild(summaryEl);
+
+            const hint = document.createElement('div');
+            hint.className = 'text-[10px] text-gray-500 dark:text-gray-400 mb-1';
+            hint.textContent = 'Click a band to show its closest BTS on the map.';
+            widget.appendChild(hint);
+
+            const ul = document.createElement('ul');
+            ul.className = 'space-y-0.5';
+            data.gaps.forEach(g => {
                 const ok = g.has_coverage;
-                const icon = ok ? '✓' : '✗';
-                const iconClass = ok
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-red-600 dark:text-red-400';
                 const dist = g.nearest_distance_km;
                 const thresh = g.threshold_km;
-                const label = ok
+                const labelText = ok
                     ? `nearest ${dist} km (within ${thresh} km)`
                     : `nearest ${dist} km (gap — threshold ${thresh} km)`;
-                return `
-                    <li class="flex items-center justify-between gap-2 py-0.5">
-                        <span class="font-mono text-xs text-gray-700 dark:text-gray-200">${escapeHtml(g.band)}</span>
-                        <span class="flex items-center gap-2 text-xs">
-                            <span class="text-gray-500 dark:text-gray-400">${escapeHtml(label)}</span>
-                            <span class="${iconClass} font-bold text-base leading-none">${icon}</span>
-                        </span>
-                    </li>`;
-            }).join('');
 
-            widget.innerHTML = `
-                <div class="text-sm font-semibold text-gray-900 dark:text-white mb-1">Coverage at this spot</div>
-                <div class="text-xs ${summaryClass} mb-2">${escapeHtml(summaryText)}</div>
-                <ul class="space-y-0.5">${rows}</ul>
-                <div class="text-[10px] text-gray-400 dark:text-gray-500 mt-2 italic">
-                    Thresholds: high-band ≤1.5 km · mid ≤2 km · low ≤5 km. Line-of-sight; real signal varies.
-                </div>`;
+                const li = document.createElement('li');
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.dataset.band = g.band;
+                btn.className = 'w-full flex items-center justify-between gap-2 py-0.5 px-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 transition-colors text-left';
+
+                const bandSpan = document.createElement('span');
+                bandSpan.className = 'font-mono text-xs text-gray-700 dark:text-gray-200';
+                bandSpan.textContent = g.band;
+
+                const right = document.createElement('span');
+                right.className = 'flex items-center gap-2 text-xs';
+
+                const labelSpan = document.createElement('span');
+                labelSpan.className = 'text-gray-500 dark:text-gray-400';
+                labelSpan.textContent = labelText;
+
+                const iconSpan = document.createElement('span');
+                iconSpan.className = (ok
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-red-600 dark:text-red-400') + ' font-bold text-base leading-none';
+                iconSpan.textContent = ok ? '✓' : '✗';
+
+                right.appendChild(labelSpan);
+                right.appendChild(iconSpan);
+                btn.appendChild(bandSpan);
+                btn.appendChild(right);
+
+                btn.addEventListener('click', () => {
+                    toggleBandHighlight(btn, g, lat, lng);
+                });
+
+                li.appendChild(btn);
+                ul.appendChild(li);
+            });
+            widget.appendChild(ul);
+
+            const foot = document.createElement('div');
+            foot.className = 'text-[10px] text-gray-400 dark:text-gray-500 mt-2 italic';
+            foot.textContent = 'Thresholds: high-band ≤1.5 km · mid ≤2 km · low ≤5 km. Line-of-sight; real signal varies.';
+            widget.appendChild(foot);
         })
         .catch(() => {
             widget.remove();
         });
+}
+
+// PR #47.3: ephemeral map layer holding the band-highlight ring + line.
+// Keep it module-level so toggle / clear from any caller works.
+const bandHighlightLayer = L.layerGroup().addTo(mymap);
+let activeBandKey = null;
+
+function clearBandHighlight() {
+    bandHighlightLayer.clearLayers();
+    const banner = document.getElementById('band-far-banner');
+    if (banner) banner.remove();
+    // Drop the active styling from any previously-pressed band button.
+    document.querySelectorAll('[data-band]').forEach(b => {
+        b.classList.remove('bg-blue-100', 'dark:bg-blue-900/40', 'ring-2', 'ring-blue-400');
+    });
+    activeBandKey = null;
+}
+
+function bearingDeg(lat1, lng1, lat2, lng2) {
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δλ = (lng2 - lng1) * Math.PI / 180;
+    const y = Math.sin(Δλ) * Math.cos(φ2);
+    const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+function compassDir(deg) {
+    const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    return dirs[Math.round(deg / 45) % 8];
+}
+
+// PR #47.3: clicking a band in the Coverage widget highlights its
+// SINGLE closest BTS. Same band clicked twice = clear (toggle).
+// Different band = swap. Far-away dead bands (>30 km) skip the ring
+// and instead show a small banner with bearing — panning a map by
+// 120 km away from the user's spot is more frustrating than helpful.
+const FAR_BAND_KM = 30;
+
+function toggleBandHighlight(btnEl, gap, userLat, userLng) {
+    if (activeBandKey === gap.band) {
+        clearBandHighlight();
+        return;
+    }
+    clearBandHighlight();
+    activeBandKey = gap.band;
+    btnEl.classList.add('bg-blue-100', 'dark:bg-blue-900/40');
+
+    const targetLat = gap.nearest_lat;
+    const targetLng = gap.nearest_lng;
+    if (typeof targetLat !== 'number' || typeof targetLng !== 'number') {
+        return;
+    }
+
+    if (gap.nearest_distance_km > FAR_BAND_KM) {
+        const brg = bearingDeg(userLat, userLng, targetLat, targetLng);
+        const dir = compassDir(brg);
+        const banner = document.createElement('div');
+        banner.id = 'band-far-banner';
+        banner.className = 'absolute top-3 left-1/2 -translate-x-1/2 z-[1000] bg-yellow-100 dark:bg-yellow-900/80 text-yellow-900 dark:text-yellow-100 text-xs px-3 py-1.5 rounded-full shadow border border-yellow-300 dark:border-yellow-700 pointer-events-auto';
+        banner.textContent = `Nearest ${gap.band} is ${gap.nearest_distance_km} km ${dir} — too far to render here.`;
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'ml-2 font-bold opacity-70 hover:opacity-100';
+        close.textContent = '×';
+        close.addEventListener('click', clearBandHighlight);
+        banner.appendChild(close);
+        const mapEl = document.getElementById('mapid');
+        if (mapEl && mapEl.parentElement) {
+            mapEl.parentElement.style.position = mapEl.parentElement.style.position || 'relative';
+            mapEl.parentElement.appendChild(banner);
+        }
+        return;
+    }
+
+    const ringRadiusMeters = (gap.threshold_km || 3) * 1000;
+    const ring = L.circle([targetLat, targetLng], {
+        radius: ringRadiusMeters,
+        color: '#7c3aed',           // violet — distinct from filter colors
+        weight: 2,
+        fillColor: '#7c3aed',
+        fillOpacity: 0.08,
+        interactive: false,
+    });
+    const line = L.polyline([[userLat, userLng], [targetLat, targetLng]], {
+        color: '#7c3aed',
+        weight: 2,
+        dashArray: '6 6',
+        opacity: 0.85,
+        interactive: false,
+    });
+    const tag = L.tooltip({
+        permanent: true,
+        direction: 'top',
+        offset: [0, -8],
+        className: 'band-highlight-tag',
+    })
+        .setLatLng([targetLat, targetLng])
+        .setContent(`Nearest ${escapeHtml(gap.band)} · ${gap.nearest_distance_km} km`);
+
+    bandHighlightLayer.addLayer(ring);
+    bandHighlightLayer.addLayer(line);
+    bandHighlightLayer.addLayer(tag);
+
+    const bounds = L.latLngBounds([userLat, userLng], [targetLat, targetLng]).pad(0.25);
+    mymap.fitBounds(bounds, { maxZoom: 14, animate: true });
 }
 
 // PR #46.9: "Save this spot" CTA at the top of the sidebar after a

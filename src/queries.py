@@ -106,25 +106,32 @@ def find_coverage_gaps(user_lat: float, user_lng: float) -> dict:
         logger.error(f"Error in find_coverage_gaps query: {e}")
         return {"gaps": [], "summary": {"total_bands": 0, "covered": 0, "dead": 0}}
 
-    nearest_per_band: dict[str, float] = {}
+    # PR #47.3: also remember WHICH BTS is the nearest, so the UI can
+    # highlight that single station on the map when the user clicks a
+    # band. Storing only the distance was enough for the ✓/✗ verdict
+    # but not for "show me where it is".
+    nearest_per_band: dict[str, dict] = {}
     for band, lat, lng in rows:
         if not band:
             continue
         d = haversine(user_lat, user_lng, lat, lng)
         prev = nearest_per_band.get(band)
-        if prev is None or d < prev:
-            nearest_per_band[band] = d
+        if prev is None or d < prev["dist"]:
+            nearest_per_band[band] = {"dist": d, "lat": lat, "lng": lng}
 
     gaps = []
     # Sort by the same priority the rest of the UI uses (5G first,
     # then LTE, UMTS, GSM) so the response feels consistent with the
     # popup / sidebar ordering.
     for band in sort_frequency_bands(list(nearest_per_band.keys())):
-        dist = nearest_per_band[band]
+        info = nearest_per_band[band]
+        dist = info["dist"]
         threshold = COVERAGE_THRESHOLDS_KM.get(band, DEFAULT_GAP_THRESHOLD_KM)
         gaps.append({
             "band": band,
             "nearest_distance_km": round(dist, 2),
+            "nearest_lat": info["lat"],
+            "nearest_lng": info["lng"],
             "threshold_km": threshold,
             "has_coverage": dist <= threshold,
         })
