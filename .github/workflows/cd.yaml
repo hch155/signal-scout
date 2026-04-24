@@ -66,12 +66,20 @@ jobs:
       - name: Build and push Docker image
         run: gcloud builds submit --tag europe-central2-docker.pkg.dev/GCP_PROJECT_ID/signal-scout-repo/signal-scout:latest .
         
+      - name: Compute APP_VERSION (CalVer + git SHA)
+        id: version
+        run: |
+          # PR #46.5: 'YYYY.MM.DD-<sha7>' format.
+          # Owner clicks the footer to land on this exact commit on GitHub.
+          echo "value=$(date -u +%Y.%m.%d)-$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Deploy to Cloud Run
         env:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           METRICS_BEARER_TOKEN: ${{ secrets.METRICS_BEARER_TOKEN }}
           PLAUSIBLE_DOMAIN: ${{ secrets.PLAUSIBLE_DOMAIN }}
           PLAUSIBLE_SCRIPT_URL: ${{ secrets.PLAUSIBLE_SCRIPT_URL }}
+          APP_VERSION: ${{ steps.version.outputs.value }}
         # --min-instances=1 keeps one warm instance, eliminating cold-start
         # latency for both real visitors and the 60s metrics scrape from the
         # NUC (consistent series, no scrape gaps from cold spin-up).
@@ -108,7 +116,7 @@ jobs:
             --execution-environment=gen2 \
             --add-volume=name=users-db,type=cloud-storage,bucket=GCP_PROJECT_ID-users-db \
             --add-volume-mount=volume=users-db,mount-path=/mnt/users-db \
-            --update-env-vars SECRET_KEY="${SECRET_KEY}",ENV=PRODUCTION,METRICS_BEARER_TOKEN="${METRICS_BEARER_TOKEN}",PLAUSIBLE_DOMAIN="${PLAUSIBLE_DOMAIN}",PLAUSIBLE_SCRIPT_URL="${PLAUSIBLE_SCRIPT_URL}",USERS_DB_PATH=/mnt/users-db/users.db
+            --update-env-vars SECRET_KEY="${SECRET_KEY}",ENV=PRODUCTION,METRICS_BEARER_TOKEN="${METRICS_BEARER_TOKEN}",PLAUSIBLE_DOMAIN="${PLAUSIBLE_DOMAIN}",PLAUSIBLE_SCRIPT_URL="${PLAUSIBLE_SCRIPT_URL}",USERS_DB_PATH=/mnt/users-db/users.db,APP_VERSION="${APP_VERSION}"
 
         
 

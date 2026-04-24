@@ -18,6 +18,11 @@ from observability import (
     band_filter_used_total,
     requests_by_user_agent_class_total,
     classify_user_agent,
+    # PR #44: industry-standard observability extensions
+    in_flight_requests,
+    public_requests_total,
+    record_incident,
+    compute_public_status,
 )
 from api_access import (
     require_api_access,
@@ -173,13 +178,64 @@ EMBED_PERMISSIONS_POLICY = (
 
 @app.after_request
 def _record_user_agent_class(response):
-    # Skip /metrics + /healthz so probes don't dominate the bucket counts.
-    if request.path in ('/metrics', '/healthz'):
+    # Skip /metrics + /healthz + /status so probes don't dominate the
+    # bucket counts.
+    if request.path in ('/metrics', '/healthz', '/status'):
         return response
     requests_by_user_agent_class_total.labels(
         ua_class=classify_user_agent(request.headers.get('User-Agent'))
     ).inc()
     return response
+
+
+# ── PR #44: USE-method saturation + RED-method per-tier hooks ───────────────
+#
+# `in_flight_requests` is a Gauge incremented on every request entry and
+# decremented on every request exit (including exceptions), giving a
+# saturation read at any instant. `public_requests_total` keeps a count
+# of every customer-visible request — surfaced unfiltered on the public
+# /status page. `record_incident()` stamps the wall-clock time of the
+# most-recent 5xx so /status can render "Last incident: …".
+
+_INFRA_PATHS = ('/metrics', '/healthz', '/status')
+
+
+@app.before_request
+def _saturation_inc():
+    if request.path in _INFRA_PATHS:
+        return
+    try:
+        in_flight_requests.inc()
+    except Exception:
+        pass
+
+
+@app.after_request
+def _saturation_dec_and_count(response):
+    if request.path in _INFRA_PATHS:
+        return response
+    try:
+        in_flight_requests.dec()
+        public_requests_total.inc()
+        if 500 <= response.status_code < 600:
+            record_incident()
+    except Exception:
+        pass
+    return response
+
+
+@app.teardown_request
+def _saturation_safety_dec(exc):
+    """If an exception escaped the after_request chain (e.g. WSGI-level
+    abort), make sure the gauge doesn't leak upward forever."""
+    if request.path in _INFRA_PATHS:
+        return
+    if exc is not None:
+        try:
+            in_flight_requests.dec()
+            record_incident()
+        except Exception:
+            pass
 
 
 def _csp_for_path(path: str) -> str:
@@ -261,6 +317,15 @@ app.jinja_env.globals['csrf_token'] = generate_csrf_token
 app.jinja_env.globals['plausible_script_url'] = settings.plausible_script_url
 app.jinja_env.globals['plausible_domain'] = settings.plausible_domain
 app.jinja_env.globals['canonical_origin'] = settings.canonical_origin
+# PR #46.5: footer-rendered build version. cd.yaml builds APP_VERSION as
+# 'YYYY.MM.DD-<sha7>' (CalVer + git SHA — Stripe-style date versioning,
+# no SemVer bookkeeping). Local dev → "dev". Owner clicks the footer link
+# to land on the deployed commit on GitHub — instant "what's actually
+# running right now" verification, was a recurring uncertainty during
+# the sprint.
+app.jinja_env.globals['app_version'] = settings.app_version
+app.jinja_env.globals['app_version_sha'] = settings.app_version_sha
+app.jinja_env.globals['repo_url'] = settings.repo_url
 
 def validate_csrf():
     token = request.form.get('_csrf_token') or request.headers.get('X-CSRF-Token')
@@ -331,6 +396,43 @@ def tips_content():
 @app.route('/favicon.ico')
 def favicon():
     return app.send_static_file('favicon.ico')
+
+
+# ── PR #44: Customer-facing public status page ──────────────────────────────
+#
+# Self-contained Plausible-style status page. Backed by the SAME in-process
+# Prometheus counters that Grafana pulls — no external Prom round-trip
+# (faster, and means the page works even if the NUC is offline).
+#
+# Privacy boundary (intentional):
+#   This route MUST NOT surface anything from the security counters. No
+#   CSRF / login-failure / honeypot / API-key / tier breakdown. The page is
+#   shown to prospective B2B customers; security signals stay private and
+#   live on the operator-only Grafana dashboard.
+#
+# `compute_public_status()` enforces the boundary in code — it only reads
+# availability, latency and the public_requests_total counter. Adding a
+# panel here in the future means extending that function (review checks
+# the diff against the privacy boundary).
+
+@app.route('/status')
+def public_status():
+    """Customer-facing service health page (HTML).
+
+    Returns a tiny self-contained page with green/yellow/red component
+    indicators, current SLOs, and last-incident timestamp. Pulls its
+    numbers from the in-process registry, so Cloud Run min-instances=0
+    means a freshly-cold-started instance shows pristine counters
+    (technically correct: this instance has had no errors yet).
+
+    Optional ?format=json returns the same payload as machine-readable
+    JSON so external uptime checks / status-aggregator pages can consume
+    it without scraping HTML.
+    """
+    payload = compute_public_status()
+    if request.args.get('format') == 'json':
+        return jsonify(payload), 200
+    return render_template('status.html', s=payload), 200
 
 
 @app.route('/submit_location', methods=['POST'])
@@ -413,7 +515,18 @@ def get_stations():
             user_lat = float(user_lat)
             user_lng = float(user_lng)
             if not _coords_in_bounds(user_lat, user_lng):
-                return jsonify({'error': 'Coordinates outside supported area'}), 400
+                # PR #46.5 follow-up: match the /submit_location easter-egg
+                # contract — return 200 with outside_pl=true and an empty
+                # stations[] instead of 400. The frontend was hitting this
+                # endpoint after the user clicked outside PL (geolocation
+                # placed them in Belarus), and the 400 made globalFetch
+                # bail into .catch — sidebar / pin never cleared. Same
+                # marker as /submit_location so JS handles both uniformly.
+                return jsonify({
+                    'outside_pl': True,
+                    'stations': [],
+                    'count': 0,
+                })
         else:
             user_location = session.get('user_location')
             if user_location:

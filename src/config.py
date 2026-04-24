@@ -65,7 +65,15 @@ class Config:
 
     # ── Observability ────────────────────────────────────────────────────
     metrics_bearer_token: str = field(default_factory=lambda: _str("METRICS_BEARER_TOKEN"))
+    # PR #46.5: footer-rendered build version. Format: `YYYY.MM.DD-<sha7>`
+    # (CalVer + 7-char git SHA — Stripe-style date versioning, no SemVer
+    # major/minor/patch bookkeeping needed). cd.yaml builds this at deploy
+    # time. Local dev → "dev".
     app_version: str = field(default_factory=lambda: _str("APP_VERSION", "dev"))
+
+    # ── Repo URL (footer "version → GitHub commit" link) ─────────────────
+    repo_url: str = field(default_factory=lambda: _str(
+        "REPO_URL", "https://github.com/hch155/signal-scout"))
 
     # ── Plausible Analytics ──────────────────────────────────────────────
     plausible_domain: str = field(default_factory=lambda: _str("PLAUSIBLE_DOMAIN"))
@@ -110,6 +118,18 @@ class Config:
     def static_max_age(self) -> int:
         """Long-cache static assets in prod, no cache in dev."""
         return 31_536_000 if self.is_production else 0
+
+    @property
+    def app_version_sha(self) -> str:
+        """Extract the 7-char git short SHA out of `app_version`.
+        '2026.04.24-a3f9c12' → 'a3f9c12'. Returns '' for unparseable
+        values (e.g. 'dev') so the footer template can decide whether
+        to render the GitHub commit link or just the version label."""
+        if "-" in self.app_version:
+            tail = self.app_version.rsplit("-", 1)[1]
+            if len(tail) == 7 and all(c in "0123456789abcdef" for c in tail):
+                return tail
+        return ""
 
     @property
     def honeypot_bts_ids(self) -> set[str]:

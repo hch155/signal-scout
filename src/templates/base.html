@@ -163,6 +163,15 @@
 
     <footer class="mt-auto text-center py-3 w-full dark:text-white">
             © 2025 Signal-Scout | <a href="https://github.com/hch155" class="underline hover:no-underline">Hubert Cylwik</a>
+            {% if app_version_sha %}
+            | <a href="{{ repo_url }}/commit/{{ app_version_sha }}"
+                 class="text-xs text-gray-500 dark:text-gray-400 ml-1 hover:underline"
+                 title="Build {{ app_version }} — click to view this commit on GitHub"
+                 target="_blank" rel="noopener">v{{ app_version }}</a>
+            {% else %}
+            | <span class="text-xs text-gray-500 dark:text-gray-400 ml-1"
+                    title="Local development build">v{{ app_version }}</span>
+            {% endif %}
     </footer>
 
     {% block scripts %}{% endblock %}

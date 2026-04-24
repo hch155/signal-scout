@@ -153,8 +153,16 @@ def test_stations_max_distance_boundaries(client, max_dist, expected):
 
 
 def test_stations_out_of_bounds(client):
+    # PR #46.5: outside-PL is now a 200 with outside_pl=true (not a 400),
+    # matching the /submit_location easter-egg contract — frontend's
+    # globalFetch handles both paths uniformly. Was a 400 before; that
+    # made the JS bail into .catch and leave the loading skeleton up.
     r = client.get("/stations?lat=10.0&lng=10.0")
-    assert r.status_code == 400
+    assert r.status_code == 200
+    body = r.get_json()
+    assert body.get("outside_pl") is True
+    assert body.get("stations") == []
+    assert body.get("count") == 0
 
 
 def test_stations_empty_result_returns_200_not_500(client):

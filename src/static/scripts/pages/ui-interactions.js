@@ -1061,12 +1061,27 @@ function constructFilterURL() {
 function fetchStations() {
     showLoadingSkeleton();
     let filterURL = constructFilterURL();
+    const sidebar = document.getElementById('sidebar');
+    const messageBox = document.getElementById('messageBox');
     globalFetch(filterURL)
     .then(data => {
         // Assuming data is already the parsed JSON object
         if (!data || typeof data !== 'object') {
             console.error('Invalid data received:', data);
             return;  // Early return if data is invalid or not an object
+        }
+        // PR #46.5 follow-up: backend signals outside-PL with
+        // outside_pl=true on /stations too (matches /submit_location
+        // contract). Show the easter egg + clear skeleton instead of
+        // rendering 0 results into a confused sidebar.
+        if (data.outside_pl === true) {
+            sidebar.innerHTML = '';
+            updateBTSCount(0);
+            if (messageBox) {
+                messageBox.classList.remove('hidden');
+                setTimeout(() => messageBox.classList.add('hidden'), 7700);
+            }
+            return;
         }
         locationSetInitially = true;
         updateBTSCount(data.count);
