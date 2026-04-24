@@ -1,0 +1,143 @@
+name: smoke
+
+# Daily smoke probe against prod. Catches silent regressions that don't
+# show up in CI: dependency drift after image rebuild, schema desync
+# between code and live DB, partial / failed Cloud Run deploys, expired
+# certs, etc. Independent of the CD pipeline (cd.yaml) — that's a
+# pre-deploy gate; this is a post-deploy heartbeat.
+#
+# Why we hit the *.run.app URL and not signal-scout.com:
+# the apex 302 currently strips the path to "/" (Cloudflare page rule),
+# so e.g. /api/v1/openapi.json on the apex lands on the home page and
+# the smoke would silently green. Switch to apex once Cloud Run Domain
+# Mapping lands (see ROADMAP "Remaining deploy hardening").
+#
+# No Slack secret yet — workflow just goes red on failure. GitHub will
+# email the repo owner per default notifications. Wire Slack later.
+
+on:
+  schedule:
+    # 06:00 UTC = 07:00 PL (winter) / 08:00 PL (summer). Daily.
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+# Two scheduled runs in flight at once would be pointless and burn the
+# rate-limit budget. Cancel any older queued one if a new one starts.
+concurrency:
+  group: smoke-prod
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Probe prod endpoints
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      BASE_URL: https://signal-scout.run.app
+
+    steps:
+      - name: GET /api/v1/healthz — expect 200 + status=ok
+        run: |
+          set -euo pipefail
+          echo "::group::healthz"
+          body=$(curl -sS -w '\nHTTP_STATUS:%{http_code}' "$BASE_URL/api/v1/healthz")
+          status=$(echo "$body" | sed -n 's/^HTTP_STATUS://p')
+          payload=$(echo "$body" | sed '$d')
+          echo "status=$status"
+          echo "body=$payload"
+          echo "::endgroup::"
+          if [ "$status" != "200" ]; then
+            echo "::error title=Smoke failed::healthz returned $status (want 200)"
+            exit 1
+          fi
+          if ! echo "$payload" | grep -q '"status":"ok"'; then
+            echo "::error title=Smoke failed::healthz body missing \"status\":\"ok\""
+            exit 1
+          fi
+          echo "OK: /api/v1/healthz 200 + status=ok"
+
+      - name: Pace
+        run: sleep 2
+
+      - name: GET /api/v1/openapi.json — expect 200 + has openapi field
+        run: |
+          set -euo pipefail
+          echo "::group::openapi.json"
+          body=$(curl -sS -w '\nHTTP_STATUS:%{http_code}' "$BASE_URL/api/v1/openapi.json")
+          status=$(echo "$body" | sed -n 's/^HTTP_STATUS://p')
+          payload=$(echo "$body" | sed '$d')
+          echo "status=$status"
+          echo "body_len=$(echo -n "$payload" | wc -c)"
+          echo "::endgroup::"
+          if [ "$status" != "200" ]; then
+            echo "::error title=Smoke failed::openapi.json returned $status (want 200)"
+            exit 1
+          fi
+          if ! echo "$payload" | grep -q '"openapi"'; then
+            echo "::error title=Smoke failed::openapi.json body missing \"openapi\" field"
+            exit 1
+          fi
+          echo "OK: /api/v1/openapi.json 200 + has openapi field"
+
+      - name: Pace
+        run: sleep 2
+
+      - name: GET /stations?lat=52.23&lng=21.01&limit=3 — expect 200 + count > 0
+        run: |
+          set -euo pipefail
+          echo "::group::stations"
+          # Same-origin gate (PR #5) requires a Referer that matches the host.
+          body=$(curl -sS -w '\nHTTP_STATUS:%{http_code}' \
+            -H "Referer: $BASE_URL/" \
+            "$BASE_URL/stations?lat=52.23&lng=21.01&limit=3")
+          status=$(echo "$body" | sed -n 's/^HTTP_STATUS://p')
+          payload=$(echo "$body" | sed '$d')
+          echo "status=$status"
+          echo "body=$payload"
+          echo "::endgroup::"
+          if [ "$status" != "200" ]; then
+            echo "::error title=Smoke failed::stations returned $status (want 200)"
+            exit 1
+          fi
+          if ! echo "$payload" | grep -q '"count"'; then
+            echo "::error title=Smoke failed::stations body missing \"count\" field"
+            exit 1
+          fi
+          # Extract integer after "count": (with optional spaces). Fail if 0.
+          count=$(echo "$payload" | python3 -c "import sys, json; d = json.load(sys.stdin); print(d.get('count', 0))")
+          echo "count=$count"
+          if [ "$count" -le 0 ]; then
+            echo "::error title=Smoke failed::stations count=$count (want > 0); DB may be empty or query broken"
+            exit 1
+          fi
+          echo "OK: /stations 200 + count=$count"
+
+      - name: Pace
+        run: sleep 2
+
+      - name: GET /account — expect 401 (anon must be refused)
+        run: |
+          set -euo pipefail
+          echo "::group::account-anon"
+          status=$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/account")
+          echo "status=$status"
+          echo "::endgroup::"
+          if [ "$status" != "401" ]; then
+            echo "::error title=Smoke failed::/account returned $status (want 401 for anonymous request — auth gate may have regressed)"
+            exit 1
+          fi
+          echo "OK: /account 401 for anonymous (auth gate intact)"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Prod smoke probe" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Target: \`$BASE_URL\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Endpoints checked:" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`GET /api/v1/healthz\` — 200 + \`{\"status\":\"ok\"}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`GET /api/v1/openapi.json\` — 200 + has \`openapi\` field" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`GET /stations?lat=52.23&lng=21.01&limit=3\` — 200 + \`count > 0\` (with same-origin Referer)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`GET /account\` — 401 anonymous (auth gate)" >> "$GITHUB_STEP_SUMMARY"

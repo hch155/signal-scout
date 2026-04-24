@@ -1,0 +1,188 @@
+name: perf
+
+# Per-PR perf regression gate. Boots the app under gunicorn (same server
+# we run in prod via the Dockerfile CMD), runs 100 sequential GETs against
+# `/`, computes p50/p95/p99, and fails the job if p95 exceeds the budget
+# (default 500 ms, override via PERF_P95_BUDGET_MS).
+#
+# Why inline harness and not scripts/perf_test.py:
+# - perf_test.py randomises across endpoints, several of which require
+#   auth or trip rate limits when hammered, so its p95 is dominated by
+#   error retries rather than actual latency.
+# - It also has no `--json` flag — only stdout pretty-print.
+# Inline is ~30 lines, deterministic, gives us a numeric exit signal.
+#
+# Independent of cd.yaml — this is a pre-merge pytest-equivalent, not a
+# deploy step. Concurrency only cancels prior runs of the SAME PR (head
+# ref) so a force-push doesn't queue a stale run.
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'ops/**'
+
+concurrency:
+  group: perf-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  perf:
+    name: Perf regression (p95 < ${{ env.PERF_P95_BUDGET_MS }} ms)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      PERF_P95_BUDGET_MS: '500'
+      # The app reads STATIONS_DB_PATH / USERS_DB_PATH at import time
+      # (see src/app.py). Point them at the test fixture / a tmp DB so
+      # gunicorn doesn't need a real prod DB to boot.
+      STATIONS_DB_PATH: ${{ github.workspace }}/tests/fixtures/test_stations.db
+      USERS_DB_PATH: ${{ github.workspace }}/perf_users.db
+      SECRET_KEY: 'perf-ci-not-a-real-secret'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.2'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Boot app under gunicorn
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          # Same invocation shape as Dockerfile CMD, single worker for
+          # deterministic timing on the GHA runner (2-core).
+          PYTHONPATH="$GITHUB_WORKSPACE/src" \
+            gunicorn \
+              --workers=1 \
+              --timeout=30 \
+              --bind=127.0.0.1:8080 \
+              --access-logfile=- \
+              --error-logfile=- \
+              src.app:app > gunicorn.log 2>&1 &
+          echo $! > gunicorn.pid
+          # Poll /healthz until it responds 200 (or timeout 30s).
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/healthz > /dev/null 2>&1; then
+              echo "App up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error title=Perf failed::gunicorn never came up"
+          cat gunicorn.log || true
+          exit 1
+
+      - name: Run perf harness (100 GETs to /, compute p50/p95/p99)
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > perf.json
+          import json, os, statistics, sys, time, urllib.request
+
+          BASE = "http://127.0.0.1:8080"
+          N = 100
+          times_ms = []
+          errors = 0
+
+          # Warm up — first request pays JIT / template-cache cost; not
+          # representative of steady-state.
+          try:
+              urllib.request.urlopen(f"{BASE}/", timeout=10).read()
+          except Exception:
+              pass
+
+          for _ in range(N):
+              t0 = time.perf_counter()
+              try:
+                  r = urllib.request.urlopen(f"{BASE}/", timeout=10)
+                  r.read()
+                  if r.status != 200:
+                      errors += 1
+                      continue
+              except Exception:
+                  errors += 1
+                  continue
+              times_ms.append((time.perf_counter() - t0) * 1000)
+
+          if not times_ms:
+              print(json.dumps({"error": "no successful requests", "errors": errors}), file=sys.stderr)
+              sys.exit(2)
+
+          times_ms.sort()
+          def pct(p):
+              # Nearest-rank, clamped to last index.
+              idx = min(int(round(p / 100.0 * len(times_ms))) - 1, len(times_ms) - 1)
+              return times_ms[max(idx, 0)]
+
+          out = {
+              "endpoint": "/",
+              "n_requests": N,
+              "n_success": len(times_ms),
+              "n_errors": errors,
+              "min_ms":   round(min(times_ms), 2),
+              "p50_ms":   round(statistics.median(times_ms), 2),
+              "p95_ms":   round(pct(95), 2),
+              "p99_ms":   round(pct(99), 2),
+              "max_ms":   round(max(times_ms), 2),
+              "mean_ms":  round(statistics.mean(times_ms), 2),
+              "budget_p95_ms": int(os.environ.get("PERF_P95_BUDGET_MS", "500")),
+          }
+          print(json.dumps(out, indent=2))
+          PY
+          cat perf.json
+
+      - name: Enforce p95 budget
+        run: |
+          set -euo pipefail
+          p95=$(python3 -c "import json; print(json.load(open('perf.json'))['p95_ms'])")
+          budget="${PERF_P95_BUDGET_MS}"
+          echo "p95=${p95}ms  budget=${budget}ms"
+          # bash can't do float compare directly — defer to python.
+          if python3 -c "import sys, json; d=json.load(open('perf.json')); sys.exit(0 if d['p95_ms'] <= int('${budget}') else 1)"; then
+            echo "OK: p95 within budget"
+          else
+            echo "::error title=Perf regression::p95=${p95}ms exceeds budget ${budget}ms"
+            exit 1
+          fi
+
+      - name: Stop gunicorn
+        if: always()
+        run: |
+          if [ -f gunicorn.pid ]; then
+            pid=$(cat gunicorn.pid)
+            kill "$pid" 2>/dev/null || true
+            sleep 1
+            kill -9 "$pid" 2>/dev/null || true
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Perf regression check" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f perf.json ]; then
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat perf.json >> "$GITHUB_STEP_SUMMARY"
+            echo '' >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "_No perf.json — harness never ran._" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload perf.json artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-${{ github.event.pull_request.number || 'manual' }}
+          path: perf.json
+          if-no-files-found: warn
+          retention-days: 30
