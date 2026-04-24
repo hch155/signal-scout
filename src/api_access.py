@@ -267,6 +267,84 @@ def ensure_user_api_columns(app, db) -> None:
                 conn.execute(text("ALTER TABLE user ADD COLUMN last_location_lat FLOAT"))
             if 'last_location_lng' not in existing:
                 conn.execute(text("ALTER TABLE user ADD COLUMN last_location_lng FLOAT"))
+            # PR #36: drop legacy free-text profile columns + the
+            # never-wired username + last_password_reset_request. The
+            # /account UI was simplified to email + company in PR #19;
+            # these columns have had zero callers since then. SQLite
+            # 3.35+ supports ALTER TABLE … DROP COLUMN; the runtime
+            # ships SQLite ≥3.40 (Python 3.12). Each DROP is wrapped
+            # in an existence check so re-running this helper after the
+            # columns are gone is a no-op.
+            #
+            # `username` carries a UNIQUE constraint (auto-index), and
+            # SQLite refuses DROP COLUMN while a constraint references
+            # the column. We strip the auto-index + the UNIQUE clause
+            # from the table's CREATE statement first via the
+            # writable_schema escape hatch, then DROP COLUMN works.
+            _LEGACY_COLS = (
+                'full_name', 'profile_picture', 'bio', 'date_of_birth',
+                'username', 'last_password_reset_request',
+            )
+            if 'username' in existing:
+                # Pull the current CREATE TABLE statement and strip the
+                # `UNIQUE (username)` clause. Match both the SQLAlchemy
+                # default formatting (",\n\tUNIQUE (username)") and a
+                # bare ", UNIQUE (username)" so we tolerate hand-tweaked
+                # schemas.
+                import re as _re
+                row = conn.execute(text(
+                    "SELECT sql FROM sqlite_master "
+                    "WHERE type='table' AND name='user'"
+                )).fetchone()
+                if row is not None and row[0]:
+                    cleaned = _re.sub(
+                        r",\s*UNIQUE\s*\(\s*username\s*\)",
+                        "",
+                        row[0],
+                    )
+                    if cleaned != row[0]:
+                        # Find the auto-index that backs the username
+                        # UNIQUE constraint. pragma_index_info returns
+                        # one row per indexed column; we want the auto-
+                        # index whose only column is `username`.
+                        username_autoidx = None
+                        for (idx_name,) in conn.execute(text(
+                            "SELECT name FROM sqlite_master "
+                            "WHERE type='index' AND tbl_name='user' "
+                            "AND name LIKE 'sqlite_autoindex_user_%'"
+                        )).fetchall():
+                            cols = [
+                                r[0] for r in conn.execute(
+                                    text(
+                                        "SELECT name FROM pragma_index_info(:n)"
+                                    ),
+                                    {"n": idx_name},
+                                ).fetchall()
+                            ]
+                            if cols == ['username']:
+                                username_autoidx = idx_name
+                                break
+
+                        conn.execute(text("PRAGMA writable_schema=ON"))
+                        conn.execute(
+                            text(
+                                "UPDATE sqlite_master SET sql=:s "
+                                "WHERE type='table' AND name='user'"
+                            ),
+                            {"s": cleaned},
+                        )
+                        if username_autoidx is not None:
+                            conn.execute(
+                                text(
+                                    "DELETE FROM sqlite_master "
+                                    "WHERE type='index' AND name=:n"
+                                ),
+                                {"n": username_autoidx},
+                            )
+                        conn.execute(text("PRAGMA writable_schema=OFF"))
+            for _legacy in _LEGACY_COLS:
+                if _legacy in existing:
+                    conn.execute(text(f"ALTER TABLE user DROP COLUMN {_legacy}"))
 
         # Backfill api_key for any rows that lack one.
         users_without_key = User.query.filter(

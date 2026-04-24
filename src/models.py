@@ -25,17 +25,11 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
-    username = db.Column(db.String(80), unique=True)
-    full_name = db.Column(db.String(100))
-    profile_picture = db.Column(db.String(255))
-    bio = db.Column(db.Text)
-    date_of_birth = db.Column(db.Date)
     registration_date = db.Column(db.DateTime, default=datetime.utcnow)
     last_login_date = db.Column(db.DateTime)
     role = db.Column(db.String(80), default='user')
     status = db.Column(db.String(80), default='active')
     last_password_change = db.Column(db.DateTime, default=datetime.utcnow)
-    last_password_reset_request = db.Column(db.DateTime)
     # PR #5: API access. Indexed for the X-API-Key header lookup hot path.
     # api_tier values: 'free' (default), 'pro', 'enterprise' — the latter
     # two unlock higher per-tier rate limits and bypass the Referer check.
@@ -50,10 +44,10 @@ class User(db.Model):
     totp_secret = db.Column(db.String(64))
     totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
     recovery_codes_json = db.Column(db.Text)
-    # PR #19: company name. The full_name/bio/profile_picture/date_of_birth
-    # columns above are kept for back-compat with the /account/profile route
-    # but no longer surfaced in the UI — the simplified account page asks
-    # only for company. Future PR can drop the unused columns.
+    # PR #19: company name. The simplified /account UI asks only for
+    # company; the legacy free-text profile columns (full_name, bio,
+    # profile_picture, date_of_birth) plus username and the never-wired
+    # last_password_reset_request were dropped in PR #36.
     company = db.Column(db.String(120))
     # PR #29: per-user station diff feed.
     # last_location_* is the centre of the snapshot radius. Persisted by

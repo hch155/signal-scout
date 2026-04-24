@@ -88,7 +88,7 @@ def test_password_change_writes_audit(authed_client, csrf_token, app):
 
 def test_profile_update_writes_audit(authed_client, csrf_token, app):
     authed_client.post("/account/profile",
-                       data=json.dumps({"full_name": "Audit Tester"}),
+                       data=json.dumps({"company": "Audit Tester Co."}),
                        content_type="application/json",
                        headers={"X-CSRF-Token": csrf_token})
     pe = _events_for(app, event_type='profile.updated')
@@ -127,7 +127,7 @@ def test_account_page_renders_audit_events(authed_client, csrf_token):
 def test_account_delete_cascades_audit(authed_client, csrf_token, app):
     # Generate some events first
     authed_client.post("/account/profile",
-                       data=json.dumps({"full_name": "X"}),
+                       data=json.dumps({"company": "X"}),
                        content_type="application/json",
                        headers={"X-CSRF-Token": csrf_token})
     with app.app_context():

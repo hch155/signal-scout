@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify, render_template, request, session
 
@@ -462,12 +462,6 @@ def regenerate_api_key():
 
 # ── PR #12: profile / change password / delete account ─────────────────────
 
-# Conservative bounds on free-text profile fields. Matches the model column
-# widths defined in src/models.py and prevents oversized payloads from
-# bloating the SQLite row store.
-_MAX_NAME_LEN = 100
-_MAX_BIO_LEN = 500
-_MAX_URL_LEN = 255
 _PASSWORD_REGEX = re.compile(r"(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^\w\s]).{8,64}$")
 
 
@@ -493,51 +487,15 @@ def update_profile():
     # Accept both form-encoded and JSON for friendlier curl/UX.
     payload = request.get_json(silent=True) or request.form
 
-    # PR #19: switched to "only-update-fields-present" semantics so the
-    # simplified UI (company only) doesn't accidentally NULL out legacy
-    # profile fields for existing users, and so legacy API clients that
-    # POST only the old fields don't NULL out company.
+    # PR #19 / PR #36: only-update-fields-present semantics. The simplified
+    # /account UI sends just `company` and the legacy free-text profile
+    # columns (full_name/bio/profile_picture/date_of_birth) were dropped
+    # in PR #36 — `company` is the only writable profile field now.
     if 'company' in payload:
         company = (payload.get('company') or '').strip() or None
         if company and len(company) > 120:
             return jsonify({'error': 'company too long'}), 400
         user.company = company
-
-    if 'full_name' in payload:
-        full_name = (payload.get('full_name') or '').strip() or None
-        if full_name and len(full_name) > _MAX_NAME_LEN:
-            return jsonify({'error': 'full_name too long'}), 400
-        user.full_name = full_name
-
-    if 'bio' in payload:
-        bio = (payload.get('bio') or '').strip() or None
-        if bio and len(bio) > _MAX_BIO_LEN:
-            return jsonify({'error': 'bio too long'}), 400
-        user.bio = bio
-
-    if 'profile_picture' in payload:
-        profile_picture = (payload.get('profile_picture') or '').strip() or None
-        if profile_picture:
-            if len(profile_picture) > _MAX_URL_LEN:
-                return jsonify({'error': 'profile_picture URL too long'}), 400
-            # Only allow https:// URLs — http or javascript: would be a XSS
-            # vector if rendered as <img src=...>. Restrict scheme at the
-            # boundary.
-            if not profile_picture.lower().startswith('https://'):
-                return jsonify({'error': 'profile_picture must be an https:// URL'}), 400
-        user.profile_picture = profile_picture
-
-    if 'date_of_birth' in payload:
-        dob_raw = (payload.get('date_of_birth') or '').strip() or None
-        parsed_dob: date | None = None
-        if dob_raw:
-            try:
-                parsed_dob = datetime.strptime(dob_raw, '%Y-%m-%d').date()
-            except ValueError:
-                return jsonify({'error': 'date_of_birth must be YYYY-MM-DD'}), 400
-            if parsed_dob > date.today():
-                return jsonify({'error': 'date_of_birth cannot be in the future'}), 400
-        user.date_of_birth = parsed_dob
 
     _audit('profile.updated', user.id)
     try:

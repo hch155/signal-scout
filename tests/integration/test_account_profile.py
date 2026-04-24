@@ -20,74 +20,9 @@ NEW_PW = "Bb2@bbbbbb"
 
 def test_profile_update_no_csrf_403(authed_client):
     r = authed_client.post("/account/profile",
-                           data=json.dumps({"full_name": "Alice"}),
+                           data=json.dumps({"company": "Acme"}),
                            content_type="application/json")
     assert r.status_code == 403
-
-
-def test_profile_update_happy_path(authed_client, csrf_token, app):
-    payload = {
-        "full_name": "Alice Anderson",
-        "bio": "Just a Polish telecoms enthusiast.",
-        "profile_picture": "https://example.com/me.jpg",
-        "date_of_birth": "1990-05-15",
-    }
-    r = authed_client.post("/account/profile",
-                           data=json.dumps(payload),
-                           content_type="application/json",
-                           headers={"X-CSRF-Token": csrf_token})
-    assert r.status_code == 200, r.data
-    assert r.get_json()["success"] is True
-
-    with app.app_context():
-        user = User.query.first()
-        assert user.full_name == "Alice Anderson"
-        assert user.bio.startswith("Just a Polish")
-        assert user.profile_picture == "https://example.com/me.jpg"
-        assert user.date_of_birth.isoformat() == "1990-05-15"
-
-
-def test_profile_blank_strings_clear_to_null(authed_client, csrf_token, app):
-    # First populate
-    authed_client.post("/account/profile",
-                       data=json.dumps({"full_name": "X", "bio": "Y"}),
-                       content_type="application/json",
-                       headers={"X-CSRF-Token": csrf_token})
-    # Then clear via empty strings
-    r = authed_client.post("/account/profile",
-                           data=json.dumps({"full_name": "", "bio": ""}),
-                           content_type="application/json",
-                           headers={"X-CSRF-Token": csrf_token})
-    assert r.status_code == 200
-    with app.app_context():
-        user = User.query.first()
-        assert user.full_name is None
-        assert user.bio is None
-
-
-def test_profile_picture_must_be_https(authed_client, csrf_token):
-    for bad in ["http://x.com/a.jpg", "javascript:alert(1)", "ftp://x/a.jpg"]:
-        r = authed_client.post("/account/profile",
-                               data=json.dumps({"profile_picture": bad}),
-                               content_type="application/json",
-                               headers={"X-CSRF-Token": csrf_token})
-        assert r.status_code == 400, f"expected 400 for {bad}, got {r.status_code}"
-
-
-def test_profile_dob_in_future_rejected(authed_client, csrf_token):
-    r = authed_client.post("/account/profile",
-                           data=json.dumps({"date_of_birth": "3000-01-01"}),
-                           content_type="application/json",
-                           headers={"X-CSRF-Token": csrf_token})
-    assert r.status_code == 400
-
-
-def test_profile_dob_bad_format_rejected(authed_client, csrf_token):
-    r = authed_client.post("/account/profile",
-                           data=json.dumps({"date_of_birth": "15-05-1990"}),
-                           content_type="application/json",
-                           headers={"X-CSRF-Token": csrf_token})
-    assert r.status_code == 400
 
 
 def test_profile_company_field_persists(authed_client, csrf_token, app):
@@ -102,11 +37,12 @@ def test_profile_company_field_persists(authed_client, csrf_token, app):
         assert u.company == "Acme Corp."
 
 
-def test_profile_company_only_does_not_clear_legacy_fields(authed_client, csrf_token, app):
-    """PR #19: only-update-fields-present semantics — POSTing just company
-    must NOT NULL out previously-set full_name/bio."""
+def test_profile_company_only_update_lands(authed_client, csrf_token, app):
+    """PR #36: legacy free-text profile columns are gone — `company` is
+    the only writable field. Two consecutive POSTs of just `company`
+    must overwrite the prior value cleanly."""
     authed_client.post("/account/profile",
-                       data=json.dumps({"full_name": "Alice", "bio": "hi"}),
+                       data=json.dumps({"company": "Old Co."}),
                        content_type="application/json",
                        headers={"X-CSRF-Token": csrf_token})
     authed_client.post("/account/profile",
@@ -116,8 +52,6 @@ def test_profile_company_only_does_not_clear_legacy_fields(authed_client, csrf_t
     with app.app_context():
         u = User.query.first()
         assert u.company == "Acme"
-        assert u.full_name == "Alice"
-        assert u.bio == "hi"
 
 
 def test_profile_company_too_long_rejected(authed_client, csrf_token):
@@ -132,7 +66,7 @@ def test_profile_anon_returns_401(client, csrf_token):
     with client.session_transaction() as sess:
         sess["_csrf_token"] = csrf_token
     r = client.post("/account/profile",
-                    data=json.dumps({"full_name": "Mallory"}),
+                    data=json.dumps({"company": "Mallory Inc."}),
                     content_type="application/json",
                     headers={"X-CSRF-Token": csrf_token})
     assert r.status_code == 401
