@@ -754,6 +754,8 @@ function clearBandHighlight() {
     bandHighlightLayer.clearLayers();
     const banner = document.getElementById('band-far-banner');
     if (banner) banner.remove();
+    const card = document.getElementById('band-highlight-card');
+    if (card) card.remove();
     // Drop the active styling from any previously-pressed band button.
     document.querySelectorAll('[data-band]').forEach(b => {
         b.classList.remove('bg-blue-100', 'dark:bg-blue-900/40', 'ring-2', 'ring-blue-400');
@@ -791,64 +793,192 @@ function toggleBandHighlight(btnEl, gap, userLat, userLng) {
     activeBandKey = gap.band;
     btnEl.classList.add('bg-blue-100', 'dark:bg-blue-900/40');
 
-    const targetLat = gap.nearest_lat;
-    const targetLng = gap.nearest_lng;
-    if (typeof targetLat !== 'number' || typeof targetLng !== 'number') {
-        return;
-    }
+    const tLat = gap.nearest_lat;
+    const tLng = gap.nearest_lng;
+    if (typeof tLat !== 'number' || typeof tLng !== 'number') return;
 
-    if (gap.nearest_distance_km > FAR_BAND_KM) {
-        const brg = bearingDeg(userLat, userLng, targetLat, targetLng);
-        const dir = compassDir(brg);
-        const banner = document.createElement('div');
-        banner.id = 'band-far-banner';
-        banner.className = 'absolute top-3 left-1/2 -translate-x-1/2 z-[1000] bg-yellow-100 dark:bg-yellow-900/80 text-yellow-900 dark:text-yellow-100 text-xs px-3 py-1.5 rounded-full shadow border border-yellow-300 dark:border-yellow-700 pointer-events-auto';
-        banner.textContent = `Nearest ${gap.band} is ${gap.nearest_distance_km} km ${dir} — too far to render here.`;
-        const close = document.createElement('button');
-        close.type = 'button';
-        close.className = 'ml-2 font-bold opacity-70 hover:opacity-100';
-        close.textContent = '×';
-        close.addEventListener('click', clearBandHighlight);
-        banner.appendChild(close);
-        const mapEl = document.getElementById('mapid');
-        if (mapEl && mapEl.parentElement) {
-            mapEl.parentElement.style.position = mapEl.parentElement.style.position || 'relative';
-            mapEl.parentElement.appendChild(banner);
-        }
-        return;
-    }
+    const isFar = gap.nearest_distance_km > FAR_BAND_KM;
 
-    const ringRadiusMeters = (gap.threshold_km || 3) * 1000;
-    const ring = L.circle([targetLat, targetLng], {
-        radius: ringRadiusMeters,
-        color: '#7c3aed',           // violet — distinct from filter colors
-        weight: 2,
-        fillColor: '#7c3aed',
-        fillOpacity: 0.08,
-        interactive: false,
+    // PR #47.4: pull the rest of the BTS metadata the backend now
+    // returns (provider/basestation_id/city/all bands at that loc) so
+    // the popup + sidebar card show the same info as a regular station
+    // pin. Falls back to whatever the backend gave if any field is
+    // missing so the UI never half-renders.
+    const station = {
+        latitude: tLat,
+        longitude: tLng,
+        distance: gap.nearest_distance_km,
+        service_provider: gap.nearest_service_provider || 'Unknown',
+        basestation_id: gap.nearest_basestation_id || '',
+        frequency_bands: Array.isArray(gap.nearest_frequency_bands)
+            ? gap.nearest_frequency_bands
+            : [gap.band],
+        city: gap.nearest_city || '',
+        location: gap.nearest_location || '',
+    };
+
+    // Marker — provider-coloured pin so it visually matches any other
+    // station marker on the map. Bound to a popup with full station
+    // info; opened immediately so the user sees what they clicked.
+    const provColor = (typeof providerColors !== 'undefined' && providerColors[station.service_provider])
+        ? providerColors[station.service_provider]
+        : 'grey';
+    const markerIcon = L.icon({
+        iconUrl: `static/css/images/marker-icon-${provColor}.png`,
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
     });
-    const line = L.polyline([[userLat, userLng], [targetLat, targetLng]], {
+    const marker = L.marker([tLat, tLng], { icon: markerIcon })
+        .bindPopup(buildBandHighlightPopup(station, gap));
+
+    // Dashed line from the user's clicked spot to the BTS — same purple
+    // hue used for the band-highlight, distinct from the regular
+    // currentLine drawn by other flows.
+    const line = L.polyline([[userLat, userLng], [tLat, tLng]], {
         color: '#7c3aed',
         weight: 2,
         dashArray: '6 6',
         opacity: 0.85,
         interactive: false,
     });
-    const tag = L.tooltip({
-        permanent: true,
-        direction: 'top',
-        offset: [0, -8],
-        className: 'band-highlight-tag',
-    })
-        .setLatLng([targetLat, targetLng])
-        .setContent(`Nearest ${escapeHtml(gap.band)} · ${gap.nearest_distance_km} km`);
 
-    bandHighlightLayer.addLayer(ring);
     bandHighlightLayer.addLayer(line);
-    bandHighlightLayer.addLayer(tag);
+    bandHighlightLayer.addLayer(marker);
 
-    const bounds = L.latLngBounds([userLat, userLng], [targetLat, targetLng]).pad(0.25);
-    mymap.fitBounds(bounds, { maxZoom: 14, animate: true });
+    // Coverage ring is only meaningful when the user can actually see
+    // it — for far-away dead bands the ring would dominate the whole
+    // viewport. Keep it for in-range only.
+    if (!isFar) {
+        const ring = L.circle([tLat, tLng], {
+            radius: (gap.threshold_km || 3) * 1000,
+            color: '#7c3aed',
+            weight: 2,
+            fillColor: '#7c3aed',
+            fillOpacity: 0.08,
+            interactive: false,
+        });
+        bandHighlightLayer.addLayer(ring);
+    }
+
+    addBandHighlightSidebarCard(station, gap, userLat, userLng);
+
+    if (!isFar) {
+        const bounds = L.latLngBounds([userLat, userLng], [tLat, tLng]).pad(0.25);
+        mymap.fitBounds(bounds, { maxZoom: 14, animate: true });
+        marker.openPopup();
+    } else {
+        // Far case: don't auto-pan — that'd tear the map away from the
+        // user's clicked spot. Show a small banner telling the user the
+        // direction; the sidebar card has a "Navigate" button that does
+        // pan/zoom on demand if they want to actually go look.
+        const dir = compassDir(bearingDeg(userLat, userLng, tLat, tLng));
+        showFarBandBanner(`Nearest ${gap.band} is ${gap.nearest_distance_km} km ${dir} — click "Navigate" in the sidebar to jump there.`);
+    }
+}
+
+function showFarBandBanner(text) {
+    const banner = document.createElement('div');
+    banner.id = 'band-far-banner';
+    banner.className = 'absolute top-3 left-1/2 -translate-x-1/2 z-[1000] bg-yellow-100 dark:bg-yellow-900/80 text-yellow-900 dark:text-yellow-100 text-xs px-3 py-1.5 rounded-full shadow border border-yellow-300 dark:border-yellow-700 pointer-events-auto flex items-center gap-2';
+    banner.textContent = text;
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'font-bold opacity-70 hover:opacity-100';
+    close.textContent = '×';
+    close.addEventListener('click', clearBandHighlight);
+    banner.appendChild(close);
+    const mapEl = document.getElementById('mapid');
+    if (mapEl && mapEl.parentElement) {
+        mapEl.parentElement.style.position = mapEl.parentElement.style.position || 'relative';
+        mapEl.parentElement.appendChild(banner);
+    }
+}
+
+function buildBandHighlightPopup(station, gap) {
+    const lat = station.latitude.toFixed(5);
+    const lng = station.longitude.toFixed(5);
+    const bands = (station.frequency_bands || []).join(', ');
+    const gmaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(station.latitude)},${encodeURIComponent(station.longitude)}`;
+    return `
+        <div class="bg-blue-50 dark:bg-gray-800 dark:text-white p-1 rounded-lg text-sm">
+            <div class="font-semibold mb-1">Nearest ${escapeHtml(gap.band)} · ${gap.nearest_distance_km} km</div>
+            <b>Service Provider:</b> ${escapeHtml(station.service_provider)}<br>
+            <b>Base Station ID:</b> ${escapeHtml(station.basestation_id)}<br>
+            <b>Frequency Bands:</b> ${escapeHtml(bands)}<br>
+            <b>City:</b> ${escapeHtml(station.city)}<br>
+            <b>Location:</b> ${escapeHtml(station.location)}<br>
+            <b>Coordinates:</b> ${lat}°N, ${lng}°E<br>
+            <a href="${escapeHtml(gmaps)}" target="_blank" rel="noopener noreferrer" class="no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold">View on Google Maps</a>
+        </div>`;
+}
+
+function addBandHighlightSidebarCard(station, gap, userLat, userLng) {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    const old = document.getElementById('band-highlight-card');
+    if (old) old.remove();
+
+    const card = document.createElement('div');
+    card.id = 'band-highlight-card';
+    card.className = 'col-span-full mb-3 p-3 rounded-lg bg-violet-50 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-800';
+
+    const head = document.createElement('div');
+    head.className = 'flex items-center justify-between gap-2 mb-2';
+    const title = document.createElement('div');
+    title.className = 'text-sm font-semibold text-violet-900 dark:text-violet-100';
+    title.textContent = `Nearest ${gap.band} · ${gap.nearest_distance_km} km`;
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'text-violet-700 dark:text-violet-200 opacity-70 hover:opacity-100 text-lg leading-none';
+    closeBtn.textContent = '×';
+    closeBtn.setAttribute('aria-label', 'Clear band highlight');
+    closeBtn.addEventListener('click', clearBandHighlight);
+    head.appendChild(title);
+    head.appendChild(closeBtn);
+    card.appendChild(head);
+
+    const lines = [
+        ['Provider', station.service_provider || '—'],
+        ['BTS ID', station.basestation_id || '—'],
+        ['City', station.city || '—'],
+        ['Bands', (station.frequency_bands || []).join(', ') || '—'],
+    ];
+    lines.forEach(([k, v]) => {
+        const row = document.createElement('div');
+        row.className = 'text-xs text-gray-700 dark:text-gray-200 leading-tight';
+        const key = document.createElement('span');
+        key.className = 'font-mono text-gray-500 dark:text-gray-400 mr-1';
+        key.textContent = `${k}:`;
+        const val = document.createElement('span');
+        val.textContent = String(v);
+        row.appendChild(key);
+        row.appendChild(val);
+        card.appendChild(row);
+    });
+
+    const navBtn = document.createElement('button');
+    navBtn.type = 'button';
+    navBtn.className = 'mt-2 w-full bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold py-1.5 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
+    navBtn.textContent = 'Navigate to station';
+    navBtn.addEventListener('click', () => {
+        const bounds = L.latLngBounds(
+            [userLat, userLng],
+            [station.latitude, station.longitude]
+        ).pad(0.25);
+        mymap.fitBounds(bounds, { maxZoom: 14, animate: true });
+        // Re-open the popup in case the user closed it.
+        bandHighlightLayer.eachLayer(l => {
+            if (l instanceof L.Marker) l.openPopup();
+        });
+        // Far-band: drop the banner once the user has actually taken
+        // the navigate step — they're now looking at the BTS.
+        const banner = document.getElementById('band-far-banner');
+        if (banner) banner.remove();
+    });
+    card.appendChild(navBtn);
+
+    sidebar.insertBefore(card, sidebar.firstChild);
 }
 
 // PR #46.9: "Save this spot" CTA at the top of the sidebar after a

@@ -95,10 +95,18 @@ def find_coverage_gaps(user_lat: float, user_lng: float) -> dict:
     ))
 
     try:
+        # PR #47.4: pull the full BTS row (provider, basestation_id,
+        # city, location) — not just the band+coords — so the band-click
+        # UI can open a real Leaflet popup + sidebar card without a
+        # second round-trip per click.
         rows = db.session.query(
             BaseStation.frequency_band,
             BaseStation.latitude,
             BaseStation.longitude,
+            BaseStation.service_provider,
+            BaseStation.basestation_id,
+            BaseStation.city,
+            BaseStation.location,
         ).filter(
             BaseStation.latitude_segment.in_(segments)
         ).all()
@@ -111,13 +119,28 @@ def find_coverage_gaps(user_lat: float, user_lng: float) -> dict:
     # band. Storing only the distance was enough for the ✓/✗ verdict
     # but not for "show me where it is".
     nearest_per_band: dict[str, dict] = {}
-    for band, lat, lng in rows:
+    # PR #47.4: index every (lat, lng, provider) location → set of bands,
+    # so we can later answer "what other bands does the nearest BTS
+    # carry?" without re-querying. Keys quantised to 6 decimal places
+    # to dodge float-equality landmines.
+    bands_at_loc: dict[tuple, set] = {}
+    for band, lat, lng, provider, bts_id, city, location in rows:
         if not band:
             continue
         d = haversine(user_lat, user_lng, lat, lng)
         prev = nearest_per_band.get(band)
         if prev is None or d < prev["dist"]:
-            nearest_per_band[band] = {"dist": d, "lat": lat, "lng": lng}
+            nearest_per_band[band] = {
+                "dist": d,
+                "lat": lat,
+                "lng": lng,
+                "provider": provider,
+                "basestation_id": bts_id,
+                "city": city,
+                "location": location,
+            }
+        loc_key = (round(lat, 6), round(lng, 6), provider)
+        bands_at_loc.setdefault(loc_key, set()).add(band)
 
     gaps = []
     # Sort by the same priority the rest of the UI uses (5G first,
@@ -127,11 +150,18 @@ def find_coverage_gaps(user_lat: float, user_lng: float) -> dict:
         info = nearest_per_band[band]
         dist = info["dist"]
         threshold = COVERAGE_THRESHOLDS_KM.get(band, DEFAULT_GAP_THRESHOLD_KM)
+        loc_key = (round(info["lat"], 6), round(info["lng"], 6), info["provider"])
+        all_bands = sort_frequency_bands(list(bands_at_loc.get(loc_key, {band})))
         gaps.append({
             "band": band,
             "nearest_distance_km": round(dist, 2),
             "nearest_lat": info["lat"],
             "nearest_lng": info["lng"],
+            "nearest_basestation_id": info["basestation_id"],
+            "nearest_service_provider": info["provider"],
+            "nearest_city": info["city"],
+            "nearest_location": info["location"],
+            "nearest_frequency_bands": all_bands,
             "threshold_km": threshold,
             "has_coverage": dist <= threshold,
         })
