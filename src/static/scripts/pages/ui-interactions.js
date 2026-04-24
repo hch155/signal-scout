@@ -335,7 +335,7 @@ filterControl.onAdd = function(map) {
                     <div class="flex justify-between items-center">
                         <button id="showWithinDistanceBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 rounded">Show BTS Within Distance</button>
                     </div>
-                    <input type="number" id="withinDistanceRange" min="0.0" max="10" step="0.1" placeholder="" class="w-[4.25rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
+                    <input type="number" id="withinDistanceRange" min="0.5" max="10" step="0.5" placeholder="" class="w-[4.25rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
                 </div>
 
                 <div id="dynamicContent">
@@ -364,12 +364,29 @@ document.getElementById('reset-filters-btn').addEventListener('click', resetFilt
 document.getElementById('apply-filters').addEventListener('click', function() {
     let frequencyBands = Array.from(document.querySelectorAll('input[name="frequency_bands"]:checked')).map(el => el.value);
     let serviceProvider = Array.from(document.querySelectorAll('input[name="service_provider"]:checked')).map(el => el.value);
-    
+
     currentFilters.serviceProvider = serviceProvider;
     currentFilters.frequencyBands = frequencyBands;
-    currentFilters.nearestBts = document.getElementById('nearestBtsRange').value;
-    currentFilters.distance = document.getElementById('withinDistanceRange').value;
-    currentFilters.mode = 'all'; // Reset to 'all'
+
+    // Persist whatever distance/limit mode the user picked earlier instead
+    // of silently resetting to 'all' (which made constructFilterURL drop
+    // both `limit` and `max_distance`, leaving the backend at its default
+    // limit=9 — that was the "1083 stations → 9 stations after picking
+    // 5G3600" symptom user reported). Re-read the inputs so a value the
+    // user typed without clicking the dedicated "Show within distance"
+    // button is still respected.
+    const nearest = document.getElementById('nearestBtsRange').value;
+    const distance = document.getElementById('withinDistanceRange').value;
+    if (distance) {
+        currentFilters.mode = 'withinDistance';
+        currentFilters.maxDistance = distance;
+    } else if (nearest) {
+        currentFilters.mode = 'nearest';
+        currentFilters.limit = nearest;
+    }
+    // No distance and no limit value → keep whatever mode was set by the
+    // last "Show nearest" / "Show within distance" click. Resetting to
+    // 'all' would lose the user's earlier choice.
 
     checkAndSetInitialLocation();
     fetchStations();
@@ -1087,21 +1104,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function validateAndCorrectInput(input, isInteger = false) {
     input.addEventListener('input', function() {
-        const validValue = this.value.match(isInteger ? /^\d+$/ : /^\d*\.?\d?$/);
-        
+        // PR #45: regex bumped from `^\d*\.?\d?$` (single digit before dot,
+        // single digit after) to allow 1-2 digits before + 1 after. Old
+        // pattern silently rejected the trailing zero in "10.0" so users
+        // typing the boundary value got truncated to "10" → toFixed(1)
+        // produced "10.0" again → infinite oscillation in some flows.
+        const validValue = this.value.match(isInteger ? /^\d+$/ : /^\d{1,2}(\.\d?)?$/);
+
         if (validValue) {
             let value = isInteger ? parseInt(this.value, 10) : parseFloat(this.value);
             const max = parseFloat(this.max);
 
             if (value > max) {
                 this.value = max.toString();
-            } else if (value === max && this.value.endsWith('.0')) {
-                this.value = this.value.slice(0, -2);
             } else if ((!isInteger && value <= 0) || (isInteger && value < 1)) {
-                this.value = isInteger ? "1" : "0.1"; // 1 for integer, 0.1 for decimal
-            } else {
-                this.value = isInteger ? value.toString() : value.toFixed(1);
+                this.value = isInteger ? "1" : "0.5"; // matches step="0.5" min
             }
+            // Don't reformat to toFixed(1) on every keystroke — it fights
+            // the user's typing (e.g. typing "5" → toFixed → "5.0" →
+            // cursor jumps). Browser already enforces step + max on blur.
         } else {
             this.value = this.value.slice(0, -1); // remove the last invalid character
         }
