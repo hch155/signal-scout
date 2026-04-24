@@ -6,7 +6,6 @@ recovery codes, and the audit-log entries written for 2FA actions.
 
 import json
 
-import pytest
 import pyotp
 
 from models import User, AuditEvent
@@ -33,9 +32,18 @@ def _enable_2fa(client, csrf_token, app):
     assert len(body["recovery_codes"]) == 10
 
     with app.app_context():
+        # Lazy import — top-level `from auth_routes import ...` would pull
+        # in `kms` → `config` BEFORE conftest sets STATIONS_DB_PATH /
+        # USERS_DB_PATH env, freezing settings against the wrong paths.
+        from auth_routes import _unwrap_totp_secret
         u = User.query.first()
         assert u.totp_enabled is True
-        assert u.totp_secret == secret
+        # PR #39: secret stored KMS-wrapped (NoopKms in tests = base64
+        # passthrough). Legacy plaintext column must be empty so a
+        # post-#39 row can never be confused with a pre-#39 one.
+        assert u.totp_secret is None
+        assert u.totp_secret_enc is not None
+        assert _unwrap_totp_secret(u) == secret
     return secret, body["recovery_codes"]
 
 
@@ -266,6 +274,7 @@ def test_disable_requires_both_password_and_code(authed_client, csrf_token, app)
         u = User.query.first()
         assert u.totp_enabled is False
         assert u.totp_secret is None
+        assert u.totp_secret_enc is None
         assert u.recovery_codes_json is None
 
 

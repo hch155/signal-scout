@@ -74,6 +74,14 @@ class Config:
     # ── Honeypot ─────────────────────────────────────────────────────────
     honeypot_bts_ids_raw: str = field(default_factory=lambda: _str("HONEYPOT_BTS_IDS"))
 
+    # ── KMS (at-rest encryption for TOTP secret) ─────────────────────────
+    # Full resource name like
+    # `projects/<project>/locations/<region>/keyRings/<ring>/cryptoKeys/<key>`.
+    # Empty / unset → NoopKms (passthrough); fine for dev + tests, NOT for
+    # prod. Setting this in cd.yaml env flips the backend on next deploy
+    # without any code change. See src/kms.py for activation steps.
+    gcp_kms_key_name: str = field(default_factory=lambda: _str("GCP_KMS_KEY_NAME"))
+
     # ── Embed widget ────────────────────────────────────────────────────
     # Comma-separated list of origins allowed to iframe /embed/* (sets
     # CSP `frame-ancestors`). Use literal '*' (single entry) to allow any

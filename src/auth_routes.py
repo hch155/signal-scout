@@ -27,6 +27,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, render_template, request, session
 
 from models import User, ApiKey, AuditEvent, UserLocation, UserStationSnapshot
+from kms import get_kms
 
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,42 @@ def _login_failures_total():
 # overnight).
 LOCKOUT_THRESHOLD = 5
 LOCKOUT_DURATION = timedelta(minutes=15)
+
+
+# ── PR #39: KMS-wrapped TOTP secret ─────────────────────────────────────
+# Helpers route every TOTP secret read/write through get_kms() so flipping
+# GCP_KMS_KEY_NAME on Cloud Run env switches the storage format without
+# touching route code. Wire format on disk: base64(KMS_ciphertext) so a
+# TEXT column holds binary safely.
+
+def _wrap_totp_secret(plain: str) -> str:
+    """Encrypt a plaintext TOTP secret for storage in
+    User.totp_secret_enc. With NoopKms this is base64(plain) — still
+    distinguishable from a NULL totp_secret_enc, so the read path can
+    prefer it deterministically."""
+    import base64
+    if not plain:
+        return ''
+    ct = get_kms().encrypt(plain.encode('utf-8'))
+    return base64.b64encode(ct).decode('ascii')
+
+
+def _unwrap_totp_secret(user) -> str | None:
+    """Return the plaintext TOTP secret for `user`, preferring the
+    KMS-wrapped column when populated and falling back to the legacy
+    plaintext `totp_secret` for rows minted before PR #39. Returns None
+    when the user has no secret at all."""
+    import base64
+    enc = getattr(user, 'totp_secret_enc', None)
+    if enc:
+        try:
+            ct = base64.b64decode(enc)
+            return get_kms().decrypt(ct).decode('utf-8')
+        except Exception:
+            logger.exception(
+                "Failed to unwrap totp_secret_enc for user_id=%s — "
+                "falling back to plaintext column", user.id)
+    return user.totp_secret or None
 
 
 # ── PR #15: audit log ──────────────────────────────────────────────────────
@@ -766,7 +803,8 @@ def totp_verify():
     recovery_hashes = [
         _bcrypt().generate_password_hash(c).decode('utf-8') for c in recovery
     ]
-    user.totp_secret = pending
+    user.totp_secret_enc = _wrap_totp_secret(pending)
+    user.totp_secret = None
     user.totp_enabled = True
     user.recovery_codes_json = _json.dumps(recovery_hashes)
     session.pop('pending_totp_secret', None)
@@ -802,10 +840,11 @@ def totp_disable():
     if not _bcrypt().check_password_hash(user.password_hash, password):
         _login_failures_total().inc()
         return jsonify({'error': 'Current password is incorrect'}), 401
-    if not _pyotp().TOTP(user.totp_secret).verify(code, valid_window=_TOTP_VALID_WINDOW):
+    if not _pyotp().TOTP(_unwrap_totp_secret(user)).verify(code, valid_window=_TOTP_VALID_WINDOW):
         return jsonify({'error': 'Invalid 2FA code'}), 401
 
     user.totp_secret = None
+    user.totp_secret_enc = None
     user.totp_enabled = False
     user.recovery_codes_json = None
     _audit('2fa.disabled', user.id)
@@ -839,7 +878,7 @@ def login_totp():
     used_recovery = False
     ok = False
     if code:
-        if _pyotp().TOTP(user.totp_secret).verify(code, valid_window=_TOTP_VALID_WINDOW):
+        if _pyotp().TOTP(_unwrap_totp_secret(user)).verify(code, valid_window=_TOTP_VALID_WINDOW):
             ok = True
         else:
             # Try as a recovery code: compare against each stored hash.

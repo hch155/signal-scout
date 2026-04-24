@@ -42,6 +42,12 @@ class User(db.Model):
     # user has successfully verified a code during setup. recovery_codes is
     # a JSON array of bcrypt hashes (one per single-use recovery code).
     totp_secret = db.Column(db.String(64))
+    # PR #39: KMS-wrapped totp_secret. Populated when GCP_KMS_KEY_NAME is set
+    # (NoopKms otherwise — passthrough, written as-is). Read path prefers
+    # this column; falls back to plaintext `totp_secret` for rows minted
+    # before activation. Stored as base64 text so SQLite TEXT column works
+    # — KMS ciphertext is binary.
+    totp_secret_enc = db.Column(db.Text)
     totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
     recovery_codes_json = db.Column(db.Text)
     # PR #19: company name. The simplified /account UI asks only for

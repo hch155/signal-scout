@@ -250,6 +250,10 @@ def ensure_user_api_columns(app, db) -> None:
             # code (`user.totp_enabled or False`), so default-NULL is fine.
             if 'totp_secret' not in existing:
                 conn.execute(text("ALTER TABLE user ADD COLUMN totp_secret VARCHAR(64)"))
+            # PR #39: KMS-wrapped TOTP secret column. Stored base64-encoded
+            # so SQLite TEXT works for binary KMS ciphertext.
+            if 'totp_secret_enc' not in existing:
+                conn.execute(text("ALTER TABLE user ADD COLUMN totp_secret_enc TEXT"))
             if 'totp_enabled' not in existing:
                 conn.execute(text("ALTER TABLE user ADD COLUMN totp_enabled BOOLEAN DEFAULT 0"))
             if 'recovery_codes_json' not in existing:
