@@ -305,6 +305,63 @@ def set_security_headers(response):
             response.headers['Vary'] = (existing_vary + ', Cookie').lstrip(', ')
     return response
 
+# PR #48: positive caching for read-only public pages. /data and /tips
+# render markdown (mostly static — content edits ship via deploy); /stats
+# renders aggregated SQL counts that change at most once a month with the
+# UKE refresh. Without these headers every page-load eats a full Flask
+# render + DB hit; with ETag + 304 a CDN / browser short-circuits to a
+# 0-byte 304 on revisits.
+_PUBLIC_CACHE_PATHS = {'/data', '/stats', '/tips', '/tips/content'}
+# 5 min fresh + 10 min stale-while-revalidate. Long enough that a user
+# clicking around the site re-uses the cache; short enough that a content
+# edit (markdown push) reaches users within minutes after deploy.
+_PUBLIC_CACHE_MAX_AGE = 300
+_PUBLIC_CACHE_SWR     = 600
+# /tips serves different content for logged-in vs anonymous users
+# (tips_registered.md vs tips.md). Without Vary:Cookie an intermediary
+# cache could serve the registered version to a logged-out user.
+_COOKIE_VARYING_CACHE_PATHS = {'/tips', '/tips/content'}
+
+
+@app.after_request
+def set_public_cache_headers(response):
+    """ETag + Cache-Control for read-only public pages.
+
+    Runs after `set_security_headers`, which already sets
+    `Cache-Control: no-store` on authenticated / `/account/*` responses.
+    We refuse to overwrite an existing Cache-Control so that no-store
+    always wins when present.
+    """
+    if request.path not in _PUBLIC_CACHE_PATHS:
+        return response
+    # Bail on errors / redirects — only positively cache 200 OK.
+    if response.status_code != 200:
+        return response
+    # Don't override a stricter no-store policy that an upstream hook
+    # may have already applied.
+    if response.headers.get('Cache-Control'):
+        return response
+    # `add_etag()` reads response.data which materialises generators —
+    # safe for our HTML/JSON responses (small, in-memory).
+    try:
+        response.add_etag()
+    except RuntimeError:
+        # passthrough / direct_passthrough responses can't be hashed;
+        # skip rather than break the request.
+        return response
+    # Honor If-None-Match → 304 when the body hash matches.
+    response.make_conditional(request)
+    response.headers['Cache-Control'] = (
+        f'public, max-age={_PUBLIC_CACHE_MAX_AGE}, '
+        f'stale-while-revalidate={_PUBLIC_CACHE_SWR}'
+    )
+    if request.path in _COOKIE_VARYING_CACHE_PATHS:
+        existing_vary = response.headers.get('Vary', '')
+        if 'Cookie' not in existing_vary:
+            response.headers['Vary'] = (existing_vary + ', Cookie').lstrip(', ')
+    return response
+
+
 def generate_csrf_token():
     if '_csrf_token' not in session:
         session['_csrf_token'] = secrets.token_hex(32)
