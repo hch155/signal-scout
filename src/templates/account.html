@@ -327,7 +327,7 @@
                         <p id="totp-regen-status" class="text-sm mt-2"></p>
                     </form>
                 {% else %}
-                    <p class="text-sm text-gray-700 dark:text-gray-200">
+                    <p class="text-sm text-gray-700 dark:text-gray-100">
                         Add a 6-digit code from a TOTP authenticator (Google Authenticator, Authy, 1Password, Bitwarden) to every login.
                     </p>
                     <button id="totp-setup-btn"
@@ -337,24 +337,28 @@
                 {% endif %}
 
                 {# Shared setup/verify box. JS un-hides it after either
-                   /account/2fa/setup or /account/2fa/regenerate succeeds. #}
+                   /account/2fa/setup or /account/2fa/regenerate succeeds.
+                   Inner panel uses bg-gray-700 in dark; text colours are
+                   bumped to gray-100/300 (not 200/400) so they stay
+                   readable against that background — original gray-200/400
+                   blended into the panel and the labels disappeared. #}
                 <div id="totp-setup-box" class="hidden mt-3 space-y-3 p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">
-                    <p class="text-sm text-gray-700 dark:text-gray-200">
+                    <p class="text-sm text-gray-700 dark:text-gray-100">
                         Scan this QR code with your authenticator (or paste the secret manually):
                     </p>
                     <div id="totp-qr" class="flex justify-center bg-white p-3 rounded"></div>
                     <div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Secret</p>
+                        <p class="text-xs text-gray-600 dark:text-gray-300">Secret</p>
                         <code id="totp-secret" class="font-mono text-xs break-all text-gray-900 dark:text-gray-100"></code>
                     </div>
                     <details class="text-xs">
-                        <summary class="cursor-pointer text-gray-500 dark:text-gray-400">Show provisioning URI</summary>
-                        <code id="totp-uri" class="font-mono text-xs break-all text-gray-700 dark:text-gray-300 mt-1 block"></code>
+                        <summary class="cursor-pointer text-gray-600 dark:text-gray-300">Show provisioning URI</summary>
+                        <code id="totp-uri" class="font-mono text-xs break-all text-gray-700 dark:text-gray-100 mt-1 block"></code>
                     </details>
                     <form id="totp-verify-form" class="space-y-2 pt-2 border-t border-gray-300 dark:border-gray-600">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <label class="block">
-                            <span class="text-sm text-gray-700 dark:text-gray-200">Enter the 6-digit code shown in your app</span>
+                            <span class="text-sm text-gray-700 dark:text-gray-100">Enter the 6-digit code shown in your app</span>
                             <input type="text" name="code" required pattern="[0-9 ]{6,7}" maxlength="7"
                                    inputmode="numeric"
                                    class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">

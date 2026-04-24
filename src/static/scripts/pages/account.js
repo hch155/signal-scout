@@ -134,8 +134,14 @@ document.addEventListener('DOMContentLoaded', () => {
       // would also work since the SVG is from our server, but DOMParser
       // is the defense-in-depth path.
       const parsed = new DOMParser().parseFromString(data.qr_svg, 'image/svg+xml');
+      const svgEl = parsed.documentElement;
+      // segno's svg_inline() omits width/height (only viewBox). Without
+      // intrinsic dimensions the parent's `display: flex` collapses the
+      // SVG to 0×0 and the QR box renders empty. Pin to a scannable size.
+      svgEl.setAttribute('width', '220');
+      svgEl.setAttribute('height', '220');
       qrHost.textContent = '';
-      qrHost.appendChild(parsed.documentElement);
+      qrHost.appendChild(svgEl);
     }
     box.classList.remove('hidden');
     return true;
