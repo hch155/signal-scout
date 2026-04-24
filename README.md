@@ -42,12 +42,13 @@ Endpoints — full schemas in Swagger UI at `/api/v1/docs/`. Compact map:
 | GET | `/api/v1/stations` | Nearest stations with optional provider/band filters |
 | GET | `/api/v1/find_station?basestation_id=…` | Exact lookup by BTS ID |
 | GET | `/api/v1/search_stations?q=…` | Autocomplete by ID prefix |
+| GET | `/api/v1/coverage_gaps?lat=…&lng=…` | Per-band "is this spot dead?" verdict (5G/LTE/UMTS/GSM) |
 | POST | `/api/v1/submit_location` | Persist click location to session, return nearest stations |
 | GET | `/api/v1/healthz` | Liveness probe (no auth) |
 | GET | `/api/v1/openapi.json` | OpenAPI 3 spec |
 
 Legacy unprefixed routes (`/stations`, `/find_station`, `/search_stations`,
-`/submit_location`, `/healthz`) stay live for back-compat.
+`/coverage_gaps`, `/submit_location`, `/healthz`) stay live for back-compat.
 
 **Site pages** (HTML, no auth)
 
@@ -57,9 +58,10 @@ Legacy unprefixed routes (`/stations`, `/find_station`, `/search_stations`,
 | `/data` | About the dataset (markdown) |
 | `/stats` | Per-operator coverage stats |
 | `/tips` | Tips & tricks (registered users get extended version) |
+| `/tips/content` | JSON content fetcher used by `/tips` page (anon vs registered split) |
 | `/status` | Customer-facing service health (uptime %, search latency, requests/day) |
 | `/embed/widget` | Embeddable widget (`?lat=…&lng=…&zoom=…`) for third-party iframes |
-| `/robots.txt`, `/sitemap.xml` | SEO |
+| `/favicon.ico`, `/robots.txt`, `/sitemap.xml` | SEO + browser-mandated assets |
 
 **Auth & account** (POST unless noted; CSRF-required)
 
@@ -92,6 +94,7 @@ Legacy unprefixed routes (`/stations`, `/find_station`, `/search_stations`,
 | POST | `/account/locations/<id>/delete` | Delete (cascades snapshots) |
 | POST | `/account/locations/<id>/snapshot` | Capture station snapshot now |
 | GET  | `/account/locations/<id>/changes` | Diff feed (added/removed BTS over time) |
+| POST | `/account/snapshot` | Legacy: snapshot at the user's single saved location |
 | GET  | `/account/changes` | Legacy single-location diff feed |
 
 **Ops & metrics**

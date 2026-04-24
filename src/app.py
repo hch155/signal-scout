@@ -994,6 +994,84 @@ def api_v1_healthz():
     return current_app.view_functions['healthz']()
 
 
+def api_v1_coverage_gaps():
+    """
+    Per-band coverage check at a single coordinate.
+    ---
+    tags: [Stations]
+    description: |
+      For each frequency band present in the dataset, returns the
+      distance to the nearest BTS of that band and whether that
+      distance falls inside the band-specific "poor coverage"
+      threshold. A "gap" is a band whose nearest station is farther
+      than the threshold — meaning a phone configured for that band
+      would lose signal here.
+
+      Thresholds (km): high-band (5G3600, LTE2600) ≤1.5; mid-band
+      (5G2100, LTE2100, LTE1800, UMTS2100) ≤2; low-band (LTE800,
+      L900, GSM900) ≤5; default ≤3.
+    parameters:
+      - in: query
+        name: lat
+        required: true
+        schema: {type: number, format: double, minimum: 49.0, maximum: 55.5}
+        example: 52.2297
+      - in: query
+        name: lng
+        required: true
+        schema: {type: number, format: double, minimum: 14.0, maximum: 24.2}
+        example: 21.0122
+    responses:
+      200:
+        description: |
+          Per-band coverage verdicts. When the coordinate is outside
+          PL bounds, returns `{outside_pl: true, gaps: [], summary: {…}}`
+          (200, not 400) so the JS client handles it uniformly with
+          /submit_location.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                gaps:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      band: {type: string, example: "5G3600"}
+                      nearest_distance_km: {type: number, example: 0.14}
+                      nearest_lat: {type: number, example: 52.2298}
+                      nearest_lng: {type: number, example: 21.0125}
+                      nearest_basestation_id: {type: string, example: "T1234"}
+                      nearest_service_provider: {type: string, example: "Orange Polska S.A."}
+                      nearest_city: {type: string, example: "Warszawa"}
+                      nearest_location: {type: string, example: "Złota 44, 39"}
+                      nearest_frequency_bands:
+                        type: array
+                        items: {type: string}
+                        example: ["5G3600", "LTE2600", "LTE1800"]
+                      threshold_km: {type: number, example: 1.5}
+                      has_coverage: {type: boolean, example: true}
+                summary:
+                  type: object
+                  properties:
+                    total_bands: {type: integer, example: 14}
+                    covered: {type: integer, example: 8}
+                    dead: {type: integer, example: 6}
+                outside_pl: {type: boolean, example: false}
+      400:
+        description: Invalid lat/lng parsing.
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Error'}
+      403:
+        description: No API key and no same-origin Referer.
+      429:
+        description: Tier rate limit exceeded.
+    """
+    return coverage_gaps()
+
+
 app.add_url_rule('/api/v1/stations', endpoint='api_v1_stations',
                  view_func=api_v1_get_stations, methods=['GET'])
 app.add_url_rule('/api/v1/find_station', endpoint='api_v1_find_station',
@@ -1003,7 +1081,7 @@ app.add_url_rule('/api/v1/search_stations', endpoint='api_v1_search_stations',
 app.add_url_rule('/api/v1/submit_location', endpoint='api_v1_submit_location',
                  view_func=api_v1_submit_location, methods=['POST'])
 app.add_url_rule('/api/v1/coverage_gaps', endpoint='api_v1_coverage_gaps',
-                 view_func=coverage_gaps, methods=['GET'])
+                 view_func=api_v1_coverage_gaps, methods=['GET'])
 app.add_url_rule('/api/v1/healthz', endpoint='api_v1_healthz',
                  view_func=api_v1_healthz, methods=['GET'])
 
