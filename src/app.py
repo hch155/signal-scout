@@ -151,6 +151,7 @@ def _build_csp_policy() -> str:
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: blob: "
         "https://*.tile.openstreetmap.org https://tiles.stadiamaps.com "
+        "https://*.basemaps.cartocdn.com "
         "https://server.arcgisonline.com; "
         "font-src 'self' data:; "
         f"connect-src 'self'{connect_extras}; "

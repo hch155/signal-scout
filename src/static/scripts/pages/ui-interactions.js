@@ -7,8 +7,16 @@ const lightTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{
     attribution: '&copy; <a href="www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
 }).addTo(mymap);
 
-const darkTileLayer = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+// PR #48.1: switched from Stadia Maps (returned 503 once we passed the
+// no-API-key free tier) to CartoDB Dark Matter — same dark-mode vibe,
+// no API key required, served via 4 subdomain CDN. Stadia would be
+// fine again with a free API key (200k tiles/mo) — switch back if we
+// want their richer styling later. CSP `img-src` widened in app.py to
+// allow basemaps.cartocdn.com.
+const darkTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19,
 });
 
 // PR #46.8: restore satellite layer (PR #46.7 misread the owner's
