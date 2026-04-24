@@ -79,16 +79,40 @@ LOCKOUT_DURATION = timedelta(minutes=15)
 
 # ── PR #15: audit log ──────────────────────────────────────────────────────
 
+def _redact_ip(s: str) -> str:
+    """GDPR — drop the last octet (IPv4) or last 80 bits (IPv6).
+    Empty / unparseable → empty (don't store junk)."""
+    if not s:
+        return ''
+    # X-Forwarded-For is a comma-separated list ('client, proxy1, proxy2').
+    # Take the first hop = client; rest are infrastructure.
+    first = s.split(',')[0].strip()
+    try:
+        import ipaddress
+        ip = ipaddress.ip_address(first)
+    except ValueError:
+        return ''
+    if isinstance(ip, ipaddress.IPv4Address):
+        parts = str(ip).split('.')
+        parts[-1] = '0'
+        return '.'.join(parts)
+    # IPv6: keep top 48 bits, zero the rest. ipaddress.ip_network handles
+    # the math cleanly.
+    net = ipaddress.ip_network(f"{ip}/48", strict=False)
+    return str(net.network_address)
+
+
 def _audit(event_type: str, user_id: int, meta: dict | None = None) -> None:
     """Record a security-sensitive action against `user_id`. Caller is
     responsible for committing the txn — we add the row to the session so
     it lands atomically with whatever business write triggered it."""
     try:
+        raw_ip = (request.headers.get('X-Forwarded-For')
+                  or request.remote_addr or '')
         ev = AuditEvent(
             user_id=user_id,
             event_type=event_type,
-            ip_address=(request.headers.get('X-Forwarded-For')
-                        or request.remote_addr or '')[:64],
+            ip_address=_redact_ip(raw_ip)[:64],
             user_agent=(request.headers.get('User-Agent') or '')[:256],
             meta_json=json.dumps(meta) if meta else None,
         )
