@@ -62,6 +62,7 @@ Legacy unprefixed routes (`/stations`, `/find_station`, `/search_stations`,
 | `/stats` | Per-operator coverage stats |
 | `/tips` | Tips & tricks (registered users get extended version) |
 | `/tips/content` | JSON content fetcher used by `/tips` page (anon vs registered split) |
+| `/privacy` | GDPR Art. 13 transparency notice — what we collect, why, retention, user rights |
 | `/status` | Customer-facing service health (uptime %, search latency, requests/day) |
 | `/embed/widget` | Embeddable widget (`?lat=…&lng=…&zoom=…`) for third-party iframes |
 | `/favicon.ico`, `/robots.txt`, `/sitemap.xml` | SEO + browser-mandated assets |

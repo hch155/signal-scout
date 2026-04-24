@@ -311,7 +311,7 @@ def set_security_headers(response):
 # UKE refresh. Without these headers every page-load eats a full Flask
 # render + DB hit; with ETag + 304 a CDN / browser short-circuits to a
 # 0-byte 304 on revisits.
-_PUBLIC_CACHE_PATHS = {'/data', '/stats', '/tips', '/tips/content'}
+_PUBLIC_CACHE_PATHS = {'/data', '/stats', '/tips', '/tips/content', '/privacy'}
 # 5 min fresh + 10 min stale-while-revalidate. Long enough that a user
 # clicking around the site re-uses the cache; short enough that a content
 # edit (markdown push) reaches users within minutes after deploy.
@@ -487,6 +487,16 @@ def tips_content():
     html_content = get_html_content_from_markdown(file_name)
     response = make_response(html_content)
     _set_content_etag(response, _md_etag_key(file_name))
+    return response
+
+@app.route('/privacy')
+def privacy_page():
+    """GDPR Art. 13 transparency notice. Markdown-rendered like /data
+    and /tips so updates ship via deploy + content edits, not template
+    changes. Cached publicly via the same _set_content_etag path."""
+    html_content = get_html_content_from_markdown('privacy.md')
+    response = make_response(render_template('privacy.html', content=html_content))
+    _set_content_etag(response, _md_etag_key('privacy.md'))
     return response
 
 @app.route('/favicon.ico')
@@ -792,6 +802,7 @@ def robots_txt():
         "Allow: /data\n"
         "Allow: /stats\n"
         "Allow: /tips\n"
+        "Allow: /privacy\n"
         "Disallow: /api/\n"
         "Disallow: /embed/\n"
         "Disallow: /account\n"
@@ -823,6 +834,7 @@ def sitemap_xml():
         ('/data', '0.8', 'monthly'),
         ('/stats', '0.8', 'monthly'),
         ('/tips', '0.7', 'monthly'),
+        ('/privacy', '0.3', 'yearly'),
     ]
     origin = settings.canonical_origin
     body = ['<?xml version="1.0" encoding="UTF-8"?>',
