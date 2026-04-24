@@ -1,0 +1,11 @@
+Two-factor authentication disabled
+
+Hi {{ user.email }},
+
+2FA was just turned off on your Signal-Scout account. Login is now
+password-only.
+
+If this wasn't you: change your password immediately and re-enable 2FA at:
+https://signal-scout.com/account
+
+— Signal-Scout

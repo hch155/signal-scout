@@ -82,6 +82,21 @@ class Config:
     # ── Honeypot ─────────────────────────────────────────────────────────
     honeypot_bts_ids_raw: str = field(default_factory=lambda: _str("HONEYPOT_BTS_IDS"))
 
+    # ── Transactional email backend (PR #48 minimal cherry-pick of #249) ─
+    # `email_backend` selects which sender to use. Values: "noop" (logs
+    # only — default for dev/CI), "smtp" (Mailpit / generic SMTP), or
+    # "sendgrid" (SendGrid Web API v3). Backend wiring lives in
+    # src/emails.py.
+    email_backend: str = field(default_factory=lambda: _str("EMAIL_BACKEND", "noop").lower())
+    email_from: str = field(default_factory=lambda: _str("EMAIL_FROM", "noreply@signal-scout.com"))
+    email_from_name: str = field(default_factory=lambda: _str("EMAIL_FROM_NAME", "Signal-Scout"))
+    sendgrid_api_key: str = field(default_factory=lambda: _str("SENDGRID_API_KEY"))
+    smtp_host: str = field(default_factory=lambda: _str("SMTP_HOST", "127.0.0.1"))
+    smtp_port: int = field(default_factory=lambda: int(_str("SMTP_PORT", "1025") or "1025"))
+    smtp_username: str = field(default_factory=lambda: _str("SMTP_USERNAME"))
+    smtp_password: str = field(default_factory=lambda: _str("SMTP_PASSWORD"))
+    smtp_use_tls: bool = field(default_factory=lambda: _str("SMTP_USE_TLS", "").lower() in ("1", "true", "yes"))
+
     # ── KMS (at-rest encryption for TOTP secret) ─────────────────────────
     # Full resource name like
     # `projects/<project>/locations/<region>/keyRings/<ring>/cryptoKeys/<key>`.

@@ -1,0 +1,14 @@
+A 2FA recovery code was just used
+
+Hi {{ user.email }},
+
+Someone signed in to your Signal-Scout account using a one-time recovery
+code. The code is now spent.
+
+If this was you (lost phone, restored from backup) — no action needed.
+
+If this wasn't you: someone has access to a recovery code AND your
+password. Change your password and regenerate 2FA + recovery codes at:
+https://signal-scout.com/account
+
+— Signal-Scout

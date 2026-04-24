@@ -499,6 +499,38 @@ def privacy_page():
     _set_content_etag(response, _md_etag_key('privacy.md'))
     return response
 
+@app.route('/account/test_email', methods=['POST'])
+@limiter.limit("3 per hour")
+def test_email_endpoint():
+    """PR #48 SendGrid smoke test: triggers a single transactional email
+    through the active backend (settings.email_backend) to the logged-in
+    user's own email address. Rate-limited to 3/hour to prevent misuse;
+    requires CSRF + active session.
+
+    Returns: {success, backend, to} on success or {error, message} on
+    failure. Reuses the password_changed template — content doesn't
+    matter for the smoke test, what matters is the SendGrid API call
+    going through (visible in SendGrid Activity Feed)."""
+    if not validate_csrf():
+        return jsonify({"error": "csrf_failed",
+                        "message": "Missing or invalid X-CSRF-Token"}), 403
+    if 'user_id' not in session:
+        return jsonify({"error": "auth_required",
+                        "message": "Login required."}), 401
+    from models import User as _U
+    from emails import send_password_changed
+    user = _U.query.get(session['user_id'])
+    if not user:
+        return jsonify({"error": "user_not_found"}), 404
+    ok = send_password_changed(user)
+    return jsonify({
+        "success": bool(ok),
+        "backend": settings.email_backend,
+        "from": settings.email_from,
+        "to": user.email,
+    }), (200 if ok else 502)
+
+
 @app.route('/favicon.ico')
 def favicon():
     return app.send_static_file('favicon.ico')

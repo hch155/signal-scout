@@ -31,6 +31,7 @@ python-dotenv==1.2.2
 pyotp==2.9.0
 pytz==2024.1
 segno==1.6.1
+sendgrid==6.11.0
 requests==2.33.1
 rich==15.0.0
 six==1.16.0

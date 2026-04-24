@@ -1,0 +1,14 @@
+Two-factor authentication enabled
+
+Hi {{ user.email }},
+
+2FA was just enabled on your Signal-Scout account. Every login from now
+on asks for a 6-digit code from your authenticator app.
+
+If you've lost your recovery codes since enabling, regenerate them at:
+https://signal-scout.com/account
+
+If this wasn't you: someone has access to your account. Reset your
+password and disable the rogue 2FA setup before they enrol their own.
+
+— Signal-Scout

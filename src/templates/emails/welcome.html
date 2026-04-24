@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; color: #333;">
+  <h1 style="font-size: 20px; color: #1f2937;">Welcome to Signal-Scout</h1>
+  <p>Hi {{ user.email }},</p>
+  <p>You just registered. Confirm your email by clicking the link below — it's how we'll reach you for password resets, 2FA recovery, and account-change alerts.</p>
+  <p style="margin: 28px 0;">
+    <a href="{{ verification_url }}"
+       style="background:#3b82f6;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;">
+      Verify email
+    </a>
+  </p>
+  <p style="color:#6b7280;font-size:13px;">Or paste this link into your browser:<br>
+    <code style="font-size:12px;word-break:break-all;">{{ verification_url }}</code></p>
+  <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+  <p style="color:#9ca3af;font-size:12px;">If you didn't sign up, ignore this — no account has been created for someone else, only the email address you see above.</p>
+  <p style="color:#9ca3af;font-size:12px;">— Signal-Scout · find the nearest Polish cellular base stations</p>
+</body>
+</html>

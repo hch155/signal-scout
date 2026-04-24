@@ -1,0 +1,15 @@
+Welcome to Signal-Scout
+
+Hi {{ user.email }},
+
+You just registered. Confirm your email by opening this link:
+
+{{ verification_url }}
+
+It's how we'll reach you for password resets, 2FA recovery, and
+account-change alerts.
+
+If you didn't sign up, ignore this — no account exists under another
+person's name, only the email address you see above.
+
+— Signal-Scout · find the nearest Polish cellular base stations
