@@ -347,7 +347,26 @@ def submit_location():
         user_lng = float(data['lng'])
 
         if not _coords_in_bounds(user_lat, user_lng):
-            return jsonify({'error': 'Coordinates outside supported area'}), 400
+            # Easter egg: instead of a curt "outside supported area",
+            # tell the user what they're missing. No outbound link
+            # (avoids nudging traffic to a tourism site we don't
+            # control + keeps the message professional for B2B
+            # demos). Frontend renders this as a friendly toast.
+            return jsonify({
+                'outside_pl': True,
+                'error': 'Coordinates outside supported area',
+                'message': (
+                    "Sorry, this map only covers Poland. "
+                    "Coverage you're missing: ~22,000 base stations, "
+                    "4 operators (Orange, Play, Plus, T-Mobile), "
+                    "5G / LTE / UMTS / GSM bands."
+                ),
+                'stats': {
+                    'unique_bts': 21858,
+                    'operators': 4,
+                    'bands': ['5G', 'LTE', 'UMTS', 'GSM'],
+                },
+            }), 400
 
         session['user_location'] = {'lat': user_lat, 'lng': user_lng}
         # PR #29: persist saved location to User row so the snapshot/diff

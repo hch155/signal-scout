@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Signal-Scout — Find the Nearest Cellular Base Station in Poland{% endblock %}
-{% block description %}Click anywhere on the map to discover the nearest LTE / 5G / GSM towers from Orange, Play, Plus and T-Mobile. Live data on 188,000+ Polish base stations across all frequency bands.{% endblock %}
+{% block description %}Click anywhere on the map to discover the nearest LTE / 5G / GSM towers from Orange, Play, Plus and T-Mobile. Live data on ~22,000 Polish base stations (188,000+ frequency-band entries) across all current bands.{% endblock %}
 
 {% block jsonld %}{
   "@context": "https://schema.org",
@@ -40,10 +40,43 @@
             </div>
         </div>
     </div>
-    <div id="messageBox" class="hidden fixed inset-0 flex items-center text-center justify-center" style="z-index: 5000;">
-        <div class="m-auto p-4 bg-blue-200 bg-opacity-90 rounded-lg shadow-lg">
-            <p>Consider moving to Poland! &#129370;</p>
-            <p><a href="https://www.expatarrivals.com/europe/poland/pros-and-cons-moving-poland" target="_blank" class="animate-pulse">Why?</a></p>
+    {# Easter egg shown when the user clicks outside Polish bounds.
+       No outbound link (was expatarrivals.com — pulled per PR #41 to
+       keep it professional for B2B demos and not nudge traffic to a
+       site we don't control). Coverage stats are real (count of
+       distinct basestation_id in stations.db, 2026-04-24). #}
+    <div id="messageBox"
+         class="hidden fixed inset-0 flex items-center justify-center pointer-events-none"
+         style="z-index: 5000;">
+        <div class="pointer-events-auto m-auto max-w-md mx-4 p-6 rounded-2xl shadow-2xl
+                    bg-white/95 dark:bg-gray-800/95 backdrop-blur
+                    border border-gray-200 dark:border-gray-700
+                    text-center">
+            <div class="text-5xl mb-2">&#127477;&#127473;</div>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                Sorry &mdash; this map only covers Poland
+            </h3>
+            <p class="text-sm text-gray-700 dark:text-gray-200 mb-3">
+                Consider visiting &mdash; the cellular coverage is
+                actually pretty great:
+            </p>
+            <div class="grid grid-cols-3 gap-2 text-xs">
+                <div class="p-2 bg-blue-50 dark:bg-blue-900/40 rounded">
+                    <div class="text-base font-bold text-blue-700 dark:text-blue-300">~22k</div>
+                    <div class="text-gray-600 dark:text-gray-300">base stations</div>
+                </div>
+                <div class="p-2 bg-green-50 dark:bg-green-900/40 rounded">
+                    <div class="text-base font-bold text-green-700 dark:text-green-300">4</div>
+                    <div class="text-gray-600 dark:text-gray-300">operators</div>
+                </div>
+                <div class="p-2 bg-purple-50 dark:bg-purple-900/40 rounded">
+                    <div class="text-base font-bold text-purple-700 dark:text-purple-300">5G</div>
+                    <div class="text-gray-600 dark:text-gray-300">to GSM</div>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                Click anywhere inside the country outline to try it.
+            </p>
         </div>
     </div>
 

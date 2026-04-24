@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Pre-push hook: run the local test suite before letting any push hit the
+# remote. Adopted 2026-04-24 after disabling per-PR CI on the repo (CI was
+# running ~3-5x slower than local on Mac Mx hardware, which made it a
+# bottleneck rather than a safety net). Local pytest is ~60s on a warm
+# venv; a single `git push` is now the cycle that catches regressions.
+#
+# Install:
+#   ln -sf ../../scripts/git-hooks/pre-push .git/hooks/pre-push
+#   chmod +x scripts/git-hooks/pre-push
+#
+# Skip (one-shot, e.g. when pushing docs-only changes):
+#   git push --no-verify
+#
+# The hook intentionally does NOT install dependencies. If `pytest` isn't
+# in PATH the hook prints a hint and exits non-zero — fix your venv, don't
+# silently skip.
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+# Activate venv if present and not already active.
+if [ -z "${VIRTUAL_ENV:-}" ] && [ -f venv/bin/activate ]; then
+    # shellcheck disable=SC1091
+    source venv/bin/activate
+fi
+
+if ! command -v pytest >/dev/null 2>&1; then
+    echo "✗ pre-push: pytest not found on PATH"
+    echo "  → activate the venv (source venv/bin/activate) or install"
+    echo "    pip install -r requirements.txt -r tests/requirements-test.txt"
+    echo "  → or skip this push: git push --no-verify"
+    exit 1
+fi
+
+echo "→ pre-push: running unit + integration tests…"
+PYTHONPATH=src pytest tests/unit tests/integration -q --no-header 2>&1 | tail -20
+RC=${PIPESTATUS[0]}
+
+if [ "$RC" -ne 0 ]; then
+    echo ""
+    echo "✗ pre-push: tests failed (exit $RC). Push aborted."
+    echo "  → fix the failures, or run: git push --no-verify"
+    exit 1
+fi
+
+echo "✓ pre-push: tests passed"
+exit 0

@@ -1,7 +1,7 @@
 # Signal-Scout
 
 [Signal-Scout](https://www.signal-scout.com) — find the nearest cellular
-base stations across Poland (188k+ BTS, 4 operators, all current bands)
+base stations across Poland (~22k unique BTS / 188k+ frequency-band rows, 4 operators, all current bands)
 on an interactive Leaflet map. Public web app + documented JSON API.
 
 [![CI](https://github.com/hch155/signal-scout/actions/workflows/ci.yaml/badge.svg)](https://github.com/hch155/signal-scout/actions/workflows/ci.yaml)
