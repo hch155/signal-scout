@@ -20,7 +20,7 @@ from functools import wraps
 from typing import Callable
 
 from flask import Flask, Response, jsonify, request
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from prometheus_flask_exporter import PrometheusMetrics
 
 
@@ -252,3 +252,62 @@ def record_compute_time(func):
         with nearest_stations_compute_seconds.time():
             return func(*args, **kwargs)
     return wrapper
+
+
+# ── PR #44 stubs (HOTFIX) ──────────────────────────────────────────────
+# `app.py` already imports the four symbols below — they're middleware
+# hooks for the in-flight observability work (industry-standard buildout,
+# RED + USE + Four Golden Signals + customer-facing /status). The matching
+# implementations live on `feat/observability-industry-standard-pr44` (an
+# in-flight branch) and weren't merged with the import statements that
+# referenced them, so a fresh checkout of `main` couldn't `import app` at
+# all.
+#
+# These stubs:
+#  - keep the Prometheus metric series alive (zero-valued until the real
+#    middleware lands), so dashboards / Zabbix items don't go "no data"
+#    when PR #44 finally ships
+#  - keep `record_incident()` and `compute_public_status()` callable
+#    without crashing /status — the public status page renders an
+#    "operational" payload with null SLO numbers in the meantime
+#
+# Intentionally minimal — PR #44 will replace them with the real
+# bookkeeping + 28-day burn-rate logic.
+
+in_flight_requests = Gauge(
+    "signal_scout_in_flight_requests",
+    "Requests currently executing inside the WSGI process. PR #44 stub "
+    "— real saturation tracking lands with the industry-standard "
+    "observability buildout.",
+)
+
+public_requests_total = Counter(
+    "signal_scout_public_requests_total",
+    "Total public-facing requests served (excludes /metrics, /healthz). "
+    "PR #44 stub — backs the customer-facing /status page once the "
+    "industry-standard buildout merges.",
+)
+
+
+def record_incident(now: float | None = None) -> None:
+    """Stamp the wall-clock time of the most recent server-side error.
+    PR #44 stub — real impl pushes the timestamp to a small ring buffer
+    so /status can render 'last incident: N hours ago'. For now it's a
+    no-op so middleware in app.py doesn't crash."""
+    return None
+
+
+def compute_public_status() -> dict:
+    """Aggregate the customer-facing status payload (uptime %, p95
+    latency, requests/day, last incident). PR #44 stub returns an
+    'operational' shape with null SLO numbers so /status renders
+    something sensible until the real implementation merges."""
+    return {
+        "status": "operational",
+        "uptime_pct_7d": None,
+        "uptime_pct_30d": None,
+        "p95_latency_ms": None,
+        "requests_last_24h": None,
+        "last_incident_at": None,
+        "_stub": True,
+    }
