@@ -553,11 +553,11 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
             // without driving them through /account → + Add → manual
             // lat/lng entry.
             renderSaveSpotShortcut(lat, lng);
-            // PR #47: dead-areas detection — per-band coverage check
-            // at this exact spot, rendered as a sidebar widget above
-            // the station list. Async + non-blocking; if the call
-            // fails the rest of the sidebar still works.
-            renderCoverageGaps(lat, lng);
+            // PR #47.1: dead-areas detection is opt-in via a small CTA
+            // button (logged-in users only). Auto-rendering distracted
+            // from the core station list, so it's now an extra feature
+            // rather than a default sidebar widget.
+            renderCoverageGapsCTA(lat, lng);
             scrollToSidebar();
         } else {
             // Got a 200 with no stations payload — clear skeleton so the
@@ -586,12 +586,50 @@ function showSidebar() {
     sidebar.classList.remove('hidden');
 }
 
+// PR #47.1: opt-in CTA for the dead-areas check. Only logged-in users
+// see it (matches Save-this-spot pattern). Renders a small button under
+// the save-spot CTA; clicking it loads the full coverage widget.
+// Goal: keep the main station list as the focus and offer the band-by-
+// band gap analysis as an extra power-user feature, not a default
+// sidebar widget.
+function renderCoverageGapsCTA(lat, lng) {
+    if (!window._isLoggedIn) return;
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    const existing = sidebar.querySelector('#coverage-gaps-cta');
+    if (existing) existing.remove();
+    const existingWidget = sidebar.querySelector('#coverage-gaps-widget');
+    if (existingWidget) existingWidget.remove();
+
+    const cta = document.createElement('div');
+    cta.id = 'coverage-gaps-cta';
+    cta.className = 'col-span-full mb-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3';
+
+    const label = document.createElement('div');
+    label.className = 'text-xs text-gray-700 dark:text-gray-300';
+    label.textContent = 'Check per-band coverage gaps at this spot';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'shrink-0 bg-gray-700 hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500 text-white text-xs font-semibold py-1 px-2.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
+    btn.textContent = 'Analyse';
+    btn.addEventListener('click', () => {
+        cta.remove();
+        renderCoverageGaps(lat, lng);
+    });
+
+    cta.appendChild(label);
+    cta.appendChild(btn);
+    sidebar.insertBefore(cta, sidebar.firstChild);
+}
+
 // PR #47: dead-areas widget — per-band coverage check at the clicked
 // spot. Async fetch to /coverage_gaps; renders a compact list above
 // the station cards: ✓ green for "covered" (nearest BTS of that band
 // within the band-specific threshold), ✗ red for "dead". Includes a
 // summary line ("3 of 8 bands dead at this spot"). Replaces any
-// previous widget on a new click.
+// previous widget on a new click. PR #47.1: now invoked on demand
+// from renderCoverageGapsCTA, not auto-rendered.
 function renderCoverageGaps(lat, lng) {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
