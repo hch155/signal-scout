@@ -33,15 +33,74 @@ curl -H "X-API-Key: sk_..." \
   "https://signal-scout.com/api/v1/stations?lat=52.23&lng=21.00&limit=5"
 ```
 
-Endpoints (full schemas in Swagger UI):
-- `GET  /api/v1/stations` — nearest stations with optional provider/band filters
-- `GET  /api/v1/find_station?basestation_id=…` — exact lookup
-- `GET  /api/v1/search_stations?q=…` — autocomplete by ID prefix
-- `POST /api/v1/submit_location` — same as `/api/v1/stations` but persists location to session
-- `GET  /api/v1/healthz` — liveness probe (no auth)
+Endpoints — full schemas in Swagger UI at `/api/v1/docs/`. Compact map:
+
+**Public read API** (Referer-gated for anonymous; X-API-Key bypass + tier limits)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/stations` | Nearest stations with optional provider/band filters |
+| GET | `/api/v1/find_station?basestation_id=…` | Exact lookup by BTS ID |
+| GET | `/api/v1/search_stations?q=…` | Autocomplete by ID prefix |
+| POST | `/api/v1/submit_location` | Persist click location to session, return nearest stations |
+| GET | `/api/v1/healthz` | Liveness probe (no auth) |
+| GET | `/api/v1/openapi.json` | OpenAPI 3 spec |
 
 Legacy unprefixed routes (`/stations`, `/find_station`, `/search_stations`,
-`/submit_location`) stay live for back-compat.
+`/submit_location`, `/healthz`) stay live for back-compat.
+
+**Site pages** (HTML, no auth)
+
+| Path | Purpose |
+|------|---------|
+| `/` | Map (Leaflet + sidebar) |
+| `/data` | About the dataset (markdown) |
+| `/stats` | Per-operator coverage stats |
+| `/tips` | Tips & tricks (registered users get extended version) |
+| `/status` | Customer-facing service health (uptime %, search latency, requests/day) |
+| `/embed/widget` | Embeddable widget (`?lat=…&lng=…&zoom=…`) for third-party iframes |
+| `/robots.txt`, `/sitemap.xml` | SEO |
+
+**Auth & account** (POST unless noted; CSRF-required)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/register` | Create account (email + password) |
+| POST | `/login` | Step 1: password. Returns `totp_required` if 2FA on. |
+| POST | `/login/totp` | Step 2: TOTP code or one-shot recovery code |
+| POST | `/logout` | Clear session |
+| GET  | `/session_check` | Returns `{logged_in: bool}` |
+| GET  | `/account` | Account dashboard |
+| POST | `/account/profile` | Update company name |
+| POST | `/account/password` | Change password (rotates session) |
+| POST | `/account/delete` | Delete account + cascade audit/snapshots |
+| POST | `/account/regenerate_api_key` | Rotate the legacy default key |
+| POST | `/account/keys` | Create a new named API key (multi-key system) |
+| POST | `/account/keys/<id>/revoke` | Revoke a key (soft-delete) |
+| POST | `/account/2fa/setup` | Begin TOTP enrollment (returns secret + QR + URI) |
+| POST | `/account/2fa/verify` | Confirm enrollment with current code; mints recovery codes |
+| POST | `/account/2fa/regenerate` | Mint a new TOTP secret without disabling 2FA |
+| POST | `/account/2fa/disable` | Turn 2FA off (requires password + current code) |
+
+**Saved locations** (multi-named places per user; PR #30)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/account/locations` | Create a saved location |
+| GET  | `/account/locations/<id>` | View one |
+| POST | `/account/locations/<id>` | Update name/description/coords/radius/alerting |
+| POST | `/account/locations/<id>/delete` | Delete (cascades snapshots) |
+| POST | `/account/locations/<id>/snapshot` | Capture station snapshot now |
+| GET  | `/account/locations/<id>/changes` | Diff feed (added/removed BTS over time) |
+| GET  | `/account/changes` | Legacy single-location diff feed |
+
+**Ops & metrics**
+
+| Path | Purpose | Auth |
+|------|---------|------|
+| `/healthz` | Liveness — does NOT touch DB | open |
+| `/metrics` | Prometheus exposition | bearer (`METRICS_BEARER_TOKEN`) — 404 when unset |
+| `/api/v1/docs/` | Swagger UI | open |
 
 ## Architecture
 
@@ -67,14 +126,25 @@ Cloud Run (signal-scout.run.app)
                        │
                        │  HTTPS scrape, 60s
                        ▼
-       Self-hosted observability (NUC, ops/homelab-integration)
-       ├── Prometheus 3.x   — scrape, alerts → Telegram
-       ├── Alertmanager     — routing
-       └── Grafana 11.x     — dashboards (15 panels)
+       Self-hosted observability (NUC, ops/docker-compose.yml)
+       ├── Prometheus      v2.55.1  — scrape, alert rules
+       ├── Alertmanager    v0.27.0  — routing (default config; wire
+       │                              email / Telegram / Slack receiver
+       │                              in alertmanager.yml when needed)
+       └── Grafana         v11.3.1  — Signal-Scout dashboard
+                                       (15 panels — RPS, latency,
+                                       errors, security, product)
 
-       Self-hosted analytics (NUC, ops/homelab-integration)
-       └── Plausible        — visitors, sources, countries, trends
-                              (cookie-less, GDPR-friendly)
+       Self-hosted analytics (NUC, ops/homelab-integration/plausible/)
+       └── Plausible       v3.0.0   — visitors, sources, countries,
+                                       trends (cookie-less, GDPR-friendly,
+                                       no banner needed)
+
+       Self-hosted alerts + reports (NUC)
+       └── Zabbix          7.0.25   — pulls Prom & Plausible via
+                                       HTTP-agent items (single source
+                                       of truth — no double scrape).
+                                       16-widget dashboard, 5 triggers.
 ```
 
 ## Security posture
