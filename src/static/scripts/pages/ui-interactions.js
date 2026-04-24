@@ -11,19 +11,18 @@ const darkTileLayer = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_sm
     attribution: '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 });
 
-// PR #46.7: dropped the Esri ArcGIS satellite layer per owner direction
-// — looked out of place against the OSM/Stadia base maps and was an
-// extra third-party dependency in CSP `img-src` that we don't need
-// to maintain. Layer control now ships only Street + Dark.
-//
-// To re-add: restore the L.tileLayer above, add "Satellite": ref to
-// baseMaps, and re-add `https://server.arcgisonline.com` to `img-src`
-// in src/app.py:_build_csp_policy().
+// PR #46.8: restore satellite layer (PR #46.7 misread the owner's
+// instruction — the "vibe-coded" thing to drop was the empty-state
+// satellite-dish icon in showEmptyState(), not this map tile layer).
+const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri'
+});
 
 // Layer control for map styles
 const baseMaps = {
     "Street": lightTileLayer,
-    "Dark": darkTileLayer
+    "Dark": darkTileLayer,
+    "Satellite": satelliteLayer
 };
 L.control.layers(baseMaps, null, { position: 'topright' }).addTo(mymap);
 
@@ -696,12 +695,13 @@ function createSignalBars(signal) {
     return `<div class="signal-indicator signal-${signal.level}">${barsHtml}</div>`;
 }
 
-// Show empty state when no stations found
+// Show empty state when no stations found.
+// PR #46.8: dropped the 📡 icon — looked AI-generated next to the
+// professional "No stations found" copy and didn't add real signal.
 function showEmptyState() {
     let sidebarContent = document.getElementById('sidebar');
     sidebarContent.innerHTML = `
         <div class="empty-state col-span-full">
-            <div class="empty-state-icon">📡</div>
             <div class="empty-state-title">No stations found</div>
             <div class="empty-state-text">Try adjusting your filters or clicking a different location on the map.</div>
         </div>
