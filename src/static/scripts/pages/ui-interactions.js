@@ -541,6 +541,11 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
             displayStations(data.stations);
             addRingsForLocation(lat, lng);
             applyFrequencyColors();
+            // PR #46.9: shortcut for logged-in users — save the
+            // currently-clicked spot as a saved location for alerts,
+            // without driving them through /account → + Add → manual
+            // lat/lng entry.
+            renderSaveSpotShortcut(lat, lng);
             scrollToSidebar();
         } else {
             // Got a 200 with no stations payload — clear skeleton so the
@@ -567,6 +572,79 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
 function showSidebar() {
     let sidebar = document.getElementById('sidebar');
     sidebar.classList.remove('hidden');
+}
+
+// PR #46.9: "Save this spot" CTA at the top of the sidebar after a
+// click. Visible only for logged-in users (window._isLoggedIn cached
+// from /session_check). One-click POST to /account/locations with the
+// click coordinates + radius=0 ("exact spot" alert, configurable
+// later from /account). The default name uses the current date so
+// users get something sensible without typing — they can rename from
+// /account whenever.
+function renderSaveSpotShortcut(lat, lng) {
+    if (!window._isLoggedIn) return;
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    // Don't double-stack if user clicked twice in a row.
+    const existing = sidebar.querySelector('#save-spot-cta');
+    if (existing) existing.remove();
+
+    const cta = document.createElement('div');
+    cta.id = 'save-spot-cta';
+    cta.className = 'col-span-full mb-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 flex items-center justify-between gap-3';
+    const label = document.createElement('div');
+    label.className = 'text-sm text-gray-800 dark:text-gray-100';
+    label.textContent = 'Watch this spot for new stations? You\'ll get an email digest when coverage changes here.';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-1.5 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
+    btn.textContent = 'Save this spot';
+    btn.addEventListener('click', () => {
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        const now = new Date();
+        const ymd = now.toISOString().slice(0, 10);  // YYYY-MM-DD
+        const hm = now.toTimeString().slice(0, 5);   // HH:MM
+        const defaultName = `Spot ${ymd} ${hm}`;
+        globalFetch('/account/locations', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': getCsrfToken(),
+            },
+            body: JSON.stringify({
+                name: defaultName,
+                lat: lat,
+                lng: lng,
+                radius_km: 0,
+                alerting_enabled: true,
+            }),
+        }).then(resp => {
+            if (resp && resp.success) {
+                cta.classList.remove('bg-blue-50', 'dark:bg-blue-900/30', 'border-blue-200', 'dark:border-blue-800');
+                cta.classList.add('bg-green-50', 'dark:bg-green-900/30', 'border-green-200', 'dark:border-green-800');
+                label.textContent = `Saved as "${defaultName}". Rename or edit alerts in `;
+                const acctLink = document.createElement('a');
+                acctLink.href = '/account';
+                acctLink.textContent = 'your account';
+                acctLink.className = 'underline hover:no-underline font-medium';
+                label.appendChild(acctLink);
+                label.appendChild(document.createTextNode('.'));
+                btn.remove();
+            } else {
+                btn.disabled = false;
+                btn.textContent = 'Save this spot';
+                label.textContent = (resp && resp.error) || 'Save failed — try again from /account.';
+            }
+        }).catch(() => {
+            btn.disabled = false;
+            btn.textContent = 'Save this spot';
+            label.textContent = 'Save failed — check your session, then try again.';
+        });
+    });
+    cta.appendChild(label);
+    cta.appendChild(btn);
+    sidebar.insertBefore(cta, sidebar.firstChild);
 }
 
 function scrollToSidebar() {
@@ -1202,6 +1280,10 @@ function updateDynamicContent() {
     .then(data => {
         const dynamicContent = document.getElementById('dynamicContent');
         const isLoggedIn = data.logged_in;
+        // PR #46.9: cache for renderSaveSpotShortcut() so it can decide
+        // whether to show the "Save this spot" CTA without re-hitting
+        // /session_check on every map click.
+        window._isLoggedIn = isLoggedIn;
         if (isLoggedIn) {
             dynamicContent.innerHTML = `
                 <div id="latLngContainer" class="flex flex-col space-y-0.5">

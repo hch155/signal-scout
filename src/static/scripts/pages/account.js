@@ -320,7 +320,19 @@ document.addEventListener('DOMContentLoaded', () => {
       locForm.classList.toggle('hidden');
       if (!locForm.classList.contains('hidden')) {
         const nameInput = locForm.querySelector('input[name="name"]');
-        if (nameInput) nameInput.focus();
+        if (nameInput) {
+          // PR #46.9: pre-fill a sensible default so the form can be
+          // submitted in one click — was forcing the user to invent
+          // a name before they'd even decided to save. Counts the
+          // existing rows in #locations-tbody to pick "Location N+1"
+          // (gives a deterministic name without scanning the DB).
+          if (!nameInput.value) {
+            const existing = document.querySelectorAll('#locations-tbody tr[data-loc-id]').length;
+            nameInput.value = `Location ${existing + 1}`;
+          }
+          nameInput.focus();
+          nameInput.select();
+        }
       }
     });
   }

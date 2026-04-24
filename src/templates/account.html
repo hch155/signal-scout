@@ -26,7 +26,7 @@
                pattern; only the focus-visible ring is added (a11y). #}
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-4 border-l-4 border-blue-500">
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <span aria-hidden="true">&#128273;</span> API access
+                    API access
                 </h3>
                 <div>
                     <p class="text-sm text-gray-600 dark:text-gray-300">Email</p>
@@ -72,7 +72,7 @@
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-l-4 border-indigo-500">
                 <div class="flex items-center justify-between">
                     <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <span aria-hidden="true">&#128205;</span> Saved locations
+                        Saved locations
                     </h3>
                     <button id="loc-add-btn"
                             class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-1.5 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
@@ -131,8 +131,9 @@
                 <form id="create-location-form" class="hidden space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <label class="block">
-                        <span class="text-sm text-gray-600 dark:text-gray-300">Name (e.g. "Home", "Office")</span>
-                        <input type="text" name="name" required maxlength="80"
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Name</span>
+                        <input type="text" name="name" id="loc-name-input" required maxlength="80"
+                               placeholder="Home, Office, Cabin…"
                                class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </label>
                     <label class="block">
@@ -167,8 +168,11 @@
                     <div class="grid grid-cols-2 gap-2">
                         <label class="block">
                             <span class="text-sm text-gray-600 dark:text-gray-300">Radius (km)</span>
-                            <input type="number" name="radius_km" min="1" max="50" step="1" value="15"
+                            <input type="number" name="radius_km" min="0" max="50" step="1" value="0"
                                    class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <span class="block mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                0 = exact spot · 5 = neighbourhood · 15 = whole city
+                            </span>
                         </label>
                         <label class="flex items-center gap-2 mt-6">
                             <input type="checkbox" name="alerting_enabled" checked
@@ -193,7 +197,7 @@
             {# ── Named API keys (PR #14) ──────────────────────────────── #}
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-l-4 border-cyan-500">
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <span aria-hidden="true">&#128272;</span> API keys
+                    API keys
                 </h3>
                 <p class="text-xs text-gray-600 dark:text-gray-300">
                     Create one key per integration so you can revoke them
@@ -264,7 +268,7 @@
             {# ── Recent activity (PR #15) ─────────────────────────────── #}
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-l-4 border-gray-500">
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <span aria-hidden="true">&#128221;</span> Recent activity
+                    Recent activity
                 </h3>
                 <p class="text-xs text-gray-600 dark:text-gray-300">
                     Logins, password changes, key creations and revokes — last 20.
@@ -300,7 +304,7 @@
             {# ── 2FA TOTP (rebuilt PR #25) ────────────────────────────── #}
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-l-4 border-purple-500">
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <span aria-hidden="true">&#128274;</span> Two-factor authentication (TOTP)
+                    Two-factor authentication (TOTP)
                 </h3>
 
                 {% if user.totp_enabled %}
@@ -420,7 +424,7 @@
             {# ── Profile (simplified in PR #19) ───────────────────────── #}
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-l-4 border-emerald-500">
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <span aria-hidden="true">&#128100;</span> Profile
+                    Profile
                 </h3>
                 <form id="profile-form" class="space-y-3">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -449,7 +453,7 @@
             {# ── Change password ──────────────────────────────────────── #}
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-l-4 border-amber-500">
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <span aria-hidden="true">&#128272;</span> Change password
+                    Change password
                 </h3>
                 <form id="password-form" class="space-y-3">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">

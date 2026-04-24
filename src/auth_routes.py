@@ -1154,9 +1154,9 @@ _LOC_NAME_MAX = 80
 _LOC_DESC_MAX = 255
 # Per-location snapshot radius bounds — same window as the legacy single-
 # location snapshot so behaviour matches once a user migrates.
-_LOC_RADIUS_MIN_KM = 1.0
+_LOC_RADIUS_MIN_KM = 0.0   # PR #46.9: 0 = "exact spot" alert mode (was 1.0)
 _LOC_RADIUS_MAX_KM = 50.0
-_LOC_RADIUS_DEFAULT_KM = 15.0
+_LOC_RADIUS_DEFAULT_KM = 0.0  # PR #46.9: was 15 km — too noisy in cities
 
 
 def _coords_in_pl_bounds(lat: float, lng: float) -> bool:
