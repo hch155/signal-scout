@@ -552,7 +552,13 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
             // currently-clicked spot as a saved location for alerts,
             // without driving them through /account → + Add → manual
             // lat/lng entry.
-            renderSaveSpotShortcut(lat, lng);
+            // PR #47.2: pick a usable default name from the nearest
+            // station's city (already in this payload). Beats the
+            // useless "Spot 2026-04-24 13:14" the previous default
+            // produced — the user can identify the saved location at a
+            // glance from /account.
+            const nearestCity = (data.stations[0] && data.stations[0].city) || null;
+            renderSaveSpotShortcut(lat, lng, nearestCity);
             // PR #47.1: dead-areas detection is opt-in via a small CTA
             // button (logged-in users only). Auto-rendering distracted
             // from the core station list, so it's now an extra feature
@@ -703,7 +709,7 @@ function renderCoverageGaps(lat, lng) {
 // later from /account). The default name uses the current date so
 // users get something sensible without typing — they can rename from
 // /account whenever.
-function renderSaveSpotShortcut(lat, lng) {
+function renderSaveSpotShortcut(lat, lng, nearestCity) {
     if (!window._isLoggedIn) return;
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
@@ -711,23 +717,44 @@ function renderSaveSpotShortcut(lat, lng) {
     const existing = sidebar.querySelector('#save-spot-cta');
     if (existing) existing.remove();
 
+    // PR #47.2: build a recognisable default name. Prefer the nearest
+    // station's city; fall back to coords. Both beat the date+time
+    // string which told the user nothing about *where* the pin is.
+    const defaultName = nearestCity
+        ? `Near ${nearestCity}`
+        : `Pin ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
     const cta = document.createElement('div');
     cta.id = 'save-spot-cta';
-    cta.className = 'col-span-full mb-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 flex items-center justify-between gap-3';
+    cta.className = 'col-span-full mb-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 flex flex-col gap-2';
+
     const label = document.createElement('div');
     label.className = 'text-sm text-gray-800 dark:text-gray-100';
-    label.textContent = 'Watch this spot for new stations? You\'ll get an email digest when coverage changes here.';
+    label.textContent = 'Watch this spot — you\'ll get an email when coverage changes here.';
+
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = defaultName;
+    nameInput.maxLength = 80;
+    nameInput.className = 'flex-1 min-w-0 text-sm px-2 py-1.5 rounded border border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400';
+    nameInput.setAttribute('aria-label', 'Name for this saved spot');
+
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-1.5 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
-    btn.textContent = 'Save this spot';
+    btn.textContent = 'Save';
+
+    row.appendChild(nameInput);
+    row.appendChild(btn);
+
     btn.addEventListener('click', () => {
+        const chosenName = (nameInput.value || '').trim() || defaultName;
         btn.disabled = true;
+        nameInput.disabled = true;
         btn.textContent = 'Saving…';
-        const now = new Date();
-        const ymd = now.toISOString().slice(0, 10);  // YYYY-MM-DD
-        const hm = now.toTimeString().slice(0, 5);   // HH:MM
-        const defaultName = `Spot ${ymd} ${hm}`;
         globalFetch('/account/locations', {
             method: 'POST',
             headers: {
@@ -735,7 +762,7 @@ function renderSaveSpotShortcut(lat, lng) {
                 'X-CSRF-Token': getCsrfToken(),
             },
             body: JSON.stringify({
-                name: defaultName,
+                name: chosenName,
                 lat: lat,
                 lng: lng,
                 radius_km: 0,
@@ -745,27 +772,29 @@ function renderSaveSpotShortcut(lat, lng) {
             if (resp && resp.success) {
                 cta.classList.remove('bg-blue-50', 'dark:bg-blue-900/30', 'border-blue-200', 'dark:border-blue-800');
                 cta.classList.add('bg-green-50', 'dark:bg-green-900/30', 'border-green-200', 'dark:border-green-800');
-                label.textContent = `Saved as "${defaultName}". Rename or edit alerts in `;
+                label.textContent = `Saved as "${chosenName}". Rename or edit alerts in `;
                 const acctLink = document.createElement('a');
                 acctLink.href = '/account';
                 acctLink.textContent = 'your account';
                 acctLink.className = 'underline hover:no-underline font-medium';
                 label.appendChild(acctLink);
                 label.appendChild(document.createTextNode('.'));
-                btn.remove();
+                row.remove();
             } else {
                 btn.disabled = false;
-                btn.textContent = 'Save this spot';
+                nameInput.disabled = false;
+                btn.textContent = 'Save';
                 label.textContent = (resp && resp.error) || 'Save failed — try again from /account.';
             }
         }).catch(() => {
             btn.disabled = false;
-            btn.textContent = 'Save this spot';
+            nameInput.disabled = false;
+            btn.textContent = 'Save';
             label.textContent = 'Save failed — check your session, then try again.';
         });
     });
     cta.appendChild(label);
-    cta.appendChild(btn);
+    cta.appendChild(row);
     sidebar.insertBefore(cta, sidebar.firstChild);
 }
 

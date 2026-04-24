@@ -130,18 +130,18 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('totp-uri').textContent = data.otpauth_uri;
     const qrHost = document.getElementById('totp-qr');
     if (qrHost && typeof data.qr_svg === 'string' && data.qr_svg.startsWith('<svg')) {
-      // Server-rendered SVG — parse via DOMParser then attach. innerHTML
-      // would also work since the SVG is from our server, but DOMParser
-      // is the defense-in-depth path.
-      const parsed = new DOMParser().parseFromString(data.qr_svg, 'image/svg+xml');
-      const svgEl = parsed.documentElement;
-      // segno's svg_inline() omits width/height (only viewBox). Without
-      // intrinsic dimensions the parent's `display: flex` collapses the
-      // SVG to 0×0 and the QR box renders empty. Pin to a scannable size.
-      svgEl.setAttribute('width', '220');
-      svgEl.setAttribute('height', '220');
-      qrHost.textContent = '';
-      qrHost.appendChild(svgEl);
+      // PR #47.2: segno's svg_inline() omits the SVG xmlns attribute (it
+      // expects to be inlined into HTML). DOMParser with image/svg+xml
+      // then parses every node as a foreign element and the QR renders
+      // empty. innerHTML on an HTML element correctly applies the SVG
+      // namespace coercion the spec defines, so we use that — the source
+      // is our own backend so XSS isn't a concern.
+      qrHost.innerHTML = data.qr_svg;
+      const svgEl = qrHost.querySelector('svg');
+      if (svgEl) {
+        svgEl.setAttribute('width', '220');
+        svgEl.setAttribute('height', '220');
+      }
     }
     box.classList.remove('hidden');
     return true;
