@@ -11,15 +11,19 @@ const darkTileLayer = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_sm
     attribution: '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 });
 
-const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Tiles &copy; Esri'
-});
+// PR #46.7: dropped the Esri ArcGIS satellite layer per owner direction
+// — looked out of place against the OSM/Stadia base maps and was an
+// extra third-party dependency in CSP `img-src` that we don't need
+// to maintain. Layer control now ships only Street + Dark.
+//
+// To re-add: restore the L.tileLayer above, add "Satellite": ref to
+// baseMaps, and re-add `https://server.arcgisonline.com` to `img-src`
+// in src/app.py:_build_csp_policy().
 
 // Layer control for map styles
 const baseMaps = {
     "Street": lightTileLayer,
-    "Dark": darkTileLayer,
-    "Satellite": satelliteLayer
+    "Dark": darkTileLayer
 };
 L.control.layers(baseMaps, null, { position: 'topright' }).addTo(mymap);
 
@@ -485,10 +489,28 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
 
     const showOutsidePolandToast = () => {
         clearSkeletonAndCount();
+        // PR #46.7: bug — second click outside-PL was looping the
+        // toast forever because each click stacked a new
+        // setTimeout (zoomOut + hide), and the toast was never
+        // re-shown for the new click since it was still visible
+        // from the previous one. Track the timer on the
+        // messageBox element so each new toast cancels the
+        // previous one's auto-dismiss + re-arms a fresh 7.7s
+        // window.
+        if (messageBox._dismissTimer) {
+            clearTimeout(messageBox._dismissTimer);
+            messageBox._dismissTimer = null;
+        }
         messageBox.classList.remove('hidden');
-        setTimeout(() => {
+        messageBox._dismissTimer = setTimeout(() => {
             messageBox.classList.add('hidden');
-            mymap.zoomOut(4);
+            messageBox._dismissTimer = null;
+            // Only zoom out if we're still further than the
+            // default zoom; avoids zoom oscillation when the
+            // user keeps clicking outside PL repeatedly.
+            if (mymap.getZoom() > 6) {
+                mymap.zoomOut(4);
+            }
         }, 7700);
     };
 
