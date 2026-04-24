@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, make_response
 from flask_bcrypt import Bcrypt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -323,33 +323,47 @@ _PUBLIC_CACHE_SWR     = 600
 _COOKIE_VARYING_CACHE_PATHS = {'/tips', '/tips/content'}
 
 
+def _set_content_etag(response, content_key: str) -> None:
+    """Set a strong ETag derived from a stable content key.
+
+    Hashing the rendered response body is a trap: every page on this
+    site embeds a per-session CSRF meta tag from `base.html`, so
+    body-based ETags change on every request and 304 short-circuits
+    never fire. The fix is to hash a key that captures only the
+    content the cache should be sensitive to (markdown mtime, dataset
+    version, etc.) plus the deploy SHA so a new build invalidates
+    everyone's cache automatically.
+    """
+    import hashlib as _h
+    digest = _h.sha256(
+        f"{content_key}|{settings.app_version}".encode('utf-8')
+    ).hexdigest()
+    response.set_etag(digest)
+
+
 @app.after_request
 def set_public_cache_headers(response):
-    """ETag + Cache-Control for read-only public pages.
+    """Cache-Control + If-None-Match for read-only public pages.
 
     Runs after `set_security_headers`, which already sets
     `Cache-Control: no-store` on authenticated / `/account/*` responses.
     We refuse to overwrite an existing Cache-Control so that no-store
     always wins when present.
+
+    The view function is responsible for setting a content-derived
+    ETag via `_set_content_etag()` — body-hashing here would be wrong
+    because every page embeds per-session CSRF tokens.
     """
     if request.path not in _PUBLIC_CACHE_PATHS:
         return response
-    # Bail on errors / redirects — only positively cache 200 OK.
     if response.status_code != 200:
         return response
-    # Don't override a stricter no-store policy that an upstream hook
-    # may have already applied.
     if response.headers.get('Cache-Control'):
         return response
-    # `add_etag()` reads response.data which materialises generators —
-    # safe for our HTML/JSON responses (small, in-memory).
-    try:
-        response.add_etag()
-    except RuntimeError:
-        # passthrough / direct_passthrough responses can't be hashed;
-        # skip rather than break the request.
+    # Only act when the view set an ETag — otherwise we have no
+    # stable cache key and can't honour conditional requests.
+    if not response.headers.get('ETag'):
         return response
-    # Honor If-None-Match → 304 when the body hash matches.
     response.make_conditional(request)
     response.headers['Cache-Control'] = (
         f'public, max-age={_PUBLIC_CACHE_MAX_AGE}, '
@@ -428,27 +442,52 @@ def get_html_content_from_markdown(file_name):
     _MARKDOWN_HTML_CACHE[file_path] = (mtime, html_content)
     return html_content
 
+def _md_etag_key(file_name: str) -> str:
+    """Cache key for a markdown page: file path + mtime."""
+    file_path = os.path.join(basedir, 'content', file_name)
+    try:
+        return f"{file_name}:{os.path.getmtime(file_path):.6f}"
+    except OSError:
+        return f"{file_name}:0"
+
+
 @app.route('/data')
 def data_page():
     html_content = get_html_content_from_markdown('data.md')
-    return render_template('data.html', content=html_content)
+    response = make_response(render_template('data.html', content=html_content))
+    _set_content_etag(response, _md_etag_key('data.md'))
+    return response
 
 @app.route('/stats')
 def stats_page():
-    stats= get_stats()
-    return render_template('stats.html', stats=stats)
+    stats = get_stats()
+    response = make_response(render_template('stats.html', stats=stats))
+    # Stations DB only changes with the monthly UKE refresh — its mtime
+    # is the right cache key for /stats. Falls back to app_version if
+    # the file is missing (test envs / first boot) so the ETag still
+    # invalidates per deploy.
+    try:
+        db_mtime = os.path.getmtime(stations_db_path)
+    except OSError:
+        db_mtime = 0.0
+    _set_content_etag(response, f"stats:{db_mtime:.6f}")
+    return response
 
 @app.route('/tips')
 def tips_page():
     file_name = 'tips_registered.md' if 'user_id' in session else 'tips.md'
     html_content = get_html_content_from_markdown(file_name)
-    return render_template('tips.html', content=html_content)
+    response = make_response(render_template('tips.html', content=html_content))
+    _set_content_etag(response, _md_etag_key(file_name))
+    return response
 
 @app.route('/tips/content')
 def tips_content():
     file_name = 'tips_registered.md' if 'user_id' in session else 'tips.md'
     html_content = get_html_content_from_markdown(file_name)
-    return html_content
+    response = make_response(html_content)
+    _set_content_etag(response, _md_etag_key(file_name))
+    return response
 
 @app.route('/favicon.ico')
 def favicon():
