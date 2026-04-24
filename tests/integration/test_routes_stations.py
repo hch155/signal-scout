@@ -40,8 +40,16 @@ def test_submit_location_without_csrf_rejected(client):
 
 
 def test_submit_location_out_of_bounds(csrf_client, csrf_token):
+    # PR #43: out-of-PL is now a 200 with `outside_pl: true` (not a 400),
+    # so the frontend's globalFetch hits .then() and renders the easter
+    # egg toast instead of bailing into .catch and leaving the loading
+    # skeleton spinning forever.
     r = _post_json(csrf_client, "/submit_location", {"lat": 0.0, "lng": 0.0}, csrf_token)
-    assert r.status_code == 400
+    assert r.status_code == 200
+    body = r.get_json()
+    assert body.get("outside_pl") is True
+    assert body.get("stations") == []
+    assert body.get("count") == 0
 
 
 def test_submit_location_missing_keys(csrf_client, csrf_token):
@@ -55,25 +63,30 @@ def test_submit_location_invalid_types(csrf_client, csrf_token):
     assert r.status_code == 400
 
 
-@pytest.mark.parametrize("lat,lng,expected", [
+@pytest.mark.parametrize("lat,lng,inside", [
     # PR #29 relaxed the strict PL bounds to ±0.05° (~5 km buffer) so
-    # a user clicking just over a border isn't abruptly 400'd.
-    # Strict PL corners still pass.
-    (49.0, 14.0, 200),    # south-west corner (strict PL)
-    (55.5, 24.2, 200),    # north-east corner (strict PL)
+    # a user clicking just over a border isn't abruptly rejected.
+    # Strict PL corners still pass as inside.
+    (49.0, 14.0, True),    # south-west corner (strict PL)
+    (55.5, 24.2, True),    # north-east corner (strict PL)
     # Inside the 5-km buffer → accepted.
-    (48.96, 14.0, 200),   # 4 km south of strict PL
-    (55.54, 24.0, 200),   # 4 km north of strict PL
-    # Outside the buffer → rejected.
-    (48.90, 14.0, 400),   # too far south
-    (55.60, 24.0, 400),   # too far north
-    (52.0, 13.90, 400),   # too far west
-    (52.0, 24.30, 400),   # too far east
+    (48.96, 14.0, True),   # 4 km south of strict PL
+    (55.54, 24.0, True),   # 4 km north of strict PL
+    # Outside the buffer → outside_pl payload (PR #43 — was 400 before).
+    (48.90, 14.0, False),  # too far south
+    (55.60, 24.0, False),  # too far north
+    (52.0, 13.90, False),  # too far west
+    (52.0, 24.30, False),  # too far east
 ])
-def test_submit_location_boundary_coords(csrf_client, csrf_token, lat, lng, expected):
+def test_submit_location_boundary_coords(csrf_client, csrf_token, lat, lng, inside):
     r = _post_json(csrf_client, "/submit_location",
                    {"lat": lat, "lng": lng}, csrf_token)
-    assert r.status_code == expected
+    assert r.status_code == 200
+    body = r.get_json()
+    if inside:
+        assert body.get("outside_pl") is not True
+    else:
+        assert body.get("outside_pl") is True
 
 
 # ── /stations ────────────────────────────────────────────────────────────────

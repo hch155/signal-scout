@@ -456,6 +456,24 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
     };
 
     const messageBox = document.getElementById('messageBox');
+    const sidebar = document.getElementById('sidebar');
+
+    // Pulled out so both the success branch and the .catch fallback
+    // (network error, 5xx) leave the user with a clean sidebar instead
+    // of the indefinite skeleton.
+    const clearSkeletonAndCount = () => {
+        sidebar.innerHTML = '';
+        updateBTSCount(0);
+    };
+
+    const showOutsidePolandToast = () => {
+        clearSkeletonAndCount();
+        messageBox.classList.remove('hidden');
+        setTimeout(() => {
+            messageBox.classList.add('hidden');
+            mymap.zoomOut(4);
+        }, 7700);
+    };
 
     globalFetch(url, {
         method: 'POST',
@@ -466,24 +484,46 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
         body: JSON.stringify(requestData)
     })
     .then(data => {
-        if (!countryBoundaries.getBounds().contains(userSubmittedLocation)) {
-            messageBox.classList.remove('hidden');
-            setTimeout(() => {
-                messageBox.classList.add('hidden')
-                mymap.zoomOut(4);
-            }, 7700);
-        }  else {
-            messageBox.classList.add('hidden');
+        // Backend signals out-of-PL with `outside_pl: true` (and an
+        // empty stations[] so the API contract stays consistent).
+        // Treat both that flag AND the local geometry check as "outside"
+        // — flag wins, geometry is a defensive fallback in case the
+        // bounds disagree slightly.
+        const outside =
+            (data && data.outside_pl === true) ||
+            !countryBoundaries.getBounds().contains(userSubmittedLocation);
+        if (outside) {
+            showOutsidePolandToast();
+            return;
         }
+        messageBox.classList.add('hidden');
         if (data && Array.isArray(data.stations)) {
             updateBTSCount(data.count);
             showSidebar();
             displayStations(data.stations);
-            addRingsForLocation(lat,lng);
+            addRingsForLocation(lat, lng);
             applyFrequencyColors();
             scrollToSidebar();
+        } else {
+            // Got a 200 with no stations payload — clear skeleton so the
+            // user doesn't stare at the loading state forever.
+            clearSkeletonAndCount();
         }
     })
+    .catch(err => {
+        // Network failure / 5xx / globalFetch threw on non-2xx. The
+        // sidebar must come out of the loading state regardless of
+        // whether we render anything else.
+        console.error('submit_location failed:', err);
+        if (!countryBoundaries.getBounds().contains(userSubmittedLocation)) {
+            // Pre-fix backend (or stale Cloud Run revision) returned 400
+            // for outside-PL — fall back to the geometry check so the
+            // toast still shows for users on the old deploy.
+            showOutsidePolandToast();
+        } else {
+            clearSkeletonAndCount();
+        }
+    });
 }
 
 function showSidebar() {

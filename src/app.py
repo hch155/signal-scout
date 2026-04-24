@@ -347,14 +347,14 @@ def submit_location():
         user_lng = float(data['lng'])
 
         if not _coords_in_bounds(user_lat, user_lng):
-            # Easter egg: instead of a curt "outside supported area",
-            # tell the user what they're missing. No outbound link
-            # (avoids nudging traffic to a tourism site we don't
-            # control + keeps the message professional for B2B
-            # demos). Frontend renders this as a friendly toast.
+            # Easter egg path. Returns 200 (not 400) so the frontend
+            # `globalFetch` doesn't bail into .catch — that was the bug
+            # behind the "loading spinner forever" / no easter-egg toast
+            # symptom in prod (frontend treated the 400 as a network
+            # error, never hit the success branch where the message box
+            # is unhidden).
             return jsonify({
                 'outside_pl': True,
-                'error': 'Coordinates outside supported area',
                 'message': (
                     "Sorry, this map only covers Poland. "
                     "Coverage you're missing: ~22,000 base stations, "
@@ -366,7 +366,9 @@ def submit_location():
                     'operators': 4,
                     'bands': ['5G', 'LTE', 'UMTS', 'GSM'],
                 },
-            }), 400
+                'stations': [],
+                'count': 0,
+            })
 
         session['user_location'] = {'lat': user_lat, 'lng': user_lng}
         # PR #29: persist saved location to User row so the snapshot/diff
