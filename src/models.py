@@ -33,7 +33,18 @@ class User(db.Model):
     # PR #5: API access. Indexed for the X-API-Key header lookup hot path.
     # api_tier values: 'free' (default), 'pro', 'enterprise' — the latter
     # two unlock higher per-tier rate limits and bypass the Referer check.
+    #
+    # PR #47 (hashed API keys, Stripe-style): `api_key` is the legacy
+    # plaintext column kept ONLY for the back-compat lookup window — new
+    # rows leave it NULL. The hot-path lookup hashes incoming X-API-Key
+    # values and matches against `api_key_hash` (sha256 hex digest).
+    # `api_key_prefix` is `first8…last4` of the original token, surfaced
+    # in /account so the user can recognise which key they're holding
+    # without our DB ever storing the secret. Plan: drop `api_key` in a
+    # follow-up PR once this hash column has covered all in-flight callers.
     api_key = db.Column(db.String(64), unique=True, index=True)
+    api_key_hash = db.Column(db.String(64), unique=True, index=True)
+    api_key_prefix = db.Column(db.String(40))
     api_tier = db.Column(db.String(32), default='free')
     # PR #16: 2FA TOTP. totp_secret is the raw base32 secret (matches what
     # pyotp emits); kept in plaintext for now, following the same trade-off
@@ -85,6 +96,10 @@ class ApiKey(db.Model):
     there for the duration of the migration window so old code paths
     that read User.api_key keep working. Plan to drop the column once
     the cutover is verified in prod (separate PR).
+
+    PR #47 (Stripe-style hashed keys): plaintext `key` is now nullable
+    and only present on rows minted before this PR; new rows store only
+    `key_hash` (sha256) + `key_prefix` (`first8…last4` for display).
     """
     __bind_key__ = 'users'
     __tablename__ = 'api_key'
@@ -95,7 +110,19 @@ class ApiKey(db.Model):
     name = db.Column(db.String(80), nullable=False)
     # Indexed because the X-API-Key middleware does a single-row lookup
     # per request — must be O(log n).
-    key = db.Column(db.String(64), unique=True, index=True, nullable=False)
+    #
+    # PR #47 (hashed API keys, Stripe-style): `key` is now nullable and
+    # only populated for legacy rows minted before this PR. The lookup
+    # hot path matches `key_hash` (sha256 hex digest of the original
+    # token); `key_prefix` (`first8…last4`) is rendered in /account so
+    # users can identify which key they're holding without us ever
+    # storing the plaintext. New rows: key=NULL, key_hash + key_prefix
+    # populated. Backfill on boot copies hash + prefix for any legacy
+    # row with a non-null `key`. Drop `key` column in a follow-up PR
+    # once we've verified no in-flight callers depend on it.
+    key = db.Column(db.String(64), unique=True, index=True, nullable=True)
+    key_hash = db.Column(db.String(64), unique=True, index=True, nullable=True)
+    key_prefix = db.Column(db.String(40), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     last_used_at = db.Column(db.DateTime)
     # PR #15: per-key call counter. Bumped in api_access middleware alongside

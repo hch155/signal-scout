@@ -18,6 +18,9 @@ on an interactive Leaflet map. Public web app + documented JSON API.
   - OpenAPI 3.0 spec: `https://signal-scout.com/api/v1/openapi.json`
   - Auth: `X-API-Key: <token>` header (generate at `/account` after signup)
     or same-origin browser request (cookies + Referer).
+  - Keys are stored hashed at rest (SHA-256) — the full token is shown
+    only once at creation; `/account` lists `first8…last4` for
+    recognition. Keep your copy safe; lost keys require a regenerate.
   - Tiered rate limits: anonymous 10/min · free 60/min · pro 300/min ·
     enterprise 3000/min.
 

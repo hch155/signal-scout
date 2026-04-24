@@ -2,10 +2,19 @@
 // Loaded only on the account page (script tag in account.html).
 
 document.addEventListener('DOMContentLoaded', () => {
+  // PR #47: `keyEl` holds only the `first8…last4` prefix now (we don't
+  // store plaintext at rest). `copyBtn` was removed from the template
+  // because copying the prefix is meaningless — we keep a lookup here
+  // so older cached templates don't crash on re-render. The freshly
+  // rotated raw key surfaces in #regen-key-value via the one-shot
+  // reveal banner instead.
   const copyBtn = document.getElementById('copy-api-key');
   const keyEl = document.getElementById('api-key-value');
   const regenBtn = document.getElementById('regen-api-key');
   const status = document.getElementById('regen-status');
+  const regenBox = document.getElementById('regen-key-display');
+  const regenValue = document.getElementById('regen-key-value');
+  const regenCopyBtn = document.getElementById('regen-copy-btn');
 
   if (copyBtn && keyEl) {
     copyBtn.addEventListener('click', () => {
@@ -17,7 +26,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  if (regenBtn && keyEl && status) {
+  if (regenCopyBtn && regenValue) {
+    regenCopyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(regenValue.textContent.trim()).then(() => {
+        const orig = regenCopyBtn.textContent;
+        regenCopyBtn.textContent = 'Copied!';
+        setTimeout(() => { regenCopyBtn.textContent = orig; }, 1500);
+      });
+    });
+  }
+
+  if (regenBtn && status) {
     regenBtn.addEventListener('click', () => {
       if (!confirm('Regenerating invalidates the current key immediately. Continue?')) {
         return;
@@ -30,8 +49,18 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'X-CSRF-Token': getCsrfToken() }
       }).then(data => {
         if (data && data.success && data.api_key) {
-          keyEl.textContent = data.api_key;
-          status.textContent = 'New API key generated.';
+          // Show the raw key in the one-shot reveal box (user must copy
+          // now). Replace the prefix display with first8…last4 of the
+          // new key so the at-rest preview matches what they just copied.
+          if (regenBox && regenValue) {
+            regenValue.textContent = data.api_key;
+            regenBox.classList.remove('hidden');
+          }
+          if (keyEl) {
+            const k = data.api_key;
+            keyEl.textContent = k.slice(0, 8) + '…' + k.slice(-4);
+          }
+          status.textContent = 'New API key generated. Save it now — it will not be shown again.';
           status.className = 'text-sm mt-2 text-green-600 dark:text-green-400';
         } else {
           status.textContent = 'Failed to regenerate. Try again.';
@@ -570,7 +599,10 @@ function appendKeyRow(data) {
   const tr = document.createElement('tr');
   tr.dataset.keyId = data.id;
   tr.className = 'border-t border-gray-200 dark:border-gray-700';
-  const masked = data.key.slice(0, 8) + '…' + data.key.slice(-4);
+  // PR #47: prefer the server-issued `key_prefix` (sha-aware, always
+  // first8…last4 of the original token). Fall back to client-side
+  // slicing of the raw key for older API responses without the field.
+  const masked = data.key_prefix || (data.key ? (data.key.slice(0, 8) + '…' + data.key.slice(-4)) : '—');
   // textContent on every cell — never innerHTML — defends against XSS in the
   // user-chosen `name` field.
   const tdName = document.createElement('td'); tdName.className = 'py-2 pr-2 font-medium'; tdName.textContent = data.name; tr.appendChild(tdName);

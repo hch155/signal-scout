@@ -28,6 +28,7 @@ What this module DOES NOT do:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import secrets
@@ -136,22 +137,79 @@ def _has_valid_browser_origin() -> bool:
     return False
 
 
+# ── PR #47: Stripe-style hashed API keys ──────────────────────────────────
+#
+# Why sha256 (not bcrypt): API keys are 32-byte URL-safe random tokens
+# (≈256 bits of entropy) — pre-image resistant by construction, no
+# rainbow-table risk. bcrypt at 50-100 ms/verify is unworkable on the
+# per-request hot path; sha256 at ~1 µs is the right tool. This matches
+# the Stripe / GitHub / AWS playbook for high-entropy API tokens.
+
+def hash_api_key(plaintext: str) -> str:
+    """Return the hex sha256 digest of an API key.
+
+    64-char lowercase hex output — fits the `key_hash VARCHAR(64)` column
+    exactly. Empty/None input returns ''; callers should already have
+    rejected empty tokens before lookup, but we don't want a `None.encode`
+    crash on a malformed request.
+    """
+    if not plaintext:
+        return ''
+    return hashlib.sha256(plaintext.encode('utf-8')).hexdigest()
+
+
+def format_api_key_prefix(plaintext: str) -> str:
+    """Return a display-only prefix in the form `first8…last4`.
+
+    Stripe-ish: enough to recognise a key in a list ("which one is the iOS
+    one?") without exposing enough entropy to brute-force. For
+    `secrets.token_urlsafe(32)` (43 chars), 8+4=12 chars revealed leaves
+    ≈31 chars (≈186 bits) of unrecoverable entropy.
+
+    Edge cases: tokens shorter than 12 chars get a single `…` between as
+    much head and tail as fits — protects test fixtures and any
+    accidentally short legacy values without crashing the migration.
+    """
+    if not plaintext:
+        return ''
+    if len(plaintext) <= 12:
+        # Degenerate path — show all but the middle char.
+        head = plaintext[: len(plaintext) // 2]
+        tail = plaintext[-(len(plaintext) - len(head) - 1):] if len(plaintext) > 1 else ''
+        return f"{head}…{tail}"
+    return f"{plaintext[:8]}…{plaintext[-4:]}"
+
+
 # ── API key resolution ─────────────────────────────────────────────────────
 
 def _resolve_api_key() -> User | None:
     """If a valid X-API-Key header is present, return the matching User.
 
-    Resolution order (PR #14 multi-key):
-    1. ApiKey table — active (not revoked) keys, user → tier from User.api_tier.
+    Resolution order (PR #14 multi-key + PR #47 hashed-at-rest):
+    1. ApiKey table by `key_hash` — sha256(incoming) → single-row indexed
+       lookup against the hashed column. Hot path; new keys live here.
        Bumps last_used_at on the ApiKey row so the /account UI can show
        freshness and the user can spot stale keys to revoke.
-    2. Legacy User.api_key column — kept during the migration window so any
-       in-flight clients using the original key keep working.
+    2. ApiKey table by legacy plaintext `key` — back-compat for rows
+       minted before PR #47 that haven't been backfilled yet (the boot
+       migration covers them, but we keep the lookup for the rare
+       race window — and for any pre-PR-#47 row whose plaintext is
+       still in flight from a long-running client).
+    3. User.api_key_hash — same hash lookup against the legacy
+       single-key-per-user column.
+    4. User.api_key — final legacy plaintext fallback.
     """
     raw = request.headers.get('X-API-Key', '').strip()
     if not raw or len(raw) > 128:
         return None
-    ak = ApiKey.query.filter_by(key=raw, revoked_at=None).first()
+
+    raw_hash = hash_api_key(raw)
+
+    # 1. New hashed lookup against ApiKey table (the hot path going forward).
+    ak = ApiKey.query.filter_by(key_hash=raw_hash, revoked_at=None).first()
+    # 2. Legacy plaintext fallback against ApiKey table.
+    if ak is None:
+        ak = ApiKey.query.filter_by(key=raw, revoked_at=None).first()
     if ak is not None:
         ak.last_used_at = datetime.utcnow()
         # PR #15: per-key call counter. Cheap inline UPDATE in the same txn
@@ -162,6 +220,11 @@ def _resolve_api_key() -> User | None:
         except Exception:
             db.session.rollback()
         return ak.user
+
+    # 3 + 4. Fall back to legacy User.api_key — hashed first, plaintext last.
+    u = User.query.filter_by(api_key_hash=raw_hash).first()
+    if u is not None:
+        return u
     return User.query.filter_by(api_key=raw).first()
 
 
@@ -282,6 +345,20 @@ def ensure_user_api_columns(app, db) -> None:
                     "CREATE UNIQUE INDEX IF NOT EXISTS "
                     "ix_user_api_key ON user (api_key)"
                 ))
+            # PR #47: hashed API keys (Stripe-style). `api_key_hash` is the
+            # sha256 hex digest used by the X-API-Key lookup hot path;
+            # `api_key_prefix` is the `first8…last4` display label rendered
+            # in /account so users can identify keys without us storing
+            # plaintext. Indexed UNIQUE alongside the legacy `api_key`
+            # index — both can coexist during the back-compat window.
+            if 'api_key_hash' not in existing:
+                conn.execute(text("ALTER TABLE user ADD COLUMN api_key_hash VARCHAR(64)"))
+                conn.execute(text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS "
+                    "ix_user_api_key_hash ON user (api_key_hash)"
+                ))
+            if 'api_key_prefix' not in existing:
+                conn.execute(text("ALTER TABLE user ADD COLUMN api_key_prefix VARCHAR(40)"))
             if 'api_tier' not in existing:
                 conn.execute(text(
                     "ALTER TABLE user ADD COLUMN api_tier VARCHAR(32) "
@@ -420,6 +497,25 @@ def ensure_user_api_columns(app, db) -> None:
                     conn.execute(text(
                         "ALTER TABLE api_key ADD COLUMN total_calls INTEGER NOT NULL DEFAULT 0"
                     ))
+            # PR #47: hashed API keys on the multi-key table. Same shape
+            # as the User columns above — sha256 hex digest + display
+            # prefix. The hash column is UNIQUE-indexed because the
+            # X-API-Key middleware does a single-row lookup per request
+            # (must be O(log n)).
+            if 'key_hash' not in ak_cols:
+                with engine.begin() as conn:
+                    conn.execute(text(
+                        "ALTER TABLE api_key ADD COLUMN key_hash VARCHAR(64)"
+                    ))
+                    conn.execute(text(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS "
+                        "ix_api_key_key_hash ON api_key (key_hash)"
+                    ))
+            if 'key_prefix' not in ak_cols:
+                with engine.begin() as conn:
+                    conn.execute(text(
+                        "ALTER TABLE api_key ADD COLUMN key_prefix VARCHAR(40)"
+                    ))
 
         # PR #30: user_station_snapshot may have been created in PR #29
         # without the user_location_id column. db.create_all above
@@ -452,6 +548,29 @@ def ensure_user_api_columns(app, db) -> None:
                     created_at=u.registration_date or datetime.utcnow(),
                 ))
         db.session.commit()
+
+        # PR #47: idempotent backfill of `key_hash` + `key_prefix` for any
+        # row that still has a plaintext value but no hash yet. After this
+        # boot pass every existing key resolves through the hashed hot
+        # path; only post-cutover-minted keys (hash-only) need to be
+        # written by route handlers from now on. Re-runs are no-ops
+        # because the WHERE clause filters on `key_hash IS NULL`.
+        users_to_backfill = User.query.filter(
+            User.api_key.isnot(None),
+            User.api_key_hash.is_(None),
+        ).all()
+        for u in users_to_backfill:
+            u.api_key_hash = hash_api_key(u.api_key)
+            u.api_key_prefix = format_api_key_prefix(u.api_key)
+        keys_to_backfill = ApiKey.query.filter(
+            ApiKey.key.isnot(None),
+            ApiKey.key_hash.is_(None),
+        ).all()
+        for k in keys_to_backfill:
+            k.key_hash = hash_api_key(k.key)
+            k.key_prefix = format_api_key_prefix(k.key)
+        if users_to_backfill or keys_to_backfill:
+            db.session.commit()
 
 
 def generate_api_key() -> str:

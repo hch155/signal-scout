@@ -40,18 +40,24 @@
 
                 <div>
                     <p class="text-sm text-gray-600 dark:text-gray-300">API key</p>
+                    {# PR #47: hashed-at-rest. We never store (and so
+                       never render) the plaintext key after creation —
+                       only `first8…last4` for recognition. The
+                       `id="api-key-value"` hook stays for back-compat
+                       with the JS copy button + existing tests; copy
+                       on the prefix is intentionally not useful (it's
+                       not a working credential). The "Regenerate" flow
+                       below mints a fresh key and surfaces it in the
+                       one-shot reveal banner. #}
                     <div class="flex items-center gap-2 mt-1">
                         <code id="api-key-value"
-                              class="font-mono text-sm break-all p-2 bg-gray-100 dark:bg-gray-700 dark:text-white rounded flex-1">{{ user.api_key }}</code>
-                        <button id="copy-api-key"
-                                aria-label="Copy API key to clipboard"
-                                title="Copy API key"
-                                class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">Copy</button>
+                              class="font-mono text-sm break-all p-2 bg-gray-100 dark:bg-gray-700 dark:text-white rounded flex-1">{% if user.api_key_prefix %}{{ user.api_key_prefix }}{% elif user.api_key %}{{ user.api_key[:8] }}…{{ user.api_key[-4:] }}{% else %}—{% endif %}</code>
                     </div>
                     <p class="text-xs text-gray-600 dark:text-gray-300 mt-2">
                         Send as <code>X-API-Key: &lt;value&gt;</code> on requests to
                         <code>/stations</code>, <code>/find_station</code>,
                         <code>/search_stations</code>. Higher rate limit + bypasses Referer check.
+                        Keys are stored hashed (SHA-256); the full value is shown only at creation.
                     </p>
                 </div>
 
@@ -65,6 +71,24 @@
                         Regenerate API key
                     </button>
                     <p id="regen-status" class="text-sm mt-2"></p>
+                    {# PR #47: one-shot reveal for the freshly-rotated
+                       legacy default key. JS un-hides this and pastes
+                       the raw value into #regen-key-value after a
+                       successful POST to /account/regenerate_api_key.
+                       Same yellow-callout pattern as the multi-key
+                       create flow below — visually consistent "save
+                       this NOW, you won't see it again". #}
+                    <div id="regen-key-display" class="hidden mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded">
+                        <p class="text-xs text-yellow-800 dark:text-yellow-200 mb-1">
+                            <strong>Copy now — this is the only time the full key will be shown.</strong>
+                            We store only a SHA-256 hash; we cannot recover this value if you lose it.
+                        </p>
+                        <div class="flex items-center gap-2 mt-2">
+                            <code id="regen-key-value" class="font-mono text-xs break-all p-2 bg-white dark:bg-gray-900 dark:text-white rounded flex-1"></code>
+                            <button type="button" id="regen-copy-btn"
+                                    class="bg-blue-500 hover:bg-blue-700 text-white text-xs font-bold py-2 px-3 rounded">Copy</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -221,7 +245,13 @@
                         {% for k in api_keys %}
                         <tr data-key-id="{{ k.id }}" class="border-t border-gray-200 dark:border-gray-700">
                             <td class="py-2 px-2 font-medium">{{ k.name }}</td>
-                            <td class="py-2 px-2 font-mono text-xs">{{ k.key[:8] }}…{{ k.key[-4:] }}</td>
+                            {# PR #47: prefer the stored key_prefix (set
+                               at creation or backfilled at boot). The
+                               literal-string fallback only fires for
+                               the rare race where backfill hasn't run
+                               yet and a legacy plaintext row is being
+                               rendered for the first time. #}
+                            <td class="py-2 px-2 font-mono text-xs">{% if k.key_prefix %}{{ k.key_prefix }}{% elif k.key %}{{ k.key[:8] }}…{{ k.key[-4:] }}{% else %}—{% endif %}</td>
                             <td class="py-2 px-2 text-gray-600 dark:text-gray-300">{{ k.created_at.strftime('%Y-%m-%d') }}</td>
                             <td class="py-2 px-2 text-gray-600 dark:text-gray-300">
                                 {% if k.last_used_at %}{{ k.last_used_at.strftime('%Y-%m-%d %H:%M') }}{% else %}never{% endif %}

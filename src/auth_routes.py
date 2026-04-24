@@ -28,6 +28,9 @@ from flask import Blueprint, jsonify, render_template, request, session
 
 from models import User, ApiKey, AuditEvent, UserLocation, UserStationSnapshot
 from kms import get_kms
+# PR #47: Stripe-style hashed API keys. Both helpers are pure functions
+# (no Flask context, no DB) so importing them at module level is safe.
+from api_access import hash_api_key, format_api_key_prefix
 # PR #44: register / first-key funnel counters. Imported directly because
 # they're plain Counters with no circular-import risk.
 from observability import (
@@ -320,10 +323,19 @@ def register_user():
     hashed_password = _bcrypt().generate_password_hash(password).decode('utf-8')
 
     try:
+        # PR #47: hash-on-create. The auto-generated registration key is
+        # stored as sha256(raw)+prefix only — we never persist the
+        # plaintext. Side-effect: the user does not get a directly-usable
+        # token at signup; they create one explicitly from /account
+        # (one-shot reveal). This matches Stripe / GitHub UX and removes
+        # the "DB compromise leaks every API key" failure mode.
+        raw_key = _generate_api_key()
         user = User(
             email=email,
             password_hash=hashed_password,
-            api_key=_generate_api_key(),
+            api_key=None,
+            api_key_hash=hash_api_key(raw_key),
+            api_key_prefix=format_api_key_prefix(raw_key),
             api_tier='free',
         )
         _db().session.add(user)
@@ -465,8 +477,15 @@ def account_page():
     if not user:
         session.pop('user_id', None)
         return jsonify({"error": "Authentication required"}), 401
-    if not user.api_key:
-        user.api_key = _generate_api_key()
+    # PR #47: only auto-mint a default key if the user has neither a
+    # legacy plaintext value NOR a hashed one. After hash-on-create
+    # (registration), users come in with `api_key=None` but
+    # `api_key_hash` set — we must not overwrite that, otherwise we'd
+    # invalidate the hash they were issued at signup.
+    if not user.api_key and not user.api_key_hash:
+        raw_key = _generate_api_key()
+        user.api_key_hash = hash_api_key(raw_key)
+        user.api_key_prefix = format_api_key_prefix(raw_key)
         user.api_tier = user.api_tier or 'free'
         _db().session.commit()
     # PR #14: list of named keys for this user, newest first. Active keys
@@ -505,9 +524,17 @@ def regenerate_api_key():
     if not user:
         session.pop('user_id', None)
         return jsonify({"error": "Authentication required"}), 401
-    user.api_key = _generate_api_key()
+    # PR #47: hash-on-create rotation. Mint raw, store sha256(raw)+prefix
+    # only. The legacy plaintext column is cleared in the same txn so a
+    # later DB read can't return a stale value alongside the new hash.
+    # Raw token is returned in the response — that's the one-shot reveal
+    # the /account UI surfaces in its yellow callout banner.
+    raw_key = _generate_api_key()
+    user.api_key = None
+    user.api_key_hash = hash_api_key(raw_key)
+    user.api_key_prefix = format_api_key_prefix(raw_key)
     _db().session.commit()
-    return jsonify({"success": True, "api_key": user.api_key}), 200
+    return jsonify({"success": True, "api_key": raw_key}), 200
 
 
 # ── PR #12: profile / change password / delete account ─────────────────────
@@ -671,8 +698,17 @@ def create_api_key():
     # it's a side-effect of registration, not "intent to use the API").
     if ApiKey.query.filter_by(user_id=user.id).count() <= 1:
         funnel_first_api_key_created_total.inc()
+    # PR #47: hash-on-create. Persist sha256(raw) + display prefix only;
+    # raw token returns in the JSON response as the one-shot reveal the
+    # /account UI flashes in its yellow callout banner.
     new_key_value = _generate_api_key()
-    ak = ApiKey(user_id=user.id, name=name, key=new_key_value)
+    ak = ApiKey(
+        user_id=user.id,
+        name=name,
+        key=None,
+        key_hash=hash_api_key(new_key_value),
+        key_prefix=format_api_key_prefix(new_key_value),
+    )
     _db().session.add(ak)
     try:
         _db().session.flush()  # need ak.id for the audit meta below
@@ -692,7 +728,8 @@ def create_api_key():
         'success': True,
         'id': ak.id,
         'name': ak.name,
-        'key': ak.key,
+        'key': new_key_value,  # one-shot reveal — never returned again
+        'key_prefix': ak.key_prefix,
         'created_at': ak.created_at.isoformat() + 'Z',
     }), 200
 
@@ -717,9 +754,15 @@ def revoke_api_key(key_id: int):
     ak.revoked_at = datetime.utcnow()
     # If the user revoked the legacy "default" key (the one mirrored on
     # User.api_key), also clear the column so anyone still reading
-    # User.api_key directly sees the same picture.
-    if ak.name == 'default' and user.api_key == ak.key:
-        user.api_key = None
+    # User.api_key directly sees the same picture. PR #47: also clear
+    # the hashed mirror — both pre-PR plaintext and post-PR hash live
+    # on User during the back-compat window.
+    if ak.name == 'default':
+        if user.api_key is not None and user.api_key == ak.key:
+            user.api_key = None
+        if user.api_key_hash is not None and user.api_key_hash == ak.key_hash:
+            user.api_key_hash = None
+            user.api_key_prefix = None
     _audit('apikey.revoked', user.id, {'name': ak.name, 'key_id': ak.id})
     try:
         _db().session.commit()
