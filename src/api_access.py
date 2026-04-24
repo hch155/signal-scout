@@ -45,6 +45,10 @@ from observability import (
     api_referer_blocked_total,
     api_key_used_total,
     honeypot_hit_total,
+    # PR #44: RED-method per-tier counters + funnel
+    api_requests_total,
+    api_request_duration_seconds,
+    record_first_api_call,
 )
 
 
@@ -186,10 +190,13 @@ def require_api_access(endpoint_label: str) -> Callable:
                 g.api_tier = tier
                 g.api_key_user_id = user.id
                 api_key_used_total.labels(tier=tier).inc()
+                # PR #44 funnel step 4: first API call by this user.
+                record_first_api_call(user.id)
             elif 'user_id' in session:
                 # Authenticated browser session — treat as free tier.
                 g.api_tier = 'free'
                 api_key_used_total.labels(tier='session').inc()
+                record_first_api_call(session.get('user_id'))
             elif _has_valid_browser_origin():
                 g.api_tier = 'anonymous'
             else:
@@ -203,7 +210,42 @@ def require_api_access(endpoint_label: str) -> Callable:
                     ),
                 }), 403
 
-            return func(*args, **kwargs)
+            # PR #44: RED-method timing + outcome bucketing. Wraps the
+            # handler so even an exception path counts toward the
+            # error rate.
+            with api_request_duration_seconds.labels(
+                endpoint=endpoint_label
+            ).time():
+                try:
+                    response = func(*args, **kwargs)
+                except Exception:
+                    api_requests_total.labels(
+                        tier=g.get('api_tier', 'unknown'),
+                        endpoint=endpoint_label,
+                        outcome="server_error",
+                    ).inc()
+                    raise
+
+            # Detect outcome from the response status code. Flask handlers
+            # may return a Response, a (body, status[, headers]) tuple, or
+            # a bare str; handle all three.
+            status_code = 200
+            outcome = "success"
+            if isinstance(response, tuple):
+                if len(response) >= 2 and isinstance(response[1], int):
+                    status_code = response[1]
+            else:
+                status_code = getattr(response, 'status_code', 200)
+            if 500 <= status_code < 600:
+                outcome = "server_error"
+            elif 400 <= status_code < 500:
+                outcome = "client_error"
+            api_requests_total.labels(
+                tier=g.get('api_tier', 'unknown'),
+                endpoint=endpoint_label,
+                outcome=outcome,
+            ).inc()
+            return response
 
         return wrapper
     return decorator

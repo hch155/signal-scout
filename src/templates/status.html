@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>signal-scout.com — public service health</title>
+  <meta name="description" content="Live service health for signal-scout.com — uptime, response time, and component status.">
+  <meta name="robots" content="index,follow">
+  {# Intentionally minimal: no external assets, no Plausible script, no
+     trackers. This page is the canonical source of truth for "is the
+     service up?" — third-party CDN failures must not take it down. #}
+  <style>
+    :root {
+      --bg: #f7f9fc;
+      --fg: #1f2933;
+      --muted: #5f6b7a;
+      --card: #ffffff;
+      --border: #e1e7ef;
+      --green: #1aa260;
+      --yellow: #d99100;
+      --red: #d33030;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #11161d;
+        --fg: #e8eef5;
+        --muted: #93a0b1;
+        --card: #1a2129;
+        --border: #2a3340;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.5;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 48px 24px; }
+    h1 { font-size: 28px; margin: 0 0 8px; }
+    .subtitle { color: var(--muted); margin: 0 0 32px; }
+
+    .summary {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 20px 24px;
+      border-radius: 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .summary.ok { border-left: 4px solid var(--green); }
+    .summary.degraded { border-left: 4px solid var(--yellow); }
+    .summary.down { border-left: 4px solid var(--red); }
+
+    .components {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px 24px;
+      margin-bottom: 24px;
+    }
+    .component {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .component:last-child { border-bottom: 0; }
+    .component .name { font-weight: 500; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      display: inline-block;
+    }
+    .dot.operational { background: var(--green); }
+    .dot.degraded   { background: var(--yellow); }
+    .dot.down       { background: var(--red); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+    }
+    .stat .label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 0 0 6px;
+    }
+    .stat .value {
+      font-size: 22px;
+      font-weight: 600;
+      margin: 0;
+    }
+    .footer {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      margin-top: 32px;
+    }
+    .footer a { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>signal-scout.com — public service health</h1>
+    <p class="subtitle">Live status of the public API and web frontend.</p>
+
+    {% set summary_class = 'ok' %}
+    {% for c in s.components %}
+      {% if c.status == 'down' %}{% set summary_class = 'down' %}{% endif %}
+      {% if c.status == 'degraded' and summary_class != 'down' %}
+        {% set summary_class = 'degraded' %}
+      {% endif %}
+    {% endfor %}
+    <div class="summary {{ summary_class }}">
+      <span class="dot {% if summary_class == 'ok' %}operational{% else %}{{ summary_class }}{% endif %}"></span>
+      {{ s.summary }}
+    </div>
+
+    <div class="components" aria-label="Component status">
+      {% for c in s.components %}
+      <div class="component">
+        <span class="name">{{ c.name }}</span>
+        <span class="badge">
+          <span class="dot {{ c.status }}"></span>
+          {{ c.status|capitalize }}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="grid" aria-label="Service KPIs">
+      <div class="stat">
+        <p class="label">Availability (SLO {{ '%.1f'|format(s.availability_target * 100) }}%)</p>
+        <p class="value">{{ '%.2f'|format(s.availability_current * 100) }}%</p>
+      </div>
+      <div class="stat">
+        <p class="label">Median response (target ≤ {{ s.latency_target_ms }} ms)</p>
+        <p class="value">
+          {% if s.latency_p50_ms is not none %}{{ s.latency_p50_ms }} ms{% else %}—{% endif %}
+        </p>
+      </div>
+      <div class="stat">
+        <p class="label">p95 response</p>
+        <p class="value">
+          {% if s.latency_p95_ms is not none %}{{ s.latency_p95_ms }} ms{% else %}—{% endif %}
+        </p>
+      </div>
+      <div class="stat">
+        <p class="label">Requests served</p>
+        <p class="value">{{ '{:,}'.format(s.requests_total) }}</p>
+      </div>
+    </div>
+
+    <p class="footer">
+      {% if s.last_incident_unix and s.last_incident_unix > 0 %}
+        Last incident: <time datetime="{{ s.last_incident_unix }}">{{ s.last_incident_unix|int }}</time> (unix epoch).
+      {% else %}
+        No recorded incidents in this measurement window.
+      {% endif %}
+      <br>
+      Machine-readable: <a href="/status?format=json">/status?format=json</a>
+    </p>
+  </main>
+</body>
+</html>

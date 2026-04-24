@@ -28,6 +28,13 @@ from flask import Blueprint, jsonify, render_template, request, session
 
 from models import User, ApiKey, AuditEvent, UserLocation, UserStationSnapshot
 from kms import get_kms
+# PR #44: register / first-key funnel counters. Imported directly because
+# they're plain Counters with no circular-import risk.
+from observability import (
+    funnel_register_started_total,
+    funnel_register_completed_total,
+    funnel_first_api_key_created_total,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -283,6 +290,10 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
 # ── View functions ──────────────────────────────────────────────────────────
 
 def register_user():
+    # PR #44 funnel step 1: every register attempt counts (success and
+    # failure both — we want the success-rate ratio to reflect reality,
+    # including bot traffic that hits the page and fails on validation).
+    funnel_register_started_total.inc()
     if not _validate_csrf():
         _csrf_failures_total().labels(endpoint='register').inc()
         return jsonify({'error': 'Invalid request'}), 403
@@ -317,6 +328,8 @@ def register_user():
         )
         _db().session.add(user)
         _db().session.commit()
+        # PR #44 funnel step 2: register completed (HTTP 200 path).
+        funnel_register_completed_total.inc()
         return jsonify({"success": True, "message": "User registered successfully."}), 200
     except Exception:
         _db().session.rollback()
@@ -653,6 +666,11 @@ def create_api_key():
             'error': f'Active key limit reached ({_MAX_ACTIVE_KEYS_PER_USER}). Revoke one first.'
         }), 400
 
+    # PR #44 funnel step 3: count only the FIRST extra key created by
+    # this user (the auto-key minted at registration is not counted —
+    # it's a side-effect of registration, not "intent to use the API").
+    if ApiKey.query.filter_by(user_id=user.id).count() <= 1:
+        funnel_first_api_key_created_total.inc()
     new_key_value = _generate_api_key()
     ak = ApiKey(user_id=user.id, name=name, key=new_key_value)
     _db().session.add(ak)
