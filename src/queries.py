@@ -38,6 +38,104 @@ def get_latitude_segment(latitude):
     segment_size = 0.1
     return int((latitude - base_latitude) / segment_size)
 
+
+# PR #47: per-band "poor coverage" thresholds in km. Values come from
+# frequencyRanges in static/scripts/pages/ui-interactions.js — the same
+# constants the on-map signal-strength legend uses, so the UI and API
+# agree on what "dead" means. High-band (5G3600, LTE2600) drops off
+# fast; low-band (L800, L900, GSM900) penetrates much further.
+#
+# Bands not in this map fall back to DEFAULT_GAP_THRESHOLD_KM (3 km
+# = the mid-band poor-tier).
+COVERAGE_THRESHOLDS_KM = {
+    "5G3600": 1.5,
+    "LTE2600": 1.5,
+    "5G2100": 2.0,
+    "LTE2100": 2.0,
+    "LTE1800": 2.0,
+    "UMTS2100": 2.0,
+    "LTE800": 5.0,
+    "L900": 5.0,
+    "GSM900": 5.0,
+    "G900": 5.0,
+}
+DEFAULT_GAP_THRESHOLD_KM = 3.0
+# Search this many ±0.1° lat segments around the user. ~3 segments
+# ≈ 33 km — wide enough to catch a low-band station even if the user
+# is in the middle of nowhere; not so wide it scans the whole country.
+GAP_SEARCH_SEGMENTS = 3
+
+
+def find_coverage_gaps(user_lat: float, user_lng: float) -> dict:
+    """Per-band 'dead area' detection at a single point.
+
+    For each frequency band present in the dataset, returns the
+    distance to the nearest BTS of that band and whether that distance
+    falls inside the band-specific 'poor-coverage' threshold. A 'gap'
+    is a band whose nearest station is farther than the threshold —
+    meaning a phone configured for that band would lose signal here.
+
+    Output shape:
+      {
+        'gaps': [
+          {'band': '5G3600', 'nearest_distance_km': 4.2,
+           'threshold_km': 1.5, 'has_coverage': False},
+          ...
+        ],
+        'summary': {'total_bands': 8, 'covered': 6, 'dead': 2}
+      }
+
+    Used by GET /api/v1/coverage_gaps; surfaced in the sidebar after
+    every map click.
+    """
+    user_segment = get_latitude_segment(user_lat)
+    segments = list(range(
+        user_segment - GAP_SEARCH_SEGMENTS,
+        user_segment + GAP_SEARCH_SEGMENTS + 1,
+    ))
+
+    try:
+        rows = db.session.query(
+            BaseStation.frequency_band,
+            BaseStation.latitude,
+            BaseStation.longitude,
+        ).filter(
+            BaseStation.latitude_segment.in_(segments)
+        ).all()
+    except Exception as e:
+        logger.error(f"Error in find_coverage_gaps query: {e}")
+        return {"gaps": [], "summary": {"total_bands": 0, "covered": 0, "dead": 0}}
+
+    nearest_per_band: dict[str, float] = {}
+    for band, lat, lng in rows:
+        if not band:
+            continue
+        d = haversine(user_lat, user_lng, lat, lng)
+        prev = nearest_per_band.get(band)
+        if prev is None or d < prev:
+            nearest_per_band[band] = d
+
+    gaps = []
+    # Sort by the same priority the rest of the UI uses (5G first,
+    # then LTE, UMTS, GSM) so the response feels consistent with the
+    # popup / sidebar ordering.
+    for band in sort_frequency_bands(list(nearest_per_band.keys())):
+        dist = nearest_per_band[band]
+        threshold = COVERAGE_THRESHOLDS_KM.get(band, DEFAULT_GAP_THRESHOLD_KM)
+        gaps.append({
+            "band": band,
+            "nearest_distance_km": round(dist, 2),
+            "threshold_km": threshold,
+            "has_coverage": dist <= threshold,
+        })
+
+    summary = {
+        "total_bands": len(gaps),
+        "covered": sum(1 for g in gaps if g["has_coverage"]),
+        "dead": sum(1 for g in gaps if not g["has_coverage"]),
+    }
+    return {"gaps": gaps, "summary": summary}
+
 def find_nearest_stations(user_lat, user_lng, limit=None, max_distance=None, service_providers=[], frequency_bands=[]):
     user_segment = get_latitude_segment(user_lat)
     adjacent_segments = [user_segment - 1, user_segment, user_segment + 1]

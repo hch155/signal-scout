@@ -24,7 +24,14 @@ const baseMaps = {
     "Dark": darkTileLayer,
     "Satellite": satelliteLayer
 };
-L.control.layers(baseMaps, null, { position: 'topright' }).addTo(mymap);
+// PR #47: collapsed=false avoids the toggle icon entirely. Vendored
+// Leaflet's CSS expects images/layers.png + images/layers-2x.png in
+// the same dir; we don't ship them (sandbox rules during the sprint
+// blocked auto-vendoring), and 404s on those tiles surfaced as a
+// blank white square in prod. Always-expanded list (3 radio rows)
+// renders fine without the icon and is arguably better UX on
+// desktop too — no extra hover step to switch base map.
+L.control.layers(baseMaps, null, { position: 'topright', collapsed: false }).addTo(mymap);
 
 const greenIcon = new L.Icon({ 
 iconUrl: 'static/css/images/marker-icon-green.png', shadowUrl: 'static/css/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
@@ -546,6 +553,11 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
             // without driving them through /account → + Add → manual
             // lat/lng entry.
             renderSaveSpotShortcut(lat, lng);
+            // PR #47: dead-areas detection — per-band coverage check
+            // at this exact spot, rendered as a sidebar widget above
+            // the station list. Async + non-blocking; if the call
+            // fails the rest of the sidebar still works.
+            renderCoverageGaps(lat, lng);
             scrollToSidebar();
         } else {
             // Got a 200 with no stations payload — clear skeleton so the
@@ -572,6 +584,78 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
 function showSidebar() {
     let sidebar = document.getElementById('sidebar');
     sidebar.classList.remove('hidden');
+}
+
+// PR #47: dead-areas widget — per-band coverage check at the clicked
+// spot. Async fetch to /coverage_gaps; renders a compact list above
+// the station cards: ✓ green for "covered" (nearest BTS of that band
+// within the band-specific threshold), ✗ red for "dead". Includes a
+// summary line ("3 of 8 bands dead at this spot"). Replaces any
+// previous widget on a new click.
+function renderCoverageGaps(lat, lng) {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    const existing = sidebar.querySelector('#coverage-gaps-widget');
+    if (existing) existing.remove();
+
+    const widget = document.createElement('div');
+    widget.id = 'coverage-gaps-widget';
+    widget.className = 'col-span-full mb-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm';
+    widget.innerHTML = '<div class="text-xs text-gray-500 dark:text-gray-400">Checking coverage at this spot…</div>';
+    sidebar.insertBefore(widget, sidebar.firstChild);
+
+    globalFetch(`/coverage_gaps?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`)
+        .then(data => {
+            if (!data || data.outside_pl || !Array.isArray(data.gaps) || data.gaps.length === 0) {
+                widget.remove();
+                return;
+            }
+            const summary = data.summary || {};
+            const dead = summary.dead || 0;
+            const total = summary.total_bands || data.gaps.length;
+            const covered = total - dead;
+
+            const summaryClass = dead === 0
+                ? 'text-green-700 dark:text-green-300'
+                : dead >= total / 2
+                    ? 'text-red-700 dark:text-red-300'
+                    : 'text-yellow-700 dark:text-yellow-300';
+            const summaryText = dead === 0
+                ? `Full coverage at this spot — all ${total} bands within reach.`
+                : `${dead} of ${total} band${total > 1 ? 's' : ''} dead at this spot. ${covered} covered.`;
+
+            const rows = data.gaps.map(g => {
+                const ok = g.has_coverage;
+                const icon = ok ? '✓' : '✗';
+                const iconClass = ok
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-red-600 dark:text-red-400';
+                const dist = g.nearest_distance_km;
+                const thresh = g.threshold_km;
+                const label = ok
+                    ? `nearest ${dist} km (within ${thresh} km)`
+                    : `nearest ${dist} km (gap — threshold ${thresh} km)`;
+                return `
+                    <li class="flex items-center justify-between gap-2 py-0.5">
+                        <span class="font-mono text-xs text-gray-700 dark:text-gray-200">${escapeHtml(g.band)}</span>
+                        <span class="flex items-center gap-2 text-xs">
+                            <span class="text-gray-500 dark:text-gray-400">${escapeHtml(label)}</span>
+                            <span class="${iconClass} font-bold text-base leading-none">${icon}</span>
+                        </span>
+                    </li>`;
+            }).join('');
+
+            widget.innerHTML = `
+                <div class="text-sm font-semibold text-gray-900 dark:text-white mb-1">Coverage at this spot</div>
+                <div class="text-xs ${summaryClass} mb-2">${escapeHtml(summaryText)}</div>
+                <ul class="space-y-0.5">${rows}</ul>
+                <div class="text-[10px] text-gray-400 dark:text-gray-500 mt-2 italic">
+                    Thresholds: high-band ≤1.5 km · mid ≤2 km · low ≤5 km. Line-of-sight; real signal varies.
+                </div>`;
+        })
+        .catch(() => {
+            widget.remove();
+        });
 }
 
 // PR #46.9: "Save this spot" CTA at the top of the sidebar after a

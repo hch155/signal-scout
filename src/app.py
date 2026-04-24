@@ -5,7 +5,7 @@ from flask_limiter.util import get_remote_address
 from database import db
 from models import BaseStation, User
 from sqlalchemy import or_
-from queries import get_all_stations, find_nearest_stations, haversine, get_band_stats, get_stats
+from queries import get_all_stations, find_nearest_stations, haversine, get_band_stats, get_stats, find_coverage_gaps
 from config import settings
 from observability import (
     init_observability,
@@ -657,6 +657,34 @@ def search_stations():
 
     return jsonify({"stations": stations_data})
 
+
+# PR #47: per-band coverage-gap detection. For each frequency band in
+# the dataset, returns the distance to the nearest BTS of that band
+# and a boolean has_coverage based on band-specific thresholds (low
+# bands penetrate further so they get bigger thresholds; see
+# queries.COVERAGE_THRESHOLDS_KM). Surfaced in the sidebar after every
+# map click so users see "you're in a 5G dead zone here" without
+# having to interpret distance numbers.
+@app.route('/coverage_gaps', methods=['GET'])
+@limiter.limit("30 per minute")
+@require_api_access(endpoint_label='coverage_gaps')
+def coverage_gaps():
+    try:
+        user_lat = float(request.args.get('lat'))
+        user_lng = float(request.args.get('lng'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid lat/lng'}), 400
+    if not _coords_in_bounds(user_lat, user_lng):
+        # Match the easter-egg contract — 200 with outside_pl flag and
+        # an empty result so the JS handles it uniformly with /stations.
+        return jsonify({
+            'outside_pl': True,
+            'gaps': [],
+            'summary': {'total_bands': 0, 'covered': 0, 'dead': 0},
+        })
+    return jsonify(find_coverage_gaps(user_lat, user_lng))
+
+
 @app.route('/robots.txt')
 def robots_txt():
     """Search-engine crawler directives. Allows public pages, blocks API
@@ -974,6 +1002,8 @@ app.add_url_rule('/api/v1/search_stations', endpoint='api_v1_search_stations',
                  view_func=api_v1_search_stations, methods=['GET'])
 app.add_url_rule('/api/v1/submit_location', endpoint='api_v1_submit_location',
                  view_func=api_v1_submit_location, methods=['POST'])
+app.add_url_rule('/api/v1/coverage_gaps', endpoint='api_v1_coverage_gaps',
+                 view_func=coverage_gaps, methods=['GET'])
 app.add_url_rule('/api/v1/healthz', endpoint='api_v1_healthz',
                  view_func=api_v1_healthz, methods=['GET'])
 
