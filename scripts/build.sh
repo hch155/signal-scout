@@ -40,13 +40,29 @@ mkdir -p "$JS_DIST_DIR"
 JS_FILES=(common compass map-initialization tips-interactions ui-interactions account)
 
 for name in "${JS_FILES[@]}"; do
+  # PR #46.6: dropped --sourcemap. The .map files were generated but
+  # NOT shipped in the Docker image, so devtools always 404'd on
+  # `<file>.min.js.map` lookups (5 console errors per page load —
+  # noise that drowns real errors). Local debugging can edit the raw
+  # `.js` source under static/scripts/pages/ and skip min build, or
+  # set BUILD_ENV=dev to opt back in:
+  if [ "${BUILD_ENV:-}" = "dev" ]; then
+    SOURCEMAP_FLAG="--sourcemap"
+  else
+    SOURCEMAP_FLAG=""
+  fi
+  # shellcheck disable=SC2086 # intentional unquoted expansion of optional flag
   "$ES_BIN" \
     "$JS_SRC_DIR/${name}.js" \
     --outfile="$JS_DIST_DIR/${name}.min.js" \
     --minify \
     --drop:console \
-    --sourcemap \
+    $SOURCEMAP_FLAG \
     --target=es2018
+
+  # Stale .map left over from previous --sourcemap builds: remove so
+  # the dist dir matches the new (no-map) output.
+  rm -f "$JS_DIST_DIR/${name}.min.js.map"
 
   SIZE=$(wc -c < "$JS_DIST_DIR/${name}.min.js" | tr -d ' ')
   echo "  -> ${name}.min.js: ${SIZE} bytes"

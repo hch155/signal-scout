@@ -331,6 +331,49 @@ document.addEventListener('DOMContentLoaded', () => {
       if (locStatus) locStatus.textContent = '';
     });
   }
+
+  // PR #46.6: "Use my location" — fill lat/lng from browser geolocation
+  // API instead of asking the user to type coordinates by hand. Manual
+  // entry stays as fallback if geolocation is denied / unavailable.
+  const locUseGeoBtn = document.getElementById('loc-use-my-location-btn');
+  const locLatInput = document.getElementById('loc-lat-input');
+  const locLngInput = document.getElementById('loc-lng-input');
+  const locGeoStatus = document.getElementById('loc-geo-status');
+  if (locUseGeoBtn && locLatInput && locLngInput) {
+    locUseGeoBtn.addEventListener('click', () => {
+      if (!('geolocation' in navigator)) {
+        if (locGeoStatus) locGeoStatus.textContent = 'Geolocation not supported by this browser.';
+        return;
+      }
+      if (locGeoStatus) locGeoStatus.textContent = 'Locating…';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude.toFixed(5);
+          const lng = pos.coords.longitude.toFixed(5);
+          locLatInput.value = lat;
+          locLngInput.value = lng;
+          if (locGeoStatus) {
+            locGeoStatus.textContent = `Got it — ${lat}, ${lng}.`;
+            locGeoStatus.className = 'text-xs text-green-600 dark:text-green-400';
+          }
+        },
+        (err) => {
+          // 1=permission denied, 2=position unavailable, 3=timeout
+          const reason = err.code === 1
+            ? 'Permission denied — type coordinates manually below.'
+            : err.code === 3
+              ? 'Timed out — try again or type coordinates manually.'
+              : 'Could not determine location — type coordinates manually.';
+          if (locGeoStatus) {
+            locGeoStatus.textContent = reason;
+            locGeoStatus.className = 'text-xs text-red-600 dark:text-red-400';
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    });
+  }
+
   if (locForm && locStatus) {
     locForm.addEventListener('submit', (e) => {
       e.preventDefault();

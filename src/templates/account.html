@@ -120,15 +120,27 @@
                         <input type="text" name="description" maxlength="255"
                                class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </label>
+                    {# PR #46.6: instead of typing lat/lng manually, offer
+                       to fill them from the browser geolocation API. Manual
+                       entry stays available as fallback (locked-down PWAs,
+                       privacy-locked browsers, GPS that placed the user
+                       in a different country, etc.). #}
+                    <div class="flex items-center gap-2">
+                        <button type="button" id="loc-use-my-location-btn"
+                                class="bg-blue-500 hover:bg-blue-700 text-white text-xs font-semibold py-1.5 px-3 rounded">
+                            📍 Use my location
+                        </button>
+                        <span id="loc-geo-status" class="text-xs text-gray-500 dark:text-gray-400"></span>
+                    </div>
                     <div class="grid grid-cols-2 gap-2">
                         <label class="block">
                             <span class="text-sm text-gray-500 dark:text-gray-400">Latitude</span>
-                            <input type="number" name="lat" required step="any" min="48.95" max="55.55"
+                            <input type="number" id="loc-lat-input" name="lat" required step="any" min="48.95" max="55.55"
                                    class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </label>
                         <label class="block">
                             <span class="text-sm text-gray-500 dark:text-gray-400">Longitude</span>
-                            <input type="number" name="lng" required step="any" min="13.95" max="24.25"
+                            <input type="number" id="loc-lng-input" name="lng" required step="any" min="13.95" max="24.25"
                                    class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </label>
                     </div>
