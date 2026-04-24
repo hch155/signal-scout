@@ -2,48 +2,86 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Markdown content (rendered into /data, /tips) ──────────────────────
+   Hand-styled instead of pulling @tailwindcss/typography (`prose`):
+   - keeps the build dep-free (we already inherit `prose` via tailwind.config
+     plugins but using the named utility would force every page to opt in)
+   - lets us tune for the existing card width (max-w-3xl / 4xl) and the
+     existing dark-card background (bg-gray-800)
+   - bumps body copy from 15px → 16px on desktop so prose is comfortable
+     to read at arm's length; mobile stays 15px so the cards don't blow
+     out at 375px.
+   Headings get a heavier weight + bottom border on h2 so sectioning is
+   obvious when scrolling. Code blocks now scroll horizontally (`pre code`)
+   instead of overflowing the card on narrow viewports. */
 .markdown-content {
-    @apply font-sans leading-relaxed;
+    @apply font-sans leading-relaxed text-gray-700 dark:text-gray-100;
 }
 
 .markdown-content h2 {
-    @apply text-2xl text-center font-bold text-gray-800 dark:text-gray-100 mb-4 mt-6;
-}
-
-.markdown-content p {
-    @apply text-[15px] text-gray-600 dark:text-gray-100 mb-4;
-}
-
-.markdown-content p strong {
-  @apply font-bold text-gray-700 dark:text-gray-100;
-}
-
-.markdown-content ul li {
-  @apply text-[15px] text-gray-600 dark:text-gray-100 leading-relaxed;
-}
-
-.markdown-content a {
-    @apply text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 underline decoration-1 underline-offset-2;
+    @apply text-2xl md:text-3xl text-center font-bold text-gray-900 dark:text-gray-50 mb-4 mt-6 pb-2 border-b border-gray-200 dark:border-gray-700;
 }
 
 .markdown-content h3 {
-    @apply text-lg font-semibold text-gray-700 dark:text-gray-200 mt-6 mb-3;
+    @apply text-lg md:text-xl font-semibold text-gray-800 dark:text-gray-100 mt-6 mb-3;
+}
+
+.markdown-content h4 {
+    @apply text-base md:text-lg font-semibold text-gray-800 dark:text-gray-100 mt-5 mb-2;
+}
+
+.markdown-content p {
+    @apply text-[15px] md:text-base text-gray-700 dark:text-gray-100 mb-4 leading-relaxed;
+}
+
+.markdown-content p strong,
+.markdown-content li strong {
+  @apply font-bold text-gray-900 dark:text-white;
+}
+
+.markdown-content em {
+    @apply italic;
+}
+
+.markdown-content ul li,
+.markdown-content ol li {
+  @apply text-[15px] md:text-base text-gray-700 dark:text-gray-100 leading-relaxed;
+}
+
+.markdown-content a {
+    @apply text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200 underline decoration-1 underline-offset-2 transition-colors;
 }
 
 .markdown-content ul {
-    @apply mb-4 pl-6 space-y-1.5 list-disc marker:text-gray-400 dark:marker:text-gray-500;
+    @apply mb-4 pl-6 space-y-1.5 list-disc marker:text-gray-500 dark:marker:text-gray-400;
 }
 
 .markdown-content ol {
-    @apply mb-4 pl-6 space-y-1.5 list-decimal marker:text-gray-400 dark:marker:text-gray-500;
+    @apply mb-4 pl-6 space-y-1.5 list-decimal marker:text-gray-500 dark:marker:text-gray-400;
 }
 
 .markdown-content hr {
     @apply my-6 border-gray-200 dark:border-gray-700;
 }
 
+.markdown-content blockquote {
+    @apply border-l-4 border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-gray-700/50 pl-4 pr-3 py-2 my-4 italic text-gray-700 dark:text-gray-200 rounded-r;
+}
+
+/* Inline code */
 .markdown-content code {
-    @apply bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-1.5 py-0.5 rounded text-sm font-mono;
+    @apply bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 px-1.5 py-0.5 rounded text-sm font-mono;
+}
+
+/* Code blocks (```...```). `pre` is the wrapping element from the markdown
+   renderer; without explicit overflow it pushes the parent card wider than
+   the viewport on mobile. */
+.markdown-content pre {
+    @apply bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 rounded-md p-3 md:p-4 mb-4 overflow-x-auto text-sm font-mono border border-gray-200 dark:border-gray-700;
+}
+
+.markdown-content pre code {
+    @apply bg-transparent dark:bg-transparent text-inherit p-0 rounded-none text-sm;
 }
 
 /* Tips page table */
@@ -336,11 +374,21 @@ th[onclick]:hover {
   text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
 }
 
-/* Loading skeleton with shimmer */
+/* Loading skeleton with shimmer.
+   Cards used to slam in at full opacity on first paint, which read as a
+   layout flash on slow connections. They now fade in over 250ms via
+   `skeleton-fade-in` so the appearance is gentler. The shimmer pass
+   inside `.skeleton-line::after` is unchanged (1.5s linear). */
 .skeleton-card {
   @apply bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm;
   position: relative;
   overflow: hidden;
+  animation: skeleton-fade-in 0.25s ease-out;
+}
+
+@keyframes skeleton-fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .skeleton-line {
