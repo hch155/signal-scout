@@ -654,7 +654,7 @@ def admin_stats():
         .all()
     )
 
-    return jsonify({
+    payload = {
         "window_days": days,
         "total_events": total,
         "in_pl": in_pl_count,
@@ -666,7 +666,13 @@ def admin_stats():
             for (lat, lng, hits) in top_spots
         ],
         "browsers": {k: int(v) for k, v in browser_counts.items()},
-    })
+    }
+    # PR #48.6: HTML by default for browser visits, JSON on
+    # ?format=json. Browser visit hits the rendered page directly;
+    # programmatic clients (scripts, dashboards) opt-in to JSON.
+    if request.args.get('format') == 'json':
+        return jsonify(payload)
+    return render_template('admin_stats.html', data=payload)
 
 
 @app.route('/account/test_email', methods=['POST'])

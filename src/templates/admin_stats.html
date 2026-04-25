@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Admin · Stats | Signal-Scout{% endblock %}
+{% block description %}Admin-only usage analytics for Signal-Scout.{% endblock %}
+
+{% block content %}
+<section class="px-3 md:px-6 py-6">
+  <div class="max-w-5xl mx-auto">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Usage stats</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          Pseudonymised /submit_location events. Source-code level: GDPR Art. 6(1)(f) (legitimate interest, disclosed in /privacy).
+        </p>
+      </div>
+      <form method="get" action="/admin/stats" class="flex items-center gap-2">
+        <label class="text-sm text-gray-600 dark:text-gray-300">Window:</label>
+        <select name="days"
+                onchange="this.form.submit()"
+                class="text-sm bg-white dark:bg-gray-800 dark:text-white border border-gray-300 dark:border-gray-600 rounded p-1">
+          {% for d in [1, 7, 14, 30] %}
+            <option value="{{ d }}" {% if d == data.window_days %}selected{% endif %}>{{ d }} day{% if d > 1 %}s{% endif %}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+
+    {# ── Headline counters ────────────────────────────────────────── #}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total events</p>
+        <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ data.total_events }}</p>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">In Poland</p>
+        <p class="text-3xl font-bold text-green-700 dark:text-green-400">{{ data.in_pl }}</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          {% if data.total_events > 0 %}{{ (100 * data.in_pl / data.total_events) | round(1) }}%{% else %}—{% endif %}
+        </p>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Out of PL</p>
+        <p class="text-3xl font-bold text-yellow-700 dark:text-yellow-400">{{ data.out_of_pl }}</p>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Logged in</p>
+        <p class="text-3xl font-bold text-blue-700 dark:text-blue-400">{{ data.logged_in }}</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">vs {{ data.anonymous }} anon</p>
+      </div>
+    </div>
+
+    {# ── Top 10 spots ──────────────────────────────────────────── #}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 md:p-6 mb-6">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">Top 10 clicked spots (1km grid)</h3>
+      {% if data.top_spots %}
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700">
+            <th class="py-2 pr-2">#</th>
+            <th class="py-2 pr-2">Coords (~1km)</th>
+            <th class="py-2 pr-2">Hits</th>
+            <th class="py-2 pr-2">Map link</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for spot in data.top_spots %}
+          {% set max_hits = data.top_spots[0].hits %}
+          <tr class="border-t border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100">
+            <td class="py-2 pr-2 text-gray-500 dark:text-gray-400">{{ loop.index }}</td>
+            <td class="py-2 pr-2 font-mono text-xs">{{ "%.2f"|format(spot.lat) }}, {{ "%.2f"|format(spot.lng) }}</td>
+            <td class="py-2 pr-2">
+              <div class="flex items-center gap-2">
+                <div class="bg-blue-100 dark:bg-blue-900/40 rounded h-2"
+                     style="width: {{ (100 * spot.hits / max_hits) | round(0) }}%; max-width: 200px;"></div>
+                <span class="text-xs text-gray-600 dark:text-gray-300">{{ spot.hits }}</span>
+              </div>
+            </td>
+            <td class="py-2 pr-2 text-xs">
+              <a href="https://www.google.com/maps?q={{ spot.lat }},{{ spot.lng }}" target="_blank" rel="noopener" class="text-blue-600 dark:text-blue-400 hover:underline">Google Maps</a>
+              ·
+              <a href="/?lat={{ spot.lat }}&lng={{ spot.lng }}" class="text-blue-600 dark:text-blue-400 hover:underline">Signal-Scout</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-sm text-gray-500 dark:text-gray-400 italic">No events yet in this window.</p>
+      {% endif %}
+    </div>
+
+    {# ── Browser breakdown ───────────────────────────────────── #}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 md:p-6 mb-6">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">Browser / client breakdown</h3>
+      {% if data.browsers %}
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700">
+            <th class="py-2 pr-2">Browser class</th>
+            <th class="py-2 pr-2">Hits</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set max_browser = data.browsers.values() | max %}
+          {% for browser, hits in (data.browsers.items() | sort(attribute=1, reverse=True)) %}
+          <tr class="border-t border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100">
+            <td class="py-2 pr-2 font-mono text-xs">{{ browser or 'unknown' }}</td>
+            <td class="py-2 pr-2">
+              <div class="flex items-center gap-2">
+                <div class="bg-violet-100 dark:bg-violet-900/40 rounded h-2"
+                     style="width: {{ (100 * hits / max_browser) | round(0) }}%; max-width: 200px;"></div>
+                <span class="text-xs text-gray-600 dark:text-gray-300">{{ hits }}</span>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-sm text-gray-500 dark:text-gray-400 italic">No events yet in this window.</p>
+      {% endif %}
+    </div>
+
+    <div class="text-xs text-gray-500 dark:text-gray-400 italic">
+      Pseudonymised: no raw IP, no full UA, coords rounded to 0.01° (~1km grid). 30-day retention.
+      JSON endpoint: <a href="/admin/stats?days={{ data.window_days }}&format=json" class="underline">/admin/stats?format=json</a>.
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}{% endblock %}
+{% block code %}{% endblock %}
