@@ -1,6 +1,6 @@
 A 2FA recovery code was just used
 
-Hi {{ user.email }},
+Hi {{ greeting_name }},
 
 Someone signed in to your Signal-Scout account using a one-time recovery
 code. The code is now spent.
@@ -12,3 +12,5 @@ password. Change your password and regenerate 2FA + recovery codes at:
 https://signal-scout.com/account
 
 — Signal-Scout
+{% if unsubscribe_url %}Unsubscribe from all Signal-Scout emails: {{ unsubscribe_url }}{% endif %}
+Privacy: https://signal-scout.com/privacy

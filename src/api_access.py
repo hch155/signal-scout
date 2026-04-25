@@ -385,6 +385,16 @@ def ensure_user_api_columns(app, db) -> None:
                 conn.execute(text("ALTER TABLE user ADD COLUMN failed_login_attempts INTEGER NOT NULL DEFAULT 0"))
             if 'locked_until' not in existing:
                 conn.execute(text("ALTER TABLE user ADD COLUMN locked_until DATETIME"))
+            # PR #48.3: email_alerts_enabled (default True). Existing
+            # rows get DEFAULT 1 → opt-in by default, matches pre-PR
+            # behavior where every user was eligible to receive emails.
+            # Flipping False is explicit (signed unsubscribe token or
+            # /account preferences POST).
+            if 'email_alerts_enabled' not in existing:
+                conn.execute(text(
+                    "ALTER TABLE user ADD COLUMN email_alerts_enabled "
+                    "BOOLEAN NOT NULL DEFAULT 1"
+                ))
             # PR #29: per-user station diff feed.
             if 'last_location_lat' not in existing:
                 conn.execute(text("ALTER TABLE user ADD COLUMN last_location_lat FLOAT"))

@@ -480,6 +480,30 @@
                 </form>
             </div>
 
+            {# ── PR #48.3: Email notifications toggle ────────────────── #}
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white">Email notifications</h3>
+                <p class="text-sm text-gray-700 dark:text-gray-300">
+                    Signal-Scout sends transactional + security email
+                    (password change, 2FA changes, recovery code use,
+                    saved-location alerts when configured). Turn off
+                    here or via the unsubscribe link in any email.
+                </p>
+                <label class="inline-flex items-center gap-2 mt-2 cursor-pointer">
+                    <input type="checkbox" id="email-alerts-toggle"
+                           {% if user.email_alerts_enabled %}checked{% endif %}
+                           class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500">
+                    <span class="text-sm text-gray-900 dark:text-white">
+                        Send me email from Signal-Scout
+                    </span>
+                </label>
+                <p id="email-pref-status" class="text-xs mt-1"></p>
+                <p class="text-xs text-amber-700 dark:text-amber-300">
+                    ⚠️ Turning off silences <strong>all</strong> email — including
+                    security alerts. We recommend keeping this on.
+                </p>
+            </div>
+
             {# ── Change password ──────────────────────────────────────── #}
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-l-4 border-amber-500">
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">

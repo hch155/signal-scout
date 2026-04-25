@@ -80,14 +80,23 @@
         </div>
     </div>
 
+    {# PR #48.2: skip the map runtime for crawlers / CLIs. Cuts the
+       third-party tile load (CartoDB / OSM / ArcGIS) for clients that
+       can't render the JS anyway. SEO content (meta tags, h1, slogan,
+       JSON-LD) above is unchanged so search engines still index the
+       page properly. #}
+    {% if not is_bot %}
     <script defer src="{{ url_for('static', filename='dist/pages/ui-interactions.min.js') }}"></script>
     <script defer src="{{ url_for('static', filename='dist/pages/compass.min.js') }}"></script>
     <script defer src="{{ url_for('static', filename='dist/pages/map-initialization.min.js') }}"></script>
+    {% endif %}
 
 {% endblock %}
 
 {% block scripts %}
+    {% if not is_bot %}
     <script src="{{ url_for('static', filename='vendor/leaflet-1.9.4.js') }}"></script>
+    {% endif %}
 {% endblock %}
 
 {% block code %}{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Unsubscribe | Signal-Scout{% endblock %}
+{% block description %}Stop receiving email from Signal-Scout.{% endblock %}
+
+{% block content %}
+<section class="flex justify-center px-2 md:px-4 py-10">
+  <div class="w-full max-w-xl">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-6 md:p-8 text-gray-900 dark:text-white">
+      <h2 class="text-xl font-bold mb-3">Email preferences</h2>
+
+      {% if error == 'invalid_token' %}
+        <p class="text-red-600 dark:text-red-400">
+          This unsubscribe link is invalid or was tampered with.
+          You can manage email preferences from
+          <a href="/account" class="underline">your account</a> when logged in.
+        </p>
+      {% elif error == 'user_not_found' %}
+        <p class="text-red-600 dark:text-red-400">
+          The account this link refers to no longer exists.
+        </p>
+      {% elif error == 'db_error' %}
+        <p class="text-red-600 dark:text-red-400">
+          Something went wrong on our side. Try again in a minute.
+        </p>
+      {% elif done %}
+        <p class="text-green-700 dark:text-green-400 mb-2">
+          ✓ <strong>{{ user.email }}</strong> will no longer receive email from Signal-Scout.
+        </p>
+        <p class="text-sm text-gray-700 dark:text-gray-300 mb-4">
+          This includes security notifications (password changes, 2FA changes, recovery code use).
+          You can re-enable email anytime from
+          <a href="/account" class="underline text-blue-600 dark:text-blue-400">your account</a>.
+        </p>
+      {% elif already_unsubscribed %}
+        <p class="text-gray-700 dark:text-gray-300 mb-2">
+          <strong>{{ user.email }}</strong> is already unsubscribed.
+          Re-enable email anytime from
+          <a href="/account" class="underline text-blue-600 dark:text-blue-400">your account</a>.
+        </p>
+      {% elif user %}
+        <p class="text-gray-800 dark:text-gray-200 mb-4">
+          You're about to stop email delivery for
+          <strong>{{ user.email }}</strong>.
+        </p>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-5">
+          This silences <strong>all</strong> Signal-Scout email — including
+          security alerts (password change, 2FA disable, recovery code use). You
+          can re-enable from <a href="/account" class="underline">your account</a> anytime.
+        </p>
+        <form method="post" action="/unsubscribe/{{ token }}">
+          <button type="submit"
+                  class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
+            Confirm unsubscribe
+          </button>
+          <a href="/" class="ml-3 text-sm text-gray-600 dark:text-gray-400 underline hover:no-underline">Cancel</a>
+        </form>
+      {% else %}
+        <p class="text-gray-700 dark:text-gray-300">
+          This link is invalid. Manage email preferences from
+          <a href="/account" class="underline text-blue-600 dark:text-blue-400">your account</a>.
+        </p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}{% endblock %}
+{% block code %}{% endblock %}

@@ -2,6 +2,51 @@
 // Loaded only on the account page (script tag in account.html).
 
 document.addEventListener('DOMContentLoaded', () => {
+  // PR #48.3: email notifications toggle. Posts the new value to
+  // /account/email_preference; status text gives instant feedback.
+  // Failures revert the checkbox so the UI never lies about what's
+  // stored on the server.
+  const emailToggle = document.getElementById('email-alerts-toggle');
+  const emailPrefStatus = document.getElementById('email-pref-status');
+  if (emailToggle) {
+    emailToggle.addEventListener('change', () => {
+      const desired = emailToggle.checked;
+      if (emailPrefStatus) {
+        emailPrefStatus.textContent = 'Saving…';
+        emailPrefStatus.className = 'text-xs mt-1 text-gray-500 dark:text-gray-400';
+      }
+      globalFetch('/account/email_preference', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': getCsrfToken(),
+        },
+        body: JSON.stringify({ enabled: desired }),
+      }).then(data => {
+        if (data && data.success) {
+          if (emailPrefStatus) {
+            emailPrefStatus.textContent = data.email_alerts_enabled
+              ? '✓ Email enabled.'
+              : '✓ Email disabled.';
+            emailPrefStatus.className = 'text-xs mt-1 text-green-600 dark:text-green-400';
+          }
+        } else {
+          emailToggle.checked = !desired;
+          if (emailPrefStatus) {
+            emailPrefStatus.textContent = (data && data.error) || 'Save failed.';
+            emailPrefStatus.className = 'text-xs mt-1 text-red-600 dark:text-red-400';
+          }
+        }
+      }).catch(() => {
+        emailToggle.checked = !desired;
+        if (emailPrefStatus) {
+          emailPrefStatus.textContent = 'Network error — try again.';
+          emailPrefStatus.className = 'text-xs mt-1 text-red-600 dark:text-red-400';
+        }
+      });
+    });
+  }
+
   // PR #47: `keyEl` holds only the `first8…last4` prefix now (we don't
   // store plaintext at rest). `copyBtn` was removed from the template
   // because copying the prefix is meaningless — we keep a lookup here

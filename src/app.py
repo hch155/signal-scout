@@ -417,7 +417,21 @@ SLOGANS = [
 @app.route('/')
 def home():
     slogan_title, slogan_text = random.choice(SLOGANS)
-    return render_template('map.html', slogan_title=slogan_title, slogan_text=slogan_text)
+    # PR #48.2: don't ship Leaflet + map JS to bots / CLIs. Crawlers
+    # were burning through the Stadia tile free tier (200k/mo) and
+    # contribute zero SEO value from the rendered map. Real browsers
+    # (browser_chrome / browser_firefox / browser_safari / browser_other
+    # / unknown) still get the full app. Headless renderers that lie
+    # about their UA slip through; that's fine — most spend isn't from
+    # them.
+    ua_class = classify_user_agent(request.headers.get('User-Agent'))
+    is_bot = ua_class.endswith('bot') or ua_class == 'cli'
+    return render_template(
+        'map.html',
+        slogan_title=slogan_title,
+        slogan_text=slogan_text,
+        is_bot=is_bot,
+    )
 
 # PR #27: per-file (path, mtime) → rendered-html cache. /data, /tips,
 # /stats render markdown on every request — perf logs showed it
@@ -499,6 +513,89 @@ def privacy_page():
     response = make_response(render_template('privacy.html', content=html_content))
     _set_content_etag(response, _md_etag_key('privacy.md'))
     return response
+
+# PR #48.3: signed-token email unsubscribe.
+#
+# GET  /unsubscribe/<token> renders a confirm page (do NOT flip on GET
+# because email clients prefetch links for malware scanning — Outlook,
+# Gmail "show images" etc. would silently opt the user out).
+#
+# POST /unsubscribe/<token> validates the token, flips
+# email_alerts_enabled = False on the user, redirects to a "you're
+# unsubscribed, change your mind anytime in /account" confirmation.
+#
+# Tokens have no expiry — the unsubscribe link in a 6-month-old email
+# should still work without forcing the user to log in.
+def _decode_unsubscribe_token(token: str):
+    from itsdangerous import URLSafeSerializer, BadSignature
+    serializer = URLSafeSerializer(settings.secret_key, salt='email-unsubscribe')
+    try:
+        return int(serializer.loads(token))
+    except (BadSignature, ValueError, TypeError):
+        return None
+
+
+@app.route('/unsubscribe/<token>', methods=['GET'])
+def unsubscribe_email(token):
+    user_id = _decode_unsubscribe_token(token)
+    from models import User as _U
+    user = _U.query.get(user_id) if user_id else None
+    return render_template(
+        'unsubscribe.html',
+        token=token,
+        user=user,
+        already_unsubscribed=bool(user and not user.email_alerts_enabled),
+    )
+
+
+@app.route('/unsubscribe/<token>', methods=['POST'])
+@limiter.limit("10 per hour")
+def unsubscribe_email_confirm(token):
+    user_id = _decode_unsubscribe_token(token)
+    if not user_id:
+        return render_template('unsubscribe.html', token=token,
+                               user=None, error='invalid_token'), 400
+    from models import User as _U
+    from database import db as _db
+    user = _U.query.get(user_id)
+    if not user:
+        return render_template('unsubscribe.html', token=token,
+                               user=None, error='user_not_found'), 404
+    user.email_alerts_enabled = False
+    try:
+        _db.session.commit()
+    except Exception:
+        _db.session.rollback()
+        return render_template('unsubscribe.html', token=token, user=user,
+                               error='db_error'), 500
+    return render_template('unsubscribe.html', token=token, user=user,
+                           done=True)
+
+
+@app.route('/account/email_preference', methods=['POST'])
+@limiter.limit("20 per hour")
+def update_email_preference():
+    """Toggle email_alerts_enabled from the /account UI. Body:
+    {enabled: true|false}. CSRF + session protected."""
+    if not validate_csrf():
+        return jsonify({"error": "csrf_failed"}), 403
+    if 'user_id' not in session:
+        return jsonify({"error": "auth_required"}), 401
+    from models import User as _U
+    from database import db as _db
+    user = _U.query.get(session['user_id'])
+    if not user:
+        return jsonify({"error": "user_not_found"}), 404
+    payload = request.get_json(silent=True) or {}
+    user.email_alerts_enabled = bool(payload.get('enabled', True))
+    try:
+        _db.session.commit()
+    except Exception:
+        _db.session.rollback()
+        return jsonify({"error": "db_error"}), 500
+    return jsonify({"success": True,
+                    "email_alerts_enabled": user.email_alerts_enabled})
+
 
 @app.route('/account/test_email', methods=['POST'])
 @limiter.limit("3 per hour")
@@ -839,6 +936,7 @@ def robots_txt():
         "Disallow: /api/\n"
         "Disallow: /embed/\n"
         "Disallow: /account\n"
+        "Disallow: /unsubscribe/\n"
         "Disallow: /login\n"
         "Disallow: /register\n"
         "Disallow: /logout\n"

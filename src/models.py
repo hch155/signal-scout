@@ -80,6 +80,14 @@ class User(db.Model):
     # locked_until without losing audit context.
     failed_login_attempts = db.Column(db.Integer, default=0, nullable=False)
     locked_until = db.Column(db.DateTime)
+    # PR #48.3: master toggle for transactional email delivery. Default
+    # True. Flipped to False either by clicking the unsubscribe link in
+    # an email footer (signed token → /unsubscribe/<token>) or via the
+    # /account preferences UI. emails._send() short-circuits when this
+    # is False — no email of any kind goes out (including security
+    # alerts). Trade-off documented in /privacy + the unsubscribe
+    # confirmation page.
+    email_alerts_enabled = db.Column(db.Boolean, default=True, nullable=False)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

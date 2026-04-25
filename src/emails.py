@@ -188,15 +188,68 @@ def _render(template_name: str, **ctx) -> tuple[str, str]:
     return html, text
 
 
-def _send(to: str, subject: str, template: str, **ctx) -> bool:
-    """Render + send via the active backend. Best-effort by contract."""
+# PR #48.3: signed unsubscribe URL. itsdangerous comes via Flask
+# already (Flask 3.x dependency); no new deps. Token format: signed
+# user_id, no expiry — unsubscribe links should keep working forever.
+def unsubscribe_url(user) -> str:
+    """Build a signed `/unsubscribe/<token>` URL for `user`.
+
+    Token is the user's id signed with `settings.secret_key + salt`,
+    so an attacker can't unsubscribe someone else without knowing the
+    server secret. The unsubscribe view double-confirms via POST so a
+    spec-compliant link prefetcher (Outlook, Gmail's "Show images")
+    can't accidentally opt the user out on a GET.
+    """
+    from itsdangerous import URLSafeSerializer
+    from flask import url_for
+    serializer = URLSafeSerializer(settings.secret_key, salt='email-unsubscribe')
+    token = serializer.dumps(int(user.id))
+    return url_for('unsubscribe_email', token=token, _external=True)
+
+
+# PR #48.3: greeting helper — friendlier than rendering the full email
+# in the body. `hcylwik@gmail.com` → `hcylwik`. Falls back to the
+# original string if there's no `@` (defensive against malformed data).
+def _greeting_name(user) -> str:
+    e = (user.email or '').strip()
+    if '@' in e:
+        return e.split('@', 1)[0]
+    return e or 'there'
+
+
+def _send(user, subject: str, template: str, **ctx) -> bool:
+    """Render + send via the active backend. Best-effort by contract.
+
+    PR #48.3 changes:
+    - Takes `user` (not bare `to` string) so we can check the
+      email_alerts_enabled flag and build the unsubscribe URL.
+    - Short-circuits when `user.email_alerts_enabled` is False — no
+      email of any kind goes out, returns True (silent skip — caller
+      doesn't need to care about user preference).
+    - Adds `unsubscribe_url` and `greeting_name` to template context
+      so every template can render the footer + greeting consistently.
+    """
+    if user is None or not getattr(user, 'email', None):
+        return False
+    if not getattr(user, 'email_alerts_enabled', True):
+        logger.info("[email] skipping %s for user %s (alerts disabled)",
+                    template, user.id)
+        return True
+    ctx.setdefault('user', user)
+    ctx.setdefault('greeting_name', _greeting_name(user))
+    try:
+        ctx.setdefault('unsubscribe_url', unsubscribe_url(user))
+    except Exception:
+        # url_for needs an app/request context — in tests / cron
+        # without one, omit the URL rather than crash.
+        ctx.setdefault('unsubscribe_url', '')
     try:
         html, text = _render(template, **ctx)
     except Exception:
         logger.exception("[email] template render failed: %s", template)
         return False
     return get_backend().send(EmailMessage(
-        to=to, subject=subject, html_body=html, text_body=text,
+        to=user.email, subject=subject, html_body=html, text_body=text,
     ))
 
 
@@ -204,44 +257,40 @@ def _send(to: str, subject: str, template: str, **ctx) -> bool:
 
 def send_welcome(user, verification_url: str) -> bool:
     return _send(
-        to=user.email,
+        user,
         subject="Welcome to Signal-Scout — please verify your email",
         template='welcome',
-        user=user, verification_url=verification_url,
+        verification_url=verification_url,
     )
 
 
 def send_password_changed(user) -> bool:
     return _send(
-        to=user.email,
+        user,
         subject="Your Signal-Scout password was changed",
         template='password_changed',
-        user=user,
     )
 
 
 def send_2fa_enabled(user) -> bool:
     return _send(
-        to=user.email,
+        user,
         subject="Two-factor authentication enabled on your Signal-Scout account",
         template='2fa_enabled',
-        user=user,
     )
 
 
 def send_2fa_disabled(user) -> bool:
     return _send(
-        to=user.email,
+        user,
         subject="Two-factor authentication disabled on your Signal-Scout account",
         template='2fa_disabled',
-        user=user,
     )
 
 
 def send_recovery_code_used(user) -> bool:
     return _send(
-        to=user.email,
+        user,
         subject="A Signal-Scout 2FA recovery code was just used",
         template='recovery_used',
-        user=user,
     )
