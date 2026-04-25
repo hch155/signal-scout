@@ -40,6 +40,15 @@ import markdown, os, random, re, logging, secrets
 load_dotenv()
 
 app = Flask(__name__)
+# Cloud Run terminates TLS at the edge and forwards to the container over
+# HTTP. Without ProxyFix, request.scheme is "http" and url_for(_external=True)
+# emits http:// URLs — breaks OAuth redirect_uri matching against the
+# https:// URLs registered with Google/GitHub. x_proto=1 trusts the single
+# X-Forwarded-Proto hop Cloud Run sets; x_host=1 honors X-Forwarded-Host so
+# the canonical hostname (signal-scout.com once domain mapping lands) is
+# used in generated URLs.
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.config['SECRET_KEY'] = settings.secret_key
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = settings.static_max_age
 bcrypt = Bcrypt(app)
