@@ -627,6 +627,14 @@ def change_password():
         _db().session.rollback()
         logger.exception("change_password commit failed for user_id=%s", user.id)
         return jsonify({'error': 'Could not save password'}), 500
+    # PR #48.5: security alert email. Best-effort — SendGrid outage
+    # must not break the password-change flow. emails._send() already
+    # respects user.email_alerts_enabled (silent skip).
+    try:
+        from emails import send_password_changed
+        send_password_changed(user)
+    except Exception:
+        logger.exception("send_password_changed failed for user_id=%s", user.id)
     return jsonify({'success': True, 'csrf_token': preserved_csrf}), 200
 
 
@@ -915,6 +923,13 @@ def totp_disable():
         _db().session.rollback()
         logger.exception("totp_disable commit failed for user_id=%s", user.id)
         return jsonify({'error': 'Could not save'}), 500
+    # PR #48.5: security alert email — disabling 2FA is suspicious if
+    # not user-initiated. Best-effort.
+    try:
+        from emails import send_2fa_disabled
+        send_2fa_disabled(user)
+    except Exception:
+        logger.exception("send_2fa_disabled failed for user_id=%s", user.id)
     return jsonify({'success': True}), 200
 
 
@@ -975,6 +990,16 @@ def login_totp():
         _db().session.commit()
     except Exception:
         _db().session.rollback()
+    # PR #48.5: when a recovery code was just consumed, alert the user.
+    # This is the highest-stakes signal in the auth surface — recovery
+    # codes are the last line of defence after losing 2FA, so an
+    # unexpected use means the attacker has the password AND a code.
+    if used_recovery:
+        try:
+            from emails import send_recovery_code_used
+            send_recovery_code_used(user)
+        except Exception:
+            logger.exception("send_recovery_code_used failed for user_id=%s", user.id)
     return jsonify({
         'success': True,
         'csrf_token': preserved_csrf,
