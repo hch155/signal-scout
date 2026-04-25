@@ -38,7 +38,7 @@ This privacy notice explains what personal data Signal-Scout collects, how it is
 ### When you use the map
 
 - The **coordinates you click** are stored in your session for the duration of the visit so the sidebar can show "stations near your spot".
-- We may, in the future, write a **pseudonymised event** capturing _that a click happened_ (timestamp, coordinates rounded to ~1 km, browser class — never your IP, never the precise coordinates). This will be used in aggregate to understand which areas of Poland the app is being used in. Retention: 30 days. Legal basis: legitimate interest (Art. 6(1)(f)). When this lands in production this notice will be updated to reflect the live state.
+- We write a **pseudonymised event** for each click — timestamp, coordinates rounded to ~1 km grid, a one-way `sha256(session_id)` pseudonym, browser class (`browser_chrome` / `mobile` / etc., not the full UA string), API tier. We never record your raw IP or the precise coordinates. Used in aggregate to understand which areas of Poland the app is being used in (top spots, browser breakdown, in-PL vs out-of-PL). Retention: **30 days, deleted automatically on every server boot**. Legal basis: legitimate interest (Art. 6(1)(f)).
 
 ### What we don't collect
 

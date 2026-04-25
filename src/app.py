@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, make_response
+from flask import Flask, render_template, request, jsonify, session, make_response, g
 from flask_bcrypt import Bcrypt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -33,7 +33,7 @@ from api_access import (
 )
 from api_docs import init_api_docs
 from dotenv import load_dotenv
-from datetime import timedelta
+from datetime import timedelta, datetime
 import markdown, os, random, re, logging, secrets
 
 load_dotenv()
@@ -597,6 +597,78 @@ def update_email_preference():
                     "email_alerts_enabled": user.email_alerts_enabled})
 
 
+# PR #48.4: admin-only stats endpoint backed by SubmitLocationEvent.
+# Bare-bones JSON for now — surfaces aggregates so the owner can see
+# usage shape (top spots, browser breakdown, hourly distribution,
+# in-PL vs out-of-PL ratio, anon vs logged-in). UI on top of this is
+# a future iteration; for now the JSON is enough to make decisions.
+def _is_admin(user) -> bool:
+    if not user or not user.email:
+        return False
+    return user.email.lower() in settings.admin_emails or user.role == 'admin'
+
+
+@app.route('/admin/stats', methods=['GET'])
+def admin_stats():
+    if 'user_id' not in session:
+        return jsonify({"error": "auth_required"}), 401
+    from models import User as _U, SubmitLocationEvent as _SLE
+    user = _U.query.get(session['user_id'])
+    if not _is_admin(user):
+        return jsonify({"error": "forbidden", "message": "Admin only."}), 403
+
+    # 24h-window aggregates by default; ?days=N to widen.
+    try:
+        days = max(1, min(30, int(request.args.get('days', '1'))))
+    except (TypeError, ValueError):
+        days = 1
+    from sqlalchemy import func as _f
+    cutoff = datetime.utcnow() - timedelta(days=days)
+
+    base_q = _SLE.query.filter(_SLE.created_at >= cutoff)
+    total = base_q.count()
+    in_pl_count = base_q.filter(_SLE.in_pl.is_(True)).count()
+    out_pl_count = total - in_pl_count
+    logged_in_count = base_q.filter(_SLE.user_id.isnot(None)).count()
+    anon_count = total - logged_in_count
+
+    # Top 10 (lat_bucket, lng_bucket) by hit count — coarse heatmap.
+    top_spots = (
+        db.session.query(
+            _SLE.lat_bucket, _SLE.lng_bucket,
+            _f.count('*').label('hits'),
+        )
+        .filter(_SLE.created_at >= cutoff)
+        .group_by(_SLE.lat_bucket, _SLE.lng_bucket)
+        .order_by(_f.count('*').desc())
+        .limit(10)
+        .all()
+    )
+
+    browser_counts = dict(
+        db.session.query(
+            _SLE.browser_class, _f.count('*'),
+        )
+        .filter(_SLE.created_at >= cutoff)
+        .group_by(_SLE.browser_class)
+        .all()
+    )
+
+    return jsonify({
+        "window_days": days,
+        "total_events": total,
+        "in_pl": in_pl_count,
+        "out_of_pl": out_pl_count,
+        "logged_in": logged_in_count,
+        "anonymous": anon_count,
+        "top_spots": [
+            {"lat": float(lat), "lng": float(lng), "hits": int(hits)}
+            for (lat, lng, hits) in top_spots
+        ],
+        "browsers": {k: int(v) for k, v in browser_counts.items()},
+    })
+
+
 @app.route('/account/test_email', methods=['POST'])
 @limiter.limit("3 per hour")
 def test_email_endpoint():
@@ -727,6 +799,30 @@ def submit_location():
 
         station_search_total.labels(endpoint='submit_location').inc()
         nearest_stations = find_nearest_stations(user_lat, user_lng, limit=limit, max_distance=max_distance)
+
+        # PR #48.4: pseudonymized event log. Best-effort write — a DB
+        # failure here must not break the user-facing flow. GDPR-safe:
+        # session_hash is sha256 of session id (one-way), lat/lng
+        # bucketed to 0.01° (~1km), browser_class from existing
+        # observability bucketer, no IP, no full UA.
+        try:
+            from models import SubmitLocationEvent as _SLE
+            from hashlib import sha256 as _sha256
+            sess_id = request.cookies.get('session', '')
+            sess_hash = _sha256((sess_id or '').encode('utf-8')).hexdigest() if sess_id else None
+            db.session.add(_SLE(
+                session_hash=sess_hash,
+                user_id=session.get('user_id'),
+                lat_bucket=round(user_lat, 2),
+                lng_bucket=round(user_lng, 2),
+                in_pl=True,
+                browser_class=classify_user_agent(request.headers.get('User-Agent')),
+                api_tier=getattr(g, 'api_tier', None),
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            app.logger.exception("Could not record submit_location event")
 
         if nearest_stations is None or not nearest_stations.get('stations'):
             empty_result_total.inc()

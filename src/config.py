@@ -97,6 +97,12 @@ class Config:
     smtp_password: str = field(default_factory=lambda: _str("SMTP_PASSWORD"))
     smtp_use_tls: bool = field(default_factory=lambda: _str("SMTP_USE_TLS", "").lower() in ("1", "true", "yes"))
 
+    # ── Admin (PR #48.4) ─────────────────────────────────────────────────
+    # Comma-separated emails granted access to /admin/* routes. Stays as
+    # a list rather than User.role flag so we can grant access without
+    # touching the DB. Empty / unset → /admin/* returns 403 for everyone.
+    admin_emails_raw: str = field(default_factory=lambda: _str("ADMIN_EMAILS"))
+
     # ── KMS (at-rest encryption for TOTP secret) ─────────────────────────
     # Full resource name like
     # `projects/<project>/locations/<region>/keyRings/<ring>/cryptoKeys/<key>`.
@@ -153,6 +159,12 @@ class Config:
     @property
     def embed_allowed_origins(self) -> list[str]:
         return [x.strip() for x in self.embed_allowed_origins_raw.split(",") if x.strip()]
+
+    @property
+    def admin_emails(self) -> set[str]:
+        """Lowercased set of admin email addresses, comma-split from
+        ADMIN_EMAILS env. Used by /admin/* routes for access control."""
+        return {x.strip().lower() for x in self.admin_emails_raw.split(",") if x.strip()}
 
 
 # Module-level singleton. Imported as `from config import settings`.

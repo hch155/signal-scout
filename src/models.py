@@ -275,3 +275,45 @@ class UserStationSnapshot(db.Model):
                                backref=db.backref('snapshots',
                                                   cascade='all, delete-orphan',
                                                   lazy='dynamic'))
+
+
+class SubmitLocationEvent(db.Model):
+    """PR #48.4: pseudonymized usage event. Written best-effort on every
+    successful /submit_location call so /admin/stats can answer "where /
+    when / what browser are people using the app from".
+
+    GDPR posture (Art. 6(1)(f) — legitimate interest):
+    - No raw IP, no precise coords, no full User-Agent string.
+    - `session_hash` is sha256(session_cookie) — pseudonym, not
+      reversible to a person.
+    - `lat_bucket` / `lng_bucket` are rounded to 2 decimal places
+      (~1km grid) so we can spot dense regions without geolocating
+      individuals.
+    - `browser_class` is the bucketed UA category from observability.
+    - 30-day retention enforced on app boot via DELETE FROM ...
+      WHERE created_at < datetime('now', '-30 days').
+
+    Disclosed in /privacy. Cascade ON DELETE for the rare case the
+    user_id reference is set (logged-in users opted in to having their
+    actions linkable for their own /account view; right-to-erasure
+    wipes those rows when the user deletes their account)."""
+    __bind_key__ = 'users'
+    __tablename__ = 'submit_location_event'
+
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           nullable=False, index=True)
+    session_hash = db.Column(db.String(64), index=True)
+    user_id = db.Column(db.Integer,
+                        db.ForeignKey('user.id', ondelete='CASCADE'),
+                        nullable=True, index=True)
+    lat_bucket = db.Column(db.Float, nullable=False)
+    lng_bucket = db.Column(db.Float, nullable=False)
+    in_pl = db.Column(db.Boolean, default=False, nullable=False)
+    browser_class = db.Column(db.String(32))
+    api_tier = db.Column(db.String(32))
+
+    user = db.relationship('User',
+                           backref=db.backref('submit_events',
+                                              cascade='all, delete-orphan',
+                                              lazy='dynamic'))

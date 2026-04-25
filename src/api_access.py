@@ -548,6 +548,17 @@ def ensure_user_api_columns(app, db) -> None:
                         "ON user_station_snapshot (user_location_id)"
                     ))
 
+        # PR #48.4: 30-day retention on submit_location_event. Runs on
+        # every boot so cron drift / forgotten retention jobs can't let
+        # the table grow unbounded. Idempotent — older rows just don't
+        # exist by the time the second deploy runs.
+        if 'submit_location_event' in insp_post.get_table_names():
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "DELETE FROM submit_location_event "
+                    "WHERE created_at < datetime('now', '-30 days')"
+                ))
+
         for u in User.query.filter(User.api_key.isnot(None)).all():
             already = ApiKey.query.filter_by(user_id=u.id, key=u.api_key).first()
             if already is None:
