@@ -173,12 +173,57 @@ function initializeScrollToTop() {
   }
 }
 
+// PR #48.8: unified auth modal. Old toggleRegistrationModal /
+// toggleSignInModal kept as thin shims so any other code that called
+// them still works — they now open #authModal and switch to the right
+// tab. The "modal" identity moved from per-form to per-tab-panel.
+function _setAuthTab(which) {
+  const signinPanel = document.getElementById('signInModal');
+  const registerPanel = document.getElementById('registrationModal');
+  const signinTab = document.getElementById('authTabSignin');
+  const registerTab = document.getElementById('authTabRegister');
+  if (!signinPanel || !registerPanel) return;
+
+  const activeClasses = ['bg-white', 'dark:bg-gray-700', 'text-gray-900', 'dark:text-white', 'shadow-sm'];
+  const inactiveClasses = ['text-gray-600', 'dark:text-gray-300', 'hover:text-gray-900', 'dark:hover:text-white'];
+
+  const setActive = (el) => {
+    if (!el) return;
+    inactiveClasses.forEach(c => el.classList.remove(c));
+    activeClasses.forEach(c => el.classList.add(c));
+  };
+  const setInactive = (el) => {
+    if (!el) return;
+    activeClasses.forEach(c => el.classList.remove(c));
+    inactiveClasses.forEach(c => el.classList.add(c));
+  };
+
+  if (which === 'register') {
+    signinPanel.classList.add('hidden');
+    registerPanel.classList.remove('hidden');
+    setInactive(signinTab);
+    setActive(registerTab);
+  } else {
+    registerPanel.classList.add('hidden');
+    signinPanel.classList.remove('hidden');
+    setInactive(registerTab);
+    setActive(signinTab);
+  }
+}
+
+function _openAuthModal(tab) {
+  const m = document.getElementById('authModal');
+  if (!m) return;
+  _setAuthTab(tab || 'signin');
+  m.classList.remove('hidden');
+}
+
 function toggleRegistrationModal() {
-  document.getElementById('registrationModal').classList.toggle('hidden');
+  _openAuthModal('register');
 }
 
 function toggleSignInModal() {
-  document.getElementById('signInModal').classList.toggle('hidden');
+  _openAuthModal('signin');
 }
 
 function closeModal(event) {
@@ -192,28 +237,28 @@ function backgroundClickToClose(event, modal) {
 function initializeModalToggle() {
   const registerBtn = document.getElementById('registerBtn');
   const signInBtn = document.getElementById('signInBtn');
-  const registrationModal = document.getElementById('registrationModal');
-  const signInModal = document.getElementById('signInModal');
+  const authModal = document.getElementById('authModal');
 
-  registerBtn.addEventListener('click', toggleRegistrationModal);
-  signInBtn.addEventListener('click', toggleSignInModal);
+  if (registerBtn) registerBtn.addEventListener('click', () => _openAuthModal('register'));
+  if (signInBtn) signInBtn.addEventListener('click', () => _openAuthModal('signin'));
+
+  // Tab switcher inside the modal.
+  document.querySelectorAll('.auth-tab').forEach(btn => {
+    btn.addEventListener('click', () => _setAuthTab(btn.dataset.tab));
+  });
 
   document.querySelectorAll('.close-modal').forEach(button => {
       button.addEventListener('click', closeModal);
   });
 
-  [registrationModal, signInModal].forEach(modal => {
-      modal.addEventListener('click', (event) => backgroundClickToClose(event, modal));
-  });
+  if (authModal) {
+    authModal.addEventListener('click', (event) => backgroundClickToClose(event, authModal));
+  }
 
-  // Close modals with ESC key
+  // Close modal with ESC key
   document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-          [registrationModal, signInModal].forEach(modal => {
-              if (!modal.classList.contains('hidden')) {
-                  modal.classList.add('hidden');
-              }
-          });
+      if (e.key === 'Escape' && authModal && !authModal.classList.contains('hidden')) {
+          authModal.classList.add('hidden');
       }
   });
 }
@@ -439,15 +484,13 @@ function checkLoginStateAndUpdateUI() {
   globalFetch('/session_check')
     .then(data => {
       if (data.logged_in) {
-        safelyUpdateDisplay('registrationModal', 'none');
-        safelyUpdateDisplay('signInModal', 'none');
+        safelyUpdateDisplay('authModal', 'none');
         safelyUpdateDisplay('signInBtn', 'none');
         safelyUpdateDisplay('registerBtn', 'none');
         safelyUpdateDisplay('accountLink', 'inline-flex');
         safelyUpdateDisplay('logoutButton', 'block');
       } else {
-        safelyUpdateDisplay('registrationModal', 'none');
-        safelyUpdateDisplay('signInModal', 'none');
+        safelyUpdateDisplay('authModal', 'none');
         safelyUpdateDisplay('signInBtn', 'block');
         safelyUpdateDisplay('registerBtn', 'block');
         safelyUpdateDisplay('accountLink', 'none');
@@ -468,16 +511,10 @@ function conditionalCheckLoginState() {
 }
 
 function adjustUIForLoggedOutState() {
-  const registrationModal = document.getElementById('registrationModal');
-  const signInModal = document.getElementById('signInModal');
-  
-  if (registrationModal) {
-      registrationModal.style.display = '';
-      registrationModal.classList.add('hidden');
-  }
-  if (signInModal) {
-      signInModal.style.display = '';
-      signInModal.classList.add('hidden');
+  const authModal = document.getElementById('authModal');
+  if (authModal) {
+      authModal.style.display = '';
+      authModal.classList.add('hidden');
   }
 
   safelyUpdateDisplay('signInBtn', 'block');
