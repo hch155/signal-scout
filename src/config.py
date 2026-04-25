@@ -103,6 +103,15 @@ class Config:
     # touching the DB. Empty / unset → /admin/* returns 403 for everyone.
     admin_emails_raw: str = field(default_factory=lambda: _str("ADMIN_EMAILS"))
 
+    # ── OAuth providers (PR #48.7) ───────────────────────────────────────
+    # Empty client_id → provider button hidden in /login. So toggling a
+    # provider on / off is just a Cloud Run env update + redeploy, no
+    # code change.
+    google_oauth_client_id: str = field(default_factory=lambda: _str("GOOGLE_OAUTH_CLIENT_ID"))
+    google_oauth_client_secret: str = field(default_factory=lambda: _str("GOOGLE_OAUTH_CLIENT_SECRET"))
+    github_oauth_client_id: str = field(default_factory=lambda: _str("GITHUB_OAUTH_CLIENT_ID"))
+    github_oauth_client_secret: str = field(default_factory=lambda: _str("GITHUB_OAUTH_CLIENT_SECRET"))
+
     # ── KMS (at-rest encryption for TOTP secret) ─────────────────────────
     # Full resource name like
     # `projects/<project>/locations/<region>/keyRings/<ring>/cryptoKeys/<key>`.

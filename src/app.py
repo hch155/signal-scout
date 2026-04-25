@@ -32,6 +32,7 @@ from api_access import (
     record_honeypot_hit,
 )
 from api_docs import init_api_docs
+from oauth import init_oauth, login_with_provider, callback_for_provider
 from dotenv import load_dotenv
 from datetime import timedelta, datetime
 import markdown, os, random, re, logging, secrets
@@ -123,6 +124,33 @@ init_observability(app)
 
 # OpenAPI / Swagger UI on /api/v1/docs/, spec on /api/v1/openapi.json.
 init_api_docs(app)
+init_oauth(app)
+
+
+# PR #48.7: OAuth sign-in routes. Each provider gates itself on
+# settings.<provider>_oauth_client_id — empty → 404 + button hidden
+# in /login. So flipping a provider on/off is a Cloud Run env update,
+# no code change.
+@app.route('/auth/google/login')
+@limiter.limit("10 per minute")
+def oauth_google_login():
+    return login_with_provider('google')
+
+
+@app.route('/auth/google/callback')
+def oauth_google_callback():
+    return callback_for_provider('google')
+
+
+@app.route('/auth/github/login')
+@limiter.limit("10 per minute")
+def oauth_github_login():
+    return login_with_provider('github')
+
+
+@app.route('/auth/github/callback')
+def oauth_github_callback():
+    return callback_for_provider('github')
 
 @app.errorhandler(429)
 def rate_limit_exceeded(e):
@@ -398,6 +426,10 @@ app.jinja_env.globals['canonical_origin'] = settings.canonical_origin
 app.jinja_env.globals['app_version'] = settings.app_version
 app.jinja_env.globals['app_version_sha'] = settings.app_version_sha
 app.jinja_env.globals['repo_url'] = settings.repo_url
+# PR #48.7: OAuth provider gating in base.html. Buttons hidden when
+# the corresponding client_id env var is empty.
+app.jinja_env.globals['google_oauth_enabled'] = bool(settings.google_oauth_client_id)
+app.jinja_env.globals['github_oauth_enabled'] = bool(settings.github_oauth_client_id)
 
 def validate_csrf():
     token = request.form.get('_csrf_token') or request.headers.get('X-CSRF-Token')

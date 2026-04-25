@@ -74,6 +74,10 @@ Legacy unprefixed routes (`/stations`, `/find_station`, `/search_stations`,
 | POST | `/register` | Create account (email + password) |
 | POST | `/login` | Step 1: password. Returns `totp_required` if 2FA on. |
 | POST | `/login/totp` | Step 2: TOTP code or one-shot recovery code |
+| GET | `/auth/google/login` | Start Google OAuth flow (hidden if `GOOGLE_OAUTH_CLIENT_ID` unset) |
+| GET | `/auth/google/callback` | Google OAuth redirect target |
+| GET | `/auth/github/login` | Start GitHub OAuth flow (hidden if `GITHUB_OAUTH_CLIENT_ID` unset) |
+| GET | `/auth/github/callback` | GitHub OAuth redirect target |
 | POST | `/logout` | Clear session |
 | GET  | `/session_check` | Returns `{logged_in: bool}` |
 | GET  | `/account` | Account dashboard |
