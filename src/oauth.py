@@ -77,6 +77,20 @@ def init_oauth(app: Flask) -> None:
             api_base_url='https://api.github.com/',
             client_kwargs={'scope': 'read:user user:email'},
         )
+    if settings.facebook_oauth_client_id and settings.facebook_oauth_client_secret:
+        # Facebook Graph API v18.0. `email` scope is granted without App
+        # Review for individual apps; verified email comes back via
+        # /me?fields=email,name. Note: the FB app must be in Live Mode (not
+        # Development Mode) for non-admin users to authenticate.
+        oauth.register(
+            name='facebook',
+            client_id=settings.facebook_oauth_client_id,
+            client_secret=settings.facebook_oauth_client_secret,
+            access_token_url='https://graph.facebook.com/v18.0/oauth/access_token',
+            authorize_url='https://www.facebook.com/v18.0/dialog/oauth',
+            api_base_url='https://graph.facebook.com/v18.0/',
+            client_kwargs={'scope': 'email'},
+        )
 
 
 def _provider_enabled(name: str) -> bool:
@@ -84,6 +98,8 @@ def _provider_enabled(name: str) -> bool:
         return bool(settings.google_oauth_client_id)
     if name == 'github':
         return bool(settings.github_oauth_client_id)
+    if name == 'facebook':
+        return bool(settings.facebook_oauth_client_id)
     return False
 
 
@@ -191,6 +207,17 @@ def _resolve_email(provider: str, client, token) -> Optional[str]:
                     return e.get('email')
         except Exception:
             logger.exception("github /user/emails fetch failed")
+        return None
+
+    if provider == 'facebook':
+        # Graph API /me with email field. FB users without an email on
+        # file (rare but possible — phone-only signups) get None back.
+        try:
+            resp = client.get('me?fields=email,name', token=token)
+            payload = resp.json() or {}
+            return payload.get('email')
+        except Exception:
+            logger.exception("facebook /me fetch failed")
         return None
 
     return None

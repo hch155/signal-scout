@@ -161,6 +161,17 @@ def oauth_github_login():
 def oauth_github_callback():
     return callback_for_provider('github')
 
+
+@app.route('/auth/facebook/login')
+@limiter.limit("10 per minute")
+def oauth_facebook_login():
+    return login_with_provider('facebook')
+
+
+@app.route('/auth/facebook/callback')
+def oauth_facebook_callback():
+    return callback_for_provider('facebook')
+
 @app.errorhandler(429)
 def rate_limit_exceeded(e):
     rate_limit_hits_total.labels(endpoint=request.endpoint or "unknown").inc()
@@ -439,6 +450,7 @@ app.jinja_env.globals['repo_url'] = settings.repo_url
 # the corresponding client_id env var is empty.
 app.jinja_env.globals['google_oauth_enabled'] = bool(settings.google_oauth_client_id)
 app.jinja_env.globals['github_oauth_enabled'] = bool(settings.github_oauth_client_id)
+app.jinja_env.globals['facebook_oauth_enabled'] = bool(settings.facebook_oauth_client_id)
 
 def validate_csrf():
     token = request.form.get('_csrf_token') or request.headers.get('X-CSRF-Token')

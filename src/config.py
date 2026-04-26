@@ -111,6 +111,8 @@ class Config:
     google_oauth_client_secret: str = field(default_factory=lambda: _str("GOOGLE_OAUTH_CLIENT_SECRET"))
     github_oauth_client_id: str = field(default_factory=lambda: _str("GITHUB_OAUTH_CLIENT_ID"))
     github_oauth_client_secret: str = field(default_factory=lambda: _str("GITHUB_OAUTH_CLIENT_SECRET"))
+    facebook_oauth_client_id: str = field(default_factory=lambda: _str("FACEBOOK_OAUTH_CLIENT_ID"))
+    facebook_oauth_client_secret: str = field(default_factory=lambda: _str("FACEBOOK_OAUTH_CLIENT_SECRET"))
 
     # ── KMS (at-rest encryption for TOTP secret) ─────────────────────────
     # Full resource name like
