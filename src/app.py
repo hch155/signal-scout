@@ -567,6 +567,44 @@ def privacy_page():
     _set_content_etag(response, _md_etag_key('privacy.md'))
     return response
 
+
+@app.route('/data-deletion')
+def data_deletion_page():
+    """User data deletion instructions, required by Facebook OAuth app
+    config (User data deletion field) and a useful standalone page for
+    GDPR Art. 17 (right to erasure). Plain inline HTML so FB's URL
+    validator can scrape it without theme/template noise."""
+    body = """<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><title>Delete your Signal-Scout data</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:2rem auto;padding:0 1rem;line-height:1.55;color:#222}h1{font-size:1.4rem}code{background:#f4f4f4;padding:.1rem .3rem;border-radius:3px}a{color:#2563eb}</style>
+</head><body>
+<h1>Delete your Signal-Scout data</h1>
+<p>You can delete your account and all associated data at any time:</p>
+<ol>
+  <li>Sign in at <a href="https://signal-scout.com/">signal-scout.com</a>.</li>
+  <li>Open <a href="https://signal-scout.com/account">/account</a>.</li>
+  <li>Use <strong>Delete my account</strong>. The action is irreversible
+      and removes your email, password hash, API keys, location history,
+      and login events within 24 hours.</li>
+</ol>
+<p>If you signed in with Google, GitHub, or Facebook, deleting your
+account in Signal-Scout removes our copy of the email mapping; revoke
+the app at the provider to also stop them from sending us tokens
+(<a href="https://myaccount.google.com/permissions">Google</a>,
+<a href="https://github.com/settings/applications">GitHub</a>,
+<a href="https://www.facebook.com/settings?tab=applications">Facebook</a>).</p>
+<p>If you cannot sign in (lost access), email
+<a href="mailto:hello@signal-scout.com">hello@signal-scout.com</a>
+from the address tied to the account and we will delete it manually.</p>
+<p>See our <a href="/privacy">privacy notice</a> for the full GDPR
+Art. 13 disclosure.</p>
+</body></html>"""
+    response = make_response(body)
+    response.headers['Content-Type'] = 'text/html; charset=utf-8'
+    response.headers['Cache-Control'] = 'public, max-age=3600'
+    return response
+
 # PR #48.3: signed-token email unsubscribe.
 #
 # GET  /unsubscribe/<token> renders a confirm page (do NOT flip on GET
