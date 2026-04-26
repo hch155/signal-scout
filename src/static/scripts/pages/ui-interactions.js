@@ -1467,6 +1467,11 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
     let googleMapsLink = document.createElement('a');
     googleMapsLink.href = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
     googleMapsLink.target = '_blank';
+    // Audit fix (Low — frontend XSS): match the rel='noopener noreferrer'
+    // already on the two string-template variants in the same file.
+    // Without it, the popup window inherits window.opener and could
+    // navigate this tab via opener.location = '...'.
+    googleMapsLink.rel = 'noopener noreferrer';
     googleMapsLink.textContent = 'Google Maps';
     googleMapsLink.className = 'text-xs no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold';
     linksDiv.appendChild(googleMapsLink);

@@ -392,8 +392,15 @@ def _csp_for_path(path: str) -> str:
 @app.after_request
 def set_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    # Audit fix (Low — headers): X-XSS-Protection is deprecated. Modern
+    # Chromium/Firefox/Safari ignore it; older browsers' implementation
+    # had documented XSS-amplifying corner cases. Removed in favor of
+    # the strict CSP set further down (which is the actual modern XSS
+    # defence). Kept HSTS extended preload-eligible (>=1 year, includes
+    # subdomains, preload directive).
+    response.headers['Strict-Transport-Security'] = (
+        'max-age=63072000; includeSubDomains; preload'
+    )
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     response.headers['Permissions-Policy'] = (
         EMBED_PERMISSIONS_POLICY
