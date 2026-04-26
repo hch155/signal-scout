@@ -37,3 +37,7 @@ htmlcov/
 ops/.env
 .claude/
 tests/fixtures/snapshots/
+
+# Audit Critical 4: per-instance SQLite DBs must NOT be committed —
+# they hold bcrypt hashes, plaintext API keys, TOTP secrets.
+src/instance/users.db
