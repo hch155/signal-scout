@@ -193,16 +193,21 @@ def callback_for_provider(provider: str):
     # session. OAuth must do the same — anything less is a 2FA bypass.
     # We park them in the same half-session and redirect to a tiny
     # form that consumes /login/totp.
-    preserved_csrf = session.get('_csrf_token') or secrets.token_hex(32)
+    #
+    # Audit fix (High — CSRF privilege boundary): mint a fresh CSRF
+    # token for the new session instead of preserving the pre-auth one.
+    # Browser will pick the new token from the next page render's meta
+    # tag (we redirect, so this is automatic).
+    new_csrf = secrets.token_hex(32)
     if getattr(user, 'totp_enabled', False):
         session.clear()
-        session['_csrf_token'] = preserved_csrf
+        session['_csrf_token'] = new_csrf
         session['pending_2fa_user_id'] = user.id
         return redirect('/auth/2fa_challenge')
 
     # Promote to a full session.
     session.clear()
-    session['_csrf_token'] = preserved_csrf
+    session['_csrf_token'] = new_csrf
     session['user_id'] = user.id
 
     return redirect('/account')

@@ -522,10 +522,17 @@ app.jinja_env.globals['github_oauth_enabled'] = bool(settings.github_oauth_clien
 app.jinja_env.globals['facebook_oauth_enabled'] = bool(settings.facebook_oauth_client_id)
 
 def validate_csrf():
+    # Audit fix (High — timing leak): use hmac.compare_digest instead
+    # of `!=`. Plain string equality short-circuits on the first
+    # mismatched byte; an attacker measuring response time can
+    # progressively guess the token byte-by-byte. compare_digest is
+    # constant-time (and accepts both str and bytes).
+    import hmac as _hmac
     token = request.form.get('_csrf_token') or request.headers.get('X-CSRF-Token')
-    if not token or token != session.get('_csrf_token'):
+    expected = session.get('_csrf_token')
+    if not token or not expected:
         return False
-    return True
+    return _hmac.compare_digest(str(token), str(expected))
 
 SLOGANS = [
     ("On the Move?", "Navigate to the Nearest Base Stations for Uninterrupted Connectivity!"),

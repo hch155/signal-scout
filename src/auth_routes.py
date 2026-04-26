@@ -389,17 +389,22 @@ def login_user():
         user.failed_login_attempts = 0
         user.locked_until = None
 
-        # Rotate session against fixation, preserve CSRF token so the meta
-        # tag on the page stays usable for next POST (PR #1 fix).
+        # Audit fix (High — CSRF token survives privilege boundary):
+        # rotate the CSRF token across session.clear(). Pre-login the
+        # token may have been captured by an attacker; if we kept it,
+        # the same token would authorize POSTs from the now-logged-in
+        # session. The new token goes back to the client in the JSON
+        # response, so the AJAX caller can update its meta tag for
+        # the next POST.
         import secrets
-        preserved_csrf = session.get('_csrf_token') or secrets.token_hex(32)
+        new_csrf = secrets.token_hex(32)
 
         # PR #16: if the user has 2FA enabled, password alone is not enough.
         # Park the user_id in a half-session bucket and require a TOTP code
         # at /login/totp before graduating to a real logged-in session.
         if user.totp_enabled:
             session.clear()
-            session['_csrf_token'] = preserved_csrf
+            session['_csrf_token'] = new_csrf
             session['pending_2fa_user_id'] = user.id
             try:
                 _db().session.commit()  # persist the failed-attempts reset
@@ -409,11 +414,11 @@ def login_user():
                 "success": False,
                 "totp_required": True,
                 "message": "2FA code required.",
-                "csrf_token": preserved_csrf,
+                "csrf_token": new_csrf,
             }), 200
 
         session.clear()
-        session['_csrf_token'] = preserved_csrf
+        session['_csrf_token'] = new_csrf
         session['user_id'] = user.id
         _audit('login.success', user.id)
         try:
@@ -423,7 +428,7 @@ def login_user():
         return jsonify({
             "success": True,
             "message": "Logged in successfully.",
-            "csrf_token": preserved_csrf,
+            "csrf_token": new_csrf,
         }), 200
     else:
         _login_failures_total().inc()
@@ -614,12 +619,14 @@ def change_password():
     user.last_password_change = datetime.utcnow()
     _audit('password.changed', user.id)
     # Rotate session as a precaution: a stolen cookie should not survive a
-    # password change. Preserve the CSRF token so the client's open form keeps
-    # working for the success-toast follow-up.
+    # password change. Audit fix (High — CSRF privilege boundary): also
+    # mint a fresh CSRF token rather than preserving the pre-change one.
+    # The new token is returned in the JSON response so the still-open
+    # form can update its X-CSRF-Token meta for the success follow-up.
     import secrets
-    preserved_csrf = session.get('_csrf_token') or secrets.token_hex(32)
+    new_csrf = secrets.token_hex(32)
     session.clear()
-    session['_csrf_token'] = preserved_csrf
+    session['_csrf_token'] = new_csrf
     session['user_id'] = user.id
     try:
         _db().session.commit()
@@ -635,7 +642,7 @@ def change_password():
         send_password_changed(user)
     except Exception:
         logger.exception("send_password_changed failed for user_id=%s", user.id)
-    return jsonify({'success': True, 'csrf_token': preserved_csrf}), 200
+    return jsonify({'success': True, 'csrf_token': new_csrf}), 200
 
 
 def delete_account():
@@ -978,10 +985,13 @@ def login_totp():
             _db().session.rollback()
         return jsonify({'error': 'Invalid code'}), 401
 
+    # Audit fix (High — CSRF privilege boundary): rotate token across
+    # the half-session -> full-session promotion. New token returned
+    # in JSON for the AJAX caller to update its meta.
     import secrets
-    preserved_csrf = session.get('_csrf_token') or secrets.token_hex(32)
+    new_csrf = secrets.token_hex(32)
     session.clear()
-    session['_csrf_token'] = preserved_csrf
+    session['_csrf_token'] = new_csrf
     session['user_id'] = user.id
     _audit('login.success',
            user.id,
@@ -1002,7 +1012,7 @@ def login_totp():
             logger.exception("send_recovery_code_used failed for user_id=%s", user.id)
     return jsonify({
         'success': True,
-        'csrf_token': preserved_csrf,
+        'csrf_token': new_csrf,
     }), 200
 
 
