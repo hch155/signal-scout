@@ -139,6 +139,10 @@ def callback_for_provider(provider: str):
     from database import db
     user = User.query.filter(db.func.lower(User.email) == email.lower()).first()
     if user is None:
+        # First time we see this email — create an OAuth-only user. The
+        # `!OAUTH-` prefix is a sentinel: there's no real password, so
+        # bcrypt comparison can never succeed (refusing password login
+        # for the same email later would otherwise be a back door).
         user = User(
             email=email,
             password_hash='!OAUTH-' + secrets.token_urlsafe(32),
@@ -147,6 +151,28 @@ def callback_for_provider(provider: str):
             registration_date=datetime.utcnow(),
         )
         db.session.add(user)
+    else:
+        # ── Account-takeover protection (audit Critical 2) ──
+        # The user already exists. If their password_hash is a real
+        # bcrypt hash (NOT the `!OAUTH-` sentinel), they registered
+        # with a password. Accepting the OAuth login here would let
+        # anyone who controls a provider account with the victim's
+        # email take over the password account — Facebook in
+        # particular doesn't expose `email_verified` so we can't
+        # trust the provider to have done the verification for us.
+        # Refuse the login; the legitimate owner can sign in with
+        # their password and link a provider from /account explicitly.
+        ph = user.password_hash or ''
+        if ph and not ph.startswith('!OAUTH-'):
+            logger.warning(
+                "OAuth login refused: password account exists "
+                "for email=%s provider=%s", email, provider,
+            )
+            return redirect(
+                url_for('home') +
+                '?oauth_error=password_account_exists'
+            )
+
     user.last_login_date = datetime.utcnow()
     user.failed_login_attempts = 0
     user.locked_until = None
@@ -154,12 +180,27 @@ def callback_for_provider(provider: str):
         db.session.commit()
     except Exception:
         db.session.rollback()
-        logger.exception("OAuth upsert commit failed for email=%s provider=%s",
-                         email, provider)
+        # Audit fix (Medium privacy — log redaction): drop the email
+        # from the log line. user_id is enough for triage and avoids
+        # PII in centralized logging / Cloud Logging exports.
+        logger.exception("OAuth upsert commit failed for user_id=%s provider=%s",
+                         getattr(user, 'id', None), provider)
         return redirect(url_for('home') + '?oauth_error=db')
 
-    # Promote to a full session.
+    # ── 2FA gate (audit Critical 1) ──
+    # If the user enabled TOTP, password sign-in routes them to a
+    # half-session (`pending_2fa_user_id`) before granting a real
+    # session. OAuth must do the same — anything less is a 2FA bypass.
+    # We park them in the same half-session and redirect to a tiny
+    # form that consumes /login/totp.
     preserved_csrf = session.get('_csrf_token') or secrets.token_hex(32)
+    if getattr(user, 'totp_enabled', False):
+        session.clear()
+        session['_csrf_token'] = preserved_csrf
+        session['pending_2fa_user_id'] = user.id
+        return redirect('/auth/2fa_challenge')
+
+    # Promote to a full session.
     session.clear()
     session['_csrf_token'] = preserved_csrf
     session['user_id'] = user.id
@@ -187,15 +228,12 @@ def _resolve_email(provider: str, client, token) -> Optional[str]:
         return None
 
     if provider == 'github':
-        # Public email path first.
-        try:
-            resp = client.get('user', token=token)
-            primary = (resp.json() or {}).get('email')
-            if primary:
-                return primary
-        except Exception:
-            logger.exception("github /user fetch failed")
-        # Fallback: /user/emails (needs `user:email` scope).
+        # Audit fix (Critical 2 — Account Takeover):
+        # Skip /user.email — that field can be a public profile email
+        # the user typed in, not necessarily verified by GitHub. Use
+        # /user/emails exclusively, which exposes the per-address
+        # verified flag, and only return addresses where verified=true.
+        # Requires the `user:email` scope (already requested in init).
         try:
             resp = client.get('user/emails', token=token)
             emails = resp.json() or []

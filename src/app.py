@@ -172,6 +172,75 @@ def oauth_facebook_login():
 def oauth_facebook_callback():
     return callback_for_provider('facebook')
 
+
+@app.route('/auth/2fa_challenge', methods=['GET'])
+def oauth_2fa_challenge():
+    """Browser-side TOTP prompt for users who completed OAuth identity
+    verification but still owe us a 2FA code. The OAuth callback parks
+    them in `pending_2fa_user_id`; this page POSTs to /login/totp via
+    JS and on success lets the user reach /account.
+
+    Inline HTML on purpose — keeps the 2FA gate self-contained, no
+    template/theme dependency, and the page only ships when the user
+    is mid-flow (1-2 sec window per sign-in)."""
+    if 'pending_2fa_user_id' not in session:
+        return redirect('/?oauth_error=no_pending_2fa')
+    csrf = session.get('_csrf_token') or ''
+    body = """<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><title>Two-factor code required - Signal-Scout</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#e2e8f0;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:32px;max-width:380px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+h1{font-size:20px;margin:0 0 8px;color:#f1f5f9}
+p{color:#94a3b8;margin:0 0 20px;font-size:14px;line-height:1.5}
+input[name=code]{width:100%;background:#0f172a;border:1px solid #475569;color:#f1f5f9;padding:12px;border-radius:8px;font-size:18px;letter-spacing:4px;text-align:center;font-family:monospace;box-sizing:border-box}
+input[name=code]:focus{outline:none;border-color:#3b82f6}
+button{margin-top:16px;width:100%;background:#3b82f6;color:#fff;padding:12px;border-radius:8px;border:none;font-weight:600;font-size:14px;cursor:pointer}
+button:hover{background:#2563eb}
+button:disabled{opacity:.6;cursor:not-allowed}
+.err{margin-top:12px;color:#fca5a5;font-size:13px;min-height:1.2em}
+.note{margin-top:12px;color:#64748b;font-size:12px}
+.note a{color:#94a3b8}
+</style>
+</head><body>
+<div class="card">
+<h1>Two-factor code required</h1>
+<p>You signed in with a provider. Enter the 6-digit code from your
+authenticator app to finish.</p>
+<form id="f" autocomplete="off">
+<input name="code" autofocus required pattern="[0-9 ]{6,12}" inputmode="numeric"
+       placeholder="123456" autocomplete="one-time-code">
+<button type="submit" id="b">Verify and continue</button>
+<div class="err" id="e"></div>
+<p class="note">Lost the device? Use a recovery code in the same field.
+Or <a href="/?cancel=1">cancel sign-in</a>.</p>
+</form>
+</div>
+<script>
+const csrfToken = """ + ('"' + csrf + '"') + """;
+const f=document.getElementById('f'),b=document.getElementById('b'),e=document.getElementById('e');
+f.addEventListener('submit',async ev=>{
+  ev.preventDefault();
+  e.textContent='';b.disabled=true;b.textContent='Checking...';
+  const code=f.code.value.trim();
+  try{
+    const r=await fetch('/login/totp',{method:'POST',credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+      body:JSON.stringify({code})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok && j.success){ window.location='/account'; return; }
+    e.textContent=j.error || j.message || 'Wrong code, try again.';
+  }catch(err){ e.textContent='Network error - try again.'; }
+  b.disabled=false;b.textContent='Verify and continue';
+});
+</script>
+</body></html>"""
+    response = make_response(body)
+    response.headers['Content-Type'] = 'text/html; charset=utf-8'
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
 @app.errorhandler(429)
 def rate_limit_exceeded(e):
     rate_limit_hits_total.labels(endpoint=request.endpoint or "unknown").inc()

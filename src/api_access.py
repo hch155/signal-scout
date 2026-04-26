@@ -548,6 +548,27 @@ def ensure_user_api_columns(app, db) -> None:
                         "ON user_station_snapshot (user_location_id)"
                     ))
 
+        # PR #48.10: saved-location coverage alerts. last_coverage_state
+        # holds the JSON snapshot of find_coverage_gaps() output captured
+        # by scripts/coverage_alert_run.py after each monthly UKE refresh,
+        # so the next run can diff. last_alert_sent_at lets the script
+        # rate-limit (no double email if the script is run twice in the
+        # same refresh window).
+        if 'user_location' in insp_post.get_table_names():
+            ul_cols = {c['name'] for c in insp_post.get_columns('user_location')}
+            if 'last_coverage_state' not in ul_cols:
+                with engine.begin() as conn:
+                    conn.execute(text(
+                        "ALTER TABLE user_location "
+                        "ADD COLUMN last_coverage_state TEXT"
+                    ))
+            if 'last_alert_sent_at' not in ul_cols:
+                with engine.begin() as conn:
+                    conn.execute(text(
+                        "ALTER TABLE user_location "
+                        "ADD COLUMN last_alert_sent_at DATETIME"
+                    ))
+
         # PR #48.4: 30-day retention on submit_location_event. Runs on
         # every boot so cron drift / forgotten retention jobs can't let
         # the table grow unbounded. Idempotent — older rows just don't

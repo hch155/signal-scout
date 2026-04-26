@@ -218,6 +218,14 @@ class UserLocation(db.Model):
     lng = db.Column(db.Float, nullable=False)
     radius_km = db.Column(db.Float, default=15.0, nullable=False)
     alerting_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    # PR #48.10: snapshot of last find_coverage_gaps() output for this
+    # spot — JSON-encoded, written by scripts/coverage_alert_run.py
+    # after each monthly UKE refresh. NULL means "first run, nothing
+    # to compare against yet". The send-loop compares this to the
+    # freshly-computed result and emails only when meaningful diff
+    # (gained/lost a band, or nearest-BTS distance change > 1 km).
+    last_coverage_state = db.Column(db.Text, nullable=True)
+    last_alert_sent_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow,
                            nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow,

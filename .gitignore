@@ -36,3 +36,4 @@ override.tf.json
 htmlcov/
 ops/.env
 .claude/
+tests/fixtures/snapshots/

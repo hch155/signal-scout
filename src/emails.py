@@ -294,3 +294,24 @@ def send_recovery_code_used(user) -> bool:
         subject="A Signal-Scout 2FA recovery code was just used",
         template='recovery_used',
     )
+
+
+def send_coverage_alert(user, location, gained, lost, distance_changes) -> bool:
+    """Sent by scripts/coverage_alert_run.py after a monthly UKE refresh
+    when a SavedLocation's coverage materially changed.
+
+    `gained` / `lost` are lists of band-name strings (e.g. ['5G3600']).
+    `distance_changes` is a list of dicts:
+      {'band': str, 'before_km': float, 'after_km': float, 'delta_km': float}
+    Empty lists mean "no change of that kind" — caller is expected to only
+    call this function when at least one of the three is non-empty."""
+    subject = f"Signal-Scout: coverage at \"{location.name}\" changed"
+    return _send(
+        user,
+        subject=subject,
+        template='coverage_alert',
+        location=location,
+        gained=gained,
+        lost=lost,
+        distance_changes=distance_changes,
+    )
