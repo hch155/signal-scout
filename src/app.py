@@ -967,8 +967,27 @@ def submit_location():
             except Exception:
                 db.session.rollback()
                 app.logger.exception("Could not persist user location")
+        # Audit fix (Medium — backend): mirror the bounds enforced on
+        # /stations so a body POST can't bypass the documented
+        # 0.1–10 km / 1–10 limit caps. find_nearest_stations is
+        # cheap-ish but unbounded radius would scan the whole table.
         limit = data.get('limit', 9)
         max_distance = data.get('max_distance', None)
+        try:
+            if max_distance is not None:
+                max_distance = float(max_distance)
+                if max_distance < 0.1 or max_distance > 10:
+                    return jsonify({"error": "Invalid parameter",
+                                    "message": "Max distance must be between 0.1 and 10 km."}), 400
+                limit = None
+            elif limit is not None:
+                limit = int(limit)
+                if limit < 1 or limit > 10:
+                    return jsonify({"error": "Invalid parameter",
+                                    "message": "Limit must be between 1 and 10."}), 400
+        except (TypeError, ValueError):
+            return jsonify({"error": "Invalid parameter",
+                            "message": "limit/max_distance must be numeric."}), 400
 
         station_search_total.labels(endpoint='submit_location').inc()
         nearest_stations = find_nearest_stations(user_lat, user_lng, limit=limit, max_distance=max_distance)

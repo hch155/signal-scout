@@ -88,6 +88,53 @@ LOCKOUT_THRESHOLD = 5
 LOCKOUT_DURATION = timedelta(minutes=15)
 
 
+def _is_locked(user) -> bool:
+    """Audit fix (High — lockout bypass): originally only login_user
+    consulted user.locked_until. That meant a brute-forcer could
+    trigger a lock via /login, then immediately resume bcrypt-checking
+    the password through /account/password (the change_password handler
+    requires the current password to be passed in). Same shape on
+    /account/2fa/disable (recovery code accepted), /account/delete
+    (password required), /account/2fa/regenerate (password required).
+    Each of these is now gated by this helper."""
+    return bool(
+        user is not None
+        and user.locked_until is not None
+        and user.locked_until > datetime.utcnow()
+    )
+
+
+def _record_failed_password_attempt(user, *, endpoint: str) -> None:
+    """Bump user.failed_login_attempts and lock if past threshold.
+
+    Companion to _is_locked: every endpoint that runs
+    bcrypt.check_password_hash on user-supplied input must call this on
+    the failure branch so the same five-attempts-per-15-minutes ceiling
+    applies regardless of which auth-checking endpoint the attacker
+    chose. Originally only login_user incremented; /account/password,
+    /account/delete, /account/2fa/disable, /account/2fa/regenerate did
+    a metric tick and returned 401 without bumping, so they were free
+    bcrypt oracles."""
+    if user is None:
+        return
+    user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+    audit_meta: dict = {
+        "reason": "bad_password",
+        "endpoint": endpoint,
+        "attempts": user.failed_login_attempts,
+    }
+    if user.failed_login_attempts >= LOCKOUT_THRESHOLD:
+        user.locked_until = datetime.utcnow() + LOCKOUT_DURATION
+        audit_meta["locked_until"] = user.locked_until.isoformat() + 'Z'
+        _audit('account.locked', user.id, audit_meta)
+    else:
+        _audit('login.fail', user.id, audit_meta)
+    try:
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+
+
 # ── PR #39: KMS-wrapped TOTP secret ─────────────────────────────────────
 # Helpers route every TOTP secret read/write through get_kms() so flipping
 # GCP_KMS_KEY_NAME on Cloud Run env switches the storage format without
@@ -597,6 +644,17 @@ def change_password():
     if err:
         return err
 
+    # Audit fix (High — lockout bypass): refuse current-password
+    # checks while the account is locked. Without this gate, the
+    # /login lockout was bypassable via /account/password.
+    if _is_locked(user):
+        return jsonify({
+            "success": False,
+            "locked": True,
+            "message": "Account is temporarily locked due to too many failed attempts.",
+            "locked_until": user.locked_until.isoformat() + 'Z',
+        }), 403
+
     payload = request.get_json(silent=True) or request.form
     current = payload.get('current_password') or ''
     new = payload.get('new_password') or ''
@@ -606,6 +664,7 @@ def change_password():
         # Re-use the login_failures counter so brute-forcing the password
         # change endpoint shows up on the same alert as login brute-forcing.
         _login_failures_total().inc()
+        _record_failed_password_attempt(user, endpoint='change_password')
         return jsonify({'error': 'Current password is incorrect'}), 401
 
     if not _PASSWORD_REGEX.fullmatch(new):
@@ -653,12 +712,22 @@ def delete_account():
     if err:
         return err
 
+    # Audit fix (High — lockout bypass).
+    if _is_locked(user):
+        return jsonify({
+            "success": False,
+            "locked": True,
+            "message": "Account is temporarily locked due to too many failed attempts.",
+            "locked_until": user.locked_until.isoformat() + 'Z',
+        }), 403
+
     payload = request.get_json(silent=True) or request.form
     confirm_password = payload.get('current_password') or ''
     confirm_phrase = (payload.get('confirm_phrase') or '').strip()
 
     if not _bcrypt().check_password_hash(user.password_hash, confirm_password):
         _login_failures_total().inc()
+        _record_failed_password_attempt(user, endpoint='delete_account')
         return jsonify({'error': 'Current password is incorrect'}), 401
     # Belt-and-suspenders: typed phrase prevents a single accidental click on
     # a fake confirm dialog from nuking the account.
@@ -909,12 +978,23 @@ def totp_disable():
     if not user.totp_enabled:
         return jsonify({'error': '2FA is not enabled'}), 400
 
+    # Audit fix (High — lockout bypass): a brute-forcer who triggered
+    # the /login lockout was able to keep guessing the password through
+    # /account/2fa/disable, which also calls bcrypt.check_password_hash.
+    if _is_locked(user):
+        return jsonify({
+            "error": "Account is temporarily locked due to too many failed attempts.",
+            "locked": True,
+            "locked_until": user.locked_until.isoformat() + 'Z',
+        }), 403
+
     payload = request.get_json(silent=True) or request.form
     password = payload.get('current_password') or ''
     code = (payload.get('code') or '').strip().replace(' ', '')
 
     if not _bcrypt().check_password_hash(user.password_hash, password):
         _login_failures_total().inc()
+        _record_failed_password_attempt(user, endpoint='totp_disable')
         return jsonify({'error': 'Current password is incorrect'}), 401
     if not _pyotp().TOTP(_unwrap_totp_secret(user)).verify(code, valid_window=_TOTP_VALID_WINDOW):
         return jsonify({'error': 'Invalid 2FA code'}), 401
@@ -1032,10 +1112,19 @@ def totp_regenerate():
     if not user.totp_enabled:
         return jsonify({'error': '2FA is not enabled — use /account/2fa/setup instead'}), 400
 
+    # Audit fix (High — lockout bypass).
+    if _is_locked(user):
+        return jsonify({
+            "error": "Account is temporarily locked due to too many failed attempts.",
+            "locked": True,
+            "locked_until": user.locked_until.isoformat() + 'Z',
+        }), 403
+
     payload = request.get_json(silent=True) or request.form
     password = payload.get('current_password') or ''
     if not _bcrypt().check_password_hash(user.password_hash, password):
         _login_failures_total().inc()
+        _record_failed_password_attempt(user, endpoint='totp_regenerate')
         return jsonify({'error': 'Current password is incorrect'}), 401
 
     pyotp = _pyotp()
