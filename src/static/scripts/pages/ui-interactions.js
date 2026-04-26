@@ -3,8 +3,19 @@ updateDynamicContent()
 
 let mymap = L.map('mapid').setView([52.231, 21.004], 7); //  default location and zoom level
 
-const lightTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+// PR #48.9: switched off OSM standard tiles (tile.openstreetmap.org) —
+// missing white tiles started appearing for users in PL/border regions.
+// OSM Foundation's tile policy throttles heavy traffic from a single
+// origin, and we don't get subdomain rotation by default. CartoDB
+// Voyager mirrors the OSM look (roads colored, terrain shading) but
+// rides the same `basemaps.cartocdn.com` 4-subdomain CDN as our dark
+// layer — same provider, same CSP allowance, no API key, no rate-limit
+// surprises. CSP `img-src` already permits basemaps.cartocdn.com (added
+// for dark layer in PR #48.1).
+const lightTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19,
 }).addTo(mymap);
 
 // PR #48.1: switched from Stadia Maps (returned 503 once we passed the
