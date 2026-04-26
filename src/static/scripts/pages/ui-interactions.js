@@ -1028,7 +1028,7 @@ function renderSaveSpotShortcut(lat, lng, nearestCity) {
 
     const label = document.createElement('div');
     label.className = 'text-sm text-gray-800 dark:text-gray-100';
-    label.textContent = 'Watch this spot — you\'ll get an email when coverage changes here.';
+    label.textContent = 'Save this spot — we\'ll email you after our monthly UKE data refresh if coverage here changes.';
 
     const row = document.createElement('div');
     row.className = 'flex items-center gap-2';
