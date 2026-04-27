@@ -24,18 +24,20 @@ SIZE = 1024
 TILE_RADIUS = 192  # ~iOS app tile rounding at 1024
 PADDING = 128      # canvas padding before bar group
 
-# Bar geometry: 4 ascending signal bars. Matches the existing favicon
-# and the universal phone-signal metaphor — every phone OS shows 4
-# bars going red (no signal) → green (full signal). 5 bars + a blue
-# in the middle reads as "chart", 4 reads as "signal".
-BAR_HEIGHTS = [0.40, 0.60, 0.80, 1.00]
+# Bar geometry: 4 ascending signal bars. Faithful to the existing
+# favicon — sharp rectangles (no corner rounding), narrow bars with
+# wide gaps, saturated colours. Every phone OS shows 4 bars going red
+# (no signal) → green (full signal); 5 bars + blue middle reads as
+# "chart", 4 raw reads as "signal".
+BAR_HEIGHTS = [0.30, 0.55, 0.80, 1.00]
 BAR_COLORS = [
-    (239, 68, 68),    # red-500    — weak signal
+    (220, 38, 38),    # red-600     — weak signal
     (249, 115, 22),   # orange-500
-    (234, 179, 8),    # yellow-500
-    (34, 197, 94),    # green-500  — strong signal
+    (250, 204, 21),   # yellow-400
+    (22, 163, 74),    # green-600   — strong signal
 ]
-BAR_RADIUS = 56       # corner rounding on each bar
+BAR_RADIUS = 0        # raw rectangles, matching favicon
+BAR_GAP_RATIO = 0.55  # bar:gap = 1:0.55 (slim, technical)
 
 BG_TILE = (255, 255, 255, 255)
 BG_TRANSPARENT = (0, 0, 0, 0)
@@ -55,9 +57,8 @@ def make_icon(transparent_bg: bool = False) -> Image.Image:
 
     usable = SIZE - 2 * PADDING
     n_bars = len(BAR_HEIGHTS)
-    # Gaps take 30% of each bar's width — bar:gap = 1:0.3 ratio.
-    bar_w = usable / (n_bars + (n_bars - 1) * 0.3)
-    gap = bar_w * 0.3
+    bar_w = usable / (n_bars + (n_bars - 1) * BAR_GAP_RATIO)
+    gap = bar_w * BAR_GAP_RATIO
     bottom = SIZE - PADDING
 
     for i, (h_frac, color) in enumerate(zip(BAR_HEIGHTS, BAR_COLORS)):
@@ -66,11 +67,10 @@ def make_icon(transparent_bg: bool = False) -> Image.Image:
         bar_h = usable * h_frac
         y1 = bottom
         y0 = y1 - bar_h
-        draw.rounded_rectangle(
-            (x0, y0, x1, y1),
-            radius=BAR_RADIUS,
-            fill=color,
-        )
+        if BAR_RADIUS > 0:
+            draw.rounded_rectangle((x0, y0, x1, y1), radius=BAR_RADIUS, fill=color)
+        else:
+            draw.rectangle((x0, y0, x1, y1), fill=color)
     return img
 
 
