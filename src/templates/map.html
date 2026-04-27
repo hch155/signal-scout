@@ -86,9 +86,9 @@
        JSON-LD) above is unchanged so search engines still index the
        page properly. #}
     {% if not is_bot %}
-    <script defer src="{{ url_for('static', filename='dist/pages/ui-interactions.min.js') }}"></script>
-    <script defer src="{{ url_for('static', filename='dist/pages/compass.min.js') }}"></script>
-    <script defer src="{{ url_for('static', filename='dist/pages/map-initialization.min.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='dist/pages/ui-interactions.min.js') }}?v={{ app_version }}"></script>
+    <script defer src="{{ url_for('static', filename='dist/pages/compass.min.js') }}?v={{ app_version }}"></script>
+    <script defer src="{{ url_for('static', filename='dist/pages/map-initialization.min.js') }}?v={{ app_version }}"></script>
     {% endif %}
 
 {% endblock %}

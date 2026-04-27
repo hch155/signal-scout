@@ -27,7 +27,15 @@
     <meta name="twitter:image" content="{{ canonical_origin }}{{ url_for('static', filename='og-image.png') }}">
 
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet-1.7.1.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/output.css') }}">
+    {# Cache-bust app-bundled assets on every deploy. The static handler
+       sends `cache-control: max-age=31536000` so browsers (Safari in
+       particular) hold a stale CSS/JS bundle for up to a year between
+       fresh visits — a deploy that adds a Tailwind utility class would
+       silently render broken until the user manually empties cache.
+       Appending `?v={{ app_version }}` makes every deploy a fresh URL
+       so caches refill. Vendor files (Leaflet, DOMPurify) keep their
+       versioned filename — natural cache-bust there. #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/output.css') }}?v={{ app_version }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <script src="{{ url_for('static', filename='vendor/dompurify-3.2.7.js') }}"></script>
     {% if plausible_script_url and plausible_domain %}
@@ -35,8 +43,8 @@
             data-domain="{{ plausible_domain }}"
             src="{{ plausible_script_url }}"></script>
     {% endif %}
-    <script defer src="{{ url_for('static', filename='dist/pages/common.min.js') }}"></script>
-    <script defer src="{{ url_for('static', filename='dist/pages/tips-interactions.min.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='dist/pages/common.min.js') }}?v={{ app_version }}"></script>
+    <script defer src="{{ url_for('static', filename='dist/pages/tips-interactions.min.js') }}?v={{ app_version }}"></script>
 
     {# JSON-LD structured data — discoverable by search engines as a
        WebApplication. Per-page block override for richer schemas. #}
