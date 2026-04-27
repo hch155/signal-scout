@@ -316,6 +316,28 @@ def require_api_access(endpoint_label: str) -> Callable:
 
 # ── Schema migration helper (drops once we adopt Alembic in PR #1.5) ──────
 
+def purge_submit_location_events_older_than_30_days(engine) -> int:
+    """Delete SubmitLocationEvent rows older than 30 days. Returns the
+    rowcount so a cron caller can log how many rows were swept.
+
+    Idempotent. Safe to call from app boot AND from a Cloud Scheduler-
+    triggered admin endpoint — that combination is the L-NEW-1 fix:
+    boot covers the cold-instance case, scheduler covers the long-
+    running min-instances=1 case where boot only fires every few
+    weeks and the GDPR retention claim quietly lapses.
+    """
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    if 'submit_location_event' not in insp.get_table_names():
+        return 0
+    with engine.begin() as conn:
+        result = conn.execute(text(
+            "DELETE FROM submit_location_event "
+            "WHERE created_at < datetime('now', '-30 days')"
+        ))
+        return result.rowcount or 0
+
+
 def ensure_user_api_columns(app, db) -> None:
     """Idempotently add api_key + api_tier columns to existing users.db.
 
@@ -596,12 +618,13 @@ def ensure_user_api_columns(app, db) -> None:
         # every boot so cron drift / forgotten retention jobs can't let
         # the table grow unbounded. Idempotent — older rows just don't
         # exist by the time the second deploy runs.
-        if 'submit_location_event' in insp_post.get_table_names():
-            with engine.begin() as conn:
-                conn.execute(text(
-                    "DELETE FROM submit_location_event "
-                    "WHERE created_at < datetime('now', '-30 days')"
-                ))
+        # Audit fix L-NEW-1 (2026-04-27): also exposed as
+        # purge_submit_location_events_older_than_30_days() so a
+        # Cloud Scheduler job can hit /admin/run_retention and trigger
+        # the same DELETE on a fixed cadence. Boot-only retention
+        # silently lapsed when min-instances=1 kept a worker hot for
+        # weeks; the explicit cron path closes that GDPR gap.
+        purge_submit_location_events_older_than_30_days(engine)
 
         for u in User.query.filter(User.api_key.isnot(None)).all():
             already = ApiKey.query.filter_by(user_id=u.id, key=u.api_key).first()

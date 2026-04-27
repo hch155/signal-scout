@@ -88,6 +88,22 @@ app.config['SQLALCHEMY_BINDS'] = {
     'users': f'sqlite:///{users_db_path}'
 }
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Audit fix M-NEW-1 (2026-04-27, partial — short-term mitigation):
+# SQLite's default Python-side busy timeout is 5 s. Combined with
+# gcsfuse fsync latency on Cloud Run (50–200 ms per COMMIT) and up
+# to 4 concurrent gunicorn workers (max-instances=2 × workers=2)
+# writing the same file, bursts can serialise long enough to exceed
+# the default and surface as `OperationalError: database is locked`
+# 500s. Bumping to 30 s lets SQLite retry inside its busy window
+# instead of returning the error to the user. The Long-term fix
+# (M-NEW-1.b in critique doc) is migrating users.db to Cloud SQL
+# Postgres — separate roadmap item, multi-day project.
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'connect_args': {'timeout': 30},
+}
+app.config['SQLALCHEMY_BINDS_ENGINE_OPTIONS'] = {
+    'users': {'connect_args': {'timeout': 30}},
+}
 db.init_app(app)
 with app.app_context():
     db.create_all()
@@ -785,6 +801,41 @@ def _is_admin(user) -> bool:
     if not user or not user.email:
         return False
     return user.email.lower() in settings.admin_emails or user.role == 'admin'
+
+
+@app.route('/admin/run_retention', methods=['POST'])
+@limiter.limit("12 per hour")
+def admin_run_retention():
+    """Audit fix L-NEW-1 (2026-04-27): explicit retention trigger
+    suitable for Cloud Scheduler. Auth: admin OR
+    `Authorization: Bearer <METRICS_BEARER_TOKEN>` so a Cloud
+    Scheduler HTTP target can call without going through a user
+    session. Idempotent. Returns {success, deleted}.
+    """
+    auth_header = request.headers.get('Authorization', '')
+    bearer_ok = bool(
+        settings.metrics_bearer_token
+        and auth_header == f"Bearer {settings.metrics_bearer_token}"
+    )
+    if not bearer_ok:
+        if 'user_id' not in session:
+            return jsonify({"error": "auth_required"}), 401
+        from models import User as _U
+        user = _U.query.get(session['user_id'])
+        if not _is_admin(user):
+            return jsonify({"error": "forbidden"}), 403
+        if not validate_csrf():
+            return jsonify({"error": "csrf_failed"}), 403
+
+    from api_access import purge_submit_location_events_older_than_30_days
+    engine = db.get_engine(app, bind='users')
+    try:
+        deleted = purge_submit_location_events_older_than_30_days(engine)
+    except Exception:
+        app.logger.exception("admin_run_retention failed")
+        return jsonify({"error": "retention_failed"}), 500
+    app.logger.info("Retention sweep deleted %d SubmitLocationEvent rows", deleted)
+    return jsonify({"success": True, "deleted": deleted}), 200
 
 
 @app.route('/admin/stats', methods=['GET'])
