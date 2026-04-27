@@ -76,7 +76,11 @@ def make_icon(transparent_bg: bool = False) -> Image.Image:
 
 def main() -> None:
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
-    img = make_icon(transparent_bg=False)
+    # Transparent background — Facebook (and most modern app stores)
+    # rejects icons with an opaque background. The bars themselves carry
+    # all the brand recognition; the surrounding canvas should let the
+    # surface (light or dark) show through.
+    img = make_icon(transparent_bg=True)
     img.save(OUT_PATH, format="PNG", optimize=True)
     print(f"wrote {OUT_PATH} ({SIZE}x{SIZE}, {os.path.getsize(OUT_PATH)} bytes)")
 
