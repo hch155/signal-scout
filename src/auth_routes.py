@@ -115,34 +115,73 @@ def _is_locked(user) -> bool:
 
 
 def _record_failed_password_attempt(user, *, endpoint: str) -> None:
-    """Bump user.failed_login_attempts and lock if past threshold.
+    """Atomically bump user.failed_login_attempts and lock if past
+    threshold.
 
     Companion to _is_locked: every endpoint that runs
     bcrypt.check_password_hash on user-supplied input must call this on
     the failure branch so the same five-attempts-per-15-minutes ceiling
     applies regardless of which auth-checking endpoint the attacker
-    chose. Originally only login_user incremented; /account/password,
-    /account/delete, /account/2fa/disable, /account/2fa/regenerate did
-    a metric tick and returned 401 without bumping, so they were free
-    bcrypt oracles."""
+    chose.
+
+    Audit fix H-NEW-2 (2026-04-27): the increment is now an atomic SQL
+    UPDATE (`failed_login_attempts = failed_login_attempts + 1`)
+    instead of a Python-side read-modify-write. The old
+    `user.foo = (user.foo or 0) + 1` pattern lost increments under
+    concurrent failed logins — two requests both read N, both wrote
+    N+1 — effectively raising the lockout threshold to ~10-15 attempts
+    instead of 5. The CASE expression also stamps locked_until in the
+    same statement so the lock fires on the *committing* request even
+    when racing.
+    """
     if user is None:
         return
-    user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+    from sqlalchemy import update as _sql_update, case as _sql_case
+    db = _db()
+    pre_attempts = user.failed_login_attempts or 0
+    new_lock_at = datetime.utcnow() + LOCKOUT_DURATION
+    stmt = (
+        _sql_update(User)
+        .where(User.id == user.id)
+        .values(
+            failed_login_attempts=User.failed_login_attempts + 1,
+            locked_until=_sql_case(
+                (User.failed_login_attempts + 1 >= LOCKOUT_THRESHOLD,
+                 new_lock_at),
+                else_=User.locked_until,
+            ),
+        )
+        .execution_options(synchronize_session=False)
+    )
+    try:
+        db.session.execute(stmt)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return
+    # Reload to see the post-update values (rowcount=1 always under
+    # WHERE id=?, so refresh is safe).
+    db.session.refresh(user)
     audit_meta: dict = {
         "reason": "bad_password",
         "endpoint": endpoint,
         "attempts": user.failed_login_attempts,
     }
-    if user.failed_login_attempts >= LOCKOUT_THRESHOLD:
-        user.locked_until = datetime.utcnow() + LOCKOUT_DURATION
+    just_locked = (
+        user.failed_login_attempts >= LOCKOUT_THRESHOLD
+        and pre_attempts < LOCKOUT_THRESHOLD
+    )
+    if just_locked:
         audit_meta["locked_until"] = user.locked_until.isoformat() + 'Z'
         _audit('account.locked', user.id, audit_meta)
-    else:
+    elif user.failed_login_attempts < LOCKOUT_THRESHOLD:
         _audit('login.fail', user.id, audit_meta)
+    # else: was already locked, no fresh audit (avoids spam during
+    # the lock window when an attacker keeps probing).
     try:
-        _db().session.commit()
+        db.session.commit()
     except Exception:
-        _db().session.rollback()
+        db.session.rollback()
 
 
 # ── PR #39: KMS-wrapped TOTP secret ─────────────────────────────────────
@@ -500,21 +539,11 @@ def login_user():
         }), 200
     else:
         _login_failures_total().inc()
-        if user is not None:
-            # PR #26: bump counter; lock if past threshold.
-            user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
-            audit_meta: dict = {"reason": "bad_password",
-                                "attempts": user.failed_login_attempts}
-            if user.failed_login_attempts >= LOCKOUT_THRESHOLD:
-                user.locked_until = datetime.utcnow() + LOCKOUT_DURATION
-                audit_meta["locked_until"] = user.locked_until.isoformat() + 'Z'
-                _audit('account.locked', user.id, audit_meta)
-            else:
-                _audit('login.fail', user.id, audit_meta)
-            try:
-                _db().session.commit()
-            except Exception:
-                _db().session.rollback()
+        # H-NEW-2: route through the shared atomic helper so login_user
+        # and the four /account/* endpoints all share one
+        # race-free implementation. Used to be inline Python-side
+        # read-modify-write here.
+        _record_failed_password_attempt(user, endpoint='login')
         return jsonify({"success": False, "message": "Invalid email or password."}), 401
 
 
@@ -1081,14 +1110,56 @@ def login_totp():
         else:
             # Try as a recovery code: compare against each stored hash.
             import json as _json
-            hashes = _json.loads(user.recovery_codes_json or '[]')
+            from sqlalchemy import update as _sql_update
+            old_json = user.recovery_codes_json or '[]'
+            hashes = _json.loads(old_json)
             for idx, h in enumerate(list(hashes)):
                 if _bcrypt().check_password_hash(h, code):
-                    # Single-use: remove that hash from the list.
-                    hashes.pop(idx)
-                    user.recovery_codes_json = _json.dumps(hashes)
-                    ok = True
-                    used_recovery = True
+                    # Audit fix M-NEW-2 (2026-04-27): atomic
+                    # compare-and-swap consumption. The old code did
+                    # hashes.pop(idx) + write-back as a Python-side
+                    # read-modify-write — two parallel /login/totp
+                    # requests with the same recovery code both saw
+                    # `ok=True` because the consumption wasn't durable
+                    # before the second verification ran. Effectively
+                    # made "single-use" recovery codes good for ≥2
+                    # back-to-back sessions if fired in parallel.
+                    #
+                    # New shape: UPDATE WHERE recovery_codes_json =
+                    # old_json. The first commit wins (rowcount=1);
+                    # the second sees rowcount=0 (the column changed
+                    # under it) and refuses the auth. Authlib-style
+                    # atomic CAS, no DB-engine-specific locking.
+                    new_hashes = list(hashes)
+                    new_hashes.pop(idx)
+                    new_json = _json.dumps(new_hashes)
+                    cas_stmt = (
+                        _sql_update(User)
+                        .where(User.id == user.id)
+                        .where(User.recovery_codes_json == old_json)
+                        .values(recovery_codes_json=new_json)
+                        .execution_options(synchronize_session=False)
+                    )
+                    try:
+                        result = _db().session.execute(cas_stmt)
+                        _db().session.commit()
+                    except Exception:
+                        _db().session.rollback()
+                        result = None
+                    if result is not None and result.rowcount == 1:
+                        ok = True
+                        used_recovery = True
+                    else:
+                        # Race detected — another concurrent request
+                        # consumed this code first. Fail the login;
+                        # the legitimate user can retry with a fresh
+                        # code.
+                        _audit('login.2fa_recovery_race', user.id,
+                               {'reason': 'cas_lost'})
+                        try:
+                            _db().session.commit()
+                        except Exception:
+                            _db().session.rollback()
                     break
 
     if not ok:
