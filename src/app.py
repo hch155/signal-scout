@@ -788,6 +788,7 @@ def _is_admin(user) -> bool:
 
 
 @app.route('/admin/stats', methods=['GET'])
+@limiter.limit("30 per hour")
 def admin_stats():
     if 'user_id' not in session:
         return jsonify({"error": "auth_required"}), 401
@@ -862,6 +863,14 @@ def test_email_endpoint():
     user's own email address. Rate-limited to 3/hour to prevent misuse;
     requires CSRF + active session.
 
+    Audit fix M-NEW-5 (2026-04-27): admin-gated. The endpoint exists
+    only as an operator smoke test for SendGrid configuration changes.
+    Combined with the in-memory rate limiter (per-instance, not per-
+    cluster) and 2 Cloud Run instances, the prior 3/hour was 6/hour
+    per IP and a fleet of disposable accounts could burn the SendGrid
+    quota at the operator's expense. Admin-only closes that vector
+    completely while keeping the smoke-test capability for ops.
+
     Returns: {success, backend, to} on success or {error, message} on
     failure. Reuses the password_changed template — content doesn't
     matter for the smoke test, what matters is the SendGrid API call
@@ -877,6 +886,9 @@ def test_email_endpoint():
     user = _U.query.get(session['user_id'])
     if not user:
         return jsonify({"error": "user_not_found"}), 404
+    if not _is_admin(user):
+        return jsonify({"error": "forbidden",
+                        "message": "Admin only."}), 403
     ok = send_password_changed(user)
     return jsonify({
         "success": bool(ok),

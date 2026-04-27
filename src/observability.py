@@ -291,17 +291,43 @@ public_requests_total = Counter(
 # ── In-memory tracking for /status incident timestamp ──────────────────────
 
 _LAST_INCIDENT_TS: dict[str, float] = {"value": 0.0}
-_FIRST_CALL_SEEN_USERS: set[int] = set()
+# Audit fix M-NEW-8 (2026-04-27): bounded LRU instead of an unbounded
+# set. The previous set grew monotonically with every distinct user
+# the worker had ever served — fine for short-lived workers, but a
+# Cloud Run instance with min-instances=1 (cost-optimisation flip on
+# operator side) keeps a worker hot for weeks and the set grows
+# without bound. 10k entries cap covers any realistic concurrent-
+# active-user count; eviction order is insertion (oldest user re-
+# triggers the funnel-counter bump on next API call, which is fine —
+# it's a funnel metric, double-counts are noise not contamination).
+_FIRST_CALL_LRU_CAP = 10_000
+_FIRST_CALL_SEEN_USERS: "OrderedDict[int, None]" = None  # type: ignore[assignment]
+
+
+def _ensure_first_call_lru():
+    """Lazy-init so the type annotation above doesn't conflict with the
+    real OrderedDict at import time (kept None for clarity that the
+    structure is built lazily)."""
+    global _FIRST_CALL_SEEN_USERS
+    if _FIRST_CALL_SEEN_USERS is None:
+        from collections import OrderedDict
+        _FIRST_CALL_SEEN_USERS = OrderedDict()
 
 
 def record_first_api_call(user_id: int | None) -> None:
     """Best-effort: bump the funnel counter the first time a user_id is
-    seen on the API path within the current process."""
+    seen on the API path within the current process. LRU-bounded so
+    long-running workers don't accumulate state without limit."""
     if user_id is None:
         return
+    _ensure_first_call_lru()
     if user_id in _FIRST_CALL_SEEN_USERS:
+        # Mark as recently used so it survives eviction.
+        _FIRST_CALL_SEEN_USERS.move_to_end(user_id)
         return
-    _FIRST_CALL_SEEN_USERS.add(user_id)
+    _FIRST_CALL_SEEN_USERS[user_id] = None
+    if len(_FIRST_CALL_SEEN_USERS) > _FIRST_CALL_LRU_CAP:
+        _FIRST_CALL_SEEN_USERS.popitem(last=False)
     funnel_first_api_call_total.inc()
 
 

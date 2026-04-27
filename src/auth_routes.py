@@ -605,6 +605,7 @@ def login_user():
             session.clear()
             session['_csrf_token'] = new_csrf
             session['pending_2fa_user_id'] = user.id
+            session['pending_2fa_started_at'] = datetime.utcnow().isoformat()
             try:
                 _db().session.commit()  # persist the failed-attempts reset
             except Exception:
@@ -1019,6 +1020,12 @@ _ISSUER = "signal-scout"
 # Valid codes allowed ±1 window (30s before/after) to tolerate clock skew.
 _TOTP_VALID_WINDOW = 1
 _RECOVERY_CODE_COUNT = 10
+# Audit fix L-NEW-2 (2026-04-27): the half-session set after a
+# successful password check (waiting for the TOTP code) used to live
+# until the cookie expired (7 days) — long enough for a stolen cookie
+# to brute-force the TOTP code subject only to the per-instance rate
+# limit. Stamp the start time and refuse /login/totp older than this.
+_PENDING_2FA_TTL_SECS = 300  # 5 minutes is plenty for a code prompt
 # Audit fix M-NEW-3 (2026-04-27): a TOTP code remains valid for
 # (2 * window + 1) * 30 s — 90 s with window=1. Within that window we
 # refuse a re-presentation of the same code so that an attacker who
@@ -1220,9 +1227,23 @@ def login_totp():
     pending = session.get('pending_2fa_user_id')
     if not pending:
         return jsonify({'error': 'No 2FA step in progress'}), 400
+    # L-NEW-2: refuse to consume a stale half-session. Stolen cookie
+    # mid-2FA would otherwise have until cookie expiry (7 days) to
+    # brute-force the TOTP code.
+    started_iso = session.get('pending_2fa_started_at')
+    if started_iso:
+        try:
+            started = datetime.fromisoformat(started_iso)
+        except (TypeError, ValueError):
+            started = None
+        if started and (datetime.utcnow() - started).total_seconds() > _PENDING_2FA_TTL_SECS:
+            session.pop('pending_2fa_user_id', None)
+            session.pop('pending_2fa_started_at', None)
+            return jsonify({'error': '2FA session expired — sign in again'}), 401
     user = _db().session.get(User, pending)
     if not user or not user.totp_enabled:
         session.pop('pending_2fa_user_id', None)
+        session.pop('pending_2fa_started_at', None)
         return jsonify({'error': 'No 2FA step in progress'}), 400
 
     payload = request.get_json(silent=True) or request.form

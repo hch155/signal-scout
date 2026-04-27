@@ -242,6 +242,11 @@ def callback_for_provider(provider: str):
         session.clear()
         session['_csrf_token'] = new_csrf
         session['pending_2fa_user_id'] = user.id
+        # L-NEW-2 (2026-04-27): TTL-stamp the half-session so a stolen
+        # cookie can't sit on it for the full 7-day cookie lifetime
+        # brute-forcing TOTP. login_totp checks this against
+        # _PENDING_2FA_TTL_SECS.
+        session['pending_2fa_started_at'] = datetime.utcnow().isoformat()
         return redirect('/auth/2fa_challenge')
 
     # Promote to a full session.
