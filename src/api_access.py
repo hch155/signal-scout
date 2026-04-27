@@ -385,6 +385,13 @@ def ensure_user_api_columns(app, db) -> None:
                 conn.execute(text("ALTER TABLE user ADD COLUMN failed_login_attempts INTEGER NOT NULL DEFAULT 0"))
             if 'locked_until' not in existing:
                 conn.execute(text("ALTER TABLE user ADD COLUMN locked_until DATETIME"))
+            # Audit fix M-NEW-3 (2026-04-27): TOTP replay defence.
+            # Stamp the most-recently-used TOTP code so a re-presentation
+            # within the validity window is rejected.
+            if 'last_totp_code' not in existing:
+                conn.execute(text("ALTER TABLE user ADD COLUMN last_totp_code VARCHAR(10)"))
+            if 'last_totp_code_at' not in existing:
+                conn.execute(text("ALTER TABLE user ADD COLUMN last_totp_code_at DATETIME"))
             # PR #48.3: email_alerts_enabled (default True). Existing
             # rows get DEFAULT 1 → opt-in by default, matches pre-PR
             # behavior where every user was eligible to receive emails.

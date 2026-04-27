@@ -80,6 +80,14 @@ class User(db.Model):
     # locked_until without losing audit context.
     failed_login_attempts = db.Column(db.Integer, default=0, nullable=False)
     locked_until = db.Column(db.DateTime)
+    # Audit fix M-NEW-3 (2026-04-27): TOTP replay defence. Each
+    # successful TOTP code is stamped here; a re-presentation of the
+    # SAME code within the validity window (~90 s with valid_window=1)
+    # is refused. Closes the "shoulder-surf one TOTP, fire it twice"
+    # vector. Stored as the raw 6-digit string + UTC timestamp; small
+    # enough that the index isn't worth it.
+    last_totp_code = db.Column(db.String(10))
+    last_totp_code_at = db.Column(db.DateTime)
     # PR #48.3: master toggle for transactional email delivery. Default
     # True. Flipped to False either by clicking the unsubscribe link in
     # an email footer (signed token → /unsubscribe/<token>) or via the

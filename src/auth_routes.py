@@ -927,6 +927,12 @@ _ISSUER = "signal-scout"
 # Valid codes allowed ±1 window (30s before/after) to tolerate clock skew.
 _TOTP_VALID_WINDOW = 1
 _RECOVERY_CODE_COUNT = 10
+# Audit fix M-NEW-3 (2026-04-27): a TOTP code remains valid for
+# (2 * window + 1) * 30 s — 90 s with window=1. Within that window we
+# refuse a re-presentation of the same code so that an attacker who
+# observed it (shoulder-surf, screen recording, intercepted via a
+# moment of session leakage) can't fire it again.
+_TOTP_REPLAY_WINDOW_SECS = (2 * _TOTP_VALID_WINDOW + 1) * 30
 
 
 def _pyotp():
@@ -934,6 +940,34 @@ def _pyotp():
     # — pinned in requirements.txt — but keeps the blueprint self-contained).
     import pyotp
     return pyotp
+
+
+def _verify_totp_with_replay_protection(user, code: str) -> bool:
+    """Verify a TOTP code AND ensure it hasn't been used recently.
+
+    Returns True only if both checks pass. On success, stamps
+    user.last_totp_code + last_totp_code_at so a re-presentation of
+    the same code within _TOTP_REPLAY_WINDOW_SECS is rejected. Does
+    NOT commit — the caller controls the surrounding transaction
+    (login_totp commits after promoting to a full session, totp_disable
+    commits when wiping the secret).
+
+    Audit fix M-NEW-3 (2026-04-27).
+    """
+    if not code:
+        return False
+    secret = _unwrap_totp_secret(user)
+    if not _pyotp().TOTP(secret).verify(code, valid_window=_TOTP_VALID_WINDOW):
+        return False
+    now = datetime.utcnow()
+    if (user.last_totp_code == code
+            and user.last_totp_code_at is not None
+            and (now - user.last_totp_code_at).total_seconds()
+                < _TOTP_REPLAY_WINDOW_SECS):
+        return False
+    user.last_totp_code = code
+    user.last_totp_code_at = now
+    return True
 
 
 def _generate_recovery_codes() -> list[str]:
@@ -1060,7 +1094,7 @@ def totp_disable():
         _login_failures_total().inc()
         _record_failed_password_attempt(user, endpoint='totp_disable')
         return jsonify({'error': 'Current password is incorrect'}), 401
-    if not _pyotp().TOTP(_unwrap_totp_secret(user)).verify(code, valid_window=_TOTP_VALID_WINDOW):
+    if not _verify_totp_with_replay_protection(user, code):
         return jsonify({'error': 'Invalid 2FA code'}), 401
 
     user.totp_secret = None
@@ -1105,7 +1139,7 @@ def login_totp():
     used_recovery = False
     ok = False
     if code:
-        if _pyotp().TOTP(_unwrap_totp_secret(user)).verify(code, valid_window=_TOTP_VALID_WINDOW):
+        if _verify_totp_with_replay_protection(user, code):
             ok = True
         else:
             # Try as a recovery code: compare against each stored hash.
