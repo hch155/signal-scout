@@ -558,13 +558,20 @@ function checkLoginStateAndUpdateUI() {
 }
 
 function conditionalCheckLoginState() {
-  const mightBeLoggedIn = localStorage.getItem('loggedIn') === 'true';
-
-  if (mightBeLoggedIn) {
-    checkLoginStateAndUpdateUI();
-  } else {
-    adjustUIForLoggedOutState();
-  }
+  // Always ask the server. The localStorage 'loggedIn' flag is set by
+  // the AJAX login flow, but OAuth flows are full-page redirects with
+  // zero JS in the loop — meaning a user who just signed in via Google
+  // / GitHub would land on /account with the server holding a real
+  // session yet the header still showing "Sign in". Cost is one tiny
+  // /session_check request per page load (returns ~20 bytes); benefit
+  // is the header always matches the actual session.
+  //
+  // Render the logged-out state immediately so the header doesn't
+  // flicker through a half-second of "logged-in chrome" while the
+  // request is in flight; checkLoginStateAndUpdateUI() patches it back
+  // up if /session_check confirms a session.
+  adjustUIForLoggedOutState();
+  checkLoginStateAndUpdateUI();
 }
 
 function adjustUIForLoggedOutState() {
