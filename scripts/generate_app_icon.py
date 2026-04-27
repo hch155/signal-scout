@@ -22,19 +22,20 @@ OUT_PATH = os.path.join(ROOT, "src", "static", "images", "app-icon-1024.png")
 
 SIZE = 1024
 TILE_RADIUS = 192  # ~iOS app tile rounding at 1024
-PADDING = 96       # canvas padding before bar group
+PADDING = 128      # canvas padding before bar group
 
-# Bar geometry: 5 bars, ascending. Heights are fractions of usable canvas.
-# Gaps are 30% of bar width to keep the silhouette readable.
-BAR_HEIGHTS = [0.34, 0.50, 0.66, 0.82, 1.00]
+# Bar geometry: 4 ascending signal bars. Matches the existing favicon
+# and the universal phone-signal metaphor — every phone OS shows 4
+# bars going red (no signal) → green (full signal). 5 bars + a blue
+# in the middle reads as "chart", 4 reads as "signal".
+BAR_HEIGHTS = [0.40, 0.60, 0.80, 1.00]
 BAR_COLORS = [
-    (239, 68, 68),    # red-500
+    (239, 68, 68),    # red-500    — weak signal
     (249, 115, 22),   # orange-500
     (234, 179, 8),    # yellow-500
-    (59, 130, 246),   # blue-500
-    (34, 197, 94),    # green-500
+    (34, 197, 94),    # green-500  — strong signal
 ]
-BAR_RADIUS = 40       # corner rounding on each bar
+BAR_RADIUS = 56       # corner rounding on each bar
 
 BG_TILE = (255, 255, 255, 255)
 BG_TRANSPARENT = (0, 0, 0, 0)
