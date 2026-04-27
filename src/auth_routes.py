@@ -1311,11 +1311,29 @@ def login_totp():
 
     if not ok:
         _login_failures_total().inc()
-        _audit('login.2fa_fail', user.id)
-        try:
-            _db().session.commit()
-        except Exception:
-            _db().session.rollback()
+        # Audit fix TOTP-brute-force (2026-04-27): until now, a
+        # successful password check that opened the half-session let
+        # the attacker hammer /login/totp with TOTP guesses subject
+        # only to the per-instance Flask-Limiter (10/min/IP). With 2
+        # Cloud Run instances + a couple of egress IPs that's enough
+        # to brute-force a 6-digit TOTP within the 90 s window. Route
+        # failures through the same atomic-lockout helper that the
+        # password endpoints use — TOTP fails now count toward the
+        # shared LOCKOUT_THRESHOLD and trip the same lock that
+        # _is_locked() blocks on across all bcrypt sites.
+        _record_failed_password_attempt(user, endpoint='login_totp')
+        # If the helper just locked the account, surface that explicitly
+        # so the client can render "you're locked" instead of yet
+        # another generic "Invalid code".
+        if _is_locked(user):
+            session.pop('pending_2fa_user_id', None)
+            session.pop('pending_2fa_started_at', None)
+            return jsonify({
+                "error": "locked",
+                "locked": True,
+                "message": "Too many wrong codes — account temporarily locked.",
+                "locked_until": user.locked_until.isoformat() + 'Z',
+            }), 403
         return jsonify({'error': 'Invalid code'}), 401
 
     # Audit fix (High — CSRF privilege boundary): rotate token across
