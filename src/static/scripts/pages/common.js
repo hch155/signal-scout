@@ -271,6 +271,11 @@ function _openAuthModal(tab) {
   const m = document.getElementById('authModal');
   if (!m) return;
   _setAuthTab(tab || 'signin');
+  // Defensive: clear any inline display:none that an earlier code path
+  // (e.g. logout flow) may have stamped on the modal — without this,
+  // class-based show via removing `hidden` would lose to the inline
+  // style and the modal would stay invisible.
+  m.style.display = '';
   m.classList.remove('hidden');
 }
 
@@ -540,14 +545,19 @@ function safelyUpdateDisplay(elementId, displayStyle) {
 function checkLoginStateAndUpdateUI() {
   globalFetch('/session_check')
     .then(data => {
+      // Don't touch authModal here. Setting inline `style.display='none'`
+      // on it pins it shut — _openAuthModal removes the `hidden` class
+      // but the inline style wins (higher specificity). The modal's
+      // baseline `hidden` class already keeps it closed; opening clears
+      // the class and the modal renders. This was dormant until PR #303
+      // started running this function on every page load (was guarded
+      // behind localStorage.loggedIn before).
       if (data.logged_in) {
-        safelyUpdateDisplay('authModal', 'none');
         safelyUpdateDisplay('signInBtn', 'none');
         safelyUpdateDisplay('registerBtn', 'none');
         safelyUpdateDisplay('accountLink', 'inline-flex');
         safelyUpdateDisplay('logoutButton', 'block');
       } else {
-        safelyUpdateDisplay('authModal', 'none');
         safelyUpdateDisplay('signInBtn', 'block');
         safelyUpdateDisplay('registerBtn', 'block');
         safelyUpdateDisplay('accountLink', 'none');
