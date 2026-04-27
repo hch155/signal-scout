@@ -30,6 +30,7 @@ from api_access import (
     generate_api_key,
     is_honeypot,
     record_honeypot_hit,
+    seed_honeypot_rows,
 )
 from api_docs import init_api_docs
 from oauth import init_oauth, login_with_provider, callback_for_provider
@@ -110,6 +111,15 @@ with app.app_context():
 # Add api_key / api_tier columns to existing prod users.db (no-op on fresh DB).
 # When the app grows to multiple DB engines this gets replaced by Alembic.
 ensure_user_api_columns(app, db)
+# Audit fix L-NEW-4 (2026-04-27): plant honeypot rows in BaseStation
+# so prefix-search scrapers surface them. No-op when HONEYPOT_BTS_IDS
+# env is unset.
+try:
+    _seeded = seed_honeypot_rows(app, db)
+    if _seeded:
+        app.logger.info("Seeded %d honeypot BTS rows", _seeded)
+except Exception:
+    app.logger.exception("seed_honeypot_rows raised — continuing boot")
 
 # HTTPS encryption for Flask
 

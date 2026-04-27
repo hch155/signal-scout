@@ -102,6 +102,82 @@ def record_honeypot_hit(basestation_id: str, endpoint: str) -> None:
     )
 
 
+# Audit fix L-NEW-4 (2026-04-27): planted-row marker. Honeypot rows
+# in the BaseStation table carry this in `service_provider` so a
+# manual DBA inspection can spot them (and so `seed_honeypot_rows`
+# is idempotent across boots — we only insert when no marked row
+# already exists for the ID). Capitalised so it sorts/displays in a
+# way that doesn't mimic any real Polish operator.
+HONEYPOT_PROVIDER_MARKER = '__HONEYPOT__'
+
+
+def seed_honeypot_rows(app, db) -> int:
+    """Idempotently insert a BaseStation row for each ID in
+    HONEYPOT_BTS_IDS env. Returns count of newly-inserted rows.
+
+    The original honeypot mechanism (env-list ID + lookup hit on
+    /find_station and /search_stations exact-match) caught scrapers
+    enumerating IDs directly but missed scrapers that prefix-searched
+    /search_stations and only followed up on returned IDs — those
+    never queried the honeypot directly because the honeypot rows
+    weren't in the dataset. Planting them in the dataset closes the
+    bypass: now /search_stations naturally surfaces the honeypot row
+    as a candidate the scraper visits, triggering the env-list
+    detection on the follow-up /find_station.
+
+    Coordinates are random-but-stable per ID (hash-derived) inside
+    Polish bounds so the row at least geographically belongs. The
+    `service_provider` marker makes the rows trivial to recognise +
+    keeps the helper idempotent.
+    """
+    import hashlib
+    from models import BaseStation
+    ids = _load_honeypot_ids()
+    if not ids:
+        return 0
+    inserted = 0
+    with app.app_context():
+        # Polish-bounding-box constants (mirror find_nearest_stations).
+        PL_LAT_MIN, PL_LAT_MAX = 49.0, 55.5
+        PL_LNG_MIN, PL_LNG_MAX = 14.0, 24.2
+        for bid in ids:
+            existing = BaseStation.query.filter_by(
+                basestation_id=bid,
+                service_provider=HONEYPOT_PROVIDER_MARKER,
+            ).first()
+            if existing is not None:
+                continue
+            # Stable pseudo-random coords from sha1(id) so the same ID
+            # always lands at the same spot across boots.
+            digest = hashlib.sha1(bid.encode('utf-8')).digest()
+            lat_frac = int.from_bytes(digest[0:4], 'big') / 0xFFFFFFFF
+            lng_frac = int.from_bytes(digest[4:8], 'big') / 0xFFFFFFFF
+            lat = PL_LAT_MIN + lat_frac * (PL_LAT_MAX - PL_LAT_MIN)
+            lng = PL_LNG_MIN + lng_frac * (PL_LNG_MAX - PL_LNG_MIN)
+            row = BaseStation(
+                basestation_id=bid,
+                city='—',
+                location='—',
+                service_provider=HONEYPOT_PROVIDER_MARKER,
+                latitude=lat,
+                longitude=lng,
+                frequency_band='LTE2100',
+                rat='LTE',
+                frequency_band_count=1,
+                latitude_segment=int((lat - PL_LAT_MIN) * 10),
+            )
+            db.session.add(row)
+            inserted += 1
+        if inserted:
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                logger.exception("seed_honeypot_rows failed to commit")
+                return 0
+    return inserted
+
+
 # ── Referer / Origin check ──────────────────────────────────────────────────
 
 def _request_origin_host() -> str:
