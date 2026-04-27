@@ -54,7 +54,15 @@ def test_create_key_happy_path_returns_full_key(authed_client, csrf_token, app):
         ak = ApiKey.query.get(body["id"])
         assert ak is not None
         assert ak.name == "iOS app"
-        assert ak.key == body["key"]
+        # PR #47 (hashed-at-rest): new ApiKey rows do NOT store the
+        # plaintext key — `key` is None, only `key_hash` (sha256 hex
+        # digest of the original token) and `key_prefix` (`first8…last4`)
+        # are persisted. Verify the hash matches the freshly-issued
+        # token instead of asserting the plaintext is back.
+        from api_access import hash_api_key
+        assert ak.key is None, "PR #47: plaintext key must not be stored"
+        assert ak.key_hash == hash_api_key(body["key"])
+        assert ak.key_prefix and ak.key_prefix.startswith(body["key"][:8])
         assert ak.revoked_at is None
 
 

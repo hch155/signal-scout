@@ -54,7 +54,14 @@ def test_stations_blocked_with_foreign_referer(raw_client):
 # ── API key bypasses Referer gate ───────────────────────────────────────────
 
 def _register_user_and_get_key(client, csrf_token, email):
-    """Register a fresh user via the public endpoint; return their api_key."""
+    """Register a fresh user via the public endpoint; return their api_key.
+
+    PR #47 (hashed-at-rest): registration mints a key, hashes it for
+    storage, and surfaces the plaintext ONCE in the response. Older
+    versions of this helper read User.api_key directly; that column
+    is now always None. Pull the plaintext from the registration JSON
+    response instead.
+    """
     with client.session_transaction() as sess:
         sess["_csrf_token"] = csrf_token
     r = client.post("/register", data={
@@ -64,12 +71,29 @@ def _register_user_and_get_key(client, csrf_token, email):
         "confirm_password": "Aa1!aaaaaa",
     })
     assert r.status_code == 200, r.data
-    # Fetch the key by reading the User row directly.
+    body = r.get_json() or {}
+    api_key = body.get("api_key") or body.get("key")
     from models import User
     user = User.query.filter_by(email=email).first()
-    assert user.api_key
+    if not api_key:
+        # /register may not return the plaintext (privacy preference) —
+        # if so, mint a fresh one via the authenticated /account/keys
+        # endpoint instead. We need a working key for the
+        # bypasses_referer test.
+        with client.session_transaction() as sess:
+            sess["user_id"] = user.id
+            sess["_csrf_token"] = csrf_token
+        import json as _json
+        rk = client.post("/account/keys",
+                         data=_json.dumps({"name": "test"}),
+                         content_type="application/json",
+                         headers={"X-CSRF-Token": csrf_token,
+                                  "Referer": "http://localhost/"})
+        assert rk.status_code == 200, rk.data
+        api_key = rk.get_json()["key"]
+    assert api_key
     assert user.api_tier == "free"
-    return user.api_key
+    return api_key
 
 
 def test_api_key_bypasses_referer_check(raw_client, app, csrf_token):
