@@ -11,7 +11,49 @@ document.addEventListener('DOMContentLoaded', function() {
   initializeSloganRotate();
   initializeLogoutButton();
   initializePasswordToggles();
+  showOAuthErrorIfPresent();
 });
+
+// OAuth callbacks land on the home page with `?oauth_error=<code>` when
+// the server refused the sign-in (account-takeover guard, missing email,
+// expired 2FA session, etc.). Before this, the redirect happened
+// silently — user saw "click Google → land on home logged-out", which
+// looks like a broken success. Now we surface a human-readable toast
+// and strip the param so refresh doesn't replay the message.
+function showOAuthErrorIfPresent() {
+  let params;
+  try { params = new URLSearchParams(window.location.search); }
+  catch (_) { return; }
+  const code = params.get('oauth_error');
+  if (!code) return;
+
+  const messages = {
+    password_account_exists:
+      'Facebook doesn\'t verify your email with us, so we can\'t safely link it to your existing password account. Sign in with your password (or use Google / GitHub).',
+    no_email:
+      'Your sign-in provider didn\'t share an email address with us. Please use a different sign-in method.',
+    no_pending_2fa:
+      'Your two-factor session expired. Please sign in again.',
+    state_mismatch:
+      'Sign-in could not be verified. Please try again from the home page.',
+    provider_error:
+      'Sign-in failed at the provider. Please try again or use another method.',
+  };
+  const msg = messages[code]
+    || 'Sign-in failed. Please try again or use another method.';
+  if (typeof showToast === 'function') {
+    showToast(msg, 'error');
+  } else {
+    // Fallback if toast helper isn't loaded for some reason.
+    console.warn('[oauth]', msg);
+  }
+  // Clean the URL so a refresh / share doesn't re-trigger the message.
+  params.delete('oauth_error');
+  const qs = params.toString();
+  const cleanUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+  try { window.history.replaceState({}, document.title, cleanUrl); }
+  catch (_) { /* old browsers — leave it */ }
+}
 
 window.addEventListener('resize', adjustFooterPosition);
 

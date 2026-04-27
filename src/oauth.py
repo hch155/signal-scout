@@ -49,6 +49,19 @@ from config import settings
 
 
 logger = logging.getLogger(__name__)
+
+# Providers whose `_resolve_email()` only ever returns addresses that
+# the provider itself has verified (Google: `email_verified` claim in
+# the OIDC ID token; GitHub: `/user/emails` filtered to verified=true).
+# For these, the OAuth callback can safely sign the user in even when a
+# password account exists for the same address — the OAuth round-trip
+# already proved the human controls the mailbox, so the takeover vector
+# (attacker registers a password account using a victim's address before
+# the victim signs up via OAuth) doesn't apply: the mailbox owner is
+# the one signing in. Facebook is intentionally NOT in this set —
+# Graph API doesn't expose a verified flag, so we keep refusing OAuth
+# logins onto password accounts when the provider is Facebook.
+_VERIFIED_EMAIL_PROVIDERS = {'google', 'github'}
 oauth = OAuth()
 
 
@@ -152,21 +165,24 @@ def callback_for_provider(provider: str):
         )
         db.session.add(user)
     else:
-        # ── Account-takeover protection (audit Critical 2) ──
-        # The user already exists. If their password_hash is a real
-        # bcrypt hash (NOT the `!OAUTH-` sentinel), they registered
-        # with a password. Accepting the OAuth login here would let
-        # anyone who controls a provider account with the victim's
-        # email take over the password account — Facebook in
-        # particular doesn't expose `email_verified` so we can't
-        # trust the provider to have done the verification for us.
-        # Refuse the login; the legitimate owner can sign in with
-        # their password and link a provider from /account explicitly.
+        # ── Account-takeover protection (audit Critical 2, refined) ──
+        # The user already exists with a real bcrypt hash (NOT the
+        # `!OAUTH-` sentinel). The original guard refused the sign-in
+        # outright, but for providers in `_VERIFIED_EMAIL_PROVIDERS` the
+        # OAuth round-trip itself is proof of mailbox ownership — the
+        # takeover scenario (attacker pre-registers a password account
+        # using the victim's email) doesn't fire because the mailbox
+        # owner is the human currently signing in. So Google/GitHub get
+        # a normal sign-in (subject to the 2FA gate below). Facebook
+        # has no verified flag in the Graph API response, so the guard
+        # stays active for it.
         ph = user.password_hash or ''
-        if ph and not ph.startswith('!OAUTH-'):
+        if ph and not ph.startswith('!OAUTH-') \
+           and provider not in _VERIFIED_EMAIL_PROVIDERS:
             logger.warning(
-                "OAuth login refused: password account exists "
-                "for email=%s provider=%s", email, provider,
+                "OAuth login refused: password account exists for "
+                "user_id=%s provider=%s (provider does not verify email)",
+                user.id, provider,
             )
             return redirect(
                 url_for('home') +
