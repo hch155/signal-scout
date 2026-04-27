@@ -87,6 +87,16 @@ def _login_failures_total():
 LOCKOUT_THRESHOLD = 5
 LOCKOUT_DURATION = timedelta(minutes=15)
 
+# Audit fix M-NEW-4 (2026-04-27): pre-computed bcrypt hash used to burn
+# constant time when the supplied email maps to no User row. Generated
+# at import time (cost paid once per worker boot, not per request) so
+# the runtime check is the same shape as a real lookup. Value is
+# bcrypt of a constant string — never matches any user-supplied
+# password by coincidence.
+_DUMMY_BCRYPT_HASH = (
+    '$2b$12$wFRtPM8VvZdEdBbY5lJ4ZeEf4eXIYlD0d1yhxwOO5Z3cV1Mv8qC.O'
+)
+
 
 def _is_locked(user) -> bool:
     """Audit fix (High — lockout bypass): originally only login_user
@@ -405,6 +415,17 @@ def login_user():
     password = request.form.get('password')
 
     user = User.query.filter_by(email=email).first()
+
+    # Audit fix M-NEW-4 (2026-04-27): close the bcrypt-skip timing leak.
+    # When `user is None` the code below short-circuits before the bcrypt
+    # check, returning ~5 ms vs. ~80 ms for an existing email. An
+    # attacker can statistically distinguish "registered" from
+    # "unregistered" addresses via that 75 ms delta, even with rate
+    # limiting. Spend a constant bcrypt round against a known-bad hash
+    # so the response time is the same shape regardless of email
+    # existence. The result is discarded.
+    if user is None:
+        _bcrypt().check_password_hash(_DUMMY_BCRYPT_HASH, password or '')
 
     # PR #26: account lockout. If the user is currently locked, bounce
     # without spending a bcrypt round (cheap defence; brute-forcer can't

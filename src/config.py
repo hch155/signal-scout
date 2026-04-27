@@ -180,3 +180,21 @@ class Config:
 
 # Module-level singleton. Imported as `from config import settings`.
 settings = Config()
+
+
+# Audit fix L-NEW-3 (2026-04-27): refuse to boot in production without
+# SECRET_KEY. Without it, every Cloud Run instance generates its own
+# random key on boot via `secrets.token_hex(32)` (see field default
+# above). With session-affinity that *mostly* works — until an
+# instance restarts (deploy, scale-down, OOM), at which point every
+# itsdangerous-signed cookie fails the signature check and every user
+# is silently logged out. Worse: cross-instance requests (browser
+# follows a redirect that lands on the other instance) fail too. Fail
+# fast at boot so a misconfigured deploy is obvious instead of
+# silently breaking sessions for hours.
+if settings.is_production and not _str("SECRET_KEY"):
+    raise RuntimeError(
+        "SECRET_KEY environment variable is required when ENV=PRODUCTION. "
+        "Without it every Cloud Run instance generates its own ephemeral "
+        "key, invalidating sessions on every restart."
+    )
