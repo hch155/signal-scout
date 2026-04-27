@@ -138,6 +138,29 @@ def callback_for_provider(provider: str):
     client = oauth.create_client(provider)
     if client is None:
         return redirect(url_for('home') + '?oauth_error=provider_not_configured')
+
+    # Provider-side rejection: when FB / Google / GitHub bounces the
+    # user back with `?error=...` (e.g. user denied consent, requested
+    # scope not granted, account suspended), there is no `code` to
+    # exchange — calling authorize_access_token() then explodes with
+    # MismatchingStateError because the state cookie lookup expects a
+    # successful round-trip. Surface the provider's own error code as
+    # a friendly oauth_error param instead of the cryptic
+    # token_exchange one. Common shapes:
+    #   FB:     ?error=...&error_code=100&error_message=...
+    #   Google: ?error=access_denied
+    #   GitHub: ?error=access_denied&error_description=...
+    if request.args.get('error') or request.args.get('error_code'):
+        provider_error = (request.args.get('error')
+                          or request.args.get('error_code') or 'unknown')
+        provider_msg = (request.args.get('error_description')
+                        or request.args.get('error_message') or '')
+        logger.warning(
+            "OAuth provider %s rejected callback: error=%s msg=%s",
+            provider, provider_error, provider_msg[:200],
+        )
+        return redirect(url_for('home') + '?oauth_error=provider_rejected')
+
     try:
         token = client.authorize_access_token()
     except Exception:

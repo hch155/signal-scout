@@ -36,6 +36,14 @@ function showOAuthErrorIfPresent() {
       'Your two-factor session expired. Please sign in again.',
     state_mismatch:
       'Sign-in could not be verified. Please try again from the home page.',
+    provider_rejected:
+      'The sign-in provider rejected the request (most likely a missing permission on the app side). Please try a different method, or let the operator know.',
+    token_exchange:
+      'Sign-in could not be completed (token exchange failed). Please try again — if it keeps failing, use a different provider.',
+    db:
+      'Sign-in completed but we couldn\'t save your session. Please try again.',
+    provider_not_configured:
+      'This sign-in method isn\'t enabled. Please use a different one.',
     provider_error:
       'Sign-in failed at the provider. Please try again or use another method.',
   };
