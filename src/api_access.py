@@ -392,6 +392,22 @@ def ensure_user_api_columns(app, db) -> None:
                 conn.execute(text("ALTER TABLE user ADD COLUMN last_totp_code VARCHAR(10)"))
             if 'last_totp_code_at' not in existing:
                 conn.execute(text("ALTER TABLE user ADD COLUMN last_totp_code_at DATETIME"))
+            # Audit fix M-NEW-7 (2026-04-27): audit_event hash chain.
+            # Two new columns on a different table (audit_event), so we
+            # probe its schema separately.
+            audit_existing = {
+                row[1] for row in conn.execute(text(
+                    "PRAGMA table_info(audit_event)"
+                ))
+            }
+            if audit_existing and 'prev_hash' not in audit_existing:
+                conn.execute(text(
+                    "ALTER TABLE audit_event ADD COLUMN prev_hash VARCHAR(64)"
+                ))
+            if audit_existing and 'row_hash' not in audit_existing:
+                conn.execute(text(
+                    "ALTER TABLE audit_event ADD COLUMN row_hash VARCHAR(64)"
+                ))
             # PR #48.3: email_alerts_enabled (default True). Existing
             # rows get DEFAULT 1 → opt-in by default, matches pre-PR
             # behavior where every user was eligible to receive emails.

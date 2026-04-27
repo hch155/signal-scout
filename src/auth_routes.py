@@ -245,26 +245,118 @@ def _redact_ip(s: str) -> str:
     return str(net.network_address)
 
 
+def _compute_audit_row_hash(prev_hash: str, user_id: int, event_type: str,
+                             ip: str, ua: str, meta_json: str | None,
+                             created_at: datetime) -> str:
+    """Audit fix M-NEW-7 (2026-04-27): canonical content hash that
+    chains a row to its predecessor. SHA-256 over a `|`-joined record
+    of the immutable fields. Tampering with any field on a stored row
+    breaks the row's own hash; deleting a middle row breaks the next
+    row's prev_hash linkage. Verifier walks user's events in
+    (created_at, id) order and recomputes."""
+    import hashlib
+    content = "|".join([
+        prev_hash or '',
+        str(user_id),
+        event_type,
+        ip or '',
+        ua or '',
+        meta_json or '',
+        created_at.isoformat(),
+    ])
+    return hashlib.sha256(content.encode('utf-8')).hexdigest()
+
+
 def _audit(event_type: str, user_id: int, meta: dict | None = None) -> None:
     """Record a security-sensitive action against `user_id`. Caller is
     responsible for committing the txn — we add the row to the session so
-    it lands atomically with whatever business write triggered it."""
+    it lands atomically with whatever business write triggered it.
+
+    Hash chain (M-NEW-7): each row carries `prev_hash` (the row_hash of
+    the previous AuditEvent for this user, or '' if first) and
+    `row_hash` (sha256 of prev_hash + this row's canonical content).
+    Verification via verify_audit_chain_for_user(). Best-effort like
+    the rest of audit logging — a chain-stamp failure must not break
+    the business action."""
     try:
         raw_ip = (request.headers.get('X-Forwarded-For')
                   or request.remote_addr or '')
+        ip = _redact_ip(raw_ip)[:64]
+        ua = (request.headers.get('User-Agent') or '')[:256]
+        meta_json_str = json.dumps(meta) if meta else None
+        created_at = datetime.utcnow()
+
+        # Look up the previous event's row_hash for this user. Use the
+        # session's own pending objects too — multiple _audit() calls
+        # in a single request must chain to each other, not skip past.
+        sess = _db().session
+        last_pending = next(
+            (obj for obj in reversed(list(sess.new))
+             if isinstance(obj, AuditEvent) and obj.user_id == user_id),
+            None,
+        )
+        if last_pending is not None:
+            prev_hash = last_pending.row_hash or ''
+        else:
+            prev = (AuditEvent.query
+                    .filter_by(user_id=user_id)
+                    .order_by(AuditEvent.created_at.desc(),
+                              AuditEvent.id.desc())
+                    .first())
+            prev_hash = (prev.row_hash if prev and prev.row_hash else '')
+        row_hash = _compute_audit_row_hash(
+            prev_hash, user_id, event_type, ip, ua, meta_json_str, created_at,
+        )
+
         ev = AuditEvent(
             user_id=user_id,
             event_type=event_type,
-            ip_address=_redact_ip(raw_ip)[:64],
-            user_agent=(request.headers.get('User-Agent') or '')[:256],
-            meta_json=json.dumps(meta) if meta else None,
+            ip_address=ip,
+            user_agent=ua,
+            meta_json=meta_json_str,
+            created_at=created_at,
+            prev_hash=prev_hash,
+            row_hash=row_hash,
         )
-        _db().session.add(ev)
+        sess.add(ev)
     except Exception:
         # Audit is best-effort — never let a failed log break the user-facing
         # action. Log+continue.
         logger.exception("Failed to record audit event %s for user_id=%s",
                          event_type, user_id)
+
+
+def verify_audit_chain_for_user(user_id: int) -> tuple[bool, list[int]]:
+    """Walk user's AuditEvent rows in (created_at, id) order. Returns
+    (is_valid, list_of_broken_event_ids). A row is "broken" if either:
+    - its `prev_hash` doesn't match the prior row's `row_hash`, OR
+    - its `row_hash` doesn't match what we'd recompute.
+
+    Use this in admin tooling / a daily cron to spot tampering. The
+    chain itself is per-user, so a row deleted via /account/delete
+    cascade does NOT show up as broken — that's a legit teardown.
+    M-NEW-7 (audit 2026-04-27).
+    """
+    rows = (AuditEvent.query
+            .filter_by(user_id=user_id)
+            .order_by(AuditEvent.created_at, AuditEvent.id)
+            .all())
+    broken: list[int] = []
+    expected_prev = ''
+    for row in rows:
+        if (row.prev_hash or '') != expected_prev:
+            broken.append(row.id)
+            expected_prev = row.row_hash or ''
+            continue
+        recomputed = _compute_audit_row_hash(
+            row.prev_hash or '', row.user_id, row.event_type,
+            row.ip_address or '', row.user_agent or '', row.meta_json,
+            row.created_at,
+        )
+        if (row.row_hash or '') != recomputed:
+            broken.append(row.id)
+        expected_prev = row.row_hash or ''
+    return (not broken, broken)
 
 
 def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,

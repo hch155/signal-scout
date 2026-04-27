@@ -188,6 +188,15 @@ class AuditEvent(db.Model):
     meta_json = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow,
                            nullable=False, index=True)
+    # Audit fix M-NEW-7 (2026-04-27): tamper-evident chain. Each
+    # row's `row_hash` includes the previous event's row_hash for the
+    # same user, so an attacker who deletes / modifies a row
+    # invalidates the chain at every subsequent row. Verification is
+    # the verify_audit_chain_for_user() helper in auth_routes.
+    # Per-user (not global) chain so /account/delete cascade still
+    # cleanly drops the trail.
+    prev_hash = db.Column(db.String(64))
+    row_hash = db.Column(db.String(64))
 
     user = db.relationship('User',
                            backref=db.backref('audit_events',
