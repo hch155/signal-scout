@@ -2,6 +2,7 @@
 // Loaded only on the account page (script tag in account.html).
 
 document.addEventListener('DOMContentLoaded', () => {
+  initAccountSidebarHighlight();
   // PR #48.3: email notifications toggle. Posts the new value to
   // /account/email_preference; status text gives instant feedback.
   // Failures revert the checkbox so the UI never lies about what's
@@ -133,16 +134,9 @@ document.addEventListener('DOMContentLoaded', () => {
     url: '/account/password',
     okMsg: 'Password updated.',
     onSuccess: (data, form) => {
-      // Server rotated the session and gave us a fresh CSRF token. Patch
-      // the meta tag and every hidden _csrf_token input on the page so
+      // Server rotated the session — patch CSRF token across the page so
       // subsequent forms keep working without a reload.
-      if (data.csrf_token) {
-        const meta = document.querySelector('meta[name="csrf-token"]');
-        if (meta) meta.setAttribute('content', data.csrf_token);
-        document.querySelectorAll('input[name="_csrf_token"]').forEach(i => {
-          i.value = data.csrf_token;
-        });
-      }
+      if (window.applyRotatedCsrfToken) window.applyRotatedCsrfToken(data.csrf_token);
       form.reset();
     },
   });
@@ -664,4 +658,56 @@ function appendKeyRow(data) {
   tdA.appendChild(btn);
   tr.appendChild(tdA);
   tbody.appendChild(tr);
+}
+
+// Faza B sidebar UX: highlight the nav link whose section is currently
+// in view. IntersectionObserver fires on each section entering the
+// upper-half of the viewport; we tag the matching <a class="account-
+// nav-link"> with .is-active so CSS can style it. Also sets aria-current
+// for screen readers. No-op on browsers without IO (graceful fallback —
+// the nav still works, just without the active highlight).
+function initAccountSidebarHighlight() {
+  if (typeof IntersectionObserver === 'undefined') return;
+  const sections = document.querySelectorAll('.account-section');
+  const links = document.querySelectorAll('.account-nav-link');
+  if (!sections.length || !links.length) return;
+
+  const linkBySection = new Map();
+  links.forEach(a => {
+    const id = (a.getAttribute('href') || '').slice(1);
+    if (id) {
+      const list = linkBySection.get(id) || [];
+      list.push(a);
+      linkBySection.set(id, list);
+    }
+  });
+
+  const setActive = (id) => {
+    links.forEach(a => {
+      const isMatch = a.getAttribute('href') === '#' + id;
+      a.classList.toggle('is-active', isMatch);
+      if (isMatch) {
+        a.setAttribute('aria-current', 'true');
+      } else {
+        a.removeAttribute('aria-current');
+      }
+    });
+  };
+
+  const io = new IntersectionObserver((entries) => {
+    // Pick the most-visible section in the active band.
+    const visible = entries
+      .filter(e => e.isIntersecting)
+      .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+    if (visible.length) {
+      setActive(visible[0].target.id);
+    }
+  }, {
+    // Trigger when the section's top crosses the upper third of the
+    // viewport — feels natural for sticky-sidebar reading flows.
+    rootMargin: '-30% 0px -55% 0px',
+    threshold: [0, 0.25, 0.5, 0.75, 1],
+  });
+
+  sections.forEach(s => io.observe(s));
 }

@@ -701,3 +701,13 @@ th[onclick]:hover {
 .card-meta {
   @apply flex items-center gap-1.5 md:gap-2 mb-2 flex-wrap;
 }
+
+/* /account sidebar nav (Faza B): active link highlight driven by
+   IntersectionObserver in account.js. Uses utility classes via @apply
+   so light/dark variants stay aligned with the rest of the surface. */
+.account-nav-link.is-active {
+  @apply bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-l-blue-500;
+}
+.account-nav-link {
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}

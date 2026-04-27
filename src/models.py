@@ -141,6 +141,10 @@ class ApiKey(db.Model):
     # user can see what was active when (audit trail, rotation history).
     revoked_at = db.Column(db.DateTime)
 
+    # NOTE: lazy='dynamic' makes SQLAlchemy cascade='all, delete-orphan' a
+    # silent no-op on this relationship, so account deletion cleans up
+    # ApiKey rows EXPLICITLY in auth_routes.delete_account. If you ever
+    # switch this to lazy='select', remove that explicit step.
     user = db.relationship('User', backref=db.backref('api_keys', lazy='dynamic'))
 
     @property

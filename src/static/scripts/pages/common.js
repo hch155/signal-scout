@@ -21,6 +21,20 @@ function getCsrfToken() {
 }
 window.getCsrfToken = getCsrfToken;
 
+// Apply a server-rotated CSRF token after session.clear() boundaries
+// (login, logout, password change, totp setup/disable) so subsequent
+// CSRF-protected POSTs from the same page don't 403 against the new
+// session token.
+function applyRotatedCsrfToken(token) {
+  if (!token) return;
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  if (meta) meta.setAttribute('content', token);
+  document.querySelectorAll('input[name="_csrf_token"]').forEach(i => {
+    i.value = token;
+  });
+}
+window.applyRotatedCsrfToken = applyRotatedCsrfToken;
+
 function escapeHtml(value) {
   if (value === null || value === undefined) return '';
   return String(value)
@@ -426,6 +440,7 @@ function submitForm(url, formData) {
   .then(data => {
 
       if (data.success) {
+          applyRotatedCsrfToken(data.csrf_token);
           clearLoginForm();
           adjustUIForLoggedOutState();
           if (url === '/login') {

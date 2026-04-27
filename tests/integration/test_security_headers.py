@@ -53,8 +53,9 @@ def test_csp_frame_ancestors_none(client):
 def test_hsts_long_lived(client):
     r = client.get("/")
     sts = r.headers["Strict-Transport-Security"]
-    assert "max-age=31536000" in sts
+    assert "max-age=63072000" in sts
     assert "includeSubDomains" in sts
+    assert "preload" in sts
 
 
 def test_permissions_policy_locks_down_dangerous_apis(client):

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, make_response, g
+from flask import Flask, render_template, request, jsonify, session, make_response, g, redirect
 from flask_bcrypt import Bcrypt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -51,6 +51,11 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.config['SECRET_KEY'] = settings.secret_key
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = settings.static_max_age
+# Cap request body at 1 MiB. Every public endpoint takes small JSON
+# (lat/lng, email/password, short names) — without this Flask defaults
+# to unlimited and a few concurrent multi-hundred-MiB POSTs can OOM a
+# Cloud Run instance. Larger bodies → 413 Request Entity Too Large.
+app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
 bcrypt = Bcrypt(app)
 logging.basicConfig(level=logging.INFO)
 

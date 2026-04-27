@@ -561,9 +561,17 @@ def account_page():
                  .filter_by(user_id=user.id)
                  .order_by(UserLocation.created_at.desc())
                  .all())
+    # Quick-stats hero (Faza B sidebar UX): cheap counts so the user
+    # sees what's in their account without scrolling.
+    quick_stats = {
+        "saved_locations": len(locations),
+        "active_keys": sum(1 for k in api_keys if k.revoked_at is None),
+        "two_fa_on": bool(getattr(user, 'totp_enabled', False)),
+        "alerts_on": bool(getattr(user, 'email_alerts_enabled', True)),
+    }
     return render_template('account.html', user=user,
                            api_keys=api_keys, audit_events=audit_events,
-                           locations=locations)
+                           locations=locations, quick_stats=quick_stats)
 
 
 def regenerate_api_key():
@@ -736,6 +744,12 @@ def delete_account():
 
     user_id = user.id
     try:
+        # ApiKey backref uses lazy='dynamic'; SQLAlchemy cascade='all,
+        # delete-orphan' is silently a no-op against dynamic loaders, so
+        # we delete the children explicitly before the parent. Without
+        # this, orphan rows would still authenticate and crash
+        # /api/v1/* on `ak.user.api_tier`. (C-NEW-1, audit 2026-04-27.)
+        ApiKey.query.filter_by(user_id=user_id).delete(synchronize_session=False)
         _db().session.delete(user)
         _db().session.commit()
     except Exception:
