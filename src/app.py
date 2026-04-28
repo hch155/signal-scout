@@ -100,18 +100,49 @@ if settings.users_db_path and os.path.exists(_baked_stats_history):
     _live_stats_history = os.path.join(
         os.path.dirname(settings.users_db_path), 'stats_history.jsonl'
     )
-    if not os.path.exists(_live_stats_history):
-        try:
-            os.makedirs(os.path.dirname(_live_stats_history), exist_ok=True)
-            shutil.copy2(_baked_stats_history, _live_stats_history)
+    try:
+        os.makedirs(os.path.dirname(_live_stats_history), exist_ok=True)
+        # Merge instead of pure copy: any baked snapshot whose
+        # db_mtime isn't already in the live file gets appended.
+        # Idempotent across re-deploys, and survives the case where
+        # the live mount already had a single live-written snapshot
+        # (pre-seed deploys did this).
+        import json as _json
+        live_mtimes = set()
+        if os.path.exists(_live_stats_history):
+            with open(_live_stats_history, encoding='utf-8') as _f:
+                for _line in _f:
+                    try:
+                        _m = _json.loads(_line).get('db_mtime')
+                        if _m is not None:
+                            live_mtimes.add(round(float(_m)))
+                    except _json.JSONDecodeError:
+                        continue
+        added = 0
+        with open(_baked_stats_history, encoding='utf-8') as _src, \
+             open(_live_stats_history, 'a', encoding='utf-8') as _dst:
+            for _line in _src:
+                try:
+                    _entry = _json.loads(_line)
+                    _m = _entry.get('db_mtime')
+                    if _m is None:
+                        continue
+                    if round(float(_m)) in live_mtimes:
+                        continue
+                    _dst.write(_line if _line.endswith('\n') else _line + '\n')
+                    live_mtimes.add(round(float(_m)))
+                    added += 1
+                except _json.JSONDecodeError:
+                    continue
+        if added:
             logging.getLogger(__name__).info(
-                "Seeded stats_history.jsonl from image into persistent mount: %s",
-                _live_stats_history,
+                "Merged %d baked stats_history snapshots into %s",
+                added, _live_stats_history,
             )
-        except OSError:
-            logging.getLogger(__name__).exception(
-                "Failed to seed stats_history.jsonl"
-            )
+    except OSError:
+        logging.getLogger(__name__).exception(
+            "Failed to seed stats_history.jsonl"
+        )
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{stations_db_path}'
 app.config['SQLALCHEMY_BINDS'] = {
