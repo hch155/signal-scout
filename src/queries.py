@@ -230,18 +230,33 @@ def find_nearest_stations(user_lat, user_lng, limit=None, max_distance=None, ser
         return {"stations": [], "count": 0}
 
 def get_band_stats():
+    # Honeypot rows in BaseStation (audit fix L-NEW-4) carry the
+    # service_provider = '__HONEYPOT__' marker so legitimate
+    # statistics don't get polluted — and so a scraper can't tell
+    # how many honeypot rows we planted by diffing the totals.
+    HONEYPOT_MARKER = '__HONEYPOT__'
+
     # Query for physical site counts per provider
-    physical_sites_query = db.session.query(
-        BaseStation.service_provider, 
-        func.count(distinct(BaseStation.location))
-    ).group_by(BaseStation.service_provider).all()
+    physical_sites_query = (
+        db.session.query(
+            BaseStation.service_provider,
+            func.count(distinct(BaseStation.location))
+        )
+        .filter(BaseStation.service_provider != HONEYPOT_MARKER)
+        .group_by(BaseStation.service_provider).all()
+    )
 
     # Query for band counts per provider
-    band_counts_query = db.session.query(
-        BaseStation.service_provider, 
-        BaseStation.frequency_band,
-        func.count(BaseStation.frequency_band)
-    ).group_by(BaseStation.service_provider, BaseStation.frequency_band).all()
+    band_counts_query = (
+        db.session.query(
+            BaseStation.service_provider,
+            BaseStation.frequency_band,
+            func.count(BaseStation.frequency_band)
+        )
+        .filter(BaseStation.service_provider != HONEYPOT_MARKER)
+        .group_by(BaseStation.service_provider,
+                  BaseStation.frequency_band).all()
+    )
 
     # Organize data
     providers = set()
@@ -261,7 +276,7 @@ def get_band_stats():
 def get_stats():
     stats = get_band_stats()
     band_order = ['5G3600', '5G2100', '5G1800', '5G700', 'LTE2600', 'LTE2100', 'LTE1800', 'LTE900', 'LTE800', 'LTE700', 'UMTS2100', 'UMTS900', 'GSM1800', 'GSM900']
-    
+
     def band_sort_key(band):
         if band in band_order:
             return band_order.index(band)
@@ -269,11 +284,59 @@ def get_stats():
 
     sorted_bands = sorted(stats['bands_data'].keys(), key=band_sort_key)
 
+    # Derived aggregates for the upgraded /stats UI. Cheap (already
+    # have the per-(band,provider) counts in memory) — keeps the
+    # template free of arithmetic + makes the same numbers reusable
+    # for an API endpoint later if we add one.
+    providers = stats['providers']
+    bands_data = stats['bands_data']
+
+    def _gen_of(band: str) -> str:
+        for prefix in ('5G', 'LTE', 'UMTS', 'GSM'):
+            if band.startswith(prefix):
+                return prefix
+        return 'Other'
+
+    # Per-band sum across operators (rightmost "Total" column).
+    band_totals = {
+        band: sum(bands_data[band].values()) for band in sorted_bands
+    }
+    # Per-provider total entries (across all bands).
+    provider_totals = {
+        p: sum(bands_data[band].get(p, 0) for band in sorted_bands)
+        for p in providers
+    }
+    # Per-(provider, generation) breakdown for the "5G vs LTE vs ..."
+    # bar chart at the top. {provider: {'5G': N, 'LTE': N, 'UMTS': N,
+    # 'GSM': N}}.
+    generations = ['5G', 'LTE', 'UMTS', 'GSM']
+    generation_breakdown: dict = {p: {g: 0 for g in generations} for p in providers}
+    for band in sorted_bands:
+        gen = _gen_of(band)
+        if gen not in generations:
+            continue
+        for p in providers:
+            generation_breakdown[p][gen] += bands_data[band].get(p, 0)
+    # Per-generation aggregate (across all providers) for the hero
+    # strip "5G coverage by generation" line.
+    generation_totals = {
+        g: sum(generation_breakdown[p][g] for p in providers)
+        for g in generations
+    }
+
     return {
         'physical_sites': stats['physical_sites'],
-        'bands_data': stats['bands_data'],
-        'providers': stats['providers'],
-        'sorted_bands': sorted_bands
+        'bands_data': bands_data,
+        'providers': providers,
+        'sorted_bands': sorted_bands,
+        'band_totals': band_totals,
+        'provider_totals': provider_totals,
+        'generation_breakdown': generation_breakdown,
+        'generation_totals': generation_totals,
+        'generations': generations,
+        # Hero-strip top-level numbers.
+        'grand_total_sites': sum(stats['physical_sites'].values()),
+        'grand_total_entries': sum(provider_totals.values()),
     }
     
 def get_all_stations():

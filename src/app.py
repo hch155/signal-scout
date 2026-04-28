@@ -643,15 +643,20 @@ def data_page():
 @app.route('/stats')
 def stats_page():
     stats = get_stats()
-    response = make_response(render_template('stats.html', stats=stats))
     # Stations DB only changes with the monthly UKE refresh — its mtime
     # is the right cache key for /stats. Falls back to app_version if
     # the file is missing (test envs / first boot) so the ETag still
     # invalidates per deploy.
     try:
         db_mtime = os.path.getmtime(stations_db_path)
+        from datetime import datetime as _dt
+        last_refresh_iso = _dt.utcfromtimestamp(db_mtime).strftime('%Y-%m-%d')
     except OSError:
         db_mtime = 0.0
+        last_refresh_iso = 'unknown'
+    response = make_response(render_template(
+        'stats.html', stats=stats, last_refresh=last_refresh_iso,
+    ))
     _set_content_etag(response, f"stats:{db_mtime:.6f}")
     return response
 
