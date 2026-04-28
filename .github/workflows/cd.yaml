@@ -1,8 +1,28 @@
 name: cd
 
+# 2026-04-28: switched from `push: branches: [main]` to manual-only
+# trigger. The push-trigger relied on the GCP_CREDENTIALS secret, a
+# service-account JSON key issued in February 2024 that has since
+# expired/been-rotated — every push since spammed a 3-second red ❌
+# on the Actions tab. Manual deploy via local `gcloud builds submit`
+# + `gcloud run deploy` (see docs/operator-tasks.md and the recent
+# session history) is the actual path used in practice.
+#
+# To restore real push-triggered CD, set up Workload Identity
+# Federation (no long-lived JSON key — see
+# docs/cd-workload-identity-federation.md for the steps), then
+# change `on:` back to `push: branches: [main]` and update the auth
+# step to use `workload_identity_provider` + `service_account`
+# instead of `credentials_json`. Until then, hit "Run workflow" in
+# the Actions UI for a one-off automated deploy (still requires a
+# valid GCP_CREDENTIALS secret OR the WIF setup above).
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      app_version:
+        description: 'APP_VERSION override (CalVer + sha7). Leave blank to autogenerate.'
+        required: false
+        default: ''
 
 # Serialise CD runs so concurrent merges (e.g. three PRs landing within
 # the same minute) don't trigger three parallel `gcloud builds submit`
@@ -71,7 +91,13 @@ jobs:
         run: |
           # PR #46.5: 'YYYY.MM.DD-<sha7>' format.
           # Owner clicks the footer to land on this exact commit on GitHub.
-          echo "value=$(date -u +%Y.%m.%d)-$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+          # workflow_dispatch input wins if provided.
+          INPUT_VERSION="${{ inputs.app_version }}"
+          if [ -n "$INPUT_VERSION" ]; then
+            echo "value=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=$(date -u +%Y.%m.%d)-$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Deploy to Cloud Run
         env:
