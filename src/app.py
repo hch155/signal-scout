@@ -938,6 +938,61 @@ def admin_run_retention():
     return jsonify({"success": True, "deleted": deleted}), 200
 
 
+@app.route('/admin/run_coverage_alerts', methods=['POST'])
+@limiter.limit("6 per hour")
+def admin_run_coverage_alerts():
+    """2026-04-28: Cloud-Scheduler-callable trigger for the saved-
+    location coverage-alert sweep.
+
+    Same auth shape as /admin/run_retention: admin session OR
+    `Authorization: Bearer <METRICS_BEARER_TOKEN>`. Optional
+    `?dry-run=1` query param to compute diffs + log without sending
+    emails or writing snapshots — useful for the first call after a
+    DB refresh to confirm shape before firing real emails.
+
+    Returns {success, counts: {first-run, no-change, sent,
+    send-failed, skipped, total_processed}, dry_run}.
+
+    Suggested cron schedule: a few hours after the
+    monthly-db-update.yaml workflow lands the new stations.db (which
+    happens 27th 19:15 UTC), e.g. 28th 06:00 UTC. That gives the
+    Cloud Run instance time to pick up the new image and the gcsfuse
+    mount time to settle. See docs/cd-workload-identity-federation.md
+    for the Cloud Scheduler HTTP target shape — same Bearer token
+    + same admin endpoint pattern as the retention one.
+    """
+    auth_header = request.headers.get('Authorization', '')
+    bearer_ok = bool(
+        settings.metrics_bearer_token
+        and auth_header == f"Bearer {settings.metrics_bearer_token}"
+    )
+    if not bearer_ok:
+        if 'user_id' not in session:
+            return jsonify({"error": "auth_required"}), 401
+        from models import User as _U
+        user = _U.query.get(session['user_id'])
+        if not _is_admin(user):
+            return jsonify({"error": "forbidden"}), 403
+        if not validate_csrf():
+            return jsonify({"error": "csrf_failed"}), 403
+
+    dry_run = request.args.get('dry-run') in ('1', 'true', 'yes')
+    from coverage_alerts import run_coverage_alert_sweep
+    try:
+        counts = run_coverage_alert_sweep(dry_run=dry_run, verbose=False)
+    except Exception:
+        app.logger.exception("admin_run_coverage_alerts failed")
+        return jsonify({"error": "coverage_alerts_failed"}), 500
+    app.logger.info(
+        "Coverage-alert sweep (%s): processed=%d sent=%d send-failed=%d "
+        "first-run=%d no-change=%d skipped=%d",
+        'DRY-RUN' if dry_run else 'LIVE',
+        counts['total_processed'], counts['sent'], counts['send-failed'],
+        counts['first-run'], counts['no-change'], counts['skipped'],
+    )
+    return jsonify({"success": True, "dry_run": dry_run, "counts": counts}), 200
+
+
 @app.route('/admin/stats', methods=['GET'])
 @limiter.limit("30 per hour")
 def admin_stats():

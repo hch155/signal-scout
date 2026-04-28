@@ -1,0 +1,180 @@
+"""Coverage-alert sweep — shared by the CLI runner + the admin
+endpoint.
+
+For every UserLocation with alerting_enabled=True:
+  1. Compute current coverage gaps (find_coverage_gaps).
+  2. Diff against last_coverage_state (JSON snapshot persisted on the
+     row from the previous run).
+  3. If anything materially changed (band gained / lost / nearest-BTS
+     distance moved more than MIN_DISTANCE_DELTA_KM), send the
+     coverage-alert email + stamp the new snapshot.
+
+Originally this lived as a one-shot inside scripts/coverage_alert_
+run.py. The 2026-04-28 split moves the actual work here so /admin/
+run_coverage_alerts (Cloud-Scheduler-callable) can re-use it without
+shelling out to a script. The script keeps an argparse CLI that
+just calls run_coverage_alert_sweep().
+"""
+from __future__ import annotations
+
+import json
+import logging
+from datetime import datetime
+from typing import Optional
+
+from database import db
+from models import UserLocation, User
+from queries import find_coverage_gaps
+import emails
+
+
+MIN_DISTANCE_DELTA_KM = 1.0  # ignore wobble below this — tile changes etc
+
+logger = logging.getLogger('coverage_alerts')
+
+
+def _coverage_to_dict(cov: dict) -> dict:
+    """Reduce find_coverage_gaps output to the bits we actually diff:
+    one number (nearest_distance_km) per band. Drops the BTS metadata
+    so the snapshot stays small and stable across refreshes that didn't
+    really change coverage (e.g. BTS row reordering)."""
+    return {
+        'gaps': [
+            {
+                'band': g['band'],
+                'nearest_distance_km': float(g.get('nearest_distance_km', 0.0)),
+                'has_coverage': bool(g.get('has_coverage', False)),
+            }
+            for g in cov.get('gaps', [])
+        ],
+        'recorded_at': datetime.utcnow().isoformat(timespec='seconds') + 'Z',
+    }
+
+
+def _diff(before: dict, after: dict):
+    """Return (gained, lost, distance_changes).
+
+    gained / lost are lists of band names (str).
+    distance_changes is a list of {band, before_km, after_km, delta_km}
+    for bands present in BOTH snapshots whose nearest-BTS distance moved
+    by more than MIN_DISTANCE_DELTA_KM."""
+    before_by_band = {g['band']: g for g in before.get('gaps', [])}
+    after_by_band = {g['band']: g for g in after.get('gaps', [])}
+
+    before_covered = {b for b, g in before_by_band.items() if g['has_coverage']}
+    after_covered = {b for b, g in after_by_band.items() if g['has_coverage']}
+
+    gained = sorted(after_covered - before_covered)
+    lost = sorted(before_covered - after_covered)
+
+    distance_changes = []
+    for band, after_g in after_by_band.items():
+        if band not in before_by_band:
+            continue
+        before_g = before_by_band[band]
+        delta = after_g['nearest_distance_km'] - before_g['nearest_distance_km']
+        if abs(delta) >= MIN_DISTANCE_DELTA_KM:
+            distance_changes.append({
+                'band': band,
+                'before_km': before_g['nearest_distance_km'],
+                'after_km': after_g['nearest_distance_km'],
+                'delta_km': delta,
+            })
+    distance_changes.sort(key=lambda c: -abs(c['delta_km']))
+
+    return gained, lost, distance_changes
+
+
+def _process(loc: UserLocation, *, dry_run: bool, verbose: bool) -> str:
+    """Return a one-word status: 'first-run', 'no-change', 'sent',
+    'send-failed', 'skipped'."""
+    after = _coverage_to_dict(find_coverage_gaps(loc.lat, loc.lng))
+    after_json = json.dumps(after, sort_keys=True)
+
+    before = None
+    if loc.last_coverage_state:
+        try:
+            before = json.loads(loc.last_coverage_state)
+        except Exception:
+            logger.exception(
+                "loc id=%s has malformed last_coverage_state — treating as first run",
+                loc.id,
+            )
+            before = None
+
+    if before is None:
+        if not dry_run:
+            loc.last_coverage_state = after_json
+            db.session.commit()
+        if verbose:
+            logger.info(
+                "loc id=%s user=%s name=%r → first-run, snapshot stored",
+                loc.id, loc.user_id, loc.name,
+            )
+        return 'first-run'
+
+    gained, lost, distance_changes = _diff(before, after)
+
+    if not gained and not lost and not distance_changes:
+        if not dry_run:
+            loc.last_coverage_state = after_json
+            db.session.commit()
+        if verbose:
+            logger.info(
+                "loc id=%s user=%s name=%r → no meaningful change",
+                loc.id, loc.user_id, loc.name,
+            )
+        return 'no-change'
+
+    user = User.query.get(loc.user_id)
+    if user is None:
+        logger.warning(
+            "loc id=%s references missing user_id=%s — skipping",
+            loc.id, loc.user_id,
+        )
+        return 'skipped'
+
+    logger.info(
+        "loc id=%s user=%s name=%r → diff: gained=%s lost=%s distance_changes=%d",
+        loc.id, user.email, loc.name,
+        gained or '-', lost or '-', len(distance_changes),
+    )
+
+    if dry_run:
+        return 'sent'  # would have sent
+
+    ok = emails.send_coverage_alert(user, loc, gained, lost, distance_changes)
+    if ok:
+        loc.last_alert_sent_at = datetime.utcnow()
+    loc.last_coverage_state = after_json
+    db.session.commit()
+    return 'sent' if ok else 'send-failed'
+
+
+def run_coverage_alert_sweep(*, dry_run: bool = False,
+                              user_id: Optional[int] = None,
+                              verbose: bool = False) -> dict:
+    """Process every alerting-enabled UserLocation. Returns a status-
+    counts dict — drop-in for both the CLI logger and the admin
+    endpoint JSON response.
+
+    MUST be called inside an active Flask app context (the script
+    runner pushes one explicitly; the admin endpoint is already
+    inside one for the duration of the request)."""
+    q = UserLocation.query.filter_by(alerting_enabled=True)
+    if user_id is not None:
+        q = q.filter_by(user_id=user_id)
+    locs = q.order_by(UserLocation.id).all()
+
+    counts = {
+        'first-run': 0, 'no-change': 0, 'sent': 0,
+        'send-failed': 0, 'skipped': 0,
+    }
+    for loc in locs:
+        status = _process(loc, dry_run=dry_run, verbose=verbose)
+        counts[status] = counts.get(status, 0) + 1
+    counts['total_processed'] = sum(
+        counts[k] for k in
+        ('first-run', 'no-change', 'sent', 'send-failed', 'skipped')
+    )
+    return counts
