@@ -88,6 +88,31 @@ if (settings.users_db_path
         "Seeded users.db from image into persistent mount: %s", settings.users_db_path
     )
 
+# 2026-04-28: same idea for stats_history.jsonl. Lives next to users.db
+# (gcsfuse mount in prod) so /stats can render MoM deltas + the
+# 24-month trend chart without waiting another month for the next
+# refresh to accumulate a comparison baseline. The image ships with
+# the historical-replay-bootstrapped jsonl (see scripts/replay_stats_
+# history*.py); this seed only copies on FIRST boot of a fresh mount,
+# so subsequent live snapshots written into the mount are preserved.
+_baked_stats_history = os.path.join(basedir, 'instance', 'stats_history.jsonl')
+if settings.users_db_path and os.path.exists(_baked_stats_history):
+    _live_stats_history = os.path.join(
+        os.path.dirname(settings.users_db_path), 'stats_history.jsonl'
+    )
+    if not os.path.exists(_live_stats_history):
+        try:
+            os.makedirs(os.path.dirname(_live_stats_history), exist_ok=True)
+            shutil.copy2(_baked_stats_history, _live_stats_history)
+            logging.getLogger(__name__).info(
+                "Seeded stats_history.jsonl from image into persistent mount: %s",
+                _live_stats_history,
+            )
+        except OSError:
+            logging.getLogger(__name__).exception(
+                "Failed to seed stats_history.jsonl"
+            )
+
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{stations_db_path}'
 app.config['SQLALCHEMY_BINDS'] = {
     'users': f'sqlite:///{users_db_path}'
