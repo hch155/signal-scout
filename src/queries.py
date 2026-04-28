@@ -353,6 +353,102 @@ def get_stats():
         for g in generations
     }
 
+    # 2026-04-28: telco-grade KPIs — what real operators / equipment
+    # vendors track in their network monitoring dashboards.
+    HONEYPOT_MARKER = '__HONEYPOT__'
+
+    # 1) 5G race tracker: % of operator's sites with at least one 5G
+    #    band. Same shape RAN vendors publish in quarterly investor
+    #    decks ("X of our customer's sites are 5G-enabled").
+    five_g_sites_by_op = (
+        db.session.query(
+            BaseStation.service_provider,
+            func.count(distinct(BaseStation.location)),
+        )
+        .filter(BaseStation.service_provider != HONEYPOT_MARKER)
+        .filter(BaseStation.frequency_band.like('5G%'))
+        .group_by(BaseStation.service_provider).all()
+    )
+    five_g_coverage = {}
+    for p in providers:
+        total_sites = stats['physical_sites'].get(p, 0) or 0
+        with_5g = dict(five_g_sites_by_op).get(p, 0)
+        five_g_coverage[p] = {
+            'sites_with_5g': int(with_5g),
+            'total_sites': int(total_sites),
+            'pct': round(100.0 * with_5g / total_sites, 1) if total_sites else 0.0,
+        }
+
+    # 2) Legacy modernization debt: sites that have ONLY GSM (no LTE
+    #    or 5G). Real operators are aggressively shutting these down
+    #    (T-Mobile EU has already pulled 3G/2G from chunks of their
+    #    fleet). Tracker = "still legacy = future capex".
+    gsm_only_subq = (
+        db.session.query(BaseStation.service_provider,
+                         BaseStation.location)
+        .filter(BaseStation.service_provider != HONEYPOT_MARKER)
+        .group_by(BaseStation.service_provider, BaseStation.location)
+        .having(func.sum(case(
+            (BaseStation.frequency_band.like('LTE%'), 1),
+            (BaseStation.frequency_band.like('5G%'), 1),
+            (BaseStation.frequency_band.like('UMTS%'), 1),
+            else_=0,
+        )) == 0)
+        .having(func.sum(case(
+            (BaseStation.frequency_band.like('GSM%'), 1),
+            else_=0,
+        )) > 0)
+        .subquery()
+    )
+    gsm_only_by_op = dict(
+        db.session.query(
+            gsm_only_subq.c.service_provider,
+            func.count('*'),
+        ).group_by(gsm_only_subq.c.service_provider).all()
+    )
+    legacy_debt = {
+        p: int(gsm_only_by_op.get(p, 0)) for p in providers
+    }
+
+    # 3) Co-located sites (network-sharing index): single
+    #    geographic location used by 2+ operators. Higher value =
+    #    more shared towers (cost efficiency, regulatory pressure).
+    colocated_sites_q = (
+        db.session.query(
+            BaseStation.location,
+            func.count(distinct(BaseStation.service_provider)).label('op_count'),
+        )
+        .filter(BaseStation.service_provider != HONEYPOT_MARKER)
+        .filter(BaseStation.location.isnot(None))
+        .group_by(BaseStation.location)
+        .having(func.count(distinct(BaseStation.service_provider)) >= 2)
+        .all()
+    )
+    colocated_count = len(colocated_sites_q)
+    colocated_by_op_count: dict = {2: 0, 3: 0, 4: 0}
+    for _loc, op_count in colocated_sites_q:
+        bucket = min(int(op_count), 4)
+        colocated_by_op_count[bucket] = colocated_by_op_count.get(bucket, 0) + 1
+
+    # 4) Top 10 cities by total physical sites — most-built-out
+    #    metro areas. Standard geographic-distribution panel.
+    top_cities_query = (
+        db.session.query(
+            BaseStation.city,
+            func.count(distinct(BaseStation.location)).label('sites'),
+        )
+        .filter(BaseStation.service_provider != HONEYPOT_MARKER)
+        .filter(BaseStation.city.isnot(None))
+        .filter(BaseStation.city != '—')
+        .group_by(BaseStation.city)
+        .order_by(func.count(distinct(BaseStation.location)).desc())
+        .limit(10).all()
+    )
+    top_cities = [
+        {'city': city, 'sites': int(sites)}
+        for (city, sites) in top_cities_query
+    ]
+
     sites_per_generation = stats.get('sites_per_generation', {})
     # Average bands per site per (provider, generation) — derived
     # context that explains why "LTE entries" inflates relative to
@@ -380,6 +476,12 @@ def get_stats():
         'generations': generations,
         'sites_per_generation': sites_per_generation,
         'avg_bands_per_site': avg_bands_per_site,
+        # Telco KPIs (2026-04-28).
+        'five_g_coverage': five_g_coverage,
+        'legacy_debt': legacy_debt,
+        'colocated_count': int(colocated_count),
+        'colocated_by_op_count': colocated_by_op_count,
+        'top_cities': top_cities,
         # Hero-strip top-level numbers.
         'grand_total_sites': sum(stats['physical_sites'].values()),
         'grand_total_entries': sum(provider_totals.values()),

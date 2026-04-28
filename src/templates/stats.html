@@ -119,6 +119,100 @@
         </div>
     </div>
 
+    {# ── Telco KPIs (2026-04-28): the dashboards real operators
+       and equipment vendors (Ericsson/Nokia) ship for network
+       monitoring. 5G race + legacy debt + co-location + top metros. #}
+    <div class="px-2 md:px-4 mb-4 max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        {# 5G race tracker — % of operator sites with at least 1 5G band #}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">5G race</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                Share of each operator's sites that broadcast at least one 5G band. The KPI vendors quote in investor decks.
+            </p>
+            <div class="space-y-3">
+                {% for provider in stats.providers %}
+                {% set cov = stats.five_g_coverage[provider] %}
+                {% if cov.total_sites > 0 %}
+                <div>
+                    <div class="flex items-baseline justify-between mb-1">
+                        <span class="font-medium text-gray-900 dark:text-white">{{ provider_short.get(provider, provider) }}</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ "{:,}".format(cov.sites_with_5g) }} / {{ "{:,}".format(cov.total_sites) }} sites</span>
+                    </div>
+                    <div class="w-full h-3 bg-gray-100 dark:bg-gray-700 rounded">
+                        <div class="h-3 rounded {{ generation_color['5G'] }}" style="width: {{ cov.pct }}%;" title="{{ cov.pct }}%"></div>
+                    </div>
+                    <p class="text-xs text-emerald-700 dark:text-emerald-400 font-semibold mt-1">{{ cov.pct }}%</p>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        {# Legacy modernization debt — sites stuck on GSM-only #}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Legacy modernization debt</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                Physical sites broadcasting <strong>only GSM</strong> (no LTE / 5G / UMTS overlay). T-Mobile EU has already pulled 3G/2G from chunks of their fleet — these are future capex events.
+            </p>
+            <div class="space-y-2">
+                {% for provider in stats.providers %}
+                {% set debt = stats.legacy_debt[provider] %}
+                {% set total = stats.physical_sites.get(provider, 0) %}
+                {% if total > 0 %}
+                <div class="flex items-baseline justify-between text-sm">
+                    <span class="font-medium text-gray-900 dark:text-white">{{ provider_short.get(provider, provider) }}</span>
+                    <span class="text-gray-700 dark:text-gray-200">
+                        <span class="font-bold {{ 'text-amber-700 dark:text-amber-400' if debt > 0 else 'text-green-700 dark:text-green-400' }}">{{ "{:,}".format(debt) }}</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">/ {{ "{:,}".format(total) }} ({{ "%.1f"|format(100.0 * debt / total) }}%)</span>
+                    </span>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        {# Co-location index — site sharing between operators #}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Network sharing (co-located sites)</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                Single physical address used by ≥2 operators. Higher numbers = more shared towers (cost efficiency, regulatory pressure for rural coverage).
+            </p>
+            <div class="grid grid-cols-3 gap-2 text-center">
+                {% for ops in [2, 3, 4] %}
+                <div class="p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                    <p class="text-xl font-bold text-gray-900 dark:text-white">{{ "{:,}".format(stats.colocated_by_op_count.get(ops, 0)) }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ ops }}{% if ops == 4 %}+{% endif %} operators</p>
+                </div>
+                {% endfor %}
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                Total shared sites: <span class="font-semibold text-gray-900 dark:text-white">{{ "{:,}".format(stats.colocated_count) }}</span> ({{ "%.1f"|format(100.0 * stats.colocated_count / stats.grand_total_sites) if stats.grand_total_sites else '0' }}% of fleet)
+            </p>
+        </div>
+
+        {# Top metros by site count #}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Top 10 metros by site count</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                Densest cities in the dataset (across all 4 operators). Network capacity proxy.
+            </p>
+            <ol class="space-y-1.5">
+                {% set max_city = stats.top_cities[0].sites if stats.top_cities else 1 %}
+                {% for c in stats.top_cities %}
+                <li class="flex items-baseline gap-2 text-sm">
+                    <span class="text-xs text-gray-400 dark:text-gray-500 w-4">{{ loop.index }}.</span>
+                    <span class="font-medium text-gray-900 dark:text-white truncate flex-shrink-0 w-28">{{ c.city }}</span>
+                    <div class="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded">
+                        <div class="h-2 bg-blue-500 dark:bg-blue-600 rounded" style="width: {{ (100.0 * c.sites / max_city) | round(0) }}%;"></div>
+                    </div>
+                    <span class="text-xs font-mono text-gray-700 dark:text-gray-200 w-14 text-right">{{ "{:,}".format(c.sites) }}</span>
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+    </div>
+
     {# ── Sites per generation: the "real coverage" cut ─────────── #}
     <div class="px-2 md:px-4 mb-4 max-w-5xl mx-auto">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
