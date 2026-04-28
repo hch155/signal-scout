@@ -254,6 +254,19 @@ def callback_for_provider(provider: str):
     session['_csrf_token'] = new_csrf
     session['user_id'] = user.id
 
+    # 2026-04-28: business-action counter so Grafana can split
+    # OAuth-flow logins from password-flow logins (the latter goes
+    # through _audit('login.success', ...) which the audit→action
+    # map turns into 'login_password').
+    try:
+        from observability import user_action_total
+        user_action_total.labels(
+            action='login_oauth',
+            user_class='session',
+        ).inc()
+    except Exception:
+        pass
+
     return redirect('/account')
 
 

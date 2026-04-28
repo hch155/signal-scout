@@ -20,6 +20,10 @@ from observability import (
     classify_user_agent,
     # PR #44: industry-standard observability extensions
     in_flight_requests,
+    http_requests_total,
+    http_request_duration_seconds,
+    user_action_total,
+    request_user_class,
     public_requests_total,
     record_incident,
     compute_public_status,
@@ -357,6 +361,16 @@ def _saturation_inc():
         in_flight_requests.inc()
     except Exception:
         pass
+    # Per-endpoint duration (added 2026-04-28). Stamp request start
+    # so the after_request hook can compute elapsed without needing
+    # its own clock reading. Stored on flask.g so concurrent requests
+    # don't trample each other.
+    try:
+        from flask import g as _g
+        import time as _t
+        _g._req_start_perf = _t.perf_counter()
+    except Exception:
+        pass
 
 
 @app.after_request
@@ -368,6 +382,32 @@ def _saturation_dec_and_count(response):
         public_requests_total.inc()
         if 500 <= response.status_code < 600:
             record_incident()
+    except Exception:
+        pass
+    # Per-endpoint HTTP funnel + duration (added 2026-04-28).
+    # endpoint label uses request.endpoint (the Flask view-function
+    # name) rather than request.path so dynamic routes like
+    # /account/keys/<int:key_id>/revoke don't blow up cardinality
+    # with one series per key_id. Status bucketed to 2xx/3xx/4xx/5xx
+    # for the same reason — 410 vs 404 vs 403 etc. all roll into 4xx.
+    try:
+        endpoint = request.endpoint or 'unknown'
+        status_bucket = f"{response.status_code // 100}xx"
+        user_class = request_user_class()
+        http_requests_total.labels(
+            method=request.method,
+            endpoint=endpoint,
+            status=status_bucket,
+            user_class=user_class,
+        ).inc()
+        from flask import g as _g
+        import time as _t
+        start = getattr(_g, '_req_start_perf', None)
+        if start is not None:
+            http_request_duration_seconds.labels(
+                method=request.method,
+                endpoint=endpoint,
+            ).observe(_t.perf_counter() - start)
     except Exception:
         pass
     return response
@@ -1080,6 +1120,16 @@ def submit_location():
                             "message": "limit/max_distance must be numeric."}), 400
 
         station_search_total.labels(endpoint='submit_location').inc()
+        # 2026-04-28: business-action counter so Grafana can answer
+        # "how many submit_location calls are landing per minute,
+        # split between anon and logged-in browsers + API tiers?".
+        try:
+            user_action_total.labels(
+                action='submit_location',
+                user_class=request_user_class(),
+            ).inc()
+        except Exception:
+            pass
         nearest_stations = find_nearest_stations(user_lat, user_lng, limit=limit, max_distance=max_distance)
 
         # PR #48.4: pseudonymized event log. Best-effort write — a DB

@@ -247,6 +247,79 @@ slo_error_budget_remaining_ratio = Gauge(
     "slo_availability_ratio with a 99.5% target.",
 )
 
+# ── Per-endpoint HTTP funnel (added 2026-04-28) ───────────────────────────
+#
+# RED-method counter for EVERY HTTP route, not just /api/v1/*. Lets
+# Grafana / Zabbix answer:
+#   - "which endpoint is hottest right now?" — sort by rate(...)
+#   - "who's hitting /submit_location and how does it split between
+#     anon and logged-in?" — slice by user_class
+#   - "did the new /admin/run_retention land any 500s in the last hour?"
+#     — filter status>=500 on endpoint='admin_run_retention'
+#
+# Cardinality budget: ~30 routes × 4 status buckets × 5 user classes =
+# ~600 series. Well under any reasonable Prometheus host.
+
+http_requests_total = Counter(
+    "signal_scout_http_requests_total",
+    "All HTTP requests served by the app, broken down by route + "
+    "status bucket + user class. Method label kept too so GET vs "
+    "POST splits aren't lost. user_class one of: 'anon' (no session, "
+    "no API key), 'session' (logged-in via cookie), 'api_free' / "
+    "'api_pro' / 'api_enterprise' (X-API-Key authenticated, by tier).",
+    labelnames=("method", "endpoint", "status", "user_class"),
+)
+
+http_request_duration_seconds = Histogram(
+    "signal_scout_http_request_duration_seconds",
+    "Duration histogram for every HTTP route. Companion to "
+    "http_requests_total — use histogram_quantile for p50/p95/p99 "
+    "per endpoint in Grafana. Buckets cover the typical 5ms..10s "
+    "Cloud Run response shape.",
+    labelnames=("method", "endpoint"),
+    buckets=(
+        0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0,
+    ),
+)
+
+# Business-action counter for the user-visible verbs that aren't
+# 1:1 with an endpoint (e.g. submit_location can succeed or hit
+# bounds-validation 400 — both are 'submit_location' events but
+# only the success matters for the funnel). Bumped explicitly from
+# the route handlers — see app.py + auth_routes.py + oauth.py.
+user_action_total = Counter(
+    "signal_scout_user_action_total",
+    "High-level user actions completed successfully, broken down by "
+    "action name and user class. Action vocabulary: "
+    "submit_location, location_create, location_delete, "
+    "location_snapshot, register, login_password, login_oauth, "
+    "logout, totp_setup, totp_disable, api_key_create, "
+    "api_key_revoke, account_delete. Use rate() for activity per "
+    "minute, sum by (action) for global tallies.",
+    labelnames=("action", "user_class"),
+)
+
+
+def request_user_class() -> str:
+    """Bucket the current request into a user_class label value.
+
+    Reads flask.g.api_key_tier (set by api_access middleware when an
+    X-API-Key header authenticated the request) before falling back
+    to session.get('user_id'). Anonymous browser requests → 'anon'.
+    Best-effort — never raises, returns 'anon' on any unexpected
+    state."""
+    try:
+        from flask import g, session
+        tier = getattr(g, 'api_key_tier', None)
+        if tier:
+            return f"api_{tier}"
+        if session.get('user_id'):
+            return 'session'
+    except Exception:
+        pass
+    return 'anon'
+
+
 funnel_register_started_total = Counter(
     "signal_scout_funnel_register_started_total",
     "Conversion funnel step 1: POST /register attempts (any outcome). "

@@ -267,6 +267,29 @@ def _compute_audit_row_hash(prev_hash: str, user_id: int, event_type: str,
     return hashlib.sha256(content.encode('utf-8')).hexdigest()
 
 
+# 2026-04-28: every audit event is also a Prometheus business-action
+# event. Map the audit event_type -> user_action label value so the
+# /metrics output gives Grafana per-action rate counters without the
+# per-route handlers each having to remember an extra .inc() call.
+# Events not in this map (e.g. login.fail, account.locked — already
+# covered by the lockout-counter Gauge / login_failures_total) are
+# intentionally skipped — adding them would double-count failures.
+_AUDIT_TO_USER_ACTION = {
+    'login.success':    'login_password',
+    'logout':           'logout',
+    'password.changed': 'password_change',
+    'profile.updated':  'profile_update',
+    '2fa.enabled':      'totp_setup',
+    '2fa.disabled':     'totp_disable',
+    'apikey.created':   'api_key_create',
+    'apikey.revoked':   'api_key_revoke',
+    'location.created': 'location_create',
+    'location.updated': 'location_update',
+    'location.deleted': 'location_delete',
+    'snapshot.taken':   'location_snapshot',
+}
+
+
 def _audit(event_type: str, user_id: int, meta: dict | None = None) -> None:
     """Record a security-sensitive action against `user_id`. Caller is
     responsible for committing the txn — we add the row to the session so
@@ -324,6 +347,19 @@ def _audit(event_type: str, user_id: int, meta: dict | None = None) -> None:
         # action. Log+continue.
         logger.exception("Failed to record audit event %s for user_id=%s",
                          event_type, user_id)
+    # Mirror to Prometheus user_action_total when the event is in
+    # the map (see _AUDIT_TO_USER_ACTION above). Same best-effort
+    # contract as the audit row insert.
+    action = _AUDIT_TO_USER_ACTION.get(event_type)
+    if action is not None:
+        try:
+            from observability import user_action_total, request_user_class
+            user_action_total.labels(
+                action=action,
+                user_class=request_user_class(),
+            ).inc()
+        except Exception:
+            pass
 
 
 def verify_audit_chain_for_user(user_id: int) -> tuple[bool, list[int]]:
@@ -530,6 +566,16 @@ def register_user():
         _db().session.commit()
         # PR #44 funnel step 2: register completed (HTTP 200 path).
         funnel_register_completed_total.inc()
+        # 2026-04-28: also bump the unified user_action_total counter
+        # so Grafana per-action queries don't have to special-case
+        # the funnel metric.
+        try:
+            from observability import user_action_total, request_user_class
+            user_action_total.labels(
+                action='register', user_class=request_user_class(),
+            ).inc()
+        except Exception:
+            pass
         return jsonify({"success": True, "message": "User registered successfully."}), 200
     except Exception:
         _db().session.rollback()
