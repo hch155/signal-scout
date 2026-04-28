@@ -254,6 +254,50 @@
         </div>
     </div>
 
+    {# ── Trend over time (2026-04-28) ──────────────────────────── #}
+    {% if monthly_history and monthly_history|length >= 2 %}
+    <div class="px-2 md:px-4 mb-4 max-w-5xl mx-auto">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Trend over time</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                {{ monthly_history|length }} monthly snapshots. Each bar = one UKE refresh; height = total entries (5G + LTE + UMTS + GSM bands across all operators); blue overlay = physical sites (right-axis).
+            </p>
+            {% set max_entries = monthly_history | map(attribute='entries') | max %}
+            {% set max_sites = monthly_history | map(attribute='sites') | max %}
+            <div class="flex items-end gap-px h-40 border-b border-gray-200 dark:border-gray-700 pb-1">
+                {% for h in monthly_history %}
+                {% set entries_pct = (100 * h.entries / max_entries) if max_entries > 0 else 0 %}
+                {% set sites_pct = (100 * h.sites / max_sites) if max_sites > 0 else 0 %}
+                <div class="flex-1 flex flex-col items-center justify-end relative group" title="{{ h.month }}: {{ '{:,}'.format(h.entries) }} entries / {{ '{:,}'.format(h.sites) }} sites">
+                    <div class="absolute bottom-0 w-1.5 bg-blue-500 dark:bg-blue-600 rounded-t" style="height: {{ sites_pct }}%; left: 50%; transform: translateX(-50%); z-index: 2;"></div>
+                    <div class="w-full bg-emerald-200 dark:bg-emerald-900/60 rounded-t" style="height: {{ entries_pct }}%; min-height: 1px;"></div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="flex justify-between text-[10px] text-gray-500 dark:text-gray-400 mt-1 px-1">
+                {% set first_month = monthly_history[0].month %}
+                {% set last_month = monthly_history[-1].month %}
+                <span>{{ first_month }}</span>
+                <span>{{ last_month }}</span>
+            </div>
+            <div class="flex flex-wrap gap-3 mt-3 text-xs text-gray-600 dark:text-gray-300">
+                <span class="inline-flex items-center gap-1.5">
+                    <span class="inline-block w-3 h-3 rounded-sm bg-emerald-200 dark:bg-emerald-900/60"></span>
+                    Band entries (left axis)
+                </span>
+                <span class="inline-flex items-center gap-1.5">
+                    <span class="inline-block w-3 h-3 rounded-sm bg-blue-500 dark:bg-blue-600"></span>
+                    Physical sites (right axis)
+                </span>
+                <span class="ml-auto text-gray-400 dark:text-gray-500">
+                    {{ "{:,}".format(monthly_history[0].entries) }} → {{ "{:,}".format(monthly_history[-1].entries) }} entries
+                    ({{ '%+d'|format(monthly_history[-1].entries - monthly_history[0].entries) }})
+                </span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {# ── Detailed band × operator table ───────────────────────────── #}
     <div class="flex justify-center px-2 md:px-4 pb-10">
         <div class="w-full max-w-5xl">

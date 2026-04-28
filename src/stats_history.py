@@ -83,9 +83,16 @@ def previous_snapshot(users_db_path: str, current_db_mtime: float) -> Optional[d
 
 
 def maybe_write_snapshot(users_db_path: str, db_mtime: float,
-                          stats: dict) -> bool:
+                          stats: dict,
+                          recorded_at_override: Optional[str] = None) -> bool:
     """Append a snapshot if no snapshot exists for this db_mtime yet.
-    Returns True iff a new line was appended."""
+    Returns True iff a new line was appended.
+
+    `recorded_at_override` lets the historical-replay scripts stamp the
+    snapshot with the date the data refers to (e.g. 2025-04-25T20:00:00Z)
+    rather than wall-clock time. Live runs (Cloud Run /stats hit) pass
+    None and get utcnow() — which is the right answer for those, since
+    they're recording 'we observed this NOW'."""
     if not db_mtime:
         return False
     path = _snapshot_path(users_db_path)
@@ -96,7 +103,9 @@ def maybe_write_snapshot(users_db_path: str, db_mtime: float,
 
     snapshot = {
         'db_mtime': float(db_mtime),
-        'recorded_at': datetime.utcnow().isoformat() + 'Z',
+        'recorded_at': recorded_at_override or (
+            datetime.utcnow().isoformat() + 'Z'
+        ),
         'physical_sites': stats.get('physical_sites', {}),
         'sites_per_generation': stats.get('sites_per_generation', {}),
         'provider_totals': stats.get('provider_totals', {}),

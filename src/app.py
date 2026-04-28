@@ -697,9 +697,10 @@ def stats_page():
 
     # 2026-04-28: append-only stats history. Snapshots every refresh
     # of stations.db (idempotent — keyed on db_mtime) so /stats can
-    # render MoM deltas + future time-series.
+    # render MoM deltas + a multi-month trend chart.
     previous = None
     history_count = 0
+    monthly_history: list = []
     try:
         from stats_history import (
             maybe_write_snapshot, previous_snapshot, read_history,
@@ -707,7 +708,25 @@ def stats_page():
         if db_mtime:
             maybe_write_snapshot(users_db_path, db_mtime, stats)
             previous = previous_snapshot(users_db_path, db_mtime)
-            history_count = len(read_history(users_db_path))
+            all_rows = read_history(users_db_path)
+            history_count = len(all_rows)
+            # Dedupe to one row per (year, month) — keep the LAST one
+            # in each month (sorted by db_mtime). Multiple commits in
+            # the same month happen during DB-update fix-ups; the last
+            # one is the durable shape.
+            by_month: dict = {}
+            for r in sorted(all_rows, key=lambda r: r.get('db_mtime', 0)):
+                month_key = (r.get('recorded_at') or '')[:7]
+                if month_key:
+                    by_month[month_key] = r
+            monthly_history = [
+                {
+                    'month': m,
+                    'sites': int(by_month[m].get('grand_total_sites', 0)),
+                    'entries': int(by_month[m].get('grand_total_entries', 0)),
+                }
+                for m in sorted(by_month)
+            ]
     except Exception:
         app.logger.exception("stats_history snapshot/read failed")
 
@@ -741,6 +760,7 @@ def stats_page():
     response = make_response(render_template(
         'stats.html', stats=stats, last_refresh=last_refresh_iso,
         deltas=deltas, history_count=history_count,
+        monthly_history=monthly_history,
     ))
     _set_content_etag(response, f"stats:{db_mtime:.6f}")
     return response
