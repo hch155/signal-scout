@@ -1,7 +1,7 @@
 import math
 import logging
 from models import BaseStation, db
-from sqlalchemy import func, distinct
+from sqlalchemy import func, distinct, case
 
 logger = logging.getLogger(__name__)
 
@@ -258,6 +258,30 @@ def get_band_stats():
                   BaseStation.frequency_band).all()
     )
 
+    # 2026-04-28: distinct-site count per (provider, generation prefix).
+    # Crucial for the /stats UI because raw "entries" inflates LTE
+    # (1 site usually broadcasts 4-6 LTE bands; 5G typically 1-3),
+    # giving a misleading "LTE dominates" impression. Sites-per-
+    # generation is the closest single-query approximation of real
+    # coverage. Same honeypot filter.
+    rat_prefix_case = case(
+        (BaseStation.frequency_band.like('5G%'), '5G'),
+        (BaseStation.frequency_band.like('LTE%'), 'LTE'),
+        (BaseStation.frequency_band.like('UMTS%'), 'UMTS'),
+        (BaseStation.frequency_band.like('GSM%'), 'GSM'),
+        else_='Other',
+    )
+    sites_per_gen_query = (
+        db.session.query(
+            BaseStation.service_provider,
+            rat_prefix_case.label('gen'),
+            func.count(distinct(BaseStation.location)),
+        )
+        .filter(BaseStation.service_provider != HONEYPOT_MARKER)
+        .group_by(BaseStation.service_provider, 'gen')
+        .all()
+    )
+
     # Organize data
     providers = set()
     bands_data = {}
@@ -267,10 +291,15 @@ def get_band_stats():
             bands_data[band] = {}
         bands_data[band][provider] = count
 
+    sites_per_generation: dict = {}
+    for provider, gen, n in sites_per_gen_query:
+        sites_per_generation.setdefault(provider, {})[gen] = n
+
     return {
         'physical_sites': dict(physical_sites_query),
         'bands_data': bands_data,
-        'providers': sorted(providers)
+        'providers': sorted(providers),
+        'sites_per_generation': sites_per_generation,
     }
 
 def get_stats():
@@ -324,6 +353,21 @@ def get_stats():
         for g in generations
     }
 
+    sites_per_generation = stats.get('sites_per_generation', {})
+    # Average bands per site per (provider, generation) — derived
+    # context that explains why "LTE entries" inflates relative to
+    # "5G entries". A real site usually broadcasts 4-6 LTE bands but
+    # only 1-3 5G bands. avg = entries / sites; rounded to 2 dp.
+    avg_bands_per_site: dict = {}
+    for p in providers:
+        gens = generation_breakdown.get(p, {})
+        sites = sites_per_generation.get(p, {})
+        avg_bands_per_site[p] = {
+            g: round(gens[g] / sites.get(g, 1), 2) if sites.get(g)
+            else 0.0
+            for g in generations
+        }
+
     return {
         'physical_sites': stats['physical_sites'],
         'bands_data': bands_data,
@@ -334,6 +378,8 @@ def get_stats():
         'generation_breakdown': generation_breakdown,
         'generation_totals': generation_totals,
         'generations': generations,
+        'sites_per_generation': sites_per_generation,
+        'avg_bands_per_site': avg_bands_per_site,
         # Hero-strip top-level numbers.
         'grand_total_sites': sum(stats['physical_sites'].values()),
         'grand_total_entries': sum(provider_totals.values()),

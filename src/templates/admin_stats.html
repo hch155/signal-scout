@@ -26,10 +26,15 @@
     </div>
 
     {# ── Headline counters ────────────────────────────────────────── #}
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
-        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total events</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Submit_location events</p>
         <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ data.total_events }}</p>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Unique sessions</p>
+        <p class="text-3xl font-bold text-purple-700 dark:text-purple-400">{{ data.unique_sessions }}</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">distinct browsers/devices</p>
       </div>
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
         <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">In Poland</p>
@@ -48,6 +53,26 @@
         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">vs {{ data.anonymous }} anon</p>
       </div>
     </div>
+
+    {# ── Daily trend (mini sparkline) ───────────────────────────── #}
+    {% if data.daily_trend %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 md:p-6 mb-6">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">Daily submit_location count</h3>
+      {% set max_day = data.daily_trend | map(attribute='hits') | max %}
+      <div class="flex items-end gap-1 h-32">
+        {% for d in data.daily_trend %}
+          {% set h = (100 * d.hits / max_day) if max_day > 0 else 0 %}
+          <div class="flex-1 flex flex-col items-center justify-end" title="{{ d.day }}: {{ d.hits }} events">
+            <div class="w-full bg-blue-500 dark:bg-blue-600 rounded-t" style="height: {{ h }}%; min-height: 2px;"></div>
+            <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1">{{ d.day[5:] }}</p>
+          </div>
+        {% endfor %}
+      </div>
+      <p class="text-xs text-gray-500 dark:text-gray-400 mt-3 italic">
+        Per-endpoint HTTP traffic + per-user-class breakdown live in <code class="bg-gray-100 dark:bg-gray-900 px-1 rounded">/metrics</code> (Prometheus, bearer-token protected). See <a href="https://github.com/hch155/signal-scout/blob/main/docs/observability-metrics-reference.md" target="_blank" rel="noopener" class="text-blue-600 dark:text-blue-400 hover:underline">observability-metrics-reference.md</a> for the full series + example PromQL.
+      </p>
+    </div>
+    {% endif %}
 
     {# ── Top 10 spots ──────────────────────────────────────────── #}
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 md:p-6 mb-6">

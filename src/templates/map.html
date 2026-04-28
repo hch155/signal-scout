@@ -32,15 +32,16 @@
         <p class="text-base font-semibold slogan-rotate" data-lines="{{ slogan_title }}|{{ slogan_text }}">{{ slogan_title }}</p>
     </section>
 
-    {# 2026-04-28: keep narrow scroll gutters on mobile (w-[92%] →
-       ~16px on each side at 393px). Pure full-bleed traps the user
-       inside Leaflet's pan/zoom — every touch on the map is a pan,
-       no way to scroll the page down to the saved-stations sidebar
-       below. The gutters give the thumb a reliable scroll handle
-       outside the map's gesture region. Desktop keeps w-4/5. #}
+    {# 2026-04-28: narrow scroll gutters on mobile (w-11/12 → ~16px
+       per side at 393px). Earlier `w-[92%]` arbitrary value got
+       silently dropped by the Tailwind purger and rendered the map
+       at 0px width — no tiles, blank dark rectangle. Stick to
+       fraction utilities that ship with Tailwind by default.
+       Pure full-bleed (w-full) traps every touch inside Leaflet's
+       pan/zoom; the gutter is the thumb's scroll-down handle. #}
     <div class="container-fluid mt-0 md:mt-3">
         <div class="flex justify-center">
-            <div class="w-[92%] md:w-4/5 mb-5">
+            <div class="w-11/12 md:w-4/5 mb-5">
                 <div id="map-container" class="relative w-full mb-3 md:mb-5 map-height">
                     <div id="mapid" class="h-full w-full"></div>
                 </div>

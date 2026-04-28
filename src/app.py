@@ -694,8 +694,53 @@ def stats_page():
     except OSError:
         db_mtime = 0.0
         last_refresh_iso = 'unknown'
+
+    # 2026-04-28: append-only stats history. Snapshots every refresh
+    # of stations.db (idempotent — keyed on db_mtime) so /stats can
+    # render MoM deltas + future time-series.
+    previous = None
+    history_count = 0
+    try:
+        from stats_history import (
+            maybe_write_snapshot, previous_snapshot, read_history,
+        )
+        if db_mtime:
+            maybe_write_snapshot(users_db_path, db_mtime, stats)
+            previous = previous_snapshot(users_db_path, db_mtime)
+            history_count = len(read_history(users_db_path))
+    except Exception:
+        app.logger.exception("stats_history snapshot/read failed")
+
+    # Compute deltas vs previous snapshot for the hero tiles +
+    # generation bars + per-operator totals. None when there's no
+    # prior snapshot yet.
+    deltas = None
+    if previous:
+        def _delta(curr_int, key, sub=None):
+            try:
+                prev = previous[key]
+                if sub is not None:
+                    prev = prev.get(sub, 0)
+                return int(curr_int) - int(prev or 0)
+            except (KeyError, TypeError, ValueError):
+                return None
+        deltas = {
+            'grand_total_sites': _delta(stats['grand_total_sites'], 'grand_total_sites'),
+            'grand_total_entries': _delta(stats['grand_total_entries'], 'grand_total_entries'),
+            'provider_totals': {
+                p: _delta(stats['provider_totals'][p], 'provider_totals', sub=p)
+                for p in stats['providers']
+            },
+            'generation_totals': {
+                g: _delta(stats['generation_totals'].get(g, 0), 'generation_totals', sub=g)
+                for g in stats['generations']
+            },
+            'previous_recorded_at': previous.get('recorded_at'),
+        }
+
     response = make_response(render_template(
         'stats.html', stats=stats, last_refresh=last_refresh_iso,
+        deltas=deltas, history_count=history_count,
     ))
     _set_content_etag(response, f"stats:{db_mtime:.6f}")
     return response
@@ -940,6 +985,35 @@ def admin_stats():
         .all()
     )
 
+    # 2026-04-28: unique sessions (count distinct session_hash) — gives
+    # a "how many real humans hit submit_location" floor regardless of
+    # whether they were logged in.
+    unique_sessions = (
+        db.session.query(_f.count(_f.distinct(_SLE.session_hash)))
+        .filter(_SLE.created_at >= cutoff)
+        .filter(_SLE.session_hash.isnot(None))
+        .scalar()
+    ) or 0
+
+    # 2026-04-28: per-day count for a 7-day mini-trend. SQLite uses
+    # date() to truncate the timestamp; the route caps `days` at 30
+    # so this is bounded.
+    days_for_trend = min(days, 14)
+    trend_cutoff = datetime.utcnow() - timedelta(days=days_for_trend)
+    daily_rows = (
+        db.session.query(
+            _f.date(_SLE.created_at).label('day'),
+            _f.count('*').label('hits'),
+        )
+        .filter(_SLE.created_at >= trend_cutoff)
+        .group_by('day')
+        .order_by('day')
+        .all()
+    )
+    daily_trend = [
+        {"day": str(day), "hits": int(hits)} for (day, hits) in daily_rows
+    ]
+
     payload = {
         "window_days": days,
         "total_events": total,
@@ -947,11 +1021,13 @@ def admin_stats():
         "out_of_pl": out_pl_count,
         "logged_in": logged_in_count,
         "anonymous": anon_count,
+        "unique_sessions": int(unique_sessions),
         "top_spots": [
             {"lat": float(lat), "lng": float(lng), "hits": int(hits)}
             for (lat, lng, hits) in top_spots
         ],
         "browsers": {k: int(v) for k, v in browser_counts.items()},
+        "daily_trend": daily_trend,
     }
     # PR #48.6: HTML by default for browser visits, JSON on
     # ?format=json. Browser visit hits the rendered page directly;
