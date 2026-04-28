@@ -25,13 +25,19 @@
 }{% endblock %}
 
 {% block content %}
-    <section class="slogan-section text-center text-[#333] dark:text-white py-1 md:py-3 px-4">
+    {# 2026-04-28: hide hero on mobile. Decorative tagline added 2 lines
+       + ~60px of vertical space on iPhone 16 Pro for zero functional
+       value — search engines + desktop still see it. #}
+    <section class="slogan-section hidden md:block text-center text-[#333] dark:text-white py-1 md:py-3 px-4">
         <p class="text-base font-semibold slogan-rotate" data-lines="{{ slogan_title }}|{{ slogan_text }}">{{ slogan_title }}</p>
     </section>
 
-    <div class="container-fluid mt-1 md:mt-3">
+    {# 2026-04-28: full-bleed map on mobile (w-full) — old w-9/12 wasted
+       ~17% of horizontal viewport on phones. Desktop keeps the centered
+       narrower column. #}
+    <div class="container-fluid mt-0 md:mt-3">
         <div class="flex justify-center">
-            <div class="w-9/12 md:w-4/5 mb-5">
+            <div class="w-full md:w-4/5 mb-5 px-2 md:px-0">
                 <div id="map-container" class="relative w-full mb-3 md:mb-5 map-height">
                     <div id="mapid" class="h-full w-full"></div>
                 </div>

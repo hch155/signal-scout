@@ -107,7 +107,11 @@
              new tab containers so existing JS handlers keep working. #}
           <div id="authModal" class="modal fixed inset-0 bg-gray-900/60 dark:bg-black/75 hidden flex items-center justify-center px-4 py-8 overflow-y-auto" style="z-index: 5000;">
             <div class="relative w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl dark:shadow-black/50 border border-gray-200 dark:border-gray-700 my-auto">
-              <button class="close-modal absolute top-3 right-3 w-8 h-8 inline-flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-2xl leading-none" aria-label="Close">&times;</button>
+              {# 2026-04-28: bumped tap target spacing on small screens —
+                 top-3/right-3 (12px) was too close to the modal edge for
+                 thumbs on iPhone SE. top-4/right-4 keeps the same look
+                 on desktop while giving 4px more breathing room. #}
+              <button class="close-modal absolute top-4 right-4 w-9 h-9 inline-flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-2xl leading-none" aria-label="Close">&times;</button>
 
               <div class="px-6 pt-7 pb-2">
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-white text-center">Welcome to Signal-Scout</h2>

@@ -24,11 +24,27 @@ const lightTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertile
 // fine again with a free API key (200k tiles/mo) — switch back if we
 // want their richer styling later. CSP `img-src` widened in app.py to
 // allow basemaps.cartocdn.com.
-const darkTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: 'abcd',
-    maxZoom: 19,
-});
+// 2026-04-28: split CartoDB Dark Matter into base + label layer so we
+// can brightness-boost the labels independently. The combined `dark_all`
+// tiles ship with very dim labels — readable on big monitors, basically
+// illegible on a phone. The split + CSS `filter: brightness(1.6)
+// contrast(1.2)` on `.dark-labels-bright` (see styles.css) keeps the
+// dark aesthetic but makes street names actually readable. layerGroup
+// wrapping preserves single-unit addLayer/removeLayer + the existing
+// `Dark` entry in the layer control.
+const darkTileLayer = L.layerGroup([
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19,
+    }),
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+        attribution: '',
+        subdomains: 'abcd',
+        maxZoom: 19,
+        className: 'dark-labels-bright',
+    }),
+]);
 
 // PR #46.8: restore satellite layer (PR #46.7 misread the owner's
 // instruction — the "vibe-coded" thing to drop was the empty-state
@@ -50,7 +66,13 @@ const baseMaps = {
 // blank white square in prod. Always-expanded list (3 radio rows)
 // renders fine without the icon and is arguably better UX on
 // desktop too — no extra hover step to switch base map.
-L.control.layers(baseMaps, null, { position: 'topright', collapsed: false }).addTo(mymap);
+// 2026-04-28: collapse the layer control on small viewports so the
+// Street/Dark/Satellite radios don't eat ~140px of map width. Desktop
+// keeps the always-expanded form for instant switching.
+L.control.layers(baseMaps, null, {
+    position: 'topright',
+    collapsed: window.matchMedia('(max-width: 767px)').matches,
+}).addTo(mymap);
 
 const greenIcon = new L.Icon({ 
 iconUrl: 'static/css/images/marker-icon-green.png', shadowUrl: 'static/css/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
@@ -215,7 +237,17 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
             <span class="control-label">Range</span>
         `;
 
-        let legendDiv = L.DomUtil.create('div', 'frequency-range-container bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400', div);
+        // 2026-04-28: legend is HIDDEN by default on mobile (was always
+        // open and covered ~half the map on iPhone 16 Pro). Toggle
+        // button at top-left opens it. Desktop unchanged.
+        const legendInitiallyHidden =
+            window.matchMedia('(max-width: 767px)').matches;
+        let legendDiv = L.DomUtil.create(
+            'div',
+            'frequency-range-container bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400'
+            + (legendInitiallyHidden ? ' hidden' : ''),
+            div,
+        );
         legendDiv.innerHTML = `
             <table class="frequency-table min-w-full divide-y divide-gray-200">
                 <thead class="text-gray-700 font-bold dark:text-white">

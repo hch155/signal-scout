@@ -181,7 +181,11 @@
   }
 
 .map-height {
-    height: 60vh;
+    /* 2026-04-28: bumped from 60vh → 75vh on mobile. With hero + slogan
+       hidden on phones (see map.html) + full-bleed width, the map now
+       gets ~75% of the viewport height instead of ~205px on iPhone 16
+       Pro. Desktop unchanged. */
+    height: 75vh;
 }
 
 @media (min-width: 768px) {
@@ -710,4 +714,13 @@ th[onclick]:hover {
 }
 .account-nav-link {
   transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+/* 2026-04-28: brighten CartoDB Dark Matter labels. The combined
+   dark_all tile ships with very dim labels — illegible on phones.
+   Splitting into dark_nolabels (base) + dark_only_labels (overlay
+   with this className, see ui-interactions.js) lets us crank the
+   labels independently without washing out the rest of the map. */
+.leaflet-tile.dark-labels-bright {
+    filter: brightness(1.7) contrast(1.25);
 }
