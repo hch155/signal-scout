@@ -4,15 +4,19 @@ Hi {{ greeting_name }},
 
 Our latest UKE data refresh shows new cellular coverage information at
 this saved spot ({{ "%.4f"|format(location.lat) }}, {{ "%.4f"|format(location.lng) }}):
-{% if gained %}
+{% macro bts_label(b) -%}
+  {%- if b.bts_id -%}BTS {{ b.bts_id }}{% if b.provider %} ({{ b.provider }}{% if b.city %}, {{ b.city }}{% endif %}){% elif b.city %} ({{ b.city }}){% endif %}
+  {%- elif b.city -%}a tower in {{ b.city }}{% if b.provider %} ({{ b.provider }}){% endif %}
+  {%- endif -%}
+{% endmacro -%}{% if gained %}
 Gained coverage:
-{% for band in gained %}- {{ band }} (a base station of this band is now within reach)
+{% for g in gained %}- {{ g.band }} ({{ bts_label(g) or 'a base station of this band' }} is now within reach)
 {% endfor %}{% endif %}{% if lost %}
 Lost coverage:
-{% for band in lost %}- {{ band }} (no nearby base station of this band anymore)
+{% for l in lost %}- {{ l.band }} ({{ bts_label(l) or 'the previously nearby base station' }} is no longer in range)
 {% endfor %}{% endif %}{% if distance_changes %}
 Nearest-station distance changed:
-{% for c in distance_changes %}- {{ c.band }}: {{ "%.1f"|format(c.before_km) }} km -> {{ "%.1f"|format(c.after_km) }} km ({% if c.delta_km > 0 %}+{% endif %}{{ "%.1f"|format(c.delta_km) }} km)
+{% for c in distance_changes %}- {{ c.band }}: {{ "%.1f"|format(c.before_km) }} km -> {{ "%.1f"|format(c.after_km) }} km ({% if c.delta_km > 0 %}+{% endif %}{{ "%.1f"|format(c.delta_km) }} km){% if c.after_bts and c.after_bts.bts_id %}; now nearest: {{ bts_label(c.after_bts) }}{% endif %}
 {% endfor %}{% endif %}
 Review on Signal-Scout: https://signal-scout.com/account
 

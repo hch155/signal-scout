@@ -8,17 +8,26 @@
     {{ "%.4f"|format(location.lat) }}, {{ "%.4f"|format(location.lng) }}
   </p>
 
+  {% macro bts_label(b) %}
+    {%- if b.bts_id -%}
+      BTS <code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;">{{ b.bts_id }}</code>
+      {%- if b.provider %} ({{ b.provider }}{% if b.city %}, {{ b.city }}{% endif %}){% elif b.city %} ({{ b.city }}){% endif %}
+    {%- elif b.city -%}
+      a tower in {{ b.city }}{% if b.provider %} ({{ b.provider }}){% endif %}
+    {%- endif -%}
+  {% endmacro %}
+
   {% if gained %}
   <h2 style="font-size:15px; color:#059669; margin-top:20px;">Gained coverage</h2>
   <ul style="padding-left: 18px; line-height:1.6;">
-    {% for band in gained %}<li><strong>{{ band }}</strong> — a base station of this band is now within reach.</li>{% endfor %}
+    {% for g in gained %}<li><strong>{{ g.band }}</strong> — {{ bts_label(g) or 'a base station of this band' }} is now within reach.</li>{% endfor %}
   </ul>
   {% endif %}
 
   {% if lost %}
   <h2 style="font-size:15px; color:#dc2626; margin-top:20px;">Lost coverage</h2>
   <ul style="padding-left: 18px; line-height:1.6;">
-    {% for band in lost %}<li><strong>{{ band }}</strong> — no nearby base station of this band anymore.</li>{% endfor %}
+    {% for l in lost %}<li><strong>{{ l.band }}</strong> — {{ bts_label(l) or 'the previously nearby base station' }} is no longer in range.</li>{% endfor %}
   </ul>
   {% endif %}
 
@@ -30,6 +39,7 @@
       <strong>{{ c.band }}</strong>:
       {{ "%.1f"|format(c.before_km) }} km → {{ "%.1f"|format(c.after_km) }} km
       ({% if c.delta_km > 0 %}+{% endif %}{{ "%.1f"|format(c.delta_km) }} km)
+      {%- if c.after_bts and c.after_bts.bts_id %}<br><span style="font-size:12px;color:#6b7280;">now nearest: {{ bts_label(c.after_bts) }}</span>{% endif %}
     </li>
     {% endfor %}
   </ul>

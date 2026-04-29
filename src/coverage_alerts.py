@@ -34,16 +34,19 @@ logger = logging.getLogger('coverage_alerts')
 
 
 def _coverage_to_dict(cov: dict) -> dict:
-    """Reduce find_coverage_gaps output to the bits we actually diff:
-    one number (nearest_distance_km) per band. Drops the BTS metadata
-    so the snapshot stays small and stable across refreshes that didn't
-    really change coverage (e.g. BTS row reordering)."""
+    """Reduce find_coverage_gaps output to the bits we actually diff,
+    plus the nearest-BTS labels (basestation_id / city / provider) so
+    the email can name the actual tower instead of just the band code.
+    Snapshot stays compact; no full row dump."""
     return {
         'gaps': [
             {
                 'band': g['band'],
                 'nearest_distance_km': float(g.get('nearest_distance_km', 0.0)),
                 'has_coverage': bool(g.get('has_coverage', False)),
+                'nearest_basestation_id': g.get('nearest_basestation_id'),
+                'nearest_city': g.get('nearest_city'),
+                'nearest_service_provider': g.get('nearest_service_provider'),
             }
             for g in cov.get('gaps', [])
         ],
@@ -51,21 +54,55 @@ def _coverage_to_dict(cov: dict) -> dict:
     }
 
 
+# Same shorthand used by stats.html — keeps emails consistent with the
+# UI. Falls back to the raw legal-entity name if there's no match.
+_PROVIDER_SHORT = {
+    'P4 Sp. z o.o.': 'Play',
+    'P4 sp. z o.o.': 'Play',
+    'Orange Polska S.A.': 'Orange',
+    'T-Mobile Polska S.A.': 'T-Mobile',
+    'POLKOMTEL Sp. z o.o.': 'Plus',
+    'Polkomtel sp. z o.o.': 'Plus',
+}
+
+
+def _row_label(g: dict) -> dict:
+    """Pull the BTS-identification fields out of a snapshot gap row,
+    normalised. Templates render {bts_id, city, provider}."""
+    provider = g.get('nearest_service_provider') or ''
+    return {
+        'bts_id': g.get('nearest_basestation_id'),
+        'city': g.get('nearest_city'),
+        'provider': _PROVIDER_SHORT.get(provider, provider),
+    }
+
+
 def _diff(before: dict, after: dict):
     """Return (gained, lost, distance_changes).
 
-    gained / lost are lists of band names (str).
-    distance_changes is a list of {band, before_km, after_km, delta_km}
-    for bands present in BOTH snapshots whose nearest-BTS distance moved
-    by more than MIN_DISTANCE_DELTA_KM."""
+    gained / lost are lists of dicts: {band, bts_id, city, provider}
+      — gained uses the AFTER snapshot's BTS labels (the new tower we
+        just came in range of); lost uses the BEFORE snapshot's labels
+        (the tower we drifted away from).
+    distance_changes is a list of dicts:
+      {band, before_km, after_km, delta_km, before_bts, after_bts}
+      where before_bts / after_bts are {bts_id, city, provider} dicts.
+    Only bands present in BOTH snapshots whose nearest-BTS distance moved
+    by more than MIN_DISTANCE_DELTA_KM are included."""
     before_by_band = {g['band']: g for g in before.get('gaps', [])}
     after_by_band = {g['band']: g for g in after.get('gaps', [])}
 
     before_covered = {b for b, g in before_by_band.items() if g['has_coverage']}
     after_covered = {b for b, g in after_by_band.items() if g['has_coverage']}
 
-    gained = sorted(after_covered - before_covered)
-    lost = sorted(before_covered - after_covered)
+    gained = [
+        {'band': b, **_row_label(after_by_band[b])}
+        for b in sorted(after_covered - before_covered)
+    ]
+    lost = [
+        {'band': b, **_row_label(before_by_band[b])}
+        for b in sorted(before_covered - after_covered)
+    ]
 
     distance_changes = []
     for band, after_g in after_by_band.items():
@@ -79,6 +116,8 @@ def _diff(before: dict, after: dict):
                 'before_km': before_g['nearest_distance_km'],
                 'after_km': after_g['nearest_distance_km'],
                 'delta_km': delta,
+                'before_bts': _row_label(before_g),
+                'after_bts': _row_label(after_g),
             })
     distance_changes.sort(key=lambda c: -abs(c['delta_km']))
 
