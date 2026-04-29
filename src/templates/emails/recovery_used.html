@@ -6,11 +6,11 @@
   <p>Someone signed in to your Signal-Scout account using a one-time recovery code. The code is now spent.</p>
   <p>If this was you (lost phone, restored from backup) — no action needed.</p>
   <p style="background:#fff7ed;border-left:4px solid #f97316;padding:12px;color:#9a3412;font-size:14px;">
-    <strong>If this wasn't you:</strong> someone has access to a recovery code AND your password. Change your password and regenerate 2FA + recovery codes at <a href="https://signal-scout.com/account">/account</a> immediately.
+    <strong>If this wasn't you:</strong> someone has access to a recovery code AND your password. Change your password and regenerate 2FA + recovery codes at <a href="{{ email_link_origin }}/account">/account</a> immediately.
   </p>
   <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:12px;">
     — Signal-Scout<br>
-    {% if unsubscribe_url %}<a href="{{ unsubscribe_url }}" style="color:#9ca3af;">Unsubscribe from all Signal-Scout emails</a> · {% endif %}<a href="https://signal-scout.com/privacy" style="color:#9ca3af;">Privacy</a>
+    {% if unsubscribe_url %}<a href="{{ unsubscribe_url }}" style="color:#9ca3af;">Unsubscribe from all Signal-Scout emails</a> · {% endif %}<a href="{{ email_link_origin }}/privacy" style="color:#9ca3af;">Privacy</a>
   </p>
 </body>
 </html>

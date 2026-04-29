@@ -5,11 +5,11 @@
   <p>Hi {{ greeting_name }},</p>
   <p>2FA was just turned off on your Signal-Scout account. Login is now password-only.</p>
   <p style="background:#fff7ed;border-left:4px solid #f97316;padding:12px;color:#9a3412;font-size:14px;">
-    <strong>If this wasn't you:</strong> change your password immediately and re-enable 2FA at <a href="https://signal-scout.com/account">/account</a>.
+    <strong>If this wasn't you:</strong> change your password immediately and re-enable 2FA at <a href="{{ email_link_origin }}/account">/account</a>.
   </p>
   <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:12px;">
     — Signal-Scout<br>
-    {% if unsubscribe_url %}<a href="{{ unsubscribe_url }}" style="color:#9ca3af;">Unsubscribe from all Signal-Scout emails</a> · {% endif %}<a href="https://signal-scout.com/privacy" style="color:#9ca3af;">Privacy</a>
+    {% if unsubscribe_url %}<a href="{{ unsubscribe_url }}" style="color:#9ca3af;">Unsubscribe from all Signal-Scout emails</a> · {% endif %}<a href="{{ email_link_origin }}/privacy" style="color:#9ca3af;">Privacy</a>
   </p>
 </body>
 </html>

@@ -9,8 +9,8 @@ If this was you (lost phone, restored from backup) — no action needed.
 
 If this wasn't you: someone has access to a recovery code AND your
 password. Change your password and regenerate 2FA + recovery codes at:
-https://signal-scout.com/account
+{{ email_link_origin }}/account
 
 — Signal-Scout
 {% if unsubscribe_url %}Unsubscribe from all Signal-Scout emails: {{ unsubscribe_url }}{% endif %}
-Privacy: https://signal-scout.com/privacy
+Privacy: {{ email_link_origin }}/privacy

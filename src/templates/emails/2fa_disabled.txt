@@ -6,8 +6,8 @@ Hi {{ greeting_name }},
 password-only.
 
 If this wasn't you: change your password immediately and re-enable 2FA at:
-https://signal-scout.com/account
+{{ email_link_origin }}/account
 
 — Signal-Scout
 {% if unsubscribe_url %}Unsubscribe from all Signal-Scout emails: {{ unsubscribe_url }}{% endif %}
-Privacy: https://signal-scout.com/privacy
+Privacy: {{ email_link_origin }}/privacy

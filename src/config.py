@@ -141,6 +141,17 @@ class Config:
     # Public canonical origin used in OG / canonical / sitemap. Falls back
     # to https://www.signal-scout.com which matches the apex DNS.
     canonical_origin: str = field(default_factory=lambda: _str("CANONICAL_ORIGIN", "https://www.signal-scout.com"))
+    # 2026-04-29: separate origin for *outbound email links*. Today the
+    # apex (signal-scout.com → Squarespace 302 → Cloud Run) strips
+    # query params on the redirect, so a `?lat=X&lng=Y` deep link in
+    # an email lands the user on the bare home page. Until Cloudflare
+    # is in front of the apex (PR #318 source ready, no DNS change
+    # yet), point email CTAs at the Cloud-Run URL directly. Override
+    # via EMAIL_LINK_ORIGIN once the canonical fix is in.
+    email_link_origin: str = field(default_factory=lambda: _str(
+        "EMAIL_LINK_ORIGIN",
+        "https://signal-scout.run.app",
+    ))
 
     # ── Derived properties ───────────────────────────────────────────────
     @property

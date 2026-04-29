@@ -14,4 +14,4 @@ person's name, only the email address you see above.
 
 — Signal-Scout · find the nearest Polish cellular base stations
 {% if unsubscribe_url %}Unsubscribe from all Signal-Scout emails: {{ unsubscribe_url }}{% endif %}
-Privacy: https://signal-scout.com/privacy
+Privacy: {{ email_link_origin }}/privacy

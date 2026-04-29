@@ -4,13 +4,13 @@
   <h1 style="font-size: 20px; color: #1f2937;">Two-factor authentication enabled</h1>
   <p>Hi {{ greeting_name }},</p>
   <p>2FA was just enabled on your Signal-Scout account. From now on every login asks for a 6-digit code from your authenticator app.</p>
-  <p style="color:#6b7280;font-size:14px;">If you've lost your recovery codes since enabling, regenerate them under <a href="https://signal-scout.com/account">/account</a>.</p>
+  <p style="color:#6b7280;font-size:14px;">If you've lost your recovery codes since enabling, regenerate them under <a href="{{ email_link_origin }}/account">/account</a>.</p>
   <p style="background:#fff7ed;border-left:4px solid #f97316;padding:12px;color:#9a3412;font-size:14px;">
     <strong>If this wasn't you:</strong> someone has access to your account. Reset your password and disable the rogue 2FA setup before they enrol their own.
   </p>
   <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:12px;">
     — Signal-Scout<br>
-    {% if unsubscribe_url %}<a href="{{ unsubscribe_url }}" style="color:#9ca3af;">Unsubscribe from all Signal-Scout emails</a> · {% endif %}<a href="https://signal-scout.com/privacy" style="color:#9ca3af;">Privacy</a>
+    {% if unsubscribe_url %}<a href="{{ unsubscribe_url }}" style="color:#9ca3af;">Unsubscribe from all Signal-Scout emails</a> · {% endif %}<a href="{{ email_link_origin }}/privacy" style="color:#9ca3af;">Privacy</a>
   </p>
 </body>
 </html>

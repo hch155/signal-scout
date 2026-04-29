@@ -6,7 +6,7 @@ Our latest UKE data refresh shows new cellular coverage information at
 this saved spot ({{ "%.4f"|format(location.lat) }}, {{ "%.4f"|format(location.lng) }}){% if before_recorded_at %},
 compared to data from {{ before_recorded_at[:10] }}{% endif %}:
   Google Maps:      https://www.google.com/maps?q={{ location.lat }},{{ location.lng }}
-  Signal-Scout:     https://signal-scout.com/?lat={{ location.lat }}&lng={{ location.lng }}
+  Signal-Scout:     {{ email_link_origin }}/?lat={{ location.lat }}&lng={{ location.lng }}
 {% macro bts_label(b) -%}
   {%- if b.bts_id -%}BTS {{ b.bts_id }}{% if b.provider %} ({{ b.provider }}{% if b.city %}, {{ b.city }}{% endif %}){% elif b.city %} ({{ b.city }}){% endif %}
   {%- elif b.city -%}a tower in {{ b.city }}{% if b.provider %} ({{ b.provider }}){% endif %}
@@ -21,7 +21,7 @@ Lost coverage:
 Nearest-station distance changed:
 {% for c in distance_changes %}- {{ c.band }}: {{ "%.1f"|format(c.before_km) }} km -> {{ "%.1f"|format(c.after_km) }} km ({% if c.delta_km > 0 %}+{% endif %}{{ "%.1f"|format(c.delta_km) }} km){% if c.after_bts and c.after_bts.bts_id %}; now nearest: {{ bts_label(c.after_bts) }}{% endif %}
 {% endfor %}{% endif %}
-Review on Signal-Scout: https://signal-scout.com/account
+Review on Signal-Scout: {{ email_link_origin }}/account
 
 UKE publishes new station data once a month — that is when these
 alerts go out. You can mute alerts for any saved spot in your account,
@@ -29,4 +29,4 @@ or remove the spot entirely.
 
 — Signal-Scout · find the nearest Polish cellular base stations
 {% if unsubscribe_url %}Unsubscribe from all Signal-Scout emails: {{ unsubscribe_url }}{% endif %}
-Privacy: https://signal-scout.com/privacy
+Privacy: {{ email_link_origin }}/privacy

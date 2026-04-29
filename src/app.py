@@ -640,6 +640,7 @@ app.jinja_env.globals['csrf_token'] = generate_csrf_token
 app.jinja_env.globals['plausible_script_url'] = settings.plausible_script_url
 app.jinja_env.globals['plausible_domain'] = settings.plausible_domain
 app.jinja_env.globals['canonical_origin'] = settings.canonical_origin
+app.jinja_env.globals['email_link_origin'] = settings.email_link_origin
 # PR #46.5: footer-rendered build version. cd.yaml builds APP_VERSION as
 # 'YYYY.MM.DD-<sha7>' (CalVer + git SHA — Stripe-style date versioning,
 # no SemVer bookkeeping). Local dev → "dev". Owner clicks the footer link

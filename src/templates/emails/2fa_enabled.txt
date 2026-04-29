@@ -6,11 +6,11 @@ Hi {{ greeting_name }},
 on asks for a 6-digit code from your authenticator app.
 
 If you've lost your recovery codes since enabling, regenerate them at:
-https://signal-scout.com/account
+{{ email_link_origin }}/account
 
 If this wasn't you: someone has access to your account. Reset your
 password and disable the rogue 2FA setup before they enrol their own.
 
 — Signal-Scout
 {% if unsubscribe_url %}Unsubscribe from all Signal-Scout emails: {{ unsubscribe_url }}{% endif %}
-Privacy: https://signal-scout.com/privacy
+Privacy: {{ email_link_origin }}/privacy

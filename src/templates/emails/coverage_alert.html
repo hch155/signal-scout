@@ -23,7 +23,7 @@
        style="color:#3b82f6;text-decoration:none;"
        target="_blank" rel="noopener noreferrer">Google Maps</a>
     &middot;
-    <a href="https://signal-scout.com/?lat={{ location.lat }}&amp;lng={{ location.lng }}"
+    <a href="{{ email_link_origin }}/?lat={{ location.lat }}&amp;lng={{ location.lng }}"
        style="color:#3b82f6;text-decoration:none;">Open on Signal-Scout</a>
   </p>
 
@@ -65,7 +65,7 @@
   {% endif %}
 
   <p style="margin: 28px 0;">
-    <a href="https://signal-scout.com/account"
+    <a href="{{ email_link_origin }}/account"
        style="background:#3b82f6;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;">
       Review on Signal-Scout
     </a>
@@ -76,7 +76,7 @@
   <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
   <p style="color:#9ca3af;font-size:12px;margin-top:32px;">
     — Signal-Scout · find the nearest Polish cellular base stations<br>
-    {% if unsubscribe_url %}<a href="{{ unsubscribe_url }}" style="color:#9ca3af;">Unsubscribe from all Signal-Scout emails</a> · {% endif %}<a href="https://signal-scout.com/privacy" style="color:#9ca3af;">Privacy</a>
+    {% if unsubscribe_url %}<a href="{{ unsubscribe_url }}" style="color:#9ca3af;">Unsubscribe from all Signal-Scout emails</a> · {% endif %}<a href="{{ email_link_origin }}/privacy" style="color:#9ca3af;">Privacy</a>
   </p>
 </body>
 </html>
