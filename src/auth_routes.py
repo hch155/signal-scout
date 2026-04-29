@@ -514,6 +514,73 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
     app.register_blueprint(auth_bp)
 
 
+# ── Email-normalization + disposable-domain blocklist (2026-04-29) ─────────
+#
+# Both used at the registration boundary AND at login lookup. Gmail
+# treats `u.s.e.r@gmail.com` and `user@gmail.com` as the same inbox, and
+# treats anything after a `+` as a tag — same routing target. Without
+# normalising at write time, a single person can mint unlimited
+# distinct rows by varying dot positions or `+tagX` segments, which
+# defeats per-account rate limits, alert quotas, etc.
+
+_GMAIL_DOMAINS = {'gmail.com', 'googlemail.com'}
+
+# Hand-curated, high-precision list of disposable / throwaway email
+# providers. Not exhaustive — a maintained library (`email-validator` +
+# disposable-email-domains pip pkg) would be more complete, but this
+# floor catches the common signup-spam shapes without a new dependency.
+# Add hosts as we observe them in EmailEvent bounce stream / AuditEvent
+# patterns.
+_DISPOSABLE_DOMAINS = frozenset([
+    '10minutemail.com', '10minutemail.net', 'mailinator.com',
+    'mailinator.net', 'guerrillamail.com', 'guerrillamail.net',
+    'guerrillamail.org', 'guerrillamail.biz', 'guerrillamail.de',
+    'sharklasers.com', 'grr.la', 'spam4.me', 'pokemail.net',
+    'yopmail.com', 'yopmail.net', 'yopmail.fr', 'tempmail.com',
+    'tempmail.net', 'tempmail.org', 'temp-mail.org', 'temp-mail.io',
+    'throwawaymail.com', 'mohmal.com', 'getnada.com', 'maildrop.cc',
+    'fakeinbox.com', 'trashmail.com', 'dispostable.com', 'mailnesia.com',
+    'spamgourmet.com', 'mintemail.com', 'mytemp.email', 'tmpmail.org',
+    'tmpmail.net', 'mailcatch.com', 'discard.email', 'discardmail.com',
+    'jetable.org', 'spamcorptastic.com', 'spamfree24.org', 'mvrht.com',
+    'inboxalias.com', 'mailtemp.info', 'rcpt.at', 'incognitomail.com',
+    'tempinbox.com', 'tempr.email', 'mailnull.com', 'spambox.us',
+])
+
+
+def _normalize_email(raw: str) -> str:
+    """Lowercase, strip, and collapse Gmail dot-and-plus aliasing so
+    duplicate-checks AND storage match a real-world inbox 1:1.
+
+    Examples:
+      `User+test@gmail.com`     -> `user@gmail.com`
+      `u.s.e.r@gmail.com`       -> `user@gmail.com`
+      `me+anything@googlemail.com` -> `me@gmail.com`  (canonical alias)
+      `me@example.com`          -> `me@example.com`  (non-Gmail untouched)
+    """
+    if not raw:
+        return ''
+    addr = raw.strip().lower()
+    if '@' not in addr:
+        return addr
+    local, _, domain = addr.partition('@')
+    # Strip plus-aliasing for ALL providers (RFC-described convention,
+    # respected by Gmail / Outlook / FastMail / Proton / Yandex / etc.).
+    local = local.split('+', 1)[0]
+    if domain in _GMAIL_DOMAINS:
+        local = local.replace('.', '')
+        domain = 'gmail.com'  # canonicalise googlemail.com -> gmail.com
+    return f"{local}@{domain}"
+
+
+def _is_disposable_email_domain(email: str) -> bool:
+    """True iff the domain part is on the throwaway-providers blocklist.
+    Email is expected to have already been normalized (lowercase)."""
+    if '@' not in email:
+        return False
+    return email.rsplit('@', 1)[1] in _DISPOSABLE_DOMAINS
+
+
 # ── View functions ──────────────────────────────────────────────────────────
 
 def register_user():
@@ -525,12 +592,47 @@ def register_user():
         _csrf_failures_total().labels(endpoint='register').inc()
         return jsonify({'error': 'Invalid request'}), 403
 
-    email = request.form.get('email')
+    # 2026-04-29 anti-bot honeypot. The signup modal carries an
+    # off-screen `website_url` input — humans can't see / tab to it
+    # (tabindex=-1, aria-hidden, position:absolute -9999px). Bots that
+    # blindly fill every <input> in the form populate it. We respond
+    # with a fake-success 200 so scrapers don't learn the trap and
+    # iterate on it; nothing is written to the DB. Telemetry'd via the
+    # funnel "started" metric so the success-rate ratio reflects the
+    # bot-attempts-vs-real-signups gap.
+    if (request.form.get('website_url') or '').strip():
+        logger.info("[register] honeypot triggered (suspected bot)")
+        return jsonify({"success": True,
+                        "message": "User registered successfully."}), 200
+
+    email_raw = (request.form.get('email') or '').strip()
     password = request.form.get('password')
     confirm_password = request.form.get('confirm_password')
 
-    if not email or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+$", email):
+    # Tighter regex than before: require at least one char in the local
+    # part, at least one TLD label of >=2 ASCII alpha chars. Blocks
+    # `a@b.c`, `x@@y.com`, `bare@local` and similar bot probe shapes.
+    if not email_raw or not re.fullmatch(
+        r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", email_raw
+    ):
         return "Invalid email address.", 400
+
+    # 2026-04-29 normalize email so duplicate-check + storage are case-
+    # insensitive AND collapse Gmail dot-tricks. `u.s.e.r@gmail.com`,
+    # `User@Gmail.com`, `user@googlemail.com` — all the same inbox per
+    # Google's local-part rules; without this normalization the same
+    # human can spin up unlimited "distinct" accounts to bypass per-
+    # account limits.
+    email = _normalize_email(email_raw)
+
+    # 2026-04-29 disposable / throwaway domain blocklist. Catches the
+    # most-common signup-spam vectors (mailinator, 10minutemail,
+    # guerrillamail family, tempmail, yopmail, etc). Best-effort — new
+    # disposable hosts pop up daily; this is a high-precision floor,
+    # not a complete defence.
+    if _is_disposable_email_domain(email):
+        logger.info("[register] blocked disposable-domain signup: %s", email)
+        return "Please use a non-disposable email address.", 400
 
     if not password or not re.fullmatch(
         r"(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^\w\s]).{8,64}$", password
@@ -588,10 +690,20 @@ def login_user():
         _csrf_failures_total().labels(endpoint='login').inc()
         return jsonify({'error': 'Invalid request'}), 403
 
-    email = request.form.get('email')
+    email_raw = request.form.get('email') or ''
     password = request.form.get('password')
 
+    # 2026-04-29: normalize then fall back to raw. Existing users
+    # registered before normalization may have mixed-case / dotted
+    # rows in the DB — try the normalized form first (the new shape),
+    # then the raw form (legacy rows). Once data has been migrated
+    # the second lookup becomes unreachable.
+    email = _normalize_email(email_raw)
     user = User.query.filter_by(email=email).first()
+    if user is None and email != email_raw.strip().lower():
+        user = User.query.filter_by(email=email_raw.strip().lower()).first()
+    if user is None and email_raw != email_raw.lower():
+        user = User.query.filter_by(email=email_raw).first()
 
     # Audit fix M-NEW-4 (2026-04-27): close the bcrypt-skip timing leak.
     # When `user is None` the code below short-circuits before the bcrypt

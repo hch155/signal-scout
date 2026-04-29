@@ -189,6 +189,17 @@
               <div id="registrationModal" class="auth-tab-panel px-6 pt-4 pb-6 hidden">
                 <form id="registrationForm" method="POST" action="/register" class="space-y-3">
                   <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                  {# 2026-04-29 honeypot. Bots that scrape forms blindly fill
+                     every input — humans can't see this field (off-screen +
+                     aria-hidden + tabindex=-1) so they leave it empty. POST
+                     handler rejects the registration if it's populated. The
+                     `autocomplete="off"` keeps password managers from
+                     prefilling it for real users. #}
+                  <div aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden;">
+                    <label>Website (leave empty)
+                      <input type="text" name="website_url" tabindex="-1" autocomplete="off" value="">
+                    </label>
+                  </div>
                   <label class="block">
                     <span class="text-xs text-gray-600 dark:text-gray-300">Email</span>
                     <input type="email" id="email" name="email" required autocomplete="email" pattern="[^@ \t\r\n]+@[^@ \t\r\n]+\.[^@ \t\r\n]+" title="Please enter a valid email address." placeholder="you@example.com" class="w-full mt-1 p-2.5 bg-gray-50 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400">
