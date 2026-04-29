@@ -2050,6 +2050,49 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// 2026-04-29: deep-link support — when the URL has ?lat=X&lng=Y query
+// params (e.g. clicked "Open on Signal-Scout" from a coverage-alert
+// email), auto-trigger the same flow as if the user had clicked the
+// map at that spot: re-center, fire submit_location, populate sidebar.
+// Without this the email link landed on the bare home page and the
+// reader had to manually click again.
+document.addEventListener('DOMContentLoaded', function () {
+    var params;
+    try { params = new URLSearchParams(window.location.search); }
+    catch (e) { return; }
+    var latStr = params.get('lat');
+    var lngStr = params.get('lng');
+    if (!latStr || !lngStr) return;
+    var lat = parseFloat(latStr), lng = parseFloat(lngStr);
+    if (isNaN(lat) || isNaN(lng)) return;
+    // Polish bounds sanity — backend rejects out-of-bounds anyway, but
+    // skip the round-trip if the params are obviously wrong.
+    if (lat < 49.0 || lat > 55.5 || lng < 14.0 || lng > 24.2) return;
+
+    // Wait one tick so mymap, sendLocation, CSRF token meta etc. are
+    // wired before we call them. 350 ms is enough for tile preload too.
+    setTimeout(function () {
+        try {
+            if (typeof mymap !== 'undefined' && mymap.setView) {
+                mymap.setView([lat, lng], 13);
+            }
+            if (typeof sendLocation === 'function') {
+                sendLocation(lat, lng);
+            }
+            // Strip the params so a refresh / share doesn't keep
+            // re-triggering — the spot is already loaded in state.
+            try {
+                params.delete('lat'); params.delete('lng');
+                var rest = params.toString();
+                var newUrl = window.location.pathname
+                    + (rest ? '?' + rest : '')
+                    + window.location.hash;
+                window.history.replaceState({}, document.title, newUrl);
+            } catch (e) { /* noop */ }
+        } catch (e) { /* noop */ }
+    }, 350);
+});
+
 function getFrequencyColorForDistance(band, distanceKm) {
     let distanceMeters = distanceKm * 1000;
     let bandKey;
