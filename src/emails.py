@@ -44,6 +44,12 @@ class EmailMessage:
     subject: str
     html_body: str
     text_body: str
+    # 2026-04-29: optional extra headers. Used for List-Unsubscribe +
+    # List-Unsubscribe-Post (RFC 8058) — Gmail/Yahoo bulk-sender rules
+    # since Feb 2024 require both for one-click unsubscribe in inbox UI,
+    # otherwise sender reputation degrades. Both backends pass these
+    # through to the underlying SMTP/SendGrid call.
+    extra_headers: Optional[dict] = None
 
 
 class EmailBackend(ABC):
@@ -81,6 +87,8 @@ class SmtpBackend(EmailBackend):
             mime['From'] = f"{settings.email_from_name} <{settings.email_from}>"
             mime['To'] = msg.to
             mime['Subject'] = msg.subject
+            for hk, hv in (msg.extra_headers or {}).items():
+                mime[hk] = hv
             mime.attach(MIMEText(msg.text_body, 'plain', 'utf-8'))
             mime.attach(MIMEText(msg.html_body, 'html', 'utf-8'))
 
@@ -128,6 +136,12 @@ class SendGridBackend(EmailBackend):
                 plain_text_content=PlainTextContent(msg.text_body),
                 html_content=HtmlContent(msg.html_body),
             )
+            for hk, hv in (msg.extra_headers or {}).items():
+                # SendGrid SDK exposes Personalization-level headers AND
+                # message-level headers. Use message-level (applies to
+                # every recipient — we only have one anyway).
+                from sendgrid.helpers.mail import Header
+                mail.add_header(Header(hk, hv))
             sg = SendGridAPIClient(self.api_key)
             response = sg.send(mail)
             ok = 200 <= response.status_code < 300
@@ -228,6 +242,12 @@ def _send(user, subject: str, template: str, **ctx) -> bool:
       doesn't need to care about user preference).
     - Adds `unsubscribe_url` and `greeting_name` to template context
       so every template can render the footer + greeting consistently.
+
+    2026-04-29: also short-circuits when the recipient address is on
+    the local suppression list (hard bounce / spam complaint via the
+    SendGrid event webhook). Returns True so callers don't retry —
+    the suppression IS the success path for "we should not email
+    this address".
     """
     if user is None or not getattr(user, 'email', None):
         return False
@@ -235,6 +255,19 @@ def _send(user, subject: str, template: str, **ctx) -> bool:
         logger.info("[email] skipping %s for user %s (alerts disabled)",
                     template, user.id)
         return True
+    # 2026-04-29: suppression-list short-circuit. Cheap (single indexed
+    # lookup); avoids paying SendGrid to reject mail to bounced addresses.
+    try:
+        from models import EmailSuppression as _ES
+        sup = _ES.query.filter_by(email=user.email.lower()).first()
+        if sup:
+            logger.info("[email] suppressed %s to=%s reason=%s (since %s)",
+                        template, user.email, sup.reason, sup.created_at)
+            return True
+    except Exception:
+        # Don't let a missing table / DB hiccup block transactional mail.
+        logger.exception("[email] suppression-check failed (allowing send)")
+
     ctx.setdefault('user', user)
     ctx.setdefault('greeting_name', _greeting_name(user))
     try:
@@ -248,8 +281,21 @@ def _send(user, subject: str, template: str, **ctx) -> bool:
     except Exception:
         logger.exception("[email] template render failed: %s", template)
         return False
+
+    # RFC 8058 List-Unsubscribe + List-Unsubscribe-Post (Gmail / Yahoo
+    # bulk-sender requirement Feb 2024). The mailto: gives MUAs an
+    # immediate path; the https: lets Gmail show a one-click button.
+    extra_headers: dict = {}
+    unsub = ctx.get('unsubscribe_url') or ''
+    if unsub:
+        extra_headers['List-Unsubscribe'] = (
+            f"<mailto:{settings.email_from}?subject=unsubscribe>, <{unsub}>"
+        )
+        extra_headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
+
     return get_backend().send(EmailMessage(
         to=user.email, subject=subject, html_body=html, text_body=text,
+        extra_headers=extra_headers,
     ))
 
 
@@ -296,16 +342,56 @@ def send_recovery_code_used(user) -> bool:
     )
 
 
-def send_coverage_alert(user, location, gained, lost, distance_changes) -> bool:
-    """Sent by scripts/coverage_alert_run.py after a monthly UKE refresh
-    when a SavedLocation's coverage materially changed.
+def _coverage_alert_subject(location, gained, lost, distance_changes) -> tuple:
+    """Build an action-led subject + a one-line preheader from the diff.
 
-    `gained` / `lost` are lists of band-name strings (e.g. ['5G3600']).
-    `distance_changes` is a list of dicts:
-      {'band': str, 'before_km': float, 'after_km': float, 'delta_km': float}
-    Empty lists mean "no change of that kind" — caller is expected to only
-    call this function when at least one of the three is non-empty."""
-    subject = f"Signal-Scout: coverage at \"{location.name}\" changed"
+    Industry pattern: put the *headline fact* in the subject so users
+    decide to open without expanding the body. Returns (subject, preheader).
+    """
+    parts = []
+    if gained:
+        first = gained[0]['band'] if isinstance(gained[0], dict) else gained[0]
+        parts.append(f"+{first}" if len(gained) == 1 else f"+{first} (and {len(gained) - 1} more)")
+    if lost:
+        first = lost[0]['band'] if isinstance(lost[0], dict) else lost[0]
+        parts.append(f"−{first}" if len(lost) == 1 else f"−{first} (and {len(lost) - 1} more)")
+    if not parts and distance_changes:
+        c = distance_changes[0]
+        parts.append(f"{c['band']} { '%+.1f' % c['delta_km']} km")
+
+    headline = ' / '.join(parts) if parts else 'coverage updated'
+    subject = f'{location.name}: {headline}'
+
+    # Preheader (≤90 chars — Gmail truncates around there). Keep it
+    # specific so the inbox preview pays for the open.
+    pre_bits = []
+    if gained:
+        pre_bits.append(f"gained {len(gained)}")
+    if lost:
+        pre_bits.append(f"lost {len(lost)}")
+    if distance_changes:
+        pre_bits.append(f"{len(distance_changes)} distance change{'s' if len(distance_changes) > 1 else ''}")
+    preheader = (' · '.join(pre_bits) + f" at {location.name}").strip()
+    return subject, preheader
+
+
+def send_coverage_alert(user, location, gained, lost, distance_changes,
+                         before_recorded_at: Optional[str] = None) -> bool:
+    """Sent by the coverage-alert sweep after a UKE refresh when a
+    SavedLocation's coverage materially changed.
+
+    `gained` / `lost` are lists of dicts (band + bts_id + city + provider).
+    `distance_changes` is a list of dicts (band, before_km, after_km,
+    delta_km, before_bts, after_bts).
+    `before_recorded_at` is the ISO timestamp of the snapshot we
+    diffed against — rendered in the body as the comparison anchor
+    ("compared to UKE data from 2026-03-25"). Optional; falls back to
+    "the previous refresh" in the template.
+    Caller is expected to only fire this when at least one input is
+    non-empty."""
+    subject, preheader = _coverage_alert_subject(
+        location, gained, lost, distance_changes,
+    )
     return _send(
         user,
         subject=subject,
@@ -314,4 +400,6 @@ def send_coverage_alert(user, location, gained, lost, distance_changes) -> bool:
         gained=gained,
         lost=lost,
         distance_changes=distance_changes,
+        preheader=preheader,
+        before_recorded_at=before_recorded_at,
     )

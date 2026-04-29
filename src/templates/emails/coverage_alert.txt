@@ -3,7 +3,10 @@ Coverage at "{{ location.name }}" changed
 Hi {{ greeting_name }},
 
 Our latest UKE data refresh shows new cellular coverage information at
-this saved spot ({{ "%.4f"|format(location.lat) }}, {{ "%.4f"|format(location.lng) }}):
+this saved spot ({{ "%.4f"|format(location.lat) }}, {{ "%.4f"|format(location.lng) }}){% if before_recorded_at %},
+compared to data from {{ before_recorded_at[:10] }}{% endif %}:
+  Google Maps:      https://www.google.com/maps?q={{ location.lat }},{{ location.lng }}
+  Signal-Scout:     https://signal-scout.com/?lat={{ location.lat }}&lng={{ location.lng }}
 {% macro bts_label(b) -%}
   {%- if b.bts_id -%}BTS {{ b.bts_id }}{% if b.provider %} ({{ b.provider }}{% if b.city %}, {{ b.city }}{% endif %}){% elif b.city %} ({{ b.city }}){% endif %}
   {%- elif b.city -%}a tower in {{ b.city }}{% if b.provider %} ({{ b.provider }}){% endif %}

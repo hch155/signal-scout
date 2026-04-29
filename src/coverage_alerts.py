@@ -182,7 +182,10 @@ def _process(loc: UserLocation, *, dry_run: bool, verbose: bool) -> str:
     if dry_run:
         return 'sent'  # would have sent
 
-    ok = emails.send_coverage_alert(user, loc, gained, lost, distance_changes)
+    ok = emails.send_coverage_alert(
+        user, loc, gained, lost, distance_changes,
+        before_recorded_at=before.get('recorded_at'),
+    )
     if ok:
         loc.last_alert_sent_at = datetime.utcnow()
     loc.last_coverage_state = after_json

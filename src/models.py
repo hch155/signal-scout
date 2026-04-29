@@ -346,3 +346,55 @@ class SubmitLocationEvent(db.Model):
                            backref=db.backref('submit_events',
                                               cascade='all, delete-orphan',
                                               lazy='dynamic'))
+
+class EmailEvent(db.Model):
+    """2026-04-29: SendGrid Event Webhook ingestion. One row per
+    delivery / open / click / bounce / spamreport / dropped /
+    unsubscribe event SendGrid posts to /webhooks/sendgrid.
+
+    Why store: without this we have no idea which alerts bounced,
+    which got opened, who marked us as spam — i.e. no deliverability
+    visibility. Bulk-sender rules require we react to spam reports
+    promptly; we can't react to what we don't see.
+
+    `sg_event_id` is the dedupe key — SendGrid retries with the same
+    id, so a UNIQUE constraint makes the webhook idempotent. `raw_json`
+    keeps the full event for forensic queries (custom args, trace_id
+    etc.) without bloating the indexed columns.
+    """
+    __bind_key__ = 'users'
+    __tablename__ = 'email_event'
+
+    id = db.Column(db.Integer, primary_key=True)
+    sg_event_id = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    sg_message_id = db.Column(db.String(128), index=True)
+    email = db.Column(db.String(254), nullable=False, index=True)
+    event_type = db.Column(db.String(32), nullable=False, index=True)
+    sg_timestamp = db.Column(db.DateTime, nullable=True, index=True)
+    reason = db.Column(db.String(255), nullable=True)
+    raw_json = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           nullable=False, index=True)
+
+
+class EmailSuppression(db.Model):
+    """2026-04-29: addresses we must not send to. Mirror of SendGrid's
+    server-side list, populated by the event webhook on hard-bounce
+    / spamreport / dropped events. Looked up in emails._send before
+    any backend call — cheaper than paying SendGrid to reject and
+    keeps us off Gmail's bulk-sender naughty-list.
+
+    `email` is lower-cased on insert (canonical form). `reason` is
+    SendGrid's event_type ('bounce', 'spamreport', 'dropped',
+    'group_unsubscribe', 'unsubscribe'). `details` keeps SendGrid's
+    free-text reason (e.g. 'mailbox does not exist') for debugging.
+    """
+    __bind_key__ = 'users'
+    __tablename__ = 'email_suppression'
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(254), unique=True, nullable=False, index=True)
+    reason = db.Column(db.String(64), nullable=False)
+    details = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           nullable=False)

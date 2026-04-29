@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, make_response, g, redirect
+from flask import Flask, render_template, request, jsonify, session, make_response, g, redirect, url_for
 from flask_bcrypt import Bcrypt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -1093,6 +1093,190 @@ def admin_run_coverage_alerts():
         counts['first-run'], counts['no-change'], counts['skipped'],
     )
     return jsonify({"success": True, "dry_run": dry_run, "counts": counts}), 200
+
+
+# ── 2026-04-29: SendGrid Event Webhook receiver ──────────────────────
+# SendGrid posts a JSON array of events (deliveries / bounces / opens /
+# clicks / spamreports / unsubscribes) here. We:
+#   1. verify the ECDSA signature (Signed Event Webhook setting) so we
+#      can't be poisoned with fake bounce events
+#   2. dedupe by sg_event_id
+#   3. on hard-bounce / spamreport / dropped → insert EmailSuppression
+#      so emails._send won't try the address again
+#
+# Endpoint must be public (SendGrid initiates) — protected by the
+# signature check, NOT by bearer/admin session. Rate limit is generous
+# because SendGrid bursts events; we'd rather absorb the spike than
+# 429 them and have them retry.
+SUPPRESS_EVENT_TYPES = {'bounce', 'spamreport', 'dropped',
+                         'group_unsubscribe', 'unsubscribe'}
+
+
+def _verify_sendgrid_signature(public_key_b64: str,
+                                payload: bytes,
+                                signature_b64: str,
+                                timestamp: str) -> bool:
+    """ECDSA-P256 signature verify per
+    https://docs.sendgrid.com/for-developers/tracking-events/getting-started-event-webhook-security-features
+    Verifies (timestamp || raw_payload_bytes) was signed by the key
+    configured in SendGrid Mail Settings → Event Webhook. Public key
+    is base64-encoded DER (SubjectPublicKeyInfo)."""
+    try:
+        import base64
+        from cryptography.hazmat.primitives.serialization import load_der_public_key
+        from cryptography.hazmat.primitives.asymmetric.ec import ECDSA
+        from cryptography.hazmat.primitives.hashes import SHA256
+        public_key = load_der_public_key(base64.b64decode(public_key_b64))
+        signature = base64.b64decode(signature_b64)
+        signed = (timestamp.encode('utf-8') + payload)
+        public_key.verify(signature, signed, ECDSA(SHA256()))
+        return True
+    except Exception:
+        app.logger.exception("[sendgrid-webhook] signature verification failed")
+        return False
+
+
+@app.route('/webhooks/sendgrid', methods=['POST'])
+@limiter.limit("120 per minute")
+def sendgrid_event_webhook():
+    pub = settings.sendgrid_webhook_public_key
+    if not pub:
+        # Fail closed — without a configured key we can't tell forged
+        # bounce events from real ones; better to 503 than to start
+        # suppressing addresses based on attacker-chosen JSON.
+        return jsonify({"error": "webhook_not_configured"}), 503
+
+    sig = request.headers.get('X-Twilio-Email-Event-Webhook-Signature', '')
+    ts = request.headers.get('X-Twilio-Email-Event-Webhook-Timestamp', '')
+    payload = request.get_data()  # raw bytes — must verify against pre-parsed body
+    if not sig or not ts or not _verify_sendgrid_signature(pub, payload, sig, ts):
+        return jsonify({"error": "invalid_signature"}), 403
+
+    try:
+        events = json.loads(payload.decode('utf-8'))
+        if not isinstance(events, list):
+            raise ValueError("payload not a JSON array")
+    except Exception:
+        return jsonify({"error": "bad_payload"}), 400
+
+    from models import EmailEvent as _EE, EmailSuppression as _ESup
+    inserted = 0
+    suppressed = 0
+    for ev in events:
+        sg_id = ev.get('sg_event_id')
+        if not sg_id:
+            continue
+        # Dedupe — SendGrid retries with the same sg_event_id on
+        # non-2xx, so this row may already exist.
+        if _EE.query.filter_by(sg_event_id=sg_id).first():
+            continue
+        email = (ev.get('email') or '').strip().lower()
+        event_type = (ev.get('event') or '').strip().lower()
+        ts_epoch = ev.get('timestamp')
+        try:
+            sg_ts = datetime.utcfromtimestamp(int(ts_epoch)) if ts_epoch else None
+        except (TypeError, ValueError):
+            sg_ts = None
+        db.session.add(_EE(
+            sg_event_id=sg_id,
+            sg_message_id=ev.get('sg_message_id'),
+            email=email or '(unknown)',
+            event_type=event_type or '(unknown)',
+            sg_timestamp=sg_ts,
+            reason=(ev.get('reason') or ev.get('response') or '')[:255] or None,
+            raw_json=json.dumps(ev)[:8000],
+        ))
+        inserted += 1
+        if email and event_type in SUPPRESS_EVENT_TYPES:
+            existing = _ESup.query.filter_by(email=email).first()
+            if not existing:
+                db.session.add(_ESup(
+                    email=email, reason=event_type,
+                    details=(ev.get('reason') or ev.get('response') or '')[:255] or None,
+                ))
+                suppressed += 1
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("[sendgrid-webhook] commit failed")
+        return jsonify({"error": "store_failed"}), 500
+
+    app.logger.info("[sendgrid-webhook] events=%d inserted=%d suppressed_added=%d",
+                    len(events), inserted, suppressed)
+    return jsonify({"received": len(events), "inserted": inserted,
+                    "suppressed_added": suppressed}), 200
+
+
+@app.route('/admin/email_preview/<template>', methods=['GET'])
+@limiter.limit("30 per hour")
+def admin_email_preview(template: str):
+    """2026-04-29: render any email template with synthetic data so we
+    can sanity-check formatting before the next refresh fires real
+    sends. Replaces the previous flow of running a Python script in a
+    venv just to write a file to /tmp.
+
+    Whitelisted templates only — enumerate explicitly, don't trust
+    the path. ?fmt=txt for plain-text MIME alt; default is HTML."""
+    if 'user_id' not in session:
+        return jsonify({"error": "auth_required"}), 401
+    from models import User as _U
+    user = _U.query.get(session['user_id'])
+    if not _is_admin(user):
+        return jsonify({"error": "forbidden"}), 403
+
+    fmt = (request.args.get('fmt') or 'html').lower()
+    if fmt not in ('html', 'txt'):
+        fmt = 'html'
+
+    samples = {
+        'coverage_alert': {
+            'location': type('L', (), {'name': 'Dom', 'lat': 52.2297, 'lng': 21.0122})(),
+            'preheader': 'gained 1 · lost 1 · 2 distance changes at Dom',
+            'before_recorded_at': '2026-03-25T20:00:00Z',
+            'gained': [
+                {'band': '5G3600', 'bts_id': 'WAR_2105', 'city': 'Warszawa', 'provider': 'Orange'},
+            ],
+            'lost': [
+                {'band': 'UMTS2100', 'bts_id': 'BT41273', 'city': 'Warszawa', 'provider': 'Plus'},
+            ],
+            'distance_changes': [
+                {'band': 'LTE800', 'before_km': 1.2, 'after_km': 0.7, 'delta_km': -0.5,
+                 'before_bts': {'bts_id': 'BT09921', 'city': 'Warszawa', 'provider': 'T-Mobile'},
+                 'after_bts': {'bts_id': 'BT11042', 'city': 'Warszawa', 'provider': 'T-Mobile'}},
+                {'band': 'LTE2600', 'before_km': 0.6, 'after_km': 1.4, 'delta_km': 0.8,
+                 'before_bts': {'bts_id': 'BT01230', 'city': 'Warszawa', 'provider': 'Play'},
+                 'after_bts': {'bts_id': 'BT01298', 'city': 'Warszawa', 'provider': 'Play'}},
+            ],
+        },
+        'welcome': {
+            'verification_url': 'https://signal-scout.com/verify/PREVIEW',
+        },
+        'password_changed': {},
+        '2fa_enabled': {},
+        '2fa_disabled': {},
+        'recovery_used': {},
+    }
+    if template not in samples:
+        return jsonify({"error": "unknown_template",
+                        "templates": sorted(samples.keys())}), 404
+
+    ctx = dict(samples[template])
+    # Mirror what _send adds so the templates render the same as in prod.
+    from emails import _greeting_name, unsubscribe_url
+    ctx.setdefault('user', user)
+    ctx.setdefault('greeting_name', _greeting_name(user))
+    try:
+        ctx.setdefault('unsubscribe_url', unsubscribe_url(user))
+    except Exception:
+        ctx.setdefault('unsubscribe_url',
+                        url_for('static', filename='', _external=True) + 'unsubscribe?token=PREVIEW')
+
+    suffix = 'txt' if fmt == 'txt' else 'html'
+    body = render_template(f'emails/{template}.{suffix}', **ctx)
+    if fmt == 'txt':
+        return body, 200, {'Content-Type': 'text/plain; charset=utf-8'}
+    return body
 
 
 @app.route('/admin/stats', methods=['GET'])

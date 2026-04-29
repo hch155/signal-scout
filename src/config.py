@@ -91,6 +91,13 @@ class Config:
     email_from: str = field(default_factory=lambda: _str("EMAIL_FROM", "noreply@signal-scout.com"))
     email_from_name: str = field(default_factory=lambda: _str("EMAIL_FROM_NAME", "Signal-Scout"))
     sendgrid_api_key: str = field(default_factory=lambda: _str("SENDGRID_API_KEY"))
+    # 2026-04-29: ECDSA public key SendGrid uses to sign Event Webhook
+    # POSTs. Pasted from Settings → Mail Settings → Event Webhook in
+    # SendGrid (the "Verification Key" field after enabling Signed
+    # Event Webhook). When unset the /webhooks/sendgrid endpoint
+    # returns 503 instead of accepting unsigned events — better to be
+    # offline than open to spoofed bounce events.
+    sendgrid_webhook_public_key: str = field(default_factory=lambda: _str("SENDGRID_WEBHOOK_PUBLIC_KEY"))
     smtp_host: str = field(default_factory=lambda: _str("SMTP_HOST", "127.0.0.1"))
     smtp_port: int = field(default_factory=lambda: int(_str("SMTP_PORT", "1025") or "1025"))
     smtp_username: str = field(default_factory=lambda: _str("SMTP_USERNAME"))
