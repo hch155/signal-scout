@@ -1235,6 +1235,10 @@ def admin_email_preview(template: str):
             'location': type('L', (), {'name': 'Dom', 'lat': 52.2297, 'lng': 21.0122})(),
             'preheader': 'gained 1 · lost 1 · 2 distance changes at Dom',
             'before_recorded_at': '2026-03-25T20:00:00Z',
+            'current_nearest': {
+                'bts_id': 'WAR_2105', 'city': 'Warszawa', 'provider': 'Orange',
+                'band': '5G3600', 'distance_km': 0.3,
+            },
             'gained': [
                 {'band': '5G3600', 'bts_id': 'WAR_2105', 'city': 'Warszawa', 'provider': 'Orange'},
             ],

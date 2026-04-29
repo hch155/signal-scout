@@ -27,6 +27,17 @@
        style="color:#3b82f6;text-decoration:none;">Open on Signal-Scout</a>
   </p>
 
+  {# 2026-04-29: current baseline. Closest covered tower at this spot
+     right now — gives the user "here's your main tower" context so
+     the diff sections below have a frame of reference. #}
+  {% if current_nearest and current_nearest.bts_id %}
+  <p style="margin: 12px 0 0 0; padding: 8px 12px; background:#f3f4f6; border-left:3px solid #3b82f6; border-radius:4px; font-size:13px; color:#1f2937;">
+    Closest tower right now:
+    <strong>BTS <code style="background:#fff;padding:1px 4px;border-radius:3px;">{{ current_nearest.bts_id }}</code></strong>{% if current_nearest.provider %} ({{ current_nearest.provider }}{% if current_nearest.city %}, {{ current_nearest.city }}{% endif %}){% endif %}
+    — {{ "%.1f"|format(current_nearest.distance_km) }} km on <strong>{{ current_nearest.band }}</strong>.
+  </p>
+  {% endif %}
+
   {% macro bts_label(b) %}
     {%- if b.bts_id -%}
       BTS <code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;">{{ b.bts_id }}</code>

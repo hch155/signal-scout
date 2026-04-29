@@ -182,9 +182,24 @@ def _process(loc: UserLocation, *, dry_run: bool, verbose: bool) -> str:
     if dry_run:
         return 'sent'  # would have sent
 
+    # 2026-04-29: also surface the *current* nearest tower so the email
+    # carries baseline context, not only the diff. Picks the smallest
+    # nearest_distance_km across all bands that still have coverage —
+    # gives the user a 'here's your main tower right now' anchor.
+    current_nearest = None
+    covered = [g for g in (after.get('gaps') or []) if g.get('has_coverage')]
+    if covered:
+        c = min(covered, key=lambda g: g.get('nearest_distance_km', 99.0))
+        current_nearest = {
+            'band': c.get('band'),
+            'distance_km': c.get('nearest_distance_km'),
+            **_row_label(c),
+        }
+
     ok = emails.send_coverage_alert(
         user, loc, gained, lost, distance_changes,
         before_recorded_at=before.get('recorded_at'),
+        current_nearest=current_nearest,
     )
     if ok:
         loc.last_alert_sent_at = datetime.utcnow()

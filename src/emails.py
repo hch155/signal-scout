@@ -376,7 +376,8 @@ def _coverage_alert_subject(location, gained, lost, distance_changes) -> tuple:
 
 
 def send_coverage_alert(user, location, gained, lost, distance_changes,
-                         before_recorded_at: Optional[str] = None) -> bool:
+                         before_recorded_at: Optional[str] = None,
+                         current_nearest: Optional[dict] = None) -> bool:
     """Sent by the coverage-alert sweep after a UKE refresh when a
     SavedLocation's coverage materially changed.
 
@@ -402,4 +403,5 @@ def send_coverage_alert(user, location, gained, lost, distance_changes,
         distance_changes=distance_changes,
         preheader=preheader,
         before_recorded_at=before_recorded_at,
+        current_nearest=current_nearest,
     )
