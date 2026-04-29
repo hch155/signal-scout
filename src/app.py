@@ -795,6 +795,35 @@ def stats_page():
                 }
                 for m in sorted(by_month)
             ]
+            # 2026-04-29: derive "Last refresh" from when the data
+            # ACTUALLY changed, not the file's mtime. Docker COPY in
+            # the image build resets stations.db mtime to build time
+            # on every redeploy, so the file-mtime path showed today
+            # whenever we redeployed even if the UKE data hadn't
+            # rotated. The honest answer is "the oldest snapshot
+            # whose grand_total_entries equals the current one" —
+            # i.e. when this exact data first appeared.
+            try:
+                cur_e = int(stats.get('grand_total_entries', 0))
+                cur_s = int(stats.get('grand_total_sites', 0))
+                # Walk newest -> oldest along db_mtime; track the
+                # first snapshot that doesn't match, then the
+                # answer is the one immediately before it.
+                desc = sorted(
+                    all_rows, key=lambda r: r.get('db_mtime', 0),
+                    reverse=True,
+                )
+                first_seen = None
+                for r in desc:
+                    if (int(r.get('grand_total_entries', 0)) == cur_e
+                        and int(r.get('grand_total_sites', 0)) == cur_s):
+                        first_seen = r.get('recorded_at') or first_seen
+                    else:
+                        break
+                if first_seen and len(first_seen) >= 10:
+                    last_refresh_iso = first_seen[:10]
+            except Exception:
+                pass
             # 2026-04-29: peak-detection outlier filter. The historical
             # replay script produced bogus rows (2026-01 landed at 223k
             # entries — +70k from Dec '25, -39k into Feb '26; a UKE

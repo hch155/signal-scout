@@ -124,27 +124,46 @@
        monitoring. 5G race + legacy debt + co-location + top metros. #}
     <div class="px-2 md:px-4 mb-4 max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
 
-        {# 5G race tracker — % of operator sites with at least 1 5G band #}
+        {# 5G race tracker — leaderboard by ABSOLUTE 5G site count.
+           A "race" rewards who's built more towers, not who has the
+           highest ratio against their own (possibly small) fleet.
+           Bar width = sites_with_5g / leader's count, so the leader
+           gets a full bar and everyone else scales down. The %
+           label still shows fleet coverage as secondary context. #}
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
             <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">5G race</h3>
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                Share of each operator's sites that broadcast at least one 5G band. The KPI vendors quote in investor decks.
+                Operators ranked by absolute count of sites broadcasting at least one 5G band. The KPI vendors quote in investor decks.
             </p>
-            <div class="space-y-3">
-                {% for provider in stats.major_providers %}
+            {# Build sortable list, then rank by sites_with_5g desc. #}
+            {% set ranked = [] %}
+            {% for provider in stats.major_providers %}
                 {% set cov = stats.five_g_coverage[provider] %}
                 {% if cov.total_sites > 0 %}
+                    {% set _ = ranked.append({'provider': provider, 'cov': cov}) %}
+                {% endif %}
+            {% endfor %}
+            {% set ranked = ranked | sort(attribute='cov.sites_with_5g', reverse=True) %}
+            {% set leader_5g = ranked[0].cov.sites_with_5g if ranked else 1 %}
+            <div class="space-y-3">
+                {% for r in ranked %}
+                {% set cov = r.cov %}
+                {% set width = (100.0 * cov.sites_with_5g / leader_5g) if leader_5g else 0 %}
                 <div>
                     <div class="flex items-baseline justify-between mb-1">
-                        <span class="font-medium text-gray-900 dark:text-white">{{ provider_short.get(provider, provider) }}</span>
-                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ "{:,}".format(cov.sites_with_5g) }} / {{ "{:,}".format(cov.total_sites) }} sites</span>
+                        <span class="font-medium text-gray-900 dark:text-white">
+                            <span class="text-xs text-gray-400 dark:text-gray-500 mr-1">{{ loop.index }}.</span>{{ provider_short.get(r.provider, r.provider) }}
+                        </span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ "{:,}".format(cov.sites_with_5g) }} 5G sites</span>
                     </div>
                     <div class="w-full h-3 bg-gray-100 dark:bg-gray-700 rounded">
-                        <div class="h-3 rounded {{ generation_color['5G'] }}" style="width: {{ cov.pct }}%;" title="{{ cov.pct }}%"></div>
+                        <div class="h-3 rounded {{ generation_color['5G'] }}" style="width: {{ '%.1f'|format(width) }}%;" title="{{ cov.sites_with_5g }} 5G sites ({{ cov.pct }}% of fleet)"></div>
                     </div>
-                    <p class="text-xs text-emerald-700 dark:text-emerald-400 font-semibold mt-1">{{ cov.pct }}%</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {{ "{:,}".format(cov.sites_with_5g) }} / {{ "{:,}".format(cov.total_sites) }} sites
+                        <span class="text-emerald-700 dark:text-emerald-400 font-semibold">({{ cov.pct }}% of fleet)</span>
+                    </p>
                 </div>
-                {% endif %}
                 {% endfor %}
             </div>
         </div>
