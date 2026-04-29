@@ -685,7 +685,21 @@ def _constant_time_eq(a: str, b: str) -> bool:
 
 
 def _build_metrics_view(token_env_var: str) -> Callable[[], Response]:
-    """Bearer-token protected /metrics view."""
+    """Bearer-token protected /metrics view.
+
+    2026-04-29: when PROMETHEUS_MULTIPROC_DIR is set, build the response
+    from a MultiProcessCollector that aggregates per-worker counter
+    files in that dir. Otherwise (single-worker dev runs / tests),
+    fall back to the default global registry.
+
+    Without the multiproc path, gunicorn's --workers=2 fleet kept
+    per-worker counter copies in process memory; a /metrics scrape
+    landed on a random worker and returned only that one's counts —
+    Prometheus saw the series jump up and down between scrapes and
+    `increase(...)` returned 0. Multiproc fixes that with a SUM across
+    all workers' files.
+    """
+    multiproc_dir = os.getenv("PROMETHEUS_MULTIPROC_DIR", "").strip()
 
     def metrics_view() -> Response:
         configured = os.getenv(token_env_var, "").strip()
@@ -695,18 +709,48 @@ def _build_metrics_view(token_env_var: str) -> Callable[[], Response]:
         if not provided or not _constant_time_eq(provided, configured):
             return Response("Unauthorized", status=401,
                             headers={"WWW-Authenticate": 'Bearer realm="metrics"'})
-        # PR #44: refresh SLO gauges on every scrape.
         try:
             _refresh_slo_gauges()
         except Exception:
             pass
+
+        if multiproc_dir:
+            from prometheus_client import CollectorRegistry, multiprocess
+            registry = CollectorRegistry()
+            multiprocess.MultiProcessCollector(registry)
+            return Response(generate_latest(registry),
+                            mimetype=CONTENT_TYPE_LATEST)
+
         return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
     return metrics_view
 
 
+def _ensure_multiproc_dir() -> None:
+    """Make sure PROMETHEUS_MULTIPROC_DIR exists. NEVER cleans up
+    existing .db files — that's a destructive op that has to happen
+    BEFORE any Counter/Histogram is constructed (otherwise we wipe
+    files prometheus_client opened at module import time, breaking
+    every subsequent .inc()). Cleanup belongs in the gunicorn
+    `on_starting` hook (gunicorn_conf.py), which runs in the master
+    process before any worker fork."""
+    d = os.getenv("PROMETHEUS_MULTIPROC_DIR", "").strip()
+    if not d:
+        return
+    try:
+        os.makedirs(d, exist_ok=True)
+    except OSError:
+        pass
+
+
 def init_observability(app: Flask, token_env_var: str = "METRICS_BEARER_TOKEN") -> None:
     """Wire Prometheus + /healthz onto the Flask app."""
+    # 2026-04-29: prepare PROMETHEUS_MULTIPROC_DIR for the gunicorn
+    # multi-worker fleet. Must run BEFORE PrometheusMetrics is wired
+    # because the underlying Counter/Histogram/Gauge constructors
+    # write their initial files into the dir at import time.
+    _ensure_multiproc_dir()
+
     PrometheusMetrics(
         app,
         path=None,

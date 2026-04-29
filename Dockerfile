@@ -85,6 +85,7 @@ CMD ["gunicorn", \
      "--timeout=30", \
      "--bind=0.0.0.0:8080", \
      "--access-logfile=-", \
+     "--config=/usr/src/app/gunicorn_conf.py", \
      "src.app:app"]
 # --preload: import app ONCE in master before forking workers. Critical
 # for SQLite + db.create_all() — without preload, every worker calls
