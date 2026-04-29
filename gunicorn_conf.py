@@ -20,32 +20,33 @@ would also work but the app-side init is more portable across
 non-gunicorn dev runs).
 """
 import os
-import shutil
-
-from prometheus_client import multiprocess
+import sys
 
 
-def on_starting(server):
-    """Called once in the master process before any workers are forked.
-    Purge stale per-pid files from PROMETHEUS_MULTIPROC_DIR — Cloud
-    Run's /tmp survives across worker recycles within the same
-    instance, so dead-pid files would otherwise be re-counted into
-    /metrics totals after a worker recycle. SAFE to delete here
-    because no Counter/Histogram has been constructed yet."""
-    d = os.getenv("PROMETHEUS_MULTIPROC_DIR", "").strip()
-    if not d:
-        return
+# 2026-04-29: TOP-LEVEL init. With gunicorn --preload, the app is
+# imported in master BEFORE any lifecycle hook (on_starting/when_ready)
+# fires — so a hook-based mkdir runs too late and the first Counter
+# constructor crashes with FileNotFoundError. Top-level config-file
+# code IS executed when --config is parsed, which happens before
+# Arbiter.setup() / preload import. So we mkdir + clean here.
+_MP_DIR = os.getenv("PROMETHEUS_MULTIPROC_DIR", "").strip()
+if _MP_DIR:
     try:
-        os.makedirs(d, exist_ok=True)
-        for fn in os.listdir(d):
-            if fn.endswith(".db"):
+        os.makedirs(_MP_DIR, exist_ok=True)
+        for _fn in os.listdir(_MP_DIR):
+            if _fn.endswith(".db"):
                 try:
-                    os.unlink(os.path.join(d, fn))
+                    os.unlink(os.path.join(_MP_DIR, _fn))
                 except OSError:
                     pass
-        server.log.info("[prom-multiproc] cleaned %s on master start", d)
-    except OSError as e:
-        server.log.warning("[prom-multiproc] cleanup of %s failed: %s", d, e)
+        print(f"[prom-multiproc] init: {_MP_DIR} ready (cleaned stale files)",
+              file=sys.stderr, flush=True)
+    except OSError as _e:
+        print(f"[prom-multiproc] init failed for {_MP_DIR}: {_e}",
+              file=sys.stderr, flush=True)
+
+
+from prometheus_client import multiprocess  # noqa: E402  (after env init)
 
 
 def child_exit(server, worker):
