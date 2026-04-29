@@ -2076,6 +2076,19 @@ document.addEventListener('DOMContentLoaded', function () {
             if (typeof mymap !== 'undefined' && mymap.setView) {
                 mymap.setView([lat, lng], 13);
             }
+            // Mirror the on-click handler: drop a green pin at the spot
+            // BEFORE firing sendLocation. The click handler does this on
+            // line ~167; without replicating it, the deep-link path
+            // populated stations + rings but no user marker.
+            if (typeof marker !== 'undefined') {
+                if (marker) { try { mymap.removeLayer(marker); } catch (e) {} }
+                marker = L.marker([lat, lng], { icon: greenIcon }).addTo(mymap);
+            }
+            // Mark first-click consumed so subsequent map clicks fall
+            // into fetchStations() path (matching click-handler behaviour).
+            if (typeof isFirstClick !== 'undefined') {
+                isFirstClick = false;
+            }
             if (typeof sendLocation === 'function') {
                 sendLocation(lat, lng);
             }
