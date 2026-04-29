@@ -45,10 +45,66 @@
     return el;
   }
 
+  /** Build (or reuse) the tooltip element anchored to the chart host. */
+  function getTooltip(host) {
+    var tip = host.querySelector('.stats-chart-tooltip');
+    if (tip) return tip;
+    tip = document.createElement('div');
+    tip.className = 'stats-chart-tooltip';
+    tip.style.cssText = [
+      'position:absolute',
+      'pointer-events:none',
+      'z-index:10',
+      'padding:6px 8px',
+      'border-radius:4px',
+      'font-size:11px',
+      'line-height:1.4',
+      'background:rgba(17,24,39,0.95)',
+      'color:#fff',
+      'box-shadow:0 4px 12px rgba(0,0,0,0.25)',
+      'opacity:0',
+      'transition:opacity 80ms ease-out',
+      'white-space:nowrap',
+    ].join(';');
+    host.appendChild(tip);
+    return tip;
+  }
+
+  function showTooltip(host, tip, x, contentLines) {
+    tip.innerHTML = '';
+    contentLines.forEach(function (line, i) {
+      var div = document.createElement('div');
+      if (i === 0) div.style.fontWeight = '600';
+      div.textContent = line;
+      tip.appendChild(div);
+    });
+    // Position: anchor to the column centre, clamp to host edges.
+    tip.style.opacity = '0';
+    tip.style.left = '0px';
+    tip.style.top = '0px';
+    tip.style.display = 'block';
+    var hostRect = host.getBoundingClientRect();
+    // Force layout to get tip dims after content swap.
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    var left = Math.max(2, Math.min(hostRect.width - w - 2, x - w / 2));
+    tip.style.left = left + 'px';
+    tip.style.top = '4px';
+    tip.style.opacity = '1';
+  }
+
+  function hideTooltip(tip) {
+    if (tip) tip.style.opacity = '0';
+  }
+
   /** Render a stacked-or-single bar chart into the given <svg>. */
   function renderChart(host, history, view) {
-    // Clear previous render.
-    while (host.firstChild) host.removeChild(host.firstChild);
+    // Preserve / re-create the tooltip element (independent of the SVG).
+    var tip = getTooltip(host);
+    hideTooltip(tip);
+    // Clear previous SVG render (but not the tooltip we just preserved).
+    Array.prototype.slice.call(host.childNodes).forEach(function (n) {
+      if (n !== tip) host.removeChild(n);
+    });
 
     var width = host.clientWidth || 600;
     var height = host.clientHeight || 220;
@@ -126,16 +182,43 @@
       var totalForRow = 0;
       series.forEach(function (s) { totalForRow += s.get(h); });
 
-      // Tooltip-target group covering the whole column for easier hover.
+      // Tooltip-target group covering the whole column. Hover anywhere
+      // in the column → custom tooltip pops, much faster than the
+      // browser's native <title> hover (which has ~600ms delay).
       var g = svgEl('g', { class: 'stats-chart-col' });
       var hover = svgEl('rect', {
         x: padLeft + slot * idx, y: padTop,
         width: slot, height: plotH,
         fill: 'transparent',
       });
-      hover.setAttribute('data-month', h.month);
-      hover.setAttribute('data-total', totalForRow);
       g.appendChild(hover);
+
+      // Build the tooltip lines for this column up front (closure
+      // over the live series so multi-series views read correctly).
+      var tipLines = [h.month];
+      if (series.length === 1) {
+        tipLines.push(series[0].key + ': ' + fmt(series[0].get(h)));
+      } else {
+        // Stacked view — list each band + total.
+        series.forEach(function (s) {
+          var v = s.get(h);
+          if (v > 0) tipLines.push(s.key + ': ' + fmt(v));
+        });
+        tipLines.push('Total: ' + fmt(totalForRow));
+      }
+
+      // SVG elements don't fire mouseenter on transparent fills in
+      // every browser the same way; use a JS handler on the group.
+      g.addEventListener('mouseenter', function () {
+        showTooltip(host, tip, cx, tipLines);
+      });
+      g.addEventListener('mouseleave', function () { hideTooltip(tip); });
+      // Touch/tap support: tap a column, see the tooltip until the
+      // user taps elsewhere.
+      g.addEventListener('touchstart', function (ev) {
+        ev.preventDefault();
+        showTooltip(host, tip, cx, tipLines);
+      }, { passive: false });
 
       series.forEach(function (s) {
         var v = s.get(h);
@@ -146,15 +229,16 @@
           x: x, y: y, width: barW, height: hpx,
           fill: s.color, rx: '1.5', ry: '1.5',
         });
-        var title = svgEl('title');
-        title.textContent = h.month + ' — ' + s.key + ': ' + fmt(v);
-        rect.appendChild(title);
         g.appendChild(rect);
         stackBottomY = y;
       });
 
       svg.appendChild(g);
     });
+
+    // Hide tooltip when mouse leaves the SVG bounds entirely (covers
+    // the case of moving cursor between columns then off the chart).
+    svg.addEventListener('mouseleave', function () { hideTooltip(tip); });
 
     // X-axis: first / mid / last labels (avoid clutter at 25 bars).
     var labelMonths = [];

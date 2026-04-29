@@ -411,25 +411,15 @@ def get_stats():
     # shows the inverse, formatted as the positive KPI users actually
     # want to see.
 
-    # 3) Co-located sites (network-sharing index): single
-    #    geographic location used by 2+ operators. Higher value =
-    #    more shared towers (cost efficiency, regulatory pressure).
-    colocated_sites_q = (
-        db.session.query(
-            BaseStation.location,
-            func.count(distinct(BaseStation.service_provider)).label('op_count'),
-        )
-        .filter(BaseStation.service_provider != HONEYPOT_MARKER)
-        .filter(BaseStation.location.isnot(None))
-        .group_by(BaseStation.location)
-        .having(func.count(distinct(BaseStation.service_provider)) >= 2)
-        .all()
-    )
-    colocated_count = len(colocated_sites_q)
-    colocated_by_op_count: dict = {2: 0, 3: 0, 4: 0}
-    for _loc, op_count in colocated_sites_q:
-        bucket = min(int(op_count), 4)
-        colocated_by_op_count[bucket] = colocated_by_op_count.get(bucket, 0) + 1
+    # 2026-04-29: dropped the "Network sharing (co-located sites)" KPI.
+    # Grouped on EXACT BaseStation.location string, but real PL operators
+    # log shared towers under slightly different addresses (different
+    # building numbers, varying punctuation, language case), so the
+    # 3.2% number was an order of magnitude too low — Plus + Play do
+    # active RAN sharing in rural areas at ~50% of their fleet.
+    # Honest fix would be lat/lng-radius bucketing (e.g. round to 4dp,
+    # group within ~10m); deferred until we have time to validate
+    # against an external source (UKE doesn't publish a sharing field).
 
     # 4) Top 10 cities by total physical sites — most-built-out
     #    metro areas. Standard geographic-distribution panel.
@@ -482,8 +472,6 @@ def get_stats():
         # filter. Full bands table below still shows everything.
         'major_providers': major_providers,
         'five_g_coverage': five_g_coverage,
-        'colocated_count': int(colocated_count),
-        'colocated_by_op_count': colocated_by_op_count,
         'top_cities': top_cities,
         # Hero-strip top-level numbers.
         'grand_total_sites': sum(stats['physical_sites'].values()),

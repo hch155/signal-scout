@@ -149,30 +149,11 @@
             </div>
         </div>
 
-        {# Co-location index — site sharing between operators #}
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Network sharing (co-located sites)</h3>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                Single physical address used by ≥2 operators. Higher numbers = more shared towers (cost efficiency, regulatory pressure for rural coverage).
-            </p>
-            <div class="grid grid-cols-3 gap-2 text-center">
-                {% for ops in [2, 3, 4] %}
-                <div class="p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                    <p class="text-xl font-bold text-gray-900 dark:text-white">{{ "{:,}".format(stats.colocated_by_op_count.get(ops, 0)) }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ ops }}{% if ops == 4 %}+{% endif %} operators</p>
-                </div>
-                {% endfor %}
-            </div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                Total shared sites: <span class="font-semibold text-gray-900 dark:text-white">{{ "{:,}".format(stats.colocated_count) }}</span> ({{ "%.1f"|format(100.0 * stats.colocated_count / stats.grand_total_sites) if stats.grand_total_sites else '0' }}% of fleet)
-            </p>
-        </div>
-
         {# Top metros by site count #}
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
             <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Top 10 cities by site count</h3>
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                Densest cities in the dataset (across all 4 operators). Network capacity proxy.
+                Cities with the most physical towers across all four operators — a quick look at where the network is densest.
             </p>
             <ol class="space-y-1.5">
                 {% set max_city = stats.top_cities[0].sites if stats.top_cities else 1 %}
@@ -241,7 +222,7 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
             <div class="flex flex-wrap items-baseline justify-between gap-2 mb-1">
                 <h3 class="text-lg font-bold text-gray-900 dark:text-white">Trend over time</h3>
-                <p class="text-xs text-gray-500 dark:text-gray-400">{{ monthly_history|length }} monthly snapshots</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ monthly_history|length }} months tracked (one snapshot per UKE refresh)</p>
             </div>
 
             {# View selector — pick one. Single-axis charts keep the
