@@ -54,11 +54,21 @@
   <h2 style="font-size:15px; color:#1f2937; margin-top:20px;">Nearest-station distance changed</h2>
   <ul style="padding-left: 18px; line-height:1.6;">
     {% for c in distance_changes %}
+    {% set same_bts = c.before_bts and c.after_bts and c.before_bts.bts_id and c.after_bts.bts_id and c.before_bts.bts_id == c.after_bts.bts_id %}
     <li>
       <strong>{{ c.band }}</strong>:
       {{ "%.1f"|format(c.before_km) }} km → {{ "%.1f"|format(c.after_km) }} km
       ({% if c.delta_km > 0 %}+{% endif %}{{ "%.1f"|format(c.delta_km) }} km)
-      {%- if c.after_bts and c.after_bts.bts_id %}<br><span style="font-size:12px;color:#6b7280;">now nearest: {{ bts_label(c.after_bts) }}</span>{% endif %}
+      {% if same_bts %}
+        <br><span style="font-size:12px;color:#6b7280;">same tower ({{ bts_label(c.after_bts) }}); UKE refined the coordinates.</span>
+      {% else %}
+        {% if c.before_bts and c.before_bts.bts_id %}
+          <br><span style="font-size:12px;color:#6b7280;">previously nearest: {{ bts_label(c.before_bts) }}{% if c.delta_km > 0 %} <span style="color:#92400e;">— may have been decommissioned or refarmed</span>{% endif %}</span>
+        {% endif %}
+        {% if c.after_bts and c.after_bts.bts_id %}
+          <br><span style="font-size:12px;color:#6b7280;">now nearest: {{ bts_label(c.after_bts) }}</span>
+        {% endif %}
+      {% endif %}
     </li>
     {% endfor %}
   </ul>

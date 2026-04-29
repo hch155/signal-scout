@@ -19,7 +19,18 @@ Lost coverage:
 {% for l in lost %}- {{ l.band }} ({{ bts_label(l) or 'the previously nearby base station' }} is no longer in range)
 {% endfor %}{% endif %}{% if distance_changes %}
 Nearest-station distance changed:
-{% for c in distance_changes %}- {{ c.band }}: {{ "%.1f"|format(c.before_km) }} km -> {{ "%.1f"|format(c.after_km) }} km ({% if c.delta_km > 0 %}+{% endif %}{{ "%.1f"|format(c.delta_km) }} km){% if c.after_bts and c.after_bts.bts_id %}; now nearest: {{ bts_label(c.after_bts) }}{% endif %}
+{% for c in distance_changes %}- {{ c.band }}: {{ "%.1f"|format(c.before_km) }} km -> {{ "%.1f"|format(c.after_km) }} km ({% if c.delta_km > 0 %}+{% endif %}{{ "%.1f"|format(c.delta_km) }} km)
+{%- set same_bts = c.before_bts and c.after_bts and c.before_bts.bts_id and c.after_bts.bts_id and c.before_bts.bts_id == c.after_bts.bts_id %}
+{%- if same_bts %}
+    same tower ({{ bts_label(c.after_bts) }}); UKE refined the coordinates.
+{%- else %}
+{%- if c.before_bts and c.before_bts.bts_id %}
+    was: {{ bts_label(c.before_bts) }}{% if c.delta_km > 0 %} (may have been decommissioned or refarmed){% endif %}
+{%- endif %}
+{%- if c.after_bts and c.after_bts.bts_id %}
+    now: {{ bts_label(c.after_bts) }}
+{%- endif %}
+{%- endif %}
 {% endfor %}{% endif %}
 Review on Signal-Scout: {{ email_link_origin }}/account
 
