@@ -361,6 +361,99 @@ public_requests_total = Counter(
 )
 
 
+# ── 2026-04-29: extended observability surface ────────────────────────────
+#
+# Added per the Zabbix/Grafana cheat sheet — fills the gaps in the
+# pre-existing instrumentation so dashboards have meaningful series for
+# every monitoring concern (DB perf, email pipeline, product DAU,
+# saved-location growth, scheduled-job health, data freshness, deploy
+# correlation).
+
+db_query_seconds = Histogram(
+    "signal_scout_db_query_seconds",
+    "SQLAlchemy query duration histogram, labelled by table. Wired via "
+    "engine event listener (before_cursor_execute / after_cursor_execute) "
+    "so any model query is captured. Use histogram_quantile for p50/p95/p99 "
+    "per table — spotting query regressions when stations.db grows or "
+    "after a refactor lands a hot loop.",
+    labelnames=("table",),
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5),
+)
+
+email_send_total = Counter(
+    "signal_scout_email_send_total",
+    "Outbound email attempts via emails._send. Labelled by template + "
+    "outcome ('sent' | 'send_failed' | 'suppressed' | 'alerts_disabled' "
+    "| 'no_user' | 'render_failed'). Pairs with email_event_total below "
+    "(sent here = SendGrid accepted; delivered there = SendGrid actually "
+    "handed off to recipient MTA).",
+    labelnames=("template", "outcome"),
+)
+
+email_event_total = Counter(
+    "signal_scout_email_event_total",
+    "SendGrid Event Webhook receiver counter. event_type ∈ "
+    "{processed, delivered, open, click, bounce, dropped, deferred, "
+    "spamreport, unsubscribe, group_unsubscribe, group_resubscribe}. "
+    "Bounce + spamreport rates are the deliverability KPI; sustained "
+    "non-zero spamreport is sender-reputation territory.",
+    labelnames=("event_type",),
+)
+
+active_users_24h = Gauge(
+    "signal_scout_active_users_24h",
+    "Distinct user_ids that took any logged user_action in the last 24h. "
+    "Recomputed at every /metrics scrape via Gauge.set_function — DAU "
+    "north star for product traction.",
+)
+
+saved_locations_total = Gauge(
+    "signal_scout_saved_locations_total",
+    "Total UserLocation rows in the users.db. Recomputed at every /metrics "
+    "scrape. Pairs with user_action_total{action='location_create'|'location_delete'} "
+    "to spot a delete spike (churn) vs a create spike (engagement).",
+)
+
+coverage_alert_sweep_seconds = Histogram(
+    "signal_scout_coverage_alert_sweep_seconds",
+    "Wall time of one full run_coverage_alert_sweep() invocation. The "
+    "sweep walks every alerting-enabled UserLocation, computes a fresh "
+    "find_coverage_gaps + diff, and sends emails. Cron-fired monthly by "
+    "Cloud Scheduler — sustained high latency means we'll soon outgrow "
+    "the 180s attempt-deadline.",
+    buckets=(0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0, 120.0, 180.0),
+)
+
+coverage_alert_sweep_sent_total = Counter(
+    "signal_scout_coverage_alert_sweep_sent_total",
+    "Per-status counter for each location processed by a coverage-alert "
+    "sweep. status ∈ {'first-run', 'no-change', 'sent', 'send-failed', "
+    "'skipped'}. Lets Grafana plot 'how many real diff emails the last "
+    "monthly run produced' vs noise.",
+    labelnames=("status",),
+)
+
+stations_db_age_seconds = Gauge(
+    "signal_scout_stations_db_age_seconds",
+    "now - mtime(stations.db). Recomputed at every /metrics scrape. Alert "
+    "when > 35d (~5 weeks) — UKE refresh cadence is monthly, anything "
+    "older than that means the monthly-db-update workflow is broken or "
+    "we missed a release. NOTE: Docker COPY resets mtime to build time on "
+    "every redeploy, so this is also bounded by deploy cadence — re-deploys "
+    "without a fresh DB will reset the age clock.",
+)
+
+app_version_info = Gauge(
+    "signal_scout_app_version_info",
+    "Static gauge holding the deployed APP_VERSION as a label, value "
+    "always 1. `signal_scout_app_version_info{version='2026.04.29-abc1234'} "
+    "1`. Lets Grafana annotation queries correlate latency / error spikes "
+    "with deploy boundaries — pin a vertical line every time the version "
+    "label flips.",
+    labelnames=("version",),
+)
+
+
 # ── In-memory tracking for /status incident timestamp ──────────────────────
 
 _LAST_INCIDENT_TS: dict[str, float] = {"value": 0.0}

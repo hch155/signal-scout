@@ -40,7 +40,7 @@ from api_docs import init_api_docs
 from oauth import init_oauth, login_with_provider, callback_for_provider
 from dotenv import load_dotenv
 from datetime import timedelta, datetime
-import markdown, os, random, re, logging, secrets
+import markdown, os, random, re, logging, secrets, time
 
 load_dotenv()
 
@@ -221,6 +221,84 @@ def _coords_in_bounds(lat: float, lng: float) -> bool:
 
 # Wire Prometheus exporter (/metrics with bearer-token auth) and /healthz.
 init_observability(app)
+
+# 2026-04-29: dynamic gauges (recomputed on every /metrics scrape).
+# - app_version_info: pinned label = current deploy version, value = 1.
+# - stations_db_age_seconds: now - mtime(stations.db); alert >35d.
+# - active_users_24h: distinct user_ids in submit_location_event window.
+# - saved_locations_total: row count of UserLocation.
+# Wrapped in try so a missing table at boot (fresh DB) doesn't kill /metrics.
+try:
+    from observability import (
+        app_version_info, stations_db_age_seconds,
+        active_users_24h, saved_locations_total,
+        db_query_seconds,
+    )
+    app_version_info.labels(version=settings.app_version or 'dev').set(1)
+
+    def _stations_db_age() -> float:
+        try:
+            return max(0.0, time.time() - os.path.getmtime(stations_db_path))
+        except OSError:
+            return 0.0
+    stations_db_age_seconds.set_function(_stations_db_age)
+
+    def _active_users_24h() -> float:
+        try:
+            from sqlalchemy import func as _f
+            from models import SubmitLocationEvent as _SLE
+            with app.app_context():
+                cutoff = datetime.utcnow() - timedelta(days=1)
+                n = (db.session.query(_f.count(_f.distinct(_SLE.user_id)))
+                     .filter(_SLE.created_at >= cutoff)
+                     .filter(_SLE.user_id.isnot(None)).scalar()) or 0
+                return float(n)
+        except Exception:
+            return 0.0
+    active_users_24h.set_function(_active_users_24h)
+
+    def _saved_locations_total() -> float:
+        try:
+            from models import UserLocation as _UL
+            with app.app_context():
+                return float(_UL.query.count())
+        except Exception:
+            return 0.0
+    saved_locations_total.set_function(_saved_locations_total)
+
+    # SQLAlchemy event listener for db_query_seconds. Captures every
+    # query crossing either bind (default = stations.db, 'users' = users.db).
+    # Best-effort — wrapped in try because the engine objects must
+    # exist by now (db.init_app already ran).
+    from sqlalchemy import event as _sa_event
+    import re as _re
+
+    def _table_label(stmt: str) -> str:
+        # Cheap parse: pull the first FROM/INTO/UPDATE table name.
+        m = _re.search(
+            r'\b(?:from|into|update|join)\s+["`]?([A-Za-z_][A-Za-z0-9_]*)',
+            stmt, _re.IGNORECASE)
+        return (m.group(1).lower() if m else 'unknown')[:32]
+
+    def _on_before(conn, cursor, statement, params, context, executemany):
+        context._query_start_time = time.time()
+
+    def _on_after(conn, cursor, statement, params, context, executemany):
+        try:
+            elapsed = time.time() - getattr(context, '_query_start_time', time.time())
+            db_query_seconds.labels(table=_table_label(statement)).observe(elapsed)
+        except Exception:
+            pass
+
+    for _bind in (None, 'users'):
+        try:
+            _eng = db.get_engine(app, bind=_bind)
+            _sa_event.listen(_eng, "before_cursor_execute", _on_before)
+            _sa_event.listen(_eng, "after_cursor_execute", _on_after)
+        except Exception:
+            app.logger.exception("db_query_seconds listener wiring failed for bind=%s", _bind)
+except Exception:
+    app.logger.exception("[observability] dynamic-gauge wiring failed")
 
 # OpenAPI / Swagger UI on /api/v1/docs/, spec on /api/v1/openapi.json.
 init_api_docs(app)
@@ -1218,6 +1296,7 @@ def sendgrid_event_webhook():
         return jsonify({"error": "bad_payload"}), 400
 
     from models import EmailEvent as _EE, EmailSuppression as _ESup
+    from observability import email_event_total
     inserted = 0
     suppressed = 0
     for ev in events:
@@ -1230,6 +1309,12 @@ def sendgrid_event_webhook():
             continue
         email = (ev.get('email') or '').strip().lower()
         event_type = (ev.get('event') or '').strip().lower()
+        # Bump the deliverability counter — chartable in Grafana
+        # (delivered / open / click / bounce / spamreport rates).
+        try:
+            email_event_total.labels(event_type=event_type or 'unknown').inc()
+        except Exception:
+            pass
         ts_epoch = ev.get('timestamp')
         try:
             sg_ts = datetime.utcfromtimestamp(int(ts_epoch)) if ts_epoch else None

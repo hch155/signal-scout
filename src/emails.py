@@ -249,11 +249,25 @@ def _send(user, subject: str, template: str, **ctx) -> bool:
     the suppression IS the success path for "we should not email
     this address".
     """
+    # 2026-04-29: every send goes through email_send_total{template,outcome}
+    # so Grafana / Zabbix can chart deliverability + suppression hit-rate
+    # without parsing logs. Outcome vocabulary mirrors the early-return
+    # cases below (no_user, alerts_disabled, suppressed, render_failed)
+    # plus the terminal sent / send_failed.
+    def _bump(outcome: str):
+        try:
+            from observability import email_send_total
+            email_send_total.labels(template=template, outcome=outcome).inc()
+        except Exception:
+            pass
+
     if user is None or not getattr(user, 'email', None):
+        _bump('no_user')
         return False
     if not getattr(user, 'email_alerts_enabled', True):
         logger.info("[email] skipping %s for user %s (alerts disabled)",
                     template, user.id)
+        _bump('alerts_disabled')
         return True
     # 2026-04-29: suppression-list short-circuit. Cheap (single indexed
     # lookup); avoids paying SendGrid to reject mail to bounced addresses.
@@ -263,6 +277,7 @@ def _send(user, subject: str, template: str, **ctx) -> bool:
         if sup:
             logger.info("[email] suppressed %s to=%s reason=%s (since %s)",
                         template, user.email, sup.reason, sup.created_at)
+            _bump('suppressed')
             return True
     except Exception:
         # Don't let a missing table / DB hiccup block transactional mail.
@@ -280,6 +295,7 @@ def _send(user, subject: str, template: str, **ctx) -> bool:
         html, text = _render(template, **ctx)
     except Exception:
         logger.exception("[email] template render failed: %s", template)
+        _bump('render_failed')
         return False
 
     # RFC 8058 List-Unsubscribe + List-Unsubscribe-Post (Gmail / Yahoo
@@ -293,10 +309,12 @@ def _send(user, subject: str, template: str, **ctx) -> bool:
         )
         extra_headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
 
-    return get_backend().send(EmailMessage(
+    ok = get_backend().send(EmailMessage(
         to=user.email, subject=subject, html_body=html, text_body=text,
         extra_headers=extra_headers,
     ))
+    _bump('sent' if ok else 'send_failed')
+    return ok
 
 
 # ── Public per-event helpers ──────────────────────────────────────────────
