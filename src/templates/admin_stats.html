@@ -146,6 +146,58 @@
       {% endif %}
     </div>
 
+    {# ── Registered users + saved locations (2026-04-29) ──────── #}
+    {% if data.users %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 md:p-6 mb-6">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">Registered users &amp; saved locations</h3>
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+        <div class="bg-gray-50 dark:bg-gray-700 rounded p-3">
+          <p class="text-xs uppercase text-gray-500 dark:text-gray-400 tracking-wide">Total users</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ "{:,}".format(data.users.total) }}</p>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-700 rounded p-3">
+          <p class="text-xs uppercase text-gray-500 dark:text-gray-400 tracking-wide">Email alerts on</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ "{:,}".format(data.users.email_alerts_on) }}</p>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-700 rounded p-3">
+          <p class="text-xs uppercase text-gray-500 dark:text-gray-400 tracking-wide">With saved locations</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ "{:,}".format(data.users.with_saved_locations) }}</p>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-700 rounded p-3">
+          <p class="text-xs uppercase text-gray-500 dark:text-gray-400 tracking-wide">Saved locations</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ "{:,}".format(data.saved_locations.total) }}</p>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-700 rounded p-3">
+          <p class="text-xs uppercase text-gray-500 dark:text-gray-400 tracking-wide">Alerting enabled</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ "{:,}".format(data.saved_locations.alerting_enabled) }}</p>
+        </div>
+      </div>
+      {% if data.saved_locations.top_savers %}
+      <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Top savers</h4>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700">
+            <th class="py-2 pr-2">Email</th>
+            <th class="py-2 pr-2 text-right">Saved</th>
+            <th class="py-2 pr-2 text-right">Alerting</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in data.saved_locations.top_savers %}
+          <tr class="border-t border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100">
+            <td class="py-2 pr-2 font-mono text-xs">{{ s.email }}</td>
+            <td class="py-2 pr-2 text-right">{{ "{:,}".format(s.saved) }}</td>
+            <td class="py-2 pr-2 text-right">{{ "{:,}".format(s.alerting) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-sm text-gray-500 dark:text-gray-400 italic">No saved locations yet.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
     <div class="text-xs text-gray-500 dark:text-gray-400 italic">
       Pseudonymised: no raw IP, no full UA, coords rounded to 0.01° (~1km grid). 30-day retention.
       JSON endpoint: <a href="/admin/stats?days={{ data.window_days }}&format=json" class="underline">/admin/stats?format=json</a>.

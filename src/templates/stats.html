@@ -131,7 +131,7 @@
                 Share of each operator's sites that broadcast at least one 5G band. The KPI vendors quote in investor decks.
             </p>
             <div class="space-y-3">
-                {% for provider in stats.providers %}
+                {% for provider in stats.major_providers %}
                 {% set cov = stats.five_g_coverage[provider] %}
                 {% if cov.total_sites > 0 %}
                 <div>
@@ -149,23 +149,29 @@
             </div>
         </div>
 
-        {# Legacy modernization debt — sites stuck on GSM-only #}
+        {# 5G modernization debt — sites without 5G (the next upgrade) #}
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Legacy modernization debt</h3>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">5G modernization debt</h3>
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                Physical sites broadcasting <strong>only GSM</strong> (no LTE / 5G / UMTS overlay). T-Mobile EU has already pulled 3G/2G from chunks of their fleet — these are future capex events.
+                Sites <strong>without any 5G band</strong> — the inverse of the 5G race. Smaller bar = more of the fleet already has a 5G overlay.
             </p>
             <div class="space-y-2">
-                {% for provider in stats.providers %}
-                {% set debt = stats.legacy_debt[provider] %}
+                {% for provider in stats.major_providers %}
+                {% set debt = stats.no_5g_debt[provider] %}
                 {% set total = stats.physical_sites.get(provider, 0) %}
                 {% if total > 0 %}
-                <div class="flex items-baseline justify-between text-sm">
-                    <span class="font-medium text-gray-900 dark:text-white">{{ provider_short.get(provider, provider) }}</span>
-                    <span class="text-gray-700 dark:text-gray-200">
-                        <span class="font-bold {{ 'text-amber-700 dark:text-amber-400' if debt > 0 else 'text-green-700 dark:text-green-400' }}">{{ "{:,}".format(debt) }}</span>
-                        <span class="text-xs text-gray-500 dark:text-gray-400">/ {{ "{:,}".format(total) }} ({{ "%.1f"|format(100.0 * debt / total) }}%)</span>
-                    </span>
+                {% set pct = 100.0 * debt / total %}
+                <div>
+                    <div class="flex items-baseline justify-between text-sm mb-1">
+                        <span class="font-medium text-gray-900 dark:text-white">{{ provider_short.get(provider, provider) }}</span>
+                        <span class="text-gray-700 dark:text-gray-200">
+                            <span class="font-bold {{ 'text-amber-700 dark:text-amber-400' if pct >= 50 else 'text-emerald-700 dark:text-emerald-400' }}">{{ "{:,}".format(debt) }}</span>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">/ {{ "{:,}".format(total) }} ({{ "%.1f"|format(pct) }}%)</span>
+                        </span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded">
+                        <div class="h-2 rounded {{ 'bg-amber-500' if pct >= 50 else 'bg-emerald-500' }}" style="width: {{ pct }}%;"></div>
+                    </div>
                 </div>
                 {% endif %}
                 {% endfor %}
@@ -193,7 +199,7 @@
 
         {# Top metros by site count #}
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Top 10 metros by site count</h3>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Top 10 cities by site count</h3>
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
                 Densest cities in the dataset (across all 4 operators). Network capacity proxy.
             </p>
@@ -254,45 +260,53 @@
         </div>
     </div>
 
-    {# ── Trend over time (2026-04-28) ──────────────────────────── #}
+    {# ── Trend over time (2026-04-29: interactive) ──────────────── #}
+    {# Stats-chart.js takes the JSON blob below and renders an SVG
+       chart. The Jinja-only fallback (the inline list) renders for
+       JS-disabled clients + crawlers — they still see the data, just
+       without the toggle UX. #}
     {% if monthly_history and monthly_history|length >= 2 %}
     <div class="px-2 md:px-4 mb-4 max-w-5xl mx-auto">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Trend over time</h3>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                {{ monthly_history|length }} monthly snapshots. Each bar = one UKE refresh; height = total entries (5G + LTE + UMTS + GSM bands across all operators); blue overlay = physical sites (right-axis).
-            </p>
-            {% set max_entries = monthly_history | map(attribute='entries') | max %}
-            {% set max_sites = monthly_history | map(attribute='sites') | max %}
-            <div class="flex items-end gap-px h-40 border-b border-gray-200 dark:border-gray-700 pb-1">
-                {% for h in monthly_history %}
-                {% set entries_pct = (100 * h.entries / max_entries) if max_entries > 0 else 0 %}
-                {% set sites_pct = (100 * h.sites / max_sites) if max_sites > 0 else 0 %}
-                <div class="flex-1 flex flex-col items-center justify-end relative group" title="{{ h.month }}: {{ '{:,}'.format(h.entries) }} entries / {{ '{:,}'.format(h.sites) }} sites">
-                    <div class="absolute bottom-0 w-1.5 bg-blue-500 dark:bg-blue-600 rounded-t" style="height: {{ sites_pct }}%; left: 50%; transform: translateX(-50%); z-index: 2;"></div>
-                    <div class="w-full bg-emerald-200 dark:bg-emerald-900/60 rounded-t" style="height: {{ entries_pct }}%; min-height: 1px;"></div>
-                </div>
-                {% endfor %}
+            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Trend over time</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ monthly_history|length }} monthly snapshots</p>
             </div>
-            <div class="flex justify-between text-[10px] text-gray-500 dark:text-gray-400 mt-1 px-1">
-                {% set first_month = monthly_history[0].month %}
-                {% set last_month = monthly_history[-1].month %}
-                <span>{{ first_month }}</span>
-                <span>{{ last_month }}</span>
+
+            {# View selector — pick one. Single-axis charts keep the
+               comparison honest (mixing units across left/right axes
+               is the #1 source of misleading dashboards). Hover bars
+               for exact values; tap on mobile = pseudo-tooltip. #}
+            <div id="stats-chart-controls" class="flex flex-wrap gap-1.5 mb-3 text-xs" role="tablist" aria-label="Trend chart view">
+                <button type="button" data-view="entries" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-blue-600 text-white" aria-pressed="true">Total band entries</button>
+                <button type="button" data-view="sites" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">Physical sites</button>
+                <button type="button" data-view="generations" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">Stacked by generation</button>
+                <button type="button" data-view="5G" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">5G only</button>
+                <button type="button" data-view="LTE" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">LTE only</button>
             </div>
-            <div class="flex flex-wrap gap-3 mt-3 text-xs text-gray-600 dark:text-gray-300">
-                <span class="inline-flex items-center gap-1.5">
-                    <span class="inline-block w-3 h-3 rounded-sm bg-emerald-200 dark:bg-emerald-900/60"></span>
-                    Band entries (left axis)
-                </span>
-                <span class="inline-flex items-center gap-1.5">
-                    <span class="inline-block w-3 h-3 rounded-sm bg-blue-500 dark:bg-blue-600"></span>
-                    Physical sites (right axis)
-                </span>
-                <span class="ml-auto text-gray-400 dark:text-gray-500">
-                    {{ "{:,}".format(monthly_history[0].entries) }} → {{ "{:,}".format(monthly_history[-1].entries) }} entries
-                    ({{ '%+d'|format(monthly_history[-1].entries - monthly_history[0].entries) }})
-                </span>
+
+            <div id="stats-chart-host"
+                 class="relative w-full h-56 md:h-64"
+                 data-history='{{ monthly_history|tojson }}'>
+                {# JS-disabled fallback — same data, ascii-ish bars. #}
+                {% set max_entries = monthly_history | map(attribute='entries') | max %}
+                <noscript>
+                    <div class="flex items-end gap-px h-40 border-b border-gray-200 dark:border-gray-700 pb-1">
+                        {% for h in monthly_history %}
+                            {% set pct = (100 * h.entries / max_entries) if max_entries > 0 else 0 %}
+                            <div class="flex-1 bg-emerald-400 dark:bg-emerald-600 rounded-t"
+                                 style="height: {{ pct }}%; min-height: 1px;"
+                                 title="{{ h.month }}: {{ '{:,}'.format(h.entries) }} entries"></div>
+                        {% endfor %}
+                    </div>
+                </noscript>
+            </div>
+
+            <div id="stats-chart-readout" class="mt-3 text-xs text-gray-600 dark:text-gray-300 min-h-[1.5rem]">
+                {# Filled in by JS — initial Jinja-rendered summary
+                   so non-JS users still see something useful. #}
+                {{ "{:,}".format(monthly_history[0].entries) }} → {{ "{:,}".format(monthly_history[-1].entries) }} band entries
+                ({{ '%+d'|format(monthly_history[-1].entries - monthly_history[0].entries) }} from {{ monthly_history[0].month }} to {{ monthly_history[-1].month }})
             </div>
         </div>
     </div>
@@ -355,6 +369,10 @@
     </div>
 {% endblock %}
 
-{% block scripts %}{% endblock %}
+{% block scripts %}
+    {% if monthly_history and monthly_history|length >= 2 %}
+    <script defer src="{{ url_for('static', filename='dist/pages/stats-chart.min.js') }}?v={{ app_version }}"></script>
+    {% endif %}
+{% endblock %}
 
 {% block code %}{% endblock %}

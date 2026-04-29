@@ -357,6 +357,30 @@ def get_stats():
     # vendors track in their network monitoring dashboards.
     HONEYPOT_MARKER = '__HONEYPOT__'
 
+    # 2026-04-29: only the four major Polish MNOs make sense in the
+    # KPI panels. Tiny outfits like Tatrzańskie Ochotnicze Pogotowie
+    # Ratunkowe (mountain rescue, 3 sites) leak into the providers
+    # list and made the "5G race" / "legacy debt" panels look noisy.
+    # UKE also publishes both upper- and lower-case spellings of the
+    # same legal entity ("P4 sp. z o.o." vs "P4 Sp. z o.o.") across
+    # months — match on a normalized lower-cased prefix and pick the
+    # variant actually present in this snapshot, so we don't ship
+    # double rows.
+    _MAJOR_PREFIXES = {
+        'orange polska': 'Orange',
+        'p4 ': 'Play',
+        'polkomtel': 'Plus',
+        't-mobile polska': 'T-Mobile',
+    }
+
+    def _is_major(name: str) -> bool:
+        if not name:
+            return False
+        low = name.lower()
+        return any(low.startswith(p) for p in _MAJOR_PREFIXES)
+
+    major_providers = [p for p in providers if _is_major(p)]
+
     # 1) 5G race tracker: % of operator's sites with at least one 5G
     #    band. Same shape RAN vendors publish in quarterly investor
     #    decks ("X of our customer's sites are 5G-enabled").
@@ -379,35 +403,32 @@ def get_stats():
             'pct': round(100.0 * with_5g / total_sites, 1) if total_sites else 0.0,
         }
 
-    # 2) Legacy modernization debt: sites that have ONLY GSM (no LTE
-    #    or 5G). Real operators are aggressively shutting these down
-    #    (T-Mobile EU has already pulled 3G/2G from chunks of their
-    #    fleet). Tracker = "still legacy = future capex".
-    gsm_only_subq = (
+    # 2) 5G modernization debt: sites WITHOUT any 5G band. The
+    #    forward-looking capex KPI — these are the next sites to get
+    #    a 5G upgrade.
+    #    (We used to track GSM-only sites here as "legacy debt", but
+    #    PL operators have already overlay-upgraded essentially every
+    #    GSM site, so that number was always 0 across all four MNOs —
+    #    a panel of zeros. The "no 5G" cut still has real spread.)
+    no_5g_subq = (
         db.session.query(BaseStation.service_provider,
                          BaseStation.location)
         .filter(BaseStation.service_provider != HONEYPOT_MARKER)
         .group_by(BaseStation.service_provider, BaseStation.location)
         .having(func.sum(case(
-            (BaseStation.frequency_band.like('LTE%'), 1),
             (BaseStation.frequency_band.like('5G%'), 1),
-            (BaseStation.frequency_band.like('UMTS%'), 1),
             else_=0,
         )) == 0)
-        .having(func.sum(case(
-            (BaseStation.frequency_band.like('GSM%'), 1),
-            else_=0,
-        )) > 0)
         .subquery()
     )
-    gsm_only_by_op = dict(
+    no_5g_by_op = dict(
         db.session.query(
-            gsm_only_subq.c.service_provider,
+            no_5g_subq.c.service_provider,
             func.count('*'),
-        ).group_by(gsm_only_subq.c.service_provider).all()
+        ).group_by(no_5g_subq.c.service_provider).all()
     )
-    legacy_debt = {
-        p: int(gsm_only_by_op.get(p, 0)) for p in providers
+    no_5g_debt = {
+        p: int(no_5g_by_op.get(p, 0)) for p in providers
     }
 
     # 3) Co-located sites (network-sharing index): single
@@ -476,9 +497,12 @@ def get_stats():
         'generations': generations,
         'sites_per_generation': sites_per_generation,
         'avg_bands_per_site': avg_bands_per_site,
-        # Telco KPIs (2026-04-28).
+        # Telco KPIs (2026-04-28). KPI panels render only the four
+        # majors (Orange / Play / Plus / T-Mobile) — see major_providers
+        # filter. Full bands table below still shows everything.
+        'major_providers': major_providers,
         'five_g_coverage': five_g_coverage,
-        'legacy_debt': legacy_debt,
+        'no_5g_debt': no_5g_debt,
         'colocated_count': int(colocated_count),
         'colocated_by_op_count': colocated_by_op_count,
         'top_cities': top_cities,

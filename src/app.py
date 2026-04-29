@@ -775,11 +775,22 @@ def stats_page():
                 month_key = (r.get('recorded_at') or '')[:7]
                 if month_key:
                     by_month[month_key] = r
+            # 2026-04-29: also expose per-generation entries so the
+            # interactive chart in stats.html can let users compare
+            # 5G/LTE/UMTS/GSM growth side-by-side with grand totals.
+            # generation_totals shape varies snapshot-to-snapshot
+            # (older ones may miss a key), so default to 0.
             monthly_history = [
                 {
                     'month': m,
                     'sites': int(by_month[m].get('grand_total_sites', 0)),
                     'entries': int(by_month[m].get('grand_total_entries', 0)),
+                    'gen': {
+                        '5G': int((by_month[m].get('generation_totals') or {}).get('5G', 0)),
+                        'LTE': int((by_month[m].get('generation_totals') or {}).get('LTE', 0)),
+                        'UMTS': int((by_month[m].get('generation_totals') or {}).get('UMTS', 0)),
+                        'GSM': int((by_month[m].get('generation_totals') or {}).get('GSM', 0)),
+                    },
                 }
                 for m in sorted(by_month)
             ]
@@ -1053,9 +1064,24 @@ def admin_run_coverage_alerts():
             return jsonify({"error": "csrf_failed"}), 403
 
     dry_run = request.args.get('dry-run') in ('1', 'true', 'yes')
+    # 2026-04-29: optional `?user_email=foo@bar` to scope the sweep
+    # to a single user's saved locations. Useful for "send the next
+    # refresh's diff just to me first" before turning the firehose
+    # on for everybody.
+    only_email = (request.args.get('user_email') or '').strip().lower()
+    only_user_id = None
+    if only_email:
+        from models import User as _U
+        target = _U.query.filter(db.func.lower(_U.email) == only_email).first()
+        if not target:
+            return jsonify({"error": "user_not_found",
+                            "user_email": only_email}), 404
+        only_user_id = target.id
+
     from coverage_alerts import run_coverage_alert_sweep
     try:
-        counts = run_coverage_alert_sweep(dry_run=dry_run, verbose=False)
+        counts = run_coverage_alert_sweep(dry_run=dry_run, verbose=False,
+                                          user_id=only_user_id)
     except Exception:
         app.logger.exception("admin_run_coverage_alerts failed")
         return jsonify({"error": "coverage_alerts_failed"}), 500
@@ -1145,6 +1171,36 @@ def admin_stats():
         {"day": str(day), "hits": int(hits)} for (day, hits) in daily_rows
     ]
 
+    # 2026-04-29: registered-user + saved-location KPIs. Lives in /admin/
+    # stats (NOT public /stats) — competitor intel + PII reasons.
+    from models import User as _U2, UserLocation as _UL
+    user_total = _U2.query.count()
+    email_alerts_on = _U2.query.filter_by(email_alerts_enabled=True).count()
+    saved_loc_total = _UL.query.count()
+    alerting_loc_total = _UL.query.filter_by(alerting_enabled=True).count()
+    users_with_saved = (
+        db.session.query(_f.count(_f.distinct(_UL.user_id)))
+        .scalar()
+    ) or 0
+    # Top users by saved-location count (just count + email — no
+    # per-location coords here; that's a separate drill-down).
+    from sqlalchemy import case as _case
+    top_savers_rows = (
+        db.session.query(
+            _U2.email,
+            _f.count(_UL.id).label('n'),
+            _f.sum(_case((_UL.alerting_enabled.is_(True), 1), else_=0)).label('alerting'),
+        )
+        .join(_UL, _UL.user_id == _U2.id)
+        .group_by(_U2.id, _U2.email)
+        .order_by(_f.count(_UL.id).desc())
+        .limit(10).all()
+    )
+    top_savers = [
+        {"email": e, "saved": int(n), "alerting": int(a or 0)}
+        for (e, n, a) in top_savers_rows
+    ]
+
     payload = {
         "window_days": days,
         "total_events": total,
@@ -1159,6 +1215,17 @@ def admin_stats():
         ],
         "browsers": {k: int(v) for k, v in browser_counts.items()},
         "daily_trend": daily_trend,
+        # Registered-user / saved-location panel.
+        "users": {
+            "total": int(user_total),
+            "email_alerts_on": int(email_alerts_on),
+            "with_saved_locations": int(users_with_saved),
+        },
+        "saved_locations": {
+            "total": int(saved_loc_total),
+            "alerting_enabled": int(alerting_loc_total),
+            "top_savers": top_savers,
+        },
     }
     # PR #48.6: HTML by default for browser visits, JSON on
     # ?format=json. Browser visit hits the rendered page directly;
