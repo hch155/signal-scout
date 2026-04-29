@@ -8,7 +8,7 @@ compared to data from {{ before_recorded_at[:10] }}{% endif %}:
   Google Maps:      https://www.google.com/maps?q={{ location.lat }},{{ location.lng }}
   Signal-Scout:     {{ email_link_origin }}/?lat={{ location.lat }}&lng={{ location.lng }}
 {% if current_nearest and current_nearest.bts_id %}
-Closest tower right now: BTS {{ current_nearest.bts_id }}{% if current_nearest.provider %} ({{ current_nearest.provider }}{% if current_nearest.city %}, {{ current_nearest.city }}{% endif %}){% endif %} — {{ "%.1f"|format(current_nearest.distance_km) }} km on {{ current_nearest.band }}.
+Best signal at this spot today: BTS {{ current_nearest.bts_id }}{% if current_nearest.provider %} ({{ current_nearest.provider }}{% if current_nearest.city %}, {{ current_nearest.city }}{% endif %}){% endif %} — {{ "%.1f"|format(current_nearest.distance_km) }} km on {{ current_nearest.band }} (across all bands; per-band detail below).
 {% endif %}
 {% macro bts_label(b) -%}
   {%- if b.bts_id -%}BTS {{ b.bts_id }}{% if b.provider %} ({{ b.provider }}{% if b.city %}, {{ b.city }}{% endif %}){% elif b.city %} ({{ b.city }}){% endif %}
@@ -28,10 +28,10 @@ Nearest-station distance changed:
     same tower ({{ bts_label(c.after_bts) }}); UKE refined the coordinates.
 {%- else %}
 {%- if c.before_bts and c.before_bts.bts_id %}
-    was: {{ bts_label(c.before_bts) }}{% if c.delta_km > 0 %} (may have been decommissioned or refarmed){% endif %}
+    previously nearest {{ c.band }}: {{ bts_label(c.before_bts) }}{% if c.delta_km > 0 %} (may have been decommissioned or refarmed){% endif %}
 {%- endif %}
 {%- if c.after_bts and c.after_bts.bts_id %}
-    now: {{ bts_label(c.after_bts) }}
+    now nearest {{ c.band }}: {{ bts_label(c.after_bts) }}
 {%- endif %}
 {%- endif %}
 {% endfor %}{% endif %}

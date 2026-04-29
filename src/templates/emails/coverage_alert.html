@@ -27,14 +27,15 @@
        style="color:#3b82f6;text-decoration:none;">Open on Signal-Scout</a>
   </p>
 
-  {# 2026-04-29: current baseline. Closest covered tower at this spot
-     right now — gives the user "here's your main tower" context so
-     the diff sections below have a frame of reference. #}
+  {# 2026-04-29: current baseline — overall best signal at this spot.
+     Distinct vocabulary from per-band "nearest" lines below so the
+     reader doesn't conflate the two scopes (UX feedback). #}
   {% if current_nearest and current_nearest.bts_id %}
   <p style="margin: 12px 0 0 0; padding: 8px 12px; background:#f3f4f6; border-left:3px solid #3b82f6; border-radius:4px; font-size:13px; color:#1f2937;">
-    Closest tower right now:
+    Best signal at this spot today:
     <strong>BTS <code style="background:#fff;padding:1px 4px;border-radius:3px;">{{ current_nearest.bts_id }}</code></strong>{% if current_nearest.provider %} ({{ current_nearest.provider }}{% if current_nearest.city %}, {{ current_nearest.city }}{% endif %}){% endif %}
-    — {{ "%.1f"|format(current_nearest.distance_km) }} km on <strong>{{ current_nearest.band }}</strong>.
+    — {{ "%.1f"|format(current_nearest.distance_km) }} km on <strong>{{ current_nearest.band }}</strong>
+    <span style="color:#6b7280;">(across all bands; per-band detail below).</span>
   </p>
   {% endif %}
 
@@ -74,10 +75,10 @@
         <br><span style="font-size:12px;color:#6b7280;">same tower ({{ bts_label(c.after_bts) }}); UKE refined the coordinates.</span>
       {% else %}
         {% if c.before_bts and c.before_bts.bts_id %}
-          <br><span style="font-size:12px;color:#6b7280;">previously nearest: {{ bts_label(c.before_bts) }}{% if c.delta_km > 0 %} <span style="color:#92400e;">— may have been decommissioned or refarmed</span>{% endif %}</span>
+          <br><span style="font-size:12px;color:#6b7280;">previously nearest <strong>{{ c.band }}</strong>: {{ bts_label(c.before_bts) }}{% if c.delta_km > 0 %} <span style="color:#92400e;">— may have been decommissioned or refarmed</span>{% endif %}</span>
         {% endif %}
         {% if c.after_bts and c.after_bts.bts_id %}
-          <br><span style="font-size:12px;color:#6b7280;">now nearest: {{ bts_label(c.after_bts) }}</span>
+          <br><span style="font-size:12px;color:#6b7280;">now nearest <strong>{{ c.band }}</strong>: {{ bts_label(c.after_bts) }}</span>
         {% endif %}
       {% endif %}
     </li>
