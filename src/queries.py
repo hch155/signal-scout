@@ -403,33 +403,13 @@ def get_stats():
             'pct': round(100.0 * with_5g / total_sites, 1) if total_sites else 0.0,
         }
 
-    # 2) 5G modernization debt: sites WITHOUT any 5G band. The
-    #    forward-looking capex KPI — these are the next sites to get
-    #    a 5G upgrade.
-    #    (We used to track GSM-only sites here as "legacy debt", but
-    #    PL operators have already overlay-upgraded essentially every
-    #    GSM site, so that number was always 0 across all four MNOs —
-    #    a panel of zeros. The "no 5G" cut still has real spread.)
-    no_5g_subq = (
-        db.session.query(BaseStation.service_provider,
-                         BaseStation.location)
-        .filter(BaseStation.service_provider != HONEYPOT_MARKER)
-        .group_by(BaseStation.service_provider, BaseStation.location)
-        .having(func.sum(case(
-            (BaseStation.frequency_band.like('5G%'), 1),
-            else_=0,
-        )) == 0)
-        .subquery()
-    )
-    no_5g_by_op = dict(
-        db.session.query(
-            no_5g_subq.c.service_provider,
-            func.count('*'),
-        ).group_by(no_5g_subq.c.service_provider).all()
-    )
-    no_5g_debt = {
-        p: int(no_5g_by_op.get(p, 0)) for p in providers
-    }
+    # 2026-04-29: dropped both legacy debt KPIs (was "GSM-only" — always
+    # 0 across all 4 PL MNOs because they've all overlay-upgraded; then
+    # "no-5G" — but with three of four operators already at <7%, the
+    # panel was just visual clutter and the broken Polkomtel data
+    # rendered as a nonsense 99% bar). 5G race tracker above already
+    # shows the inverse, formatted as the positive KPI users actually
+    # want to see.
 
     # 3) Co-located sites (network-sharing index): single
     #    geographic location used by 2+ operators. Higher value =
@@ -502,7 +482,6 @@ def get_stats():
         # filter. Full bands table below still shows everything.
         'major_providers': major_providers,
         'five_g_coverage': five_g_coverage,
-        'no_5g_debt': no_5g_debt,
         'colocated_count': int(colocated_count),
         'colocated_by_op_count': colocated_by_op_count,
         'top_cities': top_cities,

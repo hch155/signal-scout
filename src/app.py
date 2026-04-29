@@ -795,6 +795,32 @@ def stats_page():
                 }
                 for m in sorted(by_month)
             ]
+            # 2026-04-29: drop snapshots whose entries deviate >35%
+            # from the median of the surrounding ±2 months. The
+            # historical replay script occasionally produced bogus
+            # rows (e.g. 2026-01 came in at 223k entries, +70k vs.
+            # Dec '25 and -39k into Feb '26 — a one-month UKE permit
+            # delta of 70k is physically impossible). Keeping these
+            # in the chart distorts the y-axis and misleads readers.
+            # Filtering at render time so we don't have to touch the
+            # gcsfuse-mounted live JSONL.
+            if len(monthly_history) >= 5:
+                cleaned: list = []
+                vals = [h['entries'] for h in monthly_history]
+                for i, h in enumerate(monthly_history):
+                    lo = max(0, i - 2)
+                    hi = min(len(vals), i + 3)
+                    nbrs = vals[lo:hi]
+                    nbrs = sorted(nbrs)
+                    median = nbrs[len(nbrs) // 2]
+                    if median and abs(h['entries'] - median) / median > 0.35:
+                        app.logger.info(
+                            "stats_history: dropping outlier %s entries=%d (median nbr=%d)",
+                            h['month'], h['entries'], median,
+                        )
+                        continue
+                    cleaned.append(h)
+                monthly_history = cleaned
     except Exception:
         app.logger.exception("stats_history snapshot/read failed")
 

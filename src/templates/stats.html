@@ -149,35 +149,6 @@
             </div>
         </div>
 
-        {# 5G modernization debt — sites without 5G (the next upgrade) #}
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">5G modernization debt</h3>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                Sites <strong>without any 5G band</strong> — the inverse of the 5G race. Smaller bar = more of the fleet already has a 5G overlay.
-            </p>
-            <div class="space-y-2">
-                {% for provider in stats.major_providers %}
-                {% set debt = stats.no_5g_debt[provider] %}
-                {% set total = stats.physical_sites.get(provider, 0) %}
-                {% if total > 0 %}
-                {% set pct = 100.0 * debt / total %}
-                <div>
-                    <div class="flex items-baseline justify-between text-sm mb-1">
-                        <span class="font-medium text-gray-900 dark:text-white">{{ provider_short.get(provider, provider) }}</span>
-                        <span class="text-gray-700 dark:text-gray-200">
-                            <span class="font-bold {{ 'text-amber-700 dark:text-amber-400' if pct >= 50 else 'text-emerald-700 dark:text-emerald-400' }}">{{ "{:,}".format(debt) }}</span>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">/ {{ "{:,}".format(total) }} ({{ "%.1f"|format(pct) }}%)</span>
-                        </span>
-                    </div>
-                    <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded">
-                        <div class="h-2 rounded {{ 'bg-amber-500' if pct >= 50 else 'bg-emerald-500' }}" style="width: {{ pct }}%;"></div>
-                    </div>
-                </div>
-                {% endif %}
-                {% endfor %}
-            </div>
-        </div>
-
         {# Co-location index — site sharing between operators #}
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
             <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Network sharing (co-located sites)</h3>
@@ -301,6 +272,11 @@
                     </div>
                 </noscript>
             </div>
+
+            {# Sibling slot for the per-generation legend so it doesn't
+               render INSIDE the fixed-height chart host (overlaps the
+               readout below otherwise). Empty unless view=generations. #}
+            <div id="stats-chart-legend" aria-hidden="true"></div>
 
             <div id="stats-chart-readout" class="mt-3 text-xs text-gray-600 dark:text-gray-300 min-h-[1.5rem]">
                 {# Filled in by JS — initial Jinja-rendered summary

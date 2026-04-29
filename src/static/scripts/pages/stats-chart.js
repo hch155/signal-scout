@@ -175,21 +175,27 @@
 
     host.appendChild(svg);
 
-    // Legend (only meaningful for stacked-by-generation).
-    if (view === 'generations') {
-      var legend = document.createElement('div');
-      legend.className = 'flex flex-wrap gap-3 mt-2 text-xs text-gray-600 dark:text-gray-300';
-      series.forEach(function (s) {
-        var item = document.createElement('span');
-        item.className = 'inline-flex items-center gap-1.5';
-        var swatch = document.createElement('span');
-        swatch.className = 'inline-block w-3 h-3 rounded-sm';
-        swatch.style.background = s.color;
-        item.appendChild(swatch);
-        item.appendChild(document.createTextNode(s.key));
-        legend.appendChild(item);
-      });
-      host.appendChild(legend);
+    // Legend (only meaningful for stacked-by-generation). Rendered as
+    // a SIBLING of the chart host — the host has a fixed h-56/h-64
+    // utility class, so anything appended INSIDE the host gets pushed
+    // past the bottom edge and overlaps the readout below it. A
+    // dedicated #stats-chart-legend slot below the host handles this.
+    var legendHost = document.getElementById('stats-chart-legend');
+    if (legendHost) {
+      while (legendHost.firstChild) legendHost.removeChild(legendHost.firstChild);
+      if (view === 'generations') {
+        legendHost.className = 'flex flex-wrap gap-3 mt-2 text-xs text-gray-600 dark:text-gray-300';
+        series.forEach(function (s) {
+          var item = document.createElement('span');
+          item.className = 'inline-flex items-center gap-1.5';
+          var swatch = document.createElement('span');
+          swatch.className = 'inline-block w-3 h-3 rounded-sm';
+          swatch.style.background = s.color;
+          item.appendChild(swatch);
+          item.appendChild(document.createTextNode(s.key));
+          legendHost.appendChild(item);
+        });
+      }
     }
 
     return { series: series, yMax: yMax };
