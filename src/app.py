@@ -290,13 +290,25 @@ try:
         except Exception:
             pass
 
-    for _bind in (None, 'users'):
+    # Flask-SQLAlchemy 3.x: db.engines is a dict {bind_key: Engine}
+    # but only accessible inside an app context. Push one explicitly
+    # since this whole block runs at module-import time.
+    _engines = []
+    with app.app_context():
         try:
-            _eng = db.get_engine(app, bind=_bind)
+            _engines = list(db.engines.values())  # 3.x
+        except Exception:
+            try:
+                _engines = [db.get_engine(app, bind=None),
+                            db.get_engine(app, bind='users')]  # 2.x fallback
+            except Exception:
+                app.logger.exception("db_query_seconds: could not enumerate engines")
+    for _eng in _engines:
+        try:
             _sa_event.listen(_eng, "before_cursor_execute", _on_before)
             _sa_event.listen(_eng, "after_cursor_execute", _on_after)
         except Exception:
-            app.logger.exception("db_query_seconds listener wiring failed for bind=%s", _bind)
+            app.logger.exception("db_query_seconds listener wiring failed")
 except Exception:
     app.logger.exception("[observability] dynamic-gauge wiring failed")
 
