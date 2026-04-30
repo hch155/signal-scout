@@ -1296,15 +1296,36 @@ def sendgrid_event_webhook():
 
     sig = request.headers.get('X-Twilio-Email-Event-Webhook-Signature', '')
     ts = request.headers.get('X-Twilio-Email-Event-Webhook-Timestamp', '')
-    payload = request.get_data()  # raw bytes — must verify against pre-parsed body
+    payload = request.get_data()  # raw bytes — must verify against pre-signed body
     if not sig or not ts or not _verify_sendgrid_signature(pub, payload, sig, ts):
         return jsonify({"error": "invalid_signature"}), 403
 
+    # 2026-04-30: handle gzip ('POST Compression' setting in SendGrid UI)
+    # + single-object payloads (their Test Integration sometimes sends a
+    # bare object instead of the documented array). Both surfaced as
+    # opaque HTTP 400 with no breadcrumb, so we log the failure shape on
+    # parse error to diagnose future weirdness.
+    body = payload
+    if request.headers.get('Content-Encoding', '').lower() == 'gzip':
+        try:
+            import gzip as _gz
+            body = _gz.decompress(payload)
+        except Exception:
+            app.logger.exception("[sendgrid-webhook] gzip decode failed")
     try:
-        events = json.loads(payload.decode('utf-8'))
+        events = json.loads(body.decode('utf-8'))
+        if isinstance(events, dict):
+            events = [events]
         if not isinstance(events, list):
-            raise ValueError("payload not a JSON array")
+            raise ValueError("payload not a JSON list/object")
     except Exception:
+        app.logger.exception(
+            "[sendgrid-webhook] bad payload — ct=%s ce=%s len=%d head=%r",
+            request.content_type,
+            request.headers.get('Content-Encoding', ''),
+            len(body or b''),
+            (body or b'')[:200],
+        )
         return jsonify({"error": "bad_payload"}), 400
 
     from models import EmailEvent as _EE, EmailSuppression as _ESup
