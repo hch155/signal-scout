@@ -693,6 +693,30 @@ def _constant_time_eq(a: str, b: str) -> bool:
     return result == 0
 
 
+# 2026-04-30: dynamic-gauge refresh registry. MultiProcessCollector
+# (used when PROMETHEUS_MULTIPROC_DIR is set) reads only the per-worker
+# .db files — it does NOT call Gauge.set_function callbacks. Without a
+# manual refresh, set_function-backed gauges (DAU, saved_locations,
+# db age) stay at 0 forever in multiproc mode. We solve this by letting
+# app.py register `(gauge, compute_fn)` pairs here; every /metrics
+# scrape iterates the list and writes the fresh value to the worker's
+# multiproc file → multiproc collector picks it up via 'max' aggregation.
+_DYNAMIC_GAUGE_REFRESHERS: list = []
+
+
+def register_gauge_refresher(gauge, compute_fn) -> None:
+    """Wired from app.py at boot; compute_fn() must return a float."""
+    _DYNAMIC_GAUGE_REFRESHERS.append((gauge, compute_fn))
+
+
+def _refresh_dynamic_gauges() -> None:
+    for gauge, fn in _DYNAMIC_GAUGE_REFRESHERS:
+        try:
+            gauge.set(float(fn()))
+        except Exception:
+            pass  # leave previous value rather than zeroing on transient fail
+
+
 def _build_metrics_view(token_env_var: str) -> Callable[[], Response]:
     """Bearer-token protected /metrics view.
 
@@ -720,6 +744,10 @@ def _build_metrics_view(token_env_var: str) -> Callable[[], Response]:
                             headers={"WWW-Authenticate": 'Bearer realm="metrics"'})
         try:
             _refresh_slo_gauges()
+        except Exception:
+            pass
+        try:
+            _refresh_dynamic_gauges()
         except Exception:
             pass
 

@@ -232,16 +232,22 @@ try:
     from observability import (
         app_version_info, stations_db_age_seconds,
         active_users_24h, saved_locations_total,
-        db_query_seconds,
+        db_query_seconds, register_gauge_refresher,
     )
     app_version_info.labels(version=settings.app_version or 'dev').set(1)
 
+    # 2026-04-30: in PROMETHEUS_MULTIPROC_DIR mode, Gauge.set_function
+    # callbacks are NEVER fired (MultiProcessCollector reads files
+    # only). Register the same compute functions through observability's
+    # explicit refresher registry — _build_metrics_view calls each one
+    # on every scrape, so the worker handling /metrics writes the fresh
+    # value to its multiproc file before the collector reads it back.
     def _stations_db_age() -> float:
         try:
             return max(0.0, time.time() - os.path.getmtime(stations_db_path))
         except OSError:
             return 0.0
-    stations_db_age_seconds.set_function(_stations_db_age)
+    register_gauge_refresher(stations_db_age_seconds, _stations_db_age)
 
     def _active_users_24h() -> float:
         try:
@@ -255,7 +261,7 @@ try:
                 return float(n)
         except Exception:
             return 0.0
-    active_users_24h.set_function(_active_users_24h)
+    register_gauge_refresher(active_users_24h, _active_users_24h)
 
     def _saved_locations_total() -> float:
         try:
@@ -264,7 +270,7 @@ try:
                 return float(_UL.query.count())
         except Exception:
             return 0.0
-    saved_locations_total.set_function(_saved_locations_total)
+    register_gauge_refresher(saved_locations_total, _saved_locations_total)
 
     # SQLAlchemy event listener for db_query_seconds. Captures every
     # query crossing either bind (default = stations.db, 'users' = users.db).
