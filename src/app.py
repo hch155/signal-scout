@@ -40,7 +40,7 @@ from api_docs import init_api_docs
 from oauth import init_oauth, login_with_provider, callback_for_provider
 from dotenv import load_dotenv
 from datetime import timedelta, datetime
-import markdown, os, random, re, logging, secrets, time
+import markdown, os, random, re, logging, secrets, time, json
 
 load_dotenv()
 
