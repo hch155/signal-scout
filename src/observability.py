@@ -217,6 +217,7 @@ in_flight_requests = Gauge(
     "being served. Compare against the gunicorn worker count "
     "(WORKERS env, default 2) — sustained values near WORKERS mean "
     "saturation, queueing, and rising tail latency.",
+    multiprocess_mode="max"
 )
 
 gunicorn_workers_configured = Gauge(
@@ -224,6 +225,7 @@ gunicorn_workers_configured = Gauge(
     "Number of gunicorn workers configured for this process. Read once "
     "from the WORKERS env at boot. Pair with in_flight_requests for the "
     "USE-method utilisation ratio (in_flight / workers).",
+    multiprocess_mode="max"
 )
 
 slo_availability_ratio = Gauge(
@@ -231,6 +233,7 @@ slo_availability_ratio = Gauge(
     "Current availability SLI: 1 - (5xx_count / total_count) over the "
     "in-process counter window. Target ≥ 0.995 (99.5%). Computed on "
     "every /metrics scrape from the auto-collected HTTP counters.",
+    multiprocess_mode="max"
 )
 
 slo_latency_ratio_under_500ms = Gauge(
@@ -238,6 +241,7 @@ slo_latency_ratio_under_500ms = Gauge(
     "Current latency SLI for /stations: fraction of api_request_duration "
     "samples below the 500 ms bucket. Target ≥ 0.95. Computed on every "
     "/metrics scrape.",
+    multiprocess_mode="max"
 )
 
 slo_error_budget_remaining_ratio = Gauge(
@@ -245,6 +249,7 @@ slo_error_budget_remaining_ratio = Gauge(
     "Fraction of the 0.5% error budget still un-burned, in [0, 1]. "
     "0 means budget exhausted (alert). Derived from "
     "slo_availability_ratio with a 99.5% target.",
+    multiprocess_mode="max"
 )
 
 # ── Per-endpoint HTTP funnel (added 2026-04-28) ───────────────────────────
@@ -405,6 +410,7 @@ active_users_24h = Gauge(
     "Distinct user_ids that took any logged user_action in the last 24h. "
     "Recomputed at every /metrics scrape via Gauge.set_function — DAU "
     "north star for product traction.",
+    multiprocess_mode="max"
 )
 
 saved_locations_total = Gauge(
@@ -412,6 +418,7 @@ saved_locations_total = Gauge(
     "Total UserLocation rows in the users.db. Recomputed at every /metrics "
     "scrape. Pairs with user_action_total{action='location_create'|'location_delete'} "
     "to spot a delete spike (churn) vs a create spike (engagement).",
+    multiprocess_mode="max"
 )
 
 coverage_alert_sweep_seconds = Histogram(
@@ -441,6 +448,7 @@ stations_db_age_seconds = Gauge(
     "we missed a release. NOTE: Docker COPY resets mtime to build time on "
     "every redeploy, so this is also bounded by deploy cadence — re-deploys "
     "without a fresh DB will reset the age clock.",
+    multiprocess_mode="max"
 )
 
 app_version_info = Gauge(
@@ -451,6 +459,7 @@ app_version_info = Gauge(
     "with deploy boundaries — pin a vertical line every time the version "
     "label flips.",
     labelnames=("version",),
+    multiprocess_mode="max"
 )
 
 
