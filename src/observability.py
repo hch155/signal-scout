@@ -805,8 +805,12 @@ def init_observability(app: Flask, token_env_var: str = "METRICS_BEARER_TOKEN") 
     except (TypeError, ValueError):
         gunicorn_workers_configured.set(1)
 
-    @app.route("/healthz", methods=["GET"])
-    def healthz():
+    # 2026-05-01: switched from @app.route decorator to explicit
+    # add_url_rule. Same shape as /metrics above. Decorator path was
+    # silently failing on prod — endpoint returned Flask's default 404
+    # 'Not Found' page even though the function was defined. Both
+    # endpoints work now via the same registration mechanism.
+    def _healthz_view():
         try:
             healthz_total.inc()
         except Exception:
@@ -816,6 +820,8 @@ def init_observability(app: Flask, token_env_var: str = "METRICS_BEARER_TOKEN") 
             "service": "signal-scout",
             "version": os.getenv("APP_VERSION", "dev"),
         }), 200
+
+    app.add_url_rule("/healthz", "healthz", _healthz_view, methods=["GET"])
 
 
 def record_compute_time(func):
