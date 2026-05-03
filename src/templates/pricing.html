@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Pricing — Signal-Scout API & Coverage Alerts{% endblock %}
+{% block description %}Three plans for the Signal-Scout cellular base station API: Free for hobbyists, Starter for power users, Pro for telco engineers and infrastructure teams. Polish UKE data, monthly coverage-change alerts.{% endblock %}
+
+{% block content %}
+<section class="text-center text-[#333] dark:text-white px-4 pt-6 pb-3">
+    <h2 class="text-2xl md:text-3xl font-bold">Pick the plan that fits how you use signal data</h2>
+    <p class="mt-2 text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+        Same dataset (~22,000 Polish base stations, monthly UKE refresh) — different rate limits, alert features, and SLAs.
+    </p>
+</section>
+
+<div class="px-3 md:px-6 pb-10 max-w-6xl mx-auto">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+
+        {# ── Free ─────────────────────────────────────────────── #}
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 md:p-6 flex flex-col">
+            <div class="flex items-baseline justify-between">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Free</h3>
+                <span class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Forever</span>
+            </div>
+            <p class="text-3xl font-bold mt-3 text-gray-900 dark:text-white">€0<span class="text-base font-normal text-gray-500 dark:text-gray-400"> /mo</span></p>
+            <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">Hobby projects, evaluation, learning RF engineering.</p>
+            <hr class="border-gray-200 dark:border-gray-700 my-4">
+            <ul class="text-sm text-gray-700 dark:text-gray-200 space-y-2 flex-1">
+                <li>✓ Web map (unlimited clicks, browser only)</li>
+                <li>✓ <strong>30 API requests / minute</strong></li>
+                <li>✓ <strong>1 saved location</strong> with monthly coverage alerts</li>
+                <li>✓ All 4 PL operators × all bands (5G/LTE/UMTS/GSM)</li>
+                <li>✓ Public REST API + Swagger UI</li>
+                <li>—</li>
+                <li class="text-gray-400">Best-effort uptime, no SLA</li>
+            </ul>
+            <a href="/" class="mt-5 block text-center bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-medium py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                Try the map
+            </a>
+        </div>
+
+        {# ── Starter ──────────────────────────────────────────── #}
+        <div class="bg-white dark:bg-gray-800 rounded-lg border-2 border-blue-500 p-5 md:p-6 flex flex-col relative shadow-md dark:shadow-black/30">
+            <span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-bold uppercase px-3 py-0.5 rounded-full">Most popular</span>
+            <div class="flex items-baseline justify-between">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Starter</h3>
+                <span class="text-xs uppercase tracking-wide text-blue-600 dark:text-blue-400">Solo + small team</span>
+            </div>
+            <p class="text-3xl font-bold mt-3 text-gray-900 dark:text-white">€19<span class="text-base font-normal text-gray-500 dark:text-gray-400"> /mo</span></p>
+            <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">RF engineers, real-estate scouts, indoor-coverage installers.</p>
+            <hr class="border-gray-200 dark:border-gray-700 my-4">
+            <ul class="text-sm text-gray-700 dark:text-gray-200 space-y-2 flex-1">
+                <li>✓ Everything in Free, plus:</li>
+                <li>✓ <strong>300 API requests / minute</strong></li>
+                <li>✓ <strong>50 saved locations</strong> with coverage alerts</li>
+                <li>✓ Per-location email digest (one mail / month / spot)</li>
+                <li>✓ CSV export of the BTS table</li>
+                <li>✓ Email support, 48h response</li>
+                <li>✓ <strong>99.5% uptime SLA</strong></li>
+            </ul>
+            <a href="/contact?plan=starter" class="mt-5 block text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded transition-colors">
+                Contact sales
+            </a>
+        </div>
+
+        {# ── Pro ──────────────────────────────────────────────── #}
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 md:p-6 flex flex-col">
+            <div class="flex items-baseline justify-between">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Pro</h3>
+                <span class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Teams + integrators</span>
+            </div>
+            <p class="text-3xl font-bold mt-3 text-gray-900 dark:text-white">€199<span class="text-base font-normal text-gray-500 dark:text-gray-400"> /mo</span></p>
+            <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">Telco infrastructure teams, property developers, drive-test platforms.</p>
+            <hr class="border-gray-200 dark:border-gray-700 my-4">
+            <ul class="text-sm text-gray-700 dark:text-gray-200 space-y-2 flex-1">
+                <li>✓ Everything in Starter, plus:</li>
+                <li>✓ <strong>3,000 API requests / minute</strong></li>
+                <li>✓ <strong>Unlimited saved locations</strong></li>
+                <li>✓ Webhook callbacks (push notifications on coverage change)</li>
+                <li>✓ Multiple API keys with per-key rate limit + scopes</li>
+                <li>✓ Bulk endpoints (1,000 lookups / call)</li>
+                <li>✓ Priority support, 8h response, Slack channel</li>
+                <li>✓ <strong>99.9% uptime SLA</strong> + monthly performance report</li>
+            </ul>
+            <a href="/contact?plan=pro" class="mt-5 block text-center bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold py-2 rounded hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors">
+                Contact sales
+            </a>
+        </div>
+    </div>
+
+    {# ── Enterprise + custom ──────────────────────────────────── #}
+    <div class="mt-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-6 md:p-8 text-center">
+        <h3 class="text-xl font-bold text-gray-900 dark:text-white">Enterprise / dedicated deployment</h3>
+        <p class="mt-2 text-sm text-gray-700 dark:text-gray-200 max-w-2xl mx-auto">
+            Self-hosted deployment with your own dataset (UK Ofcom, German BNetzA, etc.), SSO,
+            DPA, audit log, dedicated infra. Volume discounts past 50 named users.
+        </p>
+        <a href="/contact?plan=enterprise" class="mt-4 inline-block bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold py-2 px-6 rounded hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors">
+            Talk to us
+        </a>
+    </div>
+
+    <p class="mt-8 text-center text-xs text-gray-500 dark:text-gray-400">
+        Prices are indicative — final pricing confirmed during the sales call. EU VAT additional where applicable.
+        Cancel any time. No setup fee.
+    </p>
+</div>
+{% endblock %}
+
+{% block scripts %}{% endblock %}
+{% block code %}{% endblock %}

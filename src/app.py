@@ -1002,6 +1002,45 @@ def tips_content():
     _set_content_etag(response, _md_etag_key(file_name))
     return response
 
+@app.route('/pricing')
+def pricing_page():
+    """Public sales page — three tiers + enterprise CTA. Cached
+    aggressively (etag based on app_version) since the copy is static
+    template render, not data-driven. Plan changes ship via deploy."""
+    response = make_response(render_template('pricing.html'))
+    _set_content_etag(response, f"pricing:{settings.app_version}")
+    return response
+
+
+@app.route('/use-cases')
+def use_cases_page():
+    """Three persona-driven workflows showing how the API maps to
+    actual jobs (drive-test planning, MVNO coverage tracking, real-
+    estate scoring). Replaces 'see the docs and figure it out' as
+    the answer to 'who is this for?'."""
+    response = make_response(render_template('use_cases.html'))
+    _set_content_etag(response, f"use_cases:{settings.app_version}")
+    return response
+
+
+@app.route('/contact')
+def contact_page():
+    """Sales/contact page. Optional ?plan=starter|pro|enterprise
+    query param prefills a pre-formatted email subject + a banner
+    note so the inquiry email arrives with a clear plan tag (cuts
+    one back-and-forth from the sales loop)."""
+    plan = (request.args.get('plan') or '').strip().lower()
+    # Don't trust arbitrary input — only allow the documented values
+    # so an attacker can't inject odd strings into the page copy.
+    if plan not in ('starter', 'pro', 'enterprise'):
+        plan = ''
+    response = make_response(render_template(
+        'contact.html', prefilled_plan=plan or None,
+    ))
+    _set_content_etag(response, f"contact:{settings.app_version}:{plan}")
+    return response
+
+
 @app.route('/privacy')
 def privacy_page():
     """GDPR Art. 13 transparency notice. Markdown-rendered like /data
