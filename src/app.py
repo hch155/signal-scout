@@ -737,6 +737,7 @@ app.jinja_env.globals['plausible_script_url'] = settings.plausible_script_url
 app.jinja_env.globals['plausible_domain'] = settings.plausible_domain
 app.jinja_env.globals['canonical_origin'] = settings.canonical_origin
 app.jinja_env.globals['email_link_origin'] = settings.email_link_origin
+app.jinja_env.globals['marketing_enabled'] = settings.marketing_enabled
 # PR #46.5: footer-rendered build version. cd.yaml builds APP_VERSION as
 # 'YYYY.MM.DD-<sha7>' (CalVer + git SHA — Stripe-style date versioning,
 # no SemVer bookkeeping). Local dev → "dev". Owner clicks the footer link
@@ -1004,9 +1005,12 @@ def tips_content():
 
 @app.route('/pricing')
 def pricing_page():
-    """Public sales page — three tiers + enterprise CTA. Cached
-    aggressively (etag based on app_version) since the copy is static
-    template render, not data-driven. Plan changes ship via deploy."""
+    """Public sales page — three tiers + enterprise CTA. Gated
+    behind MARKETING_ENABLED feature flag (default off until the
+    copy is finalised). Cached aggressively (etag = app_version)
+    since the copy is static, not data-driven."""
+    if not settings.marketing_enabled:
+        return jsonify({"error": "not_found"}), 404
     response = make_response(render_template('pricing.html'))
     _set_content_etag(response, f"pricing:{settings.app_version}")
     return response
@@ -1014,10 +1018,11 @@ def pricing_page():
 
 @app.route('/use-cases')
 def use_cases_page():
-    """Three persona-driven workflows showing how the API maps to
-    actual jobs (drive-test planning, MVNO coverage tracking, real-
-    estate scoring). Replaces 'see the docs and figure it out' as
-    the answer to 'who is this for?'."""
+    """Three persona-driven workflows. Same MARKETING_ENABLED gate
+    as /pricing — keep them in sync so we never ship one without
+    the other (broken inbound flow if a CTA links to a missing page)."""
+    if not settings.marketing_enabled:
+        return jsonify({"error": "not_found"}), 404
     response = make_response(render_template('use_cases.html'))
     _set_content_etag(response, f"use_cases:{settings.app_version}")
     return response
@@ -1025,13 +1030,11 @@ def use_cases_page():
 
 @app.route('/contact')
 def contact_page():
-    """Sales/contact page. Optional ?plan=starter|pro|enterprise
-    query param prefills a pre-formatted email subject + a banner
-    note so the inquiry email arrives with a clear plan tag (cuts
-    one back-and-forth from the sales loop)."""
+    """Sales/contact page. ?plan=starter|pro|enterprise prefills
+    inquiry banner. Same MARKETING_ENABLED gate."""
+    if not settings.marketing_enabled:
+        return jsonify({"error": "not_found"}), 404
     plan = (request.args.get('plan') or '').strip().lower()
-    # Don't trust arbitrary input — only allow the documented values
-    # so an attacker can't inject odd strings into the page copy.
     if plan not in ('starter', 'pro', 'enterprise'):
         plan = ''
     response = make_response(render_template(

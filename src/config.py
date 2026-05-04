@@ -141,6 +141,13 @@ class Config:
     # Public canonical origin used in OG / canonical / sitemap. Falls back
     # to https://www.signal-scout.com which matches the apex DNS.
     canonical_origin: str = field(default_factory=lambda: _str("CANONICAL_ORIGIN", "https://www.signal-scout.com"))
+    # 2026-05-04: feature flag for the commercial layer (/pricing,
+    # /use-cases, /contact, plus the nav + footer links to them).
+    # Default OFF — pages exist in the codebase but are 404'd and
+    # hidden from navigation until copy / pricing / examples are
+    # tightened up. Flip to "1" / "true" via Cloud Run env var
+    # MARKETING_ENABLED to turn the whole funnel on without a redeploy.
+    marketing_enabled: bool = field(default_factory=lambda: _str("MARKETING_ENABLED", "").lower() in ("1", "true", "yes", "on"))
     # 2026-04-29: separate origin for *outbound email links*. Today the
     # apex (signal-scout.com → Squarespace 302 → Cloud Run) strips
     # query params on the redirect, so a `?lat=X&lng=Y` deep link in

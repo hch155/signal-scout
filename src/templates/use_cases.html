@@ -34,7 +34,7 @@
             export to CSV, plan the actual drive-test only over corridors with ≥2 cells in range.
             Result: <strong>30–40% fewer windshield-hours</strong> per campaign.
         </p>
-        <div class="bg-gray-50 dark:bg-gray-900/50 rounded p-3 mt-3 text-xs font-mono text-gray-700 dark:text-gray-200 overflow-x-auto">
+        <div class="bg-gray-100 dark:bg-slate-900 rounded p-3 mt-3 text-xs font-mono text-gray-900 dark:text-gray-100 overflow-x-auto border border-gray-200 dark:border-gray-700">
             curl -H "X-API-Key: $SS_KEY" \<br>
             &nbsp;&nbsp;"https://signal-scout.com/stations?lat=52.23&lng=21.00&max_distance=2&service_provider=Plus"
         </div>
@@ -67,7 +67,7 @@
             Combined with your churn data, you get <strong>2-month early warning</strong> on capacity
             issues — enough lead time to negotiate a roaming clause or rebrand the affected SKU.
         </p>
-        <div class="bg-gray-50 dark:bg-gray-900/50 rounded p-3 mt-3 text-xs font-mono text-gray-700 dark:text-gray-200 overflow-x-auto">
+        <div class="bg-gray-100 dark:bg-slate-900 rounded p-3 mt-3 text-xs font-mono text-gray-900 dark:text-gray-100 overflow-x-auto border border-gray-200 dark:border-gray-700">
             POST /account/locations<br>
             { "name": "Warsaw Mokotów cluster", "lat": 52.18, "lng": 21.02, "alerting_enabled": true }
         </div>
@@ -99,8 +99,8 @@
             count (4 = best), by total bands within 500 m. Output a coverage score column in your
             shortlist spreadsheet — <strong>cuts the building shortlist by 60% before site visits</strong>.
         </p>
-        <div class="bg-gray-50 dark:bg-gray-900/50 rounded p-3 mt-3 text-xs font-mono text-gray-700 dark:text-gray-200 overflow-x-auto">
-            <span class="text-gray-500"># Python — score 200 candidate addresses</span><br>
+        <div class="bg-gray-100 dark:bg-slate-900 rounded p-3 mt-3 text-xs font-mono text-gray-900 dark:text-gray-100 overflow-x-auto border border-gray-200 dark:border-gray-700">
+            <span class="text-gray-500 dark:text-gray-400"># Python — score 200 candidate addresses</span><br>
             for addr in shortlist:<br>
             &nbsp;&nbsp;r = requests.get(API + "/stations",<br>
             &nbsp;&nbsp;&nbsp;&nbsp;params={"lat": addr.lat, "lng": addr.lng, "max_distance": 0.5},<br>

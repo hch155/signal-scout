@@ -86,8 +86,10 @@
               <a href="/data" class="inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">Data</a>
               <a href="/stats" class="inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">Statistics</a>
               <a href="/tips" class="inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">Tips</a>
+              {% if marketing_enabled %}
               <a href="/use-cases" class="inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">Use cases</a>
               <a href="/pricing" class="inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">Pricing</a>
+              {% endif %}
           </nav>
 
           <div class="flex items-center gap-x-4 md:gap-x-5">
@@ -267,8 +269,10 @@
 
     <footer class="mt-auto text-center py-3 w-full dark:text-white">
             © 2025 Signal-Scout | <a href="https://github.com/hch155" class="underline hover:no-underline">Hubert Cylwik</a>
+            {% if marketing_enabled %}
             | <a href="/pricing" class="underline hover:no-underline">Pricing</a>
             | <a href="/contact" class="underline hover:no-underline">Contact</a>
+            {% endif %}
             | <a href="{{ url_for('privacy_page') }}" class="underline hover:no-underline">Privacy</a>
             | <a href="/api/v1/docs/" class="underline hover:no-underline" target="_blank" rel="noopener">API</a>
             {% if app_version_sha %}
