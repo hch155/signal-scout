@@ -23,6 +23,9 @@ on:
       - '**/*.md'
       - 'docs/**'
       - 'ops/**'
+  # Manual trigger so we can sanity-check the gate without opening a PR
+  # — useful after touching perf.yaml itself or the limiter override.
+  workflow_dispatch:
 
 concurrency:
   group: perf-${{ github.head_ref }}
@@ -30,7 +33,10 @@ concurrency:
 
 jobs:
   perf:
-    name: Perf regression (p95 < ${{ env.PERF_P95_BUDGET_MS }} ms)
+    # `env.*` isn't available in job-name expressions (only inside step
+    # contexts), so the budget is hard-coded in the title. Keep both in
+    # sync with PERF_P95_BUDGET_MS below.
+    name: Perf regression (p95 < 500 ms)
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -42,6 +48,11 @@ jobs:
       STATIONS_DB_PATH: ${{ github.workspace }}/tests/fixtures/test_stations.db
       USERS_DB_PATH: ${{ github.workspace }}/perf_users.db
       SECRET_KEY: 'perf-ci-not-a-real-secret'
+      # Override the prod default global rate limit (16/min) — the harness
+      # fires 100 sequential GETs against `/` from a single IP, which would
+      # otherwise be 16 successes + 84 rate-limit errors and a meaningless
+      # p95. 10000/min effectively disables the limit for the test run.
+      DEFAULT_RATE_LIMIT: '10000 per minute'
 
     steps:
       - uses: actions/checkout@v4

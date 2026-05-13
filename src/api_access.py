@@ -148,8 +148,10 @@ def seed_honeypot_rows(app, db) -> int:
             if existing is not None:
                 continue
             # Stable pseudo-random coords from sha1(id) so the same ID
-            # always lands at the same spot across boots.
-            digest = hashlib.sha1(bid.encode('utf-8')).digest()
+            # always lands at the same spot across boots. usedforsecurity=False
+            # — this is a deterministic ID-to-coord map, not a security primitive,
+            # bandit B324 flags weak hashes regardless of intent.
+            digest = hashlib.sha1(bid.encode('utf-8'), usedforsecurity=False).digest()
             lat_frac = int.from_bytes(digest[0:4], 'big') / 0xFFFFFFFF
             lng_frac = int.from_bytes(digest[4:8], 'big') / 0xFFFFFFFF
             lat = PL_LAT_MIN + lat_frac * (PL_LAT_MAX - PL_LAT_MIN)

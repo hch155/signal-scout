@@ -205,7 +205,14 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 def _make_session_permanent():
     session.permanent = True
 
-limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["16 per minute"])
+# Default global limit. Override via DEFAULT_RATE_LIMIT for perf harnesses
+# that hammer one endpoint from a single IP (perf.yaml in CI), since 16/min
+# turns 100 sequential GETs into 84 rate-limit errors and a meaningless p95.
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=[os.getenv("DEFAULT_RATE_LIMIT", "16 per minute")],
+)
 
 # PL geographic bounds for input validation. Strict PL would be
 # 49.0–55.5°N / 14.0–24.2°E — but the dataset includes some maritime

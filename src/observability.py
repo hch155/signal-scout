@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import os
 import time
+from collections import OrderedDict
 from functools import wraps
 from typing import Callable
 
@@ -480,12 +481,10 @@ _FIRST_CALL_SEEN_USERS: "OrderedDict[int, None]" = None  # type: ignore[assignme
 
 
 def _ensure_first_call_lru():
-    """Lazy-init so the type annotation above doesn't conflict with the
-    real OrderedDict at import time (kept None for clarity that the
-    structure is built lazily)."""
+    """Lazy-init the LRU map; structure stays None until first call so
+    workers that never see API traffic don't allocate the dict."""
     global _FIRST_CALL_SEEN_USERS
     if _FIRST_CALL_SEEN_USERS is None:
-        from collections import OrderedDict
         _FIRST_CALL_SEEN_USERS = OrderedDict()
 
 
