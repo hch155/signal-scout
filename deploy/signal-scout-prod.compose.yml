@@ -1,0 +1,55 @@
+# signal-scout PROD stack — the prod host (signal-scout-lxc)
+# Pulls from Harbor, runs Flask app on port 8080.
+# NPM (Hetzner) proxies signal-scout.com → TS_LXC_IP:8080
+#
+# Usage:
+#   IMAGE_TAG=1.0.5-abc1234 docker compose -f signal-scout-prod.compose.yml up -d
+#
+# Rollback:
+#   IMAGE_TAG=1.0.4-prevsha docker compose -f signal-scout-prod.compose.yml up -d
+#
+# .env (gitignored, lives in /opt/stacks/signal-scout-prod/.env):
+#   IMAGE_TAG=1.0.5-abc1234
+#   APP_SECRET_KEY=<random 64-char>
+#   DATABASE_URL=sqlite:////app/instance/stations.db
+#   SENDGRID_API_KEY=...
+#   GOOGLE_CLIENT_ID=...
+#   GOOGLE_CLIENT_SECRET=...
+#   GITHUB_CLIENT_ID=...
+#   GITHUB_CLIENT_SECRET=...
+#   METRICS_BEARER_TOKEN=...
+#   DEFAULT_RATE_LIMIT=16 per minute
+
+services:
+  app:
+    image: harbor.example.local/signal-scout/app:${IMAGE_TAG:-latest}
+    container_name: signal-scout-prod
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    env_file:
+      - .env
+    volumes:
+      # SQLite + monthly UKE refresh
+      - ./instance:/app/instance
+      # Flask session storage (file-based per existing config)
+      - ./flask_session:/app/flask_session
+      # Prometheus multiproc dir (per docs)
+      - prometheus_multiproc:/tmp/prometheus_multiproc
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/api/v1/healthz']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    labels:
+      # Watchtower auto-update opt-in (rozważ na staging only)
+      com.centurylinklabs.watchtower.enable: 'false'
+
+volumes:
+  prometheus_multiproc:

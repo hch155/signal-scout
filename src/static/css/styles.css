@@ -724,3 +724,14 @@ th[onclick]:hover {
 .leaflet-tile.dark-labels-bright {
     filter: brightness(1.7) contrast(1.25);
 }
+
+/* 2026-05-15: explicit color rules for band-leader cells in /stats table.
+   Template uses `text-blue-700 dark:text-blue-300` but Tailwind purge
+   dropped these utilities (only `text-blue-600` is referenced elsewhere).
+   Add them as safelist so the band leader is visible on light theme. */
+.text-blue-700 {
+    color: rgb(29 78 216);
+}
+.dark .text-blue-300 {
+    color: rgb(147 197 253);
+}

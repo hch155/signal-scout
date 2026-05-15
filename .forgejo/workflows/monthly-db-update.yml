@@ -1,0 +1,99 @@
+# Forgejo Actions: monthly UKE data refresh
+# Cron: 27th of each month at 19:15 UTC (~20:15 Warsaw)
+#
+# Replaces .github/workflows/monthly-db-update.yaml.disabled
+# Differences vs GH version:
+#   - runs on self-hosted runner with Python container from Harbor cache
+#   - issue creation via Forgejo REST API (no actions/github-script)
+#   - git push uses FORGEJO_PUSH_TOKEN secret
+
+name: Monthly Database Update
+
+on:
+  schedule:
+    - cron: '15 19 27 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-database:
+    name: UKE data refresh
+    runs-on: [self-hosted, signal-scout-runner]
+    timeout-minutes: 30
+    container:
+      image: harbor.example.local/dockerhub-cache/library/python:3.12-slim
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.FORGEJO_PUSH_TOKEN }}
+
+      - name: Install dependencies
+        run: |
+          apt-get update -qq && apt-get install -y --no-install-recommends git
+          pip install --no-cache-dir -r requirements.txt openpyxl
+
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
+
+      - name: Save previous record count
+        id: prev_count
+        run: |
+          count=$(python -c "
+          import sqlite3, os
+          db = os.path.join('$GITHUB_WORKSPACE', 'src', 'instance', 'stations.db')
+          conn = sqlite3.connect(db)
+          print(conn.execute('SELECT COUNT(*) FROM base_station').fetchone()[0])
+          conn.close()
+          ")
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+      - name: Clean old Excel files
+        run: rm -f base_station_data/*.xlsx
+
+      - name: Download new UKE data
+        run: python scripts/download_uke_data.py
+
+      - name: Validate downloads
+        run: python scripts/validate_db_update.py --step downloads
+
+      - name: Backup current database
+        run: cp src/instance/stations.db src/instance/stations.db.bak
+
+      - name: Rebuild database
+        run: python scripts/stations_database_setup.py
+
+      - name: Validate new database
+        run: |
+          python scripts/validate_db_update.py \
+            --step database \
+            --previous-count ${{ steps.prev_count.outputs.count }}
+
+      - name: Update data.md with new date
+        run: python scripts/update_data_date.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "forgejo-actions[bot]"
+          git config user.email "forgejo-actions[bot]@example.local"
+          git add base_station_data/*.xlsx src/instance/stations.db src/content/data.md
+          if git diff --cached --quiet; then
+            echo "No changes from UKE this month"
+            exit 0
+          fi
+          git commit -m "chore: database update $(date +'%B %Y')"
+          git push
+
+      - name: Open failure issue on Forgejo
+        if: failure()
+        env:
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_PUSH_TOKEN }}
+        run: |
+          MONTH=$(date +'%B %Y')
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          curl -sf -X POST \
+            -H "Authorization: token ${FORGEJO_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "${GITHUB_SERVER_URL}/api/v1/repos/${GITHUB_REPOSITORY}/issues" \
+            -d "{\"title\":\"Database Update Failed - ${MONTH}\",\"body\":\"Workflow run: ${RUN_URL}\\n\\nCheck runner logs.\",\"labels\":[\"automated\",\"database-update\"]}"

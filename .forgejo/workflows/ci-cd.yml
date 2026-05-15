@@ -1,0 +1,311 @@
+# Forgejo Actions CI/CD for signal-scout
+#
+# Job graph:
+#   lint --+-- test ----------------------------------------------+
+#          +-- security-fs-scan                                   |
+#                                                                  v
+#   (push/dispatch only)                               build + push Harbor
+#                                                                  |
+#                                                       image-scan (Trivy)
+#                                                                  |
+#                                         (push to main only) promote
+#                                                                  |
+#                                                       deploy-staging
+#                                                                  |
+#                                                      smoke-staging (2 min)
+#                                                                  | pass
+#                                                          deploy-prod
+#                                                                  |
+#                                                   smoke-prod (4 min) / rollback
+#
+# VERSION SCHEME:
+#   push main  -> YYYY.MM.DD-<sha7>-staging  (staging image)
+#              -> YYYY.MM.DD-<sha7>           (prod image — re-tagged, same digest)
+#   tag v*     -> git tag value (e.g. v2026.05.15)  (explicit immutable release)
+#
+# PROMOTION MODEL:
+#   No rebuild. After image-scan passes, runner pulls staging digest, re-tags
+#   as prod, pushes. Same bits — guaranteed bit-for-bit identical to what
+#   staging ran. Zero network transfer for the layers (Harbor dedupes by digest).
+#
+# ROLLBACK:
+#   On prod smoke failure the runner SSHs in, restores IMAGE_TAG from
+#   .env.bak (written before every deploy), and does compose up.
+
+name: CI/CD signal-scout
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  HARBOR_REGISTRY: harbor.example.local
+  IMAGE_BASE:      harbor.example.local/signal-scout/app
+  LXC_IP:          LXC_LAN_IP
+
+jobs:
+  lint:
+    name: lint (ruff + bandit + pip-audit)
+    runs-on: [self-hosted, signal-scout-runner]
+    container:
+      image: harbor.example.local/dockerhub-cache/library/python:3.12-alpine
+    steps:
+      - uses: actions/checkout@v4
+      - name: install lint tools
+        run: pip install --no-cache-dir ruff bandit pip-audit
+      - name: ruff
+        run: ruff check src/ tests/
+      - name: bandit (HIGH+CRITICAL gate)
+        run: bandit -r src/ -ll -ii
+      - name: pip-audit
+        run: pip-audit --strict --disable-pip
+
+  test:
+    name: test (pytest >=75% coverage)
+    needs: lint
+    runs-on: [self-hosted, signal-scout-runner]
+    container:
+      image: harbor.example.local/dockerhub-cache/library/python:3.12-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: install deps
+        run: |
+          pip install --no-cache-dir -r requirements.txt
+          pip install --no-cache-dir -r tests/requirements-test.txt
+      - name: pytest + coverage gate
+        run: |
+          PYTHONPATH=src pytest tests/unit tests/integration \
+            -v --cov=src --cov-fail-under=75
+
+  security-fs-scan:
+    name: trivy fs scan
+    needs: lint
+    runs-on: [self-hosted, signal-scout-runner]
+    container:
+      image: harbor.example.local/dockerhub-cache/library/aquasec/trivy:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: trivy fs (HIGH+CRITICAL, unfixed only)
+        run: trivy fs --severity HIGH,CRITICAL --exit-code 1 --ignore-unfixed .
+
+  build:
+    name: build + push Harbor (staging tag)
+    needs: [test, security-fs-scan]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, signal-scout-runner]
+    outputs:
+      staging_tag: ${{ steps.ver.outputs.staging_tag }}
+      prod_tag:    ${{ steps.ver.outputs.prod_tag }}
+      image_ref:   ${{ steps.ver.outputs.image_ref }}
+    services:
+      dind:
+        image: harbor.example.local/dockerhub-cache/library/docker:26.1.3-dind-alpine3.19
+        env:
+          DOCKER_TLS_CERTDIR: ''
+    env:
+      DOCKER_HOST: tcp://dind:2375
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: wait for docker daemon
+        run: |
+          for i in $(seq 1 30); do
+            docker info >/dev/null 2>&1 && echo "docker up" && exit 0
+            echo "waiting... ($i)"; sleep 2
+          done
+          echo "docker never came up" && exit 1
+
+      - name: harbor login
+        run: |
+          echo "${{ secrets.HARBOR_PASSWORD }}" \
+            | docker login ${{ env.HARBOR_REGISTRY }} \
+                -u "${{ secrets.HARBOR_USER }}" --password-stdin
+
+      - name: compute version tags
+        id: ver
+        run: |
+          SHA7="${GITHUB_SHA:0:7}"
+          CALVER="$(date -u +%Y.%m.%d)"
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            RELEASE="${GITHUB_REF#refs/tags/}"
+            STAGING_TAG="${RELEASE}-staging"
+            PROD_TAG="${RELEASE}"
+          else
+            STAGING_TAG="${CALVER}-${SHA7}-staging"
+            PROD_TAG="${CALVER}-${SHA7}"
+          fi
+          echo "staging_tag=${STAGING_TAG}" >> "$GITHUB_OUTPUT"
+          echo "prod_tag=${PROD_TAG}"       >> "$GITHUB_OUTPUT"
+          echo "image_ref=${{ env.IMAGE_BASE }}:${STAGING_TAG}" >> "$GITHUB_OUTPUT"
+          echo "STAGING_TAG=${STAGING_TAG}" >> "$GITHUB_ENV"
+          echo "PROD_TAG=${PROD_TAG}"       >> "$GITHUB_ENV"
+
+      - name: docker build (staging tag)
+        run: |
+          docker build \
+            -t "${{ env.IMAGE_BASE }}:${STAGING_TAG}" \
+            --build-arg APP_VERSION="${STAGING_TAG}" \
+            --build-arg GIT_SHA="${GITHUB_SHA}" \
+            --build-arg BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.version=${STAGING_TAG}" \
+            .
+
+      - name: push staging image
+        run: docker push "${{ env.IMAGE_BASE }}:${STAGING_TAG}"
+
+      - name: cleanup runner disk
+        if: always()
+        run: docker image rm "${{ env.IMAGE_BASE }}:${STAGING_TAG}" || true
+
+  image-scan:
+    name: trivy image scan (post-build, Harbor pull)
+    needs: build
+    runs-on: [self-hosted, signal-scout-runner]
+    container:
+      image: harbor.example.local/dockerhub-cache/library/aquasec/trivy:latest
+    env:
+      TRIVY_USERNAME: ${{ secrets.HARBOR_USER }}
+      TRIVY_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+    steps:
+      - name: scan pushed staging image
+        run: |
+          trivy image \
+            --severity CRITICAL \
+            --exit-code 1 \
+            --ignore-unfixed \
+            "${{ needs.build.outputs.image_ref }}"
+
+  promote:
+    name: promote staging digest -> prod tag (no rebuild)
+    needs: [build, image-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, signal-scout-runner]
+    services:
+      dind:
+        image: harbor.example.local/dockerhub-cache/library/docker:26.1.3-dind-alpine3.19
+        env:
+          DOCKER_TLS_CERTDIR: ''
+    env:
+      DOCKER_HOST: tcp://dind:2375
+    steps:
+      - name: wait for docker daemon
+        run: |
+          for i in $(seq 1 30); do
+            docker info >/dev/null 2>&1 && echo "docker up" && exit 0
+            sleep 2
+          done
+          exit 1
+      - name: harbor login
+        run: |
+          echo "${{ secrets.HARBOR_PASSWORD }}" \
+            | docker login ${{ env.HARBOR_REGISTRY }} \
+                -u "${{ secrets.HARBOR_USER }}" --password-stdin
+      - name: re-tag staging -> prod (same digest)
+        env:
+          STAGING_REF: ${{ needs.build.outputs.image_ref }}
+          PROD_TAG:    ${{ needs.build.outputs.prod_tag }}
+        run: |
+          docker pull "${STAGING_REF}"
+          docker tag  "${STAGING_REF}" "${{ env.IMAGE_BASE }}:${PROD_TAG}"
+          docker push "${{ env.IMAGE_BASE }}:${PROD_TAG}"
+          docker image rm "${STAGING_REF}" "${{ env.IMAGE_BASE }}:${PROD_TAG}" || true
+
+  deploy-staging:
+    name: deploy staging
+    needs: [build, promote]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, signal-scout-runner]
+    environment:
+      name: staging
+      url: https://staging.signal-scout.com
+    steps:
+      - name: ssh -> LXC staging stack
+        env:
+          SSH_KEY:     ${{ secrets.LXC_DEPLOY_SSH_KEY }}
+          STAGING_TAG: ${{ needs.build.outputs.staging_tag }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${SSH_KEY}" > ~/.ssh/lxc_deploy
+          chmod 600 ~/.ssh/lxc_deploy
+          ssh-keyscan -H "${{ env.LXC_IP }}" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/lxc_deploy -o StrictHostKeyChecking=accept-new \
+              deploy@"${{ env.LXC_IP }}" bash -s <<'REMOTE'
+            set -euo pipefail
+            STACK=/opt/stacks/signal-scout-staging
+            cd "${STACK}"
+            cp .env .env.bak
+            sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${STAGING_TAG}|" .env
+            docker compose pull app
+            docker compose up -d --no-deps --wait app
+          REMOTE
+      - name: smoke staging (2-minute /healthz window)
+        run: |
+          for i in $(seq 1 24); do
+            if curl -sf -m 5 https://staging.signal-scout.com/api/v1/healthz; then
+              echo "staging healthy ($i)"; exit 0
+            fi
+            sleep 5
+          done
+          exit 1
+
+  deploy-prod:
+    name: deploy production
+    needs: [build, promote, deploy-staging]
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      needs.promote.result == 'success' &&
+      (needs.deploy-staging.result == 'success' || needs.deploy-staging.result == 'skipped')
+    runs-on: [self-hosted, signal-scout-runner]
+    environment:
+      name: production
+      url: https://signal-scout.com
+    steps:
+      - name: ssh -> LXC prod stack
+        env:
+          SSH_KEY:  ${{ secrets.LXC_DEPLOY_SSH_KEY }}
+          PROD_TAG: ${{ needs.build.outputs.prod_tag }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${SSH_KEY}" > ~/.ssh/lxc_deploy
+          chmod 600 ~/.ssh/lxc_deploy
+          ssh-keyscan -H "${{ env.LXC_IP }}" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/lxc_deploy -o StrictHostKeyChecking=accept-new \
+              deploy@"${{ env.LXC_IP }}" bash -s <<'REMOTE'
+            set -euo pipefail
+            STACK=/opt/stacks/signal-scout-prod
+            cd "${STACK}"
+            cp .env .env.bak
+            sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${PROD_TAG}|" .env
+            docker compose pull app
+            docker compose up -d --no-deps --wait app
+          REMOTE
+      - name: smoke prod (4-minute /healthz window)
+        id: smoke_prod
+        run: |
+          for i in $(seq 1 48); do
+            if curl -sf -m 5 https://signal-scout.com/api/v1/healthz; then
+              echo "prod healthy ($i)"; exit 0
+            fi
+            sleep 5
+          done
+          exit 1
+      - name: auto-rollback on prod smoke failure
+        if: failure() && steps.smoke_prod.outcome == 'failure'
+        env:
+          SSH_KEY: ${{ secrets.LXC_DEPLOY_SSH_KEY }}
+        run: |
+          ssh -i ~/.ssh/lxc_deploy -o StrictHostKeyChecking=accept-new \
+              deploy@"${{ env.LXC_IP }}" bash -s <<'REMOTE'
+            set -euo pipefail
+            STACK=/opt/stacks/signal-scout-prod
+            cd "${STACK}"
+            cp .env.bak .env
+            docker compose pull app
+            docker compose up -d --no-deps --wait app
+          REMOTE

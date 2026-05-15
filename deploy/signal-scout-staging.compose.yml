@@ -1,0 +1,49 @@
+# signal-scout STAGING stack — the prod host (signal-scout-lxc), różny port + URL
+# NPM (Hetzner) proxies staging.signal-scout.com → TS_LXC_IP:8081
+#
+# Cel: test-driven deployment.
+# CI deploy → staging → smoke tests → if OK → promote to prod.
+#
+# Independent .env (różne creds dla isolation):
+#   /opt/stacks/signal-scout-staging/.env
+#
+# Differs from prod:
+#   - port 8081 (nie 8080)
+#   - container name signal-scout-staging
+#   - osobne /instance + /flask_session volumes (czysty DB dla testów)
+#   - Watchtower auto-update ENABLED (staging gets latest tag automatically)
+
+services:
+  app:
+    image: harbor.example.local/signal-scout/app:${IMAGE_TAG:-staging}
+    container_name: signal-scout-staging
+    restart: unless-stopped
+    ports:
+      - '8081:8080'
+    env_file:
+      - .env
+    environment:
+      # Override per-environment values
+      FLASK_ENV: 'staging'
+      CANONICAL_ORIGIN: 'https://staging.signal-scout.com'
+    volumes:
+      - ./instance:/app/instance
+      - ./flask_session:/app/flask_session
+      - prometheus_multiproc_staging:/tmp/prometheus_multiproc
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/api/v1/healthz']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '2'
+    labels:
+      # Staging auto-pulls latest:staging tag for continuous deploys
+      com.centurylinklabs.watchtower.enable: 'true'
+
+volumes:
+  prometheus_multiproc_staging:
