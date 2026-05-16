@@ -23,7 +23,7 @@ jobs:
     runs-on: [self-hosted, signal-scout-runner]
     timeout-minutes: 30
     container:
-      image: harbor.example.local/dockerhub-cache/library/python:3.12-slim
+      image: docker.io/library/python:3.12-slim
     steps:
       - uses: actions/checkout@v4
         with:
