@@ -2,7 +2,6 @@
 
 import json
 
-import pytest
 
 from models import User, ApiKey, AuditEvent
 

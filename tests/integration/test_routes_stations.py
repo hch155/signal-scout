@@ -169,7 +169,7 @@ def test_stations_empty_result_returns_200_not_500(client):
     """Far from any test fixture station — must be graceful empty list,
     not error. Critical for the 'no embarrassing thin coverage' UX goal."""
     # Pick a corner of the supported area with no stations in our fixture
-    r = client.get(f"/stations?lat=49.5&lng=22.0&max_distance=0.1")
+    r = client.get("/stations?lat=49.5&lng=22.0&max_distance=0.1")
     assert r.status_code == 200
     body = r.get_json()
     assert body["count"] == 0

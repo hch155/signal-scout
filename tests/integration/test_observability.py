@@ -1,5 +1,4 @@
 """Tests for /metrics + /healthz + custom Prometheus counters."""
-import os
 import pytest
 
 pytestmark = pytest.mark.integration
@@ -80,7 +79,7 @@ def _scrape(client):
 
 def test_csrf_failure_counter_increments(client, monkeypatch):
     monkeypatch.setenv("METRICS_BEARER_TOKEN", "supersecret")
-    before = _scrape(client)
+    _ = _scrape(client)  # noqa: F841 (warmup scrape)
     # Hit /submit_location without CSRF → 403, increments counter
     client.post("/submit_location", json={"lat": 52.23, "lng": 21.0})
     after = _scrape(client)

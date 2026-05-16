@@ -5,13 +5,12 @@
 """
 from __future__ import annotations
 
-import pytest
 
 
 def test_seed_honeypot_rows_inserts_when_env_set(app, monkeypatch):
     from database import db
     from models import BaseStation
-    from api_access import seed_honeypot_rows, HONEYPOT_PROVIDER_MARKER, _load_honeypot_ids
+    from api_access import seed_honeypot_rows, HONEYPOT_PROVIDER_MARKER
 
     # Seed two known IDs.
     monkeypatch.setenv("HONEYPOT_BTS_IDS", "PRI_HP_A,PRI_HP_B")

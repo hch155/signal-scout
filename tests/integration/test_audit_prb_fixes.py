@@ -7,11 +7,9 @@
 """
 from __future__ import annotations
 
-import json
 import secrets
 from concurrent.futures import ThreadPoolExecutor
 
-import pytest
 
 
 # ───────────────────────────────────────────────────────────────────
@@ -25,9 +23,7 @@ def test_lockout_counter_increments_atomically_under_concurrent_failures(
     AND the user must be locked. The pre-fix Python-side
     read-modify-write would race-lose increments and end up with
     counter=2 or 3 after 5 concurrent attempts."""
-    from database import db
     from models import User
-    import bcrypt as _bc
 
     email = f"lock-{secrets.token_hex(3)}@example.com"
     password = "Aa1!aaaaaa"

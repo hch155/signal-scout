@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import json as _json
-import secrets
 
 
 def _scrape_metrics(client, monkeypatch) -> str:

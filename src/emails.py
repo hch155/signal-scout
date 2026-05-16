@@ -30,7 +30,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Optional
 
-from flask import current_app, render_template
+from flask import render_template
 
 from config import settings
 

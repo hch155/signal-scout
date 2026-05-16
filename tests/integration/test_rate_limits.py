@@ -3,7 +3,6 @@
 Marked @pytest.mark.slow because they hammer the rate-limited endpoints in a
 tight loop. Default `pytest` invocation excludes them; opt in with `-m slow`.
 """
-import json
 import pytest
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]

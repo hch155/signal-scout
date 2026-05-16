@@ -9,7 +9,6 @@ import json as _json
 from datetime import datetime
 
 import pyotp
-import pytest
 
 
 def _setup_user_with_2fa(app):
@@ -37,7 +36,6 @@ def test_wrong_totp_increments_lockout_counter(authed_client, csrf_token, app):
     only ever moved on /login (password) and /account/* bcrypt
     failures, so TOTP brute-force was effectively rate-limited only
     by Flask-Limiter (10/min/IP × 2 instances)."""
-    from database import db
     from models import User
 
     user_id, _secret = _setup_user_with_2fa(app)
@@ -68,7 +66,6 @@ def test_repeated_wrong_totp_locks_account(authed_client, csrf_token, app):
     """Crossing LOCKOUT_THRESHOLD on /login/totp must trip the same
     user.locked_until lock that /login already enforces. Subsequent
     bcrypt-using endpoints should refuse via _is_locked()."""
-    from database import db
     from models import User
     from auth_routes import LOCKOUT_THRESHOLD
 
@@ -81,7 +78,7 @@ def test_repeated_wrong_totp_locks_account(authed_client, csrf_token, app):
         s["pending_2fa_started_at"] = datetime.utcnow().isoformat()
 
     for _ in range(LOCKOUT_THRESHOLD + 1):
-        r = c.post("/login/totp",
+        c.post("/login/totp",
                    data=_json.dumps({"code": "000000"}),
                    content_type="application/json",
                    headers={"X-CSRF-Token": csrf_token,
@@ -100,8 +97,6 @@ def test_correct_totp_clears_failed_attempts_via_existing_login_path(
     LOCKOUT_THRESHOLD - 1 failed TOTP attempts the legit code should
     still authenticate (and the existing /login success-path on next
     login resets failed_login_attempts; not asserted here)."""
-    from database import db
-    from models import User
     from auth_routes import LOCKOUT_THRESHOLD
 
     user_id, secret = _setup_user_with_2fa(app)

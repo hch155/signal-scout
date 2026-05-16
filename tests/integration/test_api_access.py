@@ -234,8 +234,6 @@ def test_referer_blocked_counter_increments(raw_client, monkeypatch):
 
     # Scrape via the normal client (which has Referer) so /metrics isn't itself
     # blocked. Test only cares that the counter line is present.
-    import importlib
-    import app as app_module
     # reuse same client to inherit env
     metrics = raw_client.get(
         "/metrics",

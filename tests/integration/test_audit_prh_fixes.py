@@ -5,10 +5,7 @@
 """
 from __future__ import annotations
 
-import json as _json
-from datetime import datetime, timedelta
 
-import pytest
 
 
 def test_sqlite_busy_timeout_configured(app):

@@ -2,7 +2,6 @@
 trigger added 2026-04-28)."""
 from __future__ import annotations
 
-import json as _json
 
 
 def test_endpoint_requires_auth(client):

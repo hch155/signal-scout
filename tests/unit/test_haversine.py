@@ -4,7 +4,7 @@ import pytest
 
 pytestmark = pytest.mark.unit
 
-from queries import haversine
+from queries import haversine  # noqa: E402
 
 
 def test_zero_distance():

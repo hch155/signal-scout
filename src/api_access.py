@@ -36,7 +36,7 @@ from functools import wraps
 from typing import Callable
 from urllib.parse import urlparse
 
-from flask import current_app, g, jsonify, request, session
+from flask import g, jsonify, request, session
 
 from datetime import datetime
 

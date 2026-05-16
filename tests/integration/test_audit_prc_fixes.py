@@ -5,10 +5,8 @@
 from __future__ import annotations
 
 import json as _json
-import secrets
 
 import pyotp
-import pytest
 
 
 def _setup_user_with_2fa(authed_client, csrf_token, app):

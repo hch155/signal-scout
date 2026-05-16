@@ -21,26 +21,6 @@ WORKDIR /build
 COPY requirements.txt .
 RUN pip wheel --wheel-dir=/wheels -r requirements.txt
 
-# ── Asset builder ───────────────────────────────────────────────────────────
-# 2026-05-16: regenerate minified JS+CSS during image build so source edits
-# can't ship without re-minification. Avoids "src updated but dist/ stale"
-# regression where Toggle Filters layout fix was in source but stale
-# dist/pages/ui-interactions.min.js (Apr 29) shipped unchanged.
-FROM debian:bookworm-slim AS asset-builder
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-       curl ca-certificates bash \
-    && rm -rf /var/lib/apt/lists/*
-WORKDIR /src
-COPY src/static /src/src/static
-COPY tailwind.config.js scripts/build.sh scripts/download-tools.sh /src/
-COPY tools /src/tools/
-RUN chmod +x /src/scripts/build.sh /src/scripts/download-tools.sh \
-    && cd /src \
-    && (test -x tools/esbuild && test -x tools/tailwindcss \
-        || bash scripts/download-tools.sh) \
-    && bash scripts/build.sh
-
 # ── Runtime ─────────────────────────────────────────────────────────────────
 FROM python:3.12-slim AS runtime
 
@@ -86,13 +66,6 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.t
 # App source last so code edits don't bust the dep-install layer cache.
 COPY --chown=appuser:appuser . .
 
-# Overlay fresh minified JS+CSS from asset-builder stage. The source-copied
-# dist/ may be stale (build.sh wasn't run before docker build) — this
-# guarantees the running image has freshly-minified assets matching the
-# current src/static/scripts/pages/*.js. Fixes the "Toggle Filters layout
-# fix shipped in source but old min.js still served" regression of 2026-05-16.
-COPY --from=asset-builder --chown=appuser:appuser /src/src/static/dist /usr/src/app/src/static/dist
-COPY --from=asset-builder --chown=appuser:appuser /src/src/static/css/output.css /usr/src/app/src/static/css/output.css
 
 USER appuser
 

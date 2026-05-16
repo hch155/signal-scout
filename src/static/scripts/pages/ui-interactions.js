@@ -337,30 +337,19 @@ btsCountControl.onAdd = function(map) {
 }
 btsCountControl.addTo(mymap);
 
-// 2026-05-15: filter controls moved from topright (Toggle/Reset as
-// wide blue buttons that obscured the map and competed with the layer
-// switcher) to topleft as an icon-style button matching GPS/Range.
-// Reset Filters lives INSIDE the panel and only appears when at least
-// one filter is dirty — eliminates always-on visual noise.
 let filterControl = L.control({position: 'topright'});
 filterControl.onAdd = function(map) {
-    let div = L.DomUtil.create('div', 'gps-location-control');
-    div.style.position = 'absolute';
-    div.style.top = '160px';
-    div.style.left = '0px';
+    let div = L.DomUtil.create('div', 'filter-control-container');
+    div.innerHTML = `
+        <button id="toggle-filters-btn" class="bg-blue-500 hover:bg-blue-700 dark:bg-gray-800 dark:hover:bg-gray-500 text-white dark:text-white font-bold py-1 px-2 rounded w-76">
+        Toggle Filters
+        </button>
 
-    let toggleBtn = L.DomUtil.create('button', 'map-control-btn', div);
-    toggleBtn.id = 'toggle-filters-btn';
-    toggleBtn.title = 'Toggle Filters';
-    toggleBtn.innerHTML = `<span class="control-label" style="font-size: 13px; padding: 0 4px;">Filters</span>`;
+        <button id="reset-filters-btn" class="bg-blue-500 hover:bg-blue-700 dark:bg-gray-800 dark:hover:bg-gray-500 text-white dark:text-white font-bold py-1 px-2 rounded w-76">
+        Reset Filters
+        </button>
 
-    let filterDiv = L.DomUtil.create(
-        'div',
-        'filter-container bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400 hidden',
-        div,
-    );
-    filterDiv.id = 'filterContainer';
-    filterDiv.innerHTML = `
+        <div id="filterContainer" class="bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400 hidden">
             <div class="static-content">
                 <div class="my-2">
                     <p class="text-gray-700 font-bold dark:text-white">Service Provider:</p>
@@ -411,20 +400,17 @@ filterControl.onAdd = function(map) {
                 </div>
 
                 <div id="dynamicContent">
-
+                
                 </div>
-
-                <button id="reset-filters-btn" class="hidden mt-3 w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium py-1 px-2 rounded text-sm">
-                    Reset Filters
-                </button>
-            </div>
-    `;
-
+            </div> 
+        </div>
+        
+    `; 
     L.DomEvent.disableClickPropagation(div);
     L.DomEvent.on(div, 'mousewheel', L.DomEvent.stopPropagation);
-
+    
     return div;
-};
+    };
 
 filterControl.addTo(mymap);
 
@@ -1711,29 +1697,7 @@ function resetFiltersUI() {
         lat: currentFilters.lat || center.lat,
         lng: currentFilters.lng || center.lng
     };
-    updateResetButtonVisibility();
-}
-
-// Reset Filters lives inside the panel and shows only when at least
-// one filter is dirty. Checked on every checkbox/number-input change.
-function updateResetButtonVisibility() {
-    const resetBtn = document.getElementById('reset-filters-btn');
-    if (!resetBtn) return;
-    const checkboxes = document.querySelectorAll('#filterContainer input[type="checkbox"]');
-    const nearestVal = document.getElementById('nearestBtsRange').value;
-    const distanceVal = document.getElementById('withinDistanceRange').value;
-    const anyChecked = Array.from(checkboxes).some(c => c.checked);
-    const hasDirty = anyChecked || nearestVal !== '' || distanceVal !== '';
-    resetBtn.classList.toggle('hidden', !hasDirty);
-}
-
-document.addEventListener('change', function(e) {
-    if (e.target && e.target.matches(
-        '#filterContainer input[type="checkbox"], #nearestBtsRange, #withinDistanceRange'
-    )) {
-        updateResetButtonVisibility();
-    }
-});
+}    
 
 document.addEventListener('DOMContentLoaded', function() {
     const nearestBtsRangeInput = document.getElementById('nearestBtsRange');

@@ -3,7 +3,7 @@ import pytest
 
 pytestmark = pytest.mark.unit
 
-from queries import sort_frequency_bands
+from queries import sort_frequency_bands  # noqa: E402
 
 
 def test_priority_ordering_5g_first_gsm_last():

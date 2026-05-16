@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json as _json
 
-import pytest
 
 
 def _emit_event(app, user_id: int, event_type: str, meta: dict | None = None):

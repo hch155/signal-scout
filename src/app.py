@@ -4,8 +4,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from database import db
 from models import BaseStation, User
-from sqlalchemy import or_
-from queries import get_all_stations, find_nearest_stations, haversine, get_band_stats, get_stats, find_coverage_gaps
+from queries import find_nearest_stations, get_stats, find_coverage_gaps
 from config import settings
 from observability import (
     init_observability,
@@ -40,7 +39,14 @@ from api_docs import init_api_docs
 from oauth import init_oauth, login_with_provider, callback_for_provider
 from dotenv import load_dotenv
 from datetime import timedelta, datetime
-import markdown, os, random, re, logging, secrets, time, json
+import markdown
+import os
+import random
+import re
+import logging
+import secrets
+import time
+import json
 
 load_dotenv()
 
@@ -52,7 +58,7 @@ app = Flask(__name__)
 # X-Forwarded-Proto hop Cloud Run sets; x_host=1 honors X-Forwarded-Host so
 # the canonical hostname (signal-scout.com once domain mapping lands) is
 # used in generated URLs.
-from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.middleware.proxy_fix import ProxyFix  # noqa: E402
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.config['SECRET_KEY'] = settings.secret_key
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = settings.static_max_age
@@ -76,7 +82,7 @@ users_db_path = settings.users_db_path or os.path.join(basedir, 'instance', 'use
 # committed; on subsequent boots, the mount already has the live data and
 # this is a no-op. Without this step, the first boot of a fresh mount would
 # create_all() into an empty file → existing users wiped.
-import shutil
+import shutil  # noqa: E402
 _baked_users_db = os.path.join(basedir, 'instance', 'users.db')
 if (settings.users_db_path
         and settings.users_db_path != _baked_users_db
@@ -2092,11 +2098,11 @@ def sitemap_xml():
     body = ['<?xml version="1.0" encoding="UTF-8"?>',
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for path, prio, freq in pages:
-        body.append(f'  <url>')
+        body.append('  <url>')
         body.append(f'    <loc>{origin}{path}</loc>')
         body.append(f'    <changefreq>{freq}</changefreq>')
         body.append(f'    <priority>{prio}</priority>')
-        body.append(f'  </url>')
+        body.append('  </url>')
     body.append('</urlset>')
     return Response('\n'.join(body), mimetype='application/xml')
 
@@ -2146,7 +2152,7 @@ def embed_widget():
 # regenerate_api_key) live in the auth_routes module as a Flask blueprint.
 # Wired here so dependency order (db, bcrypt, limiter, validate_csrf, etc.)
 # is unambiguous.
-from auth_routes import register_auth_routes
+from auth_routes import register_auth_routes  # noqa: E402
 register_auth_routes(
     app,
     bcrypt=bcrypt,

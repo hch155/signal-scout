@@ -1,7 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from database import db
 from werkzeug.security import generate_password_hash, check_password_hash
-import os
 
 class BaseStation(db.Model):
     __tablename__ = 'base_station'

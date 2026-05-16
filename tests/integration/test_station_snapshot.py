@@ -101,7 +101,8 @@ def test_changes_page_renders_diff_between_two_snapshots(authed_client, csrf_tok
     # First snapshot
     authed_client.post("/account/snapshot", headers={"X-CSRF-Token": csrf_token})
     # Wait briefly so the second snapshot has a strictly later timestamp
-    import time; time.sleep(0.01)
+    import time
+    time.sleep(0.01)
     # Second snapshot of the same data — diff should be empty (no changes)
     authed_client.post("/account/snapshot", headers={"X-CSRF-Token": csrf_token})
     r = authed_client.get("/account/changes")

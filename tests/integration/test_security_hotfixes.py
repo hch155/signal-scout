@@ -133,7 +133,6 @@ def test_submit_location_out_of_bounds_400(client, csrf_token, payload):
 def test_change_password_records_failed_attempts(authed_client, csrf_token, app):
     """5 wrong current_password attempts on /account/password must trip
     User.locked_until — not just /login."""
-    from database import db
     from models import User
 
     for _ in range(5):
@@ -196,7 +195,6 @@ def test_record_failed_password_attempt_with_none_user_is_noop(app):
 def test_delete_account_cascades_to_api_keys(authed_client, csrf_token, app):
     """Deleting a user must remove their ApiKey rows in the same txn —
     otherwise orphans authenticate then crash /api/v1/* with NoneType."""
-    from database import db
     from models import User, ApiKey
 
     # Mint a named API key against the authed user.

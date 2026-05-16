@@ -3,7 +3,7 @@ import pytest
 
 pytestmark = pytest.mark.unit
 
-from queries import get_latitude_segment
+from queries import get_latitude_segment  # noqa: E402
 
 
 def test_base_latitude_is_segment_zero():

@@ -7,7 +7,6 @@ User.api_key working during the migration window.
 
 import json
 
-import pytest
 
 from models import User, ApiKey
 
