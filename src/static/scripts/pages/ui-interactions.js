@@ -342,7 +342,7 @@ btsCountControl.addTo(mymap);
 // switcher) to topleft as an icon-style button matching GPS/Range.
 // Reset Filters lives INSIDE the panel and only appears when at least
 // one filter is dirty — eliminates always-on visual noise.
-let filterControl = L.control({position: 'topleft'});
+let filterControl = L.control({position: 'topright'});
 filterControl.onAdd = function(map) {
     let div = L.DomUtil.create('div', 'gps-location-control');
     div.style.position = 'absolute';
