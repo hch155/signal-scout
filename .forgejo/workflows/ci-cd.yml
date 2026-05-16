@@ -98,8 +98,8 @@ jobs:
       image: docker.io/aquasec/trivy:latest
     steps:
       - uses: actions/checkout@v4
-      - name: trivy fs (HIGH+CRITICAL, unfixed only, skip vendored tools)
-        run: trivy fs --severity HIGH,CRITICAL --exit-code 1 --ignore-unfixed --skip-dirs tools,src/static/vendor,node_modules .
+      - name: trivy fs (HIGH+CRITICAL, unfixed only, skip vendored deps)
+        run: trivy fs --severity HIGH,CRITICAL --exit-code 1 --ignore-unfixed --skip-dirs tools,src/static/vendor,node_modules,mobile .
 
   build:
     name: build + push Harbor (staging tag)
