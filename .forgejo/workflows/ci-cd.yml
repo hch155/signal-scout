@@ -113,23 +113,13 @@ jobs:
       staging_tag: ${{ steps.ver.outputs.staging_tag }}
       prod_tag:    ${{ steps.ver.outputs.prod_tag }}
       image_ref:   ${{ steps.ver.outputs.image_ref }}
-    services:
-      dind:
-        image: docker.io/library/docker:26.1.3-dind-alpine3.19
-        env:
-          DOCKER_TLS_CERTDIR: ''
-    env:
-      DOCKER_HOST: tcp://dind:2375
+    # Use runner's local Docker daemon (the CI runner host has dockerd installed).
+    # Removed DinD service — simpler, faster, no inter-container networking.
     steps:
       - uses: actions/checkout@v4
 
-      - name: wait for docker daemon
-        run: |
-          for i in $(seq 1 30); do
-            docker info >/dev/null 2>&1 && echo "docker up" && exit 0
-            echo "waiting... ($i)"; sleep 2
-          done
-          echo "docker never came up" && exit 1
+      - name: verify docker on runner
+        run: docker info | head -10
 
       - name: harbor login
         run: |
@@ -197,21 +187,8 @@ jobs:
     needs: [build, image-scan]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: [self-hosted, signal-scout-runner]
-    services:
-      dind:
-        image: docker.io/library/docker:26.1.3-dind-alpine3.19
-        env:
-          DOCKER_TLS_CERTDIR: ''
-    env:
-      DOCKER_HOST: tcp://dind:2375
+    # Uses runner's local Docker daemon — same as build job
     steps:
-      - name: wait for docker daemon
-        run: |
-          for i in $(seq 1 30); do
-            docker info >/dev/null 2>&1 && echo "docker up" && exit 0
-            sleep 2
-          done
-          exit 1
       - name: harbor login
         run: |
           echo "${{ secrets.HARBOR_PASSWORD }}" \
