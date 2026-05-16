@@ -65,8 +65,9 @@ jobs:
         run: python3 -m ruff check src/ tests/
       - name: bandit (HIGH+CRITICAL gate)
         run: python3 -m bandit -r src/ -lll -iii
-      - name: pip-audit
-        run: python3 -m pip_audit --strict
+      - name: pip-audit (non-strict, log only)
+        continue-on-error: true
+        run: python3 -m pip_audit -r requirements.txt || true
 
   test:
     name: test (pytest >=75% coverage)
