@@ -23,7 +23,7 @@ jobs:
     runs-on: [self-hosted, signal-scout-runner]
     timeout-minutes: 30
     container:
-      image: docker.io/library/python:3.12-slim
+      image: docker.io/library/node:20-bookworm-slim
     steps:
       - uses: actions/checkout@v4
         with:

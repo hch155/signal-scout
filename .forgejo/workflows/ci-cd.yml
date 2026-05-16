@@ -52,33 +52,41 @@ jobs:
     name: lint (ruff + bandit + pip-audit)
     runs-on: [self-hosted, signal-scout-runner]
     container:
-      image: docker.io/library/python:3.12-alpine
+      image: docker.io/library/node:20-bookworm-slim
     steps:
       - uses: actions/checkout@v4
+      - name: install python (node base needs python via apt)
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends python3 python3-pip git
       - name: install lint tools
-        run: pip install --no-cache-dir ruff bandit pip-audit
+        run: python3 -m pip install --break-system-packages --no-cache-dir ruff bandit pip-audit
       - name: ruff
-        run: ruff check src/ tests/
+        run: python3 -m ruff check src/ tests/
       - name: bandit (HIGH+CRITICAL gate)
-        run: bandit -r src/ -lll -iii
+        run: python3 -m bandit -r src/ -lll -iii
       - name: pip-audit
-        run: pip-audit --strict
+        run: python3 -m pip_audit --strict
 
   test:
     name: test (pytest >=75% coverage)
     needs: lint
     runs-on: [self-hosted, signal-scout-runner]
     container:
-      image: docker.io/library/python:3.12-slim
+      image: docker.io/library/node:20-bookworm-slim
     steps:
       - uses: actions/checkout@v4
+      - name: install python (node base needs python via apt)
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends python3 python3-pip git curl build-essential libsqlite3-dev
       - name: install deps
         run: |
-          pip install --no-cache-dir -r requirements.txt
-          pip install --no-cache-dir -r tests/requirements-test.txt
+          python3 -m pip install --break-system-packages --no-cache-dir -r requirements.txt
+          python3 -m pip install --break-system-packages --no-cache-dir -r tests/requirements-test.txt
       - name: pytest + coverage gate
         run: |
-          PYTHONPATH=src pytest tests/unit tests/integration \
+          PYTHONPATH=src python3 -m pytest tests/unit tests/integration \
             -v --cov=src --cov-fail-under=75
 
   security-fs-scan:
