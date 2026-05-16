@@ -86,7 +86,7 @@ jobs:
     needs: lint
     runs-on: [self-hosted, signal-scout-runner]
     container:
-      image: docker.io/library/aquasec/trivy:latest
+      image: docker.io/aquasec/trivy:latest
     steps:
       - uses: actions/checkout@v4
       - name: trivy fs (HIGH+CRITICAL, unfixed only)
@@ -167,7 +167,7 @@ jobs:
     needs: build
     runs-on: [self-hosted, signal-scout-runner]
     container:
-      image: docker.io/library/aquasec/trivy:latest
+      image: docker.io/aquasec/trivy:latest
     env:
       TRIVY_USERNAME: ${{ secrets.HARBOR_USER }}
       TRIVY_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
