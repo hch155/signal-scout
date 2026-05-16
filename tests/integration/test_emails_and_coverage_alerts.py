@@ -334,7 +334,6 @@ def test_process_first_run_stamps_snapshot_no_email(app, monkeypatch):
 def test_process_no_change_returns_no_change(app, monkeypatch):
     from coverage_alerts import _process, _coverage_to_dict
     from queries import find_coverage_gaps
-    from database import db
 
     sent = []
 
