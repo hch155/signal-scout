@@ -60,9 +60,9 @@ jobs:
       - name: ruff
         run: ruff check src/ tests/
       - name: bandit (HIGH+CRITICAL gate)
-        run: bandit -r src/ -ll -ii
+        run: bandit -r src/ -lll -iii
       - name: pip-audit
-        run: pip-audit --strict --disable-pip
+        run: pip-audit --strict
 
   test:
     name: test (pytest >=75% coverage)
