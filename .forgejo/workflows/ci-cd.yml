@@ -20,12 +20,12 @@
 #
 # VERSION SCHEME:
 #   push main  -> YYYY.MM.DD-<sha7>-staging  (staging image)
-#              -> YYYY.MM.DD-<sha7>           (prod image — re-tagged, same digest)
+#              -> YYYY.MM.DD-<sha7>           (prod image -- re-tagged, same digest)
 #   tag v*     -> git tag value (e.g. v2026.05.15)  (explicit immutable release)
 #
 # PROMOTION MODEL:
 #   No rebuild. After image-scan passes, runner pulls staging digest, re-tags
-#   as prod, pushes. Same bits — guaranteed bit-for-bit identical to what
+#   as prod, pushes. Same bits -- guaranteed bit-for-bit identical to what
 #   staging ran. Zero network transfer for the layers (Harbor dedupes by digest).
 #
 # ROLLBACK:
