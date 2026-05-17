@@ -12,7 +12,26 @@ document.addEventListener('DOMContentLoaded', function() {
   initializeLogoutButton();
   initializePasswordToggles();
   showOAuthErrorIfPresent();
+  fireAnalyticsPulse();
 });
+
+// One-shot fire-and-forget GET to /api/v1/_pulse. The server uses the
+// presence of this hit as a "this client executes JS" signal in the
+// composite bot score (see docs/observability/ANALYTICS-PLAN.md). No
+// payload, no response handling — 204 by design. Wrapped in try so a
+// network failure here never breaks page boot.
+function fireAnalyticsPulse() {
+  try {
+    if (window.__ssAnalyticsPulseFired) return;
+    window.__ssAnalyticsPulseFired = true;
+    fetch('/api/v1/_pulse', {
+      method: 'GET',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      keepalive: true,
+    }).catch(function() { /* swallow */ });
+  } catch (_) { /* old browser without fetch — that's fine, bot score handles it */ }
+}
 
 // OAuth callbacks land on the home page with `?oauth_error=<code>` when
 // the server refused the sign-in (account-takeover guard, missing email,

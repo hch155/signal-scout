@@ -342,6 +342,13 @@ def require_api_access(endpoint_label: str) -> Callable:
                 g.api_tier = 'anonymous'
             else:
                 api_referer_blocked_total.labels(endpoint=endpoint_label).inc()
+                # 2026-05-17: signal the bot-score after_request hook so a
+                # referer-block contributes +1 to the composite bot score
+                # (see docs/observability/ANALYTICS-PLAN.md §2.3).
+                try:
+                    g._referer_blocked = True
+                except Exception:
+                    pass
                 return jsonify({
                     "error": "access_denied",
                     "message": (

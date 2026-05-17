@@ -464,6 +464,158 @@ app_version_info = Gauge(
 )
 
 
+# ── 2026-05-17: bot-score + session analytics (ANALYTICS-PLAN.md PR-1) ─────
+#
+# Composite bot score per request, computed from multiple weak signals:
+# UA bucket, JS-pulse presence, cookie persistence, referer block, honeypot
+# trip. Score buckets are bounded labels (0..5+) so cardinality stays at
+# exactly 6 series regardless of traffic shape. See ANALYTICS-PLAN.md §2.3
+# for the weight table.
+
+bot_score_total = Counter(
+    "signal_scout_bot_score_total",
+    "Composite multi-signal bot score per request, bucketed 0..5+. "
+    "0 = looks human (browser UA, JS pulse seen, cookie persists). "
+    "5+ = honeypot trip OR sum of UA-bot + missing-pulse + missing-cookie "
+    "+ referer-block weights. Pair with rate() in Grafana to plot bot "
+    "pressure over time without per-IP cardinality.",
+    labelnames=("score",),
+)
+
+sessions_seen_total = Counter(
+    "signal_scout_sessions_seen_total",
+    "New ss_sid cookies minted (one per distinct anonymous visitor across "
+    "the cookie lifetime). Use rate(...) for 'new visitors per minute'.",
+)
+
+active_anon_sessions = Gauge(
+    "signal_scout_active_anon_sessions",
+    "Distinct ss_sid cookies seen in the last 15 minutes. In-memory TTL "
+    "set, capped at 100k entries with LRU eviction — single-instance "
+    "staging metric; resets on cold start. For canonical DAU use Plausible.",
+    multiprocess_mode="max",
+)
+
+active_authed_sessions = Gauge(
+    "signal_scout_active_authed_sessions",
+    "Distinct logged-in user_ids seen in the last 15 minutes. Same TTL "
+    "set shape as active_anon_sessions. Complements active_users_24h "
+    "(which is sourced from SubmitLocationEvent only) by capturing any "
+    "authenticated activity, not just location submissions.",
+    multiprocess_mode="max",
+)
+
+
+# Bot-score weight table (see ANALYTICS-PLAN.md §2.3).
+_BOT_WEIGHT_UA_BOT = 2
+_BOT_WEIGHT_NO_COOKIE = 1
+_BOT_WEIGHT_NO_PULSE = 1
+_BOT_WEIGHT_REFERER_BLOCK = 1
+_BOT_WEIGHT_HONEYPOT_OVERRIDE = 5  # forces score=5+ regardless of others
+_BOT_PULSE_GRACE_REQUESTS = 3      # don't penalise no-pulse before req #4
+
+
+def compute_bot_score(
+    *,
+    ua_class: str,
+    has_ss_sid_cookie: bool,
+    js_pulse_seen: bool,
+    request_count_in_session: int,
+    referer_blocked: bool,
+    honeypot_tripped: bool,
+) -> int:
+    """Sum the weak bot signals into a 0..5 score, clamped.
+
+    Pure function — no Flask/request access — so it's trivial to unit-test
+    and to call from both the after_request hook and the /_trap view.
+    """
+    if honeypot_tripped:
+        return 5
+    score = 0
+    if ua_class.endswith("bot") or ua_class == "cli":
+        score += _BOT_WEIGHT_UA_BOT
+    if not has_ss_sid_cookie and request_count_in_session > 1:
+        score += _BOT_WEIGHT_NO_COOKIE
+    if (not js_pulse_seen
+            and request_count_in_session > _BOT_PULSE_GRACE_REQUESTS):
+        score += _BOT_WEIGHT_NO_PULSE
+    if referer_blocked:
+        score += _BOT_WEIGHT_REFERER_BLOCK
+    return min(score, 5)
+
+
+def bot_score_label(score: int) -> str:
+    """Bucket label: 5+ for anything 5 or higher, exact int otherwise."""
+    if score >= 5:
+        return "5+"
+    return str(score)
+
+
+# ── In-memory TTL set for active-session gauges ────────────────────────────
+#
+# `dict[key -> last_seen_unix]` ordered by insertion; we sweep stale
+# entries on every touch + on every gauge refresh. Bounded by
+# _ACTIVE_SESSION_CAP — oldest entry evicted (LRU) when full, so a
+# burst of new cookies can't OOM the worker.
+
+_ACTIVE_SESSION_TTL_SECONDS = 15 * 60
+_ACTIVE_SESSION_CAP = 100_000
+_ACTIVE_ANON_SESSIONS: "OrderedDict[str, float]" = OrderedDict()
+_ACTIVE_AUTHED_SESSIONS: "OrderedDict[int, float]" = OrderedDict()
+
+
+def _ttl_touch(store: "OrderedDict", key, now: float) -> None:
+    """Mark `key` as seen at `now`, evicting LRU if over cap."""
+    if key in store:
+        store.move_to_end(key)
+    store[key] = now
+    while len(store) > _ACTIVE_SESSION_CAP:
+        store.popitem(last=False)
+
+
+def _ttl_count(store: "OrderedDict", now: float) -> int:
+    """Sweep entries older than the TTL, return live population."""
+    cutoff = now - _ACTIVE_SESSION_TTL_SECONDS
+    # OrderedDict is insertion-ordered, so once we hit a fresh-enough
+    # entry the rest are also fresh — short-circuit.
+    while store:
+        oldest_key = next(iter(store))
+        if store[oldest_key] < cutoff:
+            store.popitem(last=False)
+        else:
+            break
+    return len(store)
+
+
+def record_anon_session_seen(ss_sid: str, now: float | None = None) -> None:
+    """Bump the active-anon-sessions TTL set."""
+    if not ss_sid:
+        return
+    _ttl_touch(_ACTIVE_ANON_SESSIONS, ss_sid, now if now is not None else time.time())
+
+
+def record_authed_session_seen(user_id: int, now: float | None = None) -> None:
+    """Bump the active-authed-sessions TTL set."""
+    if user_id is None:
+        return
+    _ttl_touch(_ACTIVE_AUTHED_SESSIONS, user_id, now if now is not None else time.time())
+
+
+def active_anon_session_count(now: float | None = None) -> int:
+    return _ttl_count(_ACTIVE_ANON_SESSIONS, now if now is not None else time.time())
+
+
+def active_authed_session_count(now: float | None = None) -> int:
+    return _ttl_count(_ACTIVE_AUTHED_SESSIONS, now if now is not None else time.time())
+
+
+def _reset_session_state_for_tests() -> None:
+    """Wipe the TTL sets between tests so a 'new session' assertion is
+    deterministic. Called from the integration test fixtures."""
+    _ACTIVE_ANON_SESSIONS.clear()
+    _ACTIVE_AUTHED_SESSIONS.clear()
+
+
 # ── In-memory tracking for /status incident timestamp ──────────────────────
 
 _LAST_INCIDENT_TS: dict[str, float] = {"value": 0.0}

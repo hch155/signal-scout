@@ -26,6 +26,18 @@ from observability import (
     public_requests_total,
     record_incident,
     compute_public_status,
+    # 2026-05-17: bot-score + session analytics (ANALYTICS-PLAN.md PR-1)
+    bot_score_total,
+    bot_score_label,
+    compute_bot_score,
+    sessions_seen_total,
+    active_anon_sessions,
+    active_authed_sessions,
+    record_anon_session_seen,
+    record_authed_session_seen,
+    active_anon_session_count,
+    active_authed_session_count,
+    honeypot_hit_total,
 )
 from api_access import (
     require_api_access,
@@ -328,6 +340,17 @@ try:
             _sa_event.listen(_eng, "after_cursor_execute", _on_after)
         except Exception:
             app.logger.exception("db_query_seconds listener wiring failed")
+
+    # 2026-05-17: live gauges for the bot-score / session analytics PR.
+    # Both gauges sweep the in-memory TTL set on each /metrics scrape so
+    # stale ss_sid / user_id entries are evicted before the count goes
+    # out the door.
+    register_gauge_refresher(
+        active_anon_sessions, lambda: float(active_anon_session_count())
+    )
+    register_gauge_refresher(
+        active_authed_sessions, lambda: float(active_authed_session_count())
+    )
 except Exception:
     app.logger.exception("[observability] dynamic-gauge wiring failed")
 
@@ -503,6 +526,98 @@ def _record_user_agent_class(response):
     requests_by_user_agent_class_total.labels(
         ua_class=classify_user_agent(request.headers.get('User-Agent'))
     ).inc()
+    return response
+
+
+# ── 2026-05-17: bot-score + session-cookie hooks (ANALYTICS-PLAN PR-1) ─────
+#
+# Plants the opaque `ss_sid` cookie on first request, bumps the
+# new-sessions counter, refreshes the in-memory TTL sets used by
+# active_anon_sessions / active_authed_sessions gauges, and emits
+# bot_score_total{score} from the composite signal table.
+#
+# Runs in two halves: a before_request reads the cookie (or mints one
+# into flask.g for the response to pick up) and bumps the request
+# counter inside the Flask session, and an after_request emits the
+# bot_score Counter using everything we know at response time.
+
+SS_SID_COOKIE = 'ss_sid'
+SS_SID_MAX_AGE = 30 * 24 * 3600  # 30 days
+
+
+@app.before_request
+def _ss_sid_and_session_probe():
+    if request.path in _INFRA_PATHS:
+        return
+    # Cookie present? Note it on flask.g for both the after_request
+    # bot-score hook and the response cookie-setter.
+    g._ss_sid_present = bool(request.cookies.get(SS_SID_COOKIE))
+    g._ss_sid_to_set = None
+    if not g._ss_sid_present:
+        g._ss_sid_to_set = secrets.token_hex(16)
+        try:
+            sessions_seen_total.inc()
+        except Exception:
+            pass
+
+    # Per-Flask-session request counter — used for the no-cookie / no-pulse
+    # signals (we shouldn't penalise request #1 for not having state yet).
+    try:
+        session['_req_n'] = int(session.get('_req_n', 0)) + 1
+    except Exception:
+        pass
+
+    # Refresh the active-sessions TTL set on every request, so the
+    # gauge value at scrape time is current. ss_sid is the anon key;
+    # session user_id (if any) is the authed key.
+    sid = request.cookies.get(SS_SID_COOKIE) or g._ss_sid_to_set
+    if sid:
+        try:
+            record_anon_session_seen(sid)
+        except Exception:
+            pass
+    try:
+        uid = session.get('user_id')
+        if uid is not None:
+            record_authed_session_seen(int(uid))
+    except Exception:
+        pass
+
+
+@app.after_request
+def _ss_sid_set_and_bot_score(response):
+    if request.path in _INFRA_PATHS:
+        return response
+
+    # Set the cookie if we minted one during before_request.
+    sid_to_set = getattr(g, '_ss_sid_to_set', None)
+    if sid_to_set:
+        response.set_cookie(
+            SS_SID_COOKIE,
+            sid_to_set,
+            max_age=SS_SID_MAX_AGE,
+            httponly=True,
+            samesite='Lax',
+            secure=app.config.get('SESSION_COOKIE_SECURE', False),
+        )
+
+    # Compute and emit the bot score. Honeypot-tripped is set by the
+    # /_trap view (and could be wired into other honeypot paths later);
+    # default to False so a non-trap response doesn't override the score.
+    try:
+        ua_class = classify_user_agent(request.headers.get('User-Agent'))
+        req_n = int(session.get('_req_n', 1))
+        score = compute_bot_score(
+            ua_class=ua_class,
+            has_ss_sid_cookie=getattr(g, '_ss_sid_present', False),
+            js_pulse_seen=bool(session.get('_js_pulse_seen')),
+            request_count_in_session=req_n,
+            referer_blocked=bool(getattr(g, '_referer_blocked', False)),
+            honeypot_tripped=bool(getattr(g, '_honeypot_tripped', False)),
+        )
+        bot_score_total.labels(score=bot_score_label(score)).inc()
+    except Exception:
+        pass
     return response
 
 
@@ -2106,6 +2221,50 @@ def sitemap_xml():
         body.append('  </url>')
     body.append('</urlset>')
     return Response('\n'.join(body), mimetype='application/xml')
+
+
+# ── 2026-05-17: bot-detection probes (ANALYTICS-PLAN.md PR-1) ────────────
+#
+# /_pulse — called once by common.js on DOMContentLoaded; sets a session
+# flag the bot-score after_request hook reads. Real browsers running JS
+# carry the flag; headless scrapers that skip JS don't. Returns 204 so
+# the network panel stays clean.
+#
+# /_trap — invisible honeypot link in base.html. Any hit is a scraper
+# tripwire; we bump the existing honeypot_hit_total counter under a
+# new endpoint label and force the bot score to 5+. Returns 404 so it
+# looks like a stale link from the outside; the server-side signal is
+# what matters.
+#
+# Neither endpoint appears in robots.txt or sitemap.xml — listing /_trap
+# in robots tells well-behaved crawlers to avoid it (defeats the trap),
+# and a sitemap entry would invite Googlebot to index a 404.
+
+@app.route('/api/v1/_pulse', methods=['GET'])
+@limiter.limit("60 per minute")
+def analytics_pulse():
+    """JS-execution probe. Sets `_js_pulse_seen` on the Flask session so
+    the bot-score after_request hook stops penalising the no-pulse signal
+    for subsequent requests in this session."""
+    try:
+        session['_js_pulse_seen'] = True
+    except Exception:
+        pass
+    return ('', 204)
+
+
+@app.route('/api/v1/_trap', methods=['GET'])
+@limiter.limit("60 per minute")
+def analytics_trap():
+    """Invisible-link honeypot. Any hit is by definition a scraper —
+    humans can't see or focus the link (sr-only, aria-hidden, tabindex=-1)
+    so they never request it."""
+    try:
+        honeypot_hit_total.labels(endpoint='_trap').inc()
+    except Exception:
+        pass
+    g._honeypot_tripped = True
+    return ('Not Found', 404)
 
 
 @app.route('/embed/widget')
