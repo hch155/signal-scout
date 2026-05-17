@@ -185,7 +185,7 @@ jobs:
   promote:
     name: promote staging digest -> prod tag (no rebuild)
     needs: [build, image-scan]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: [self-hosted, signal-scout-runner]
     # Uses runner's local Docker daemon — same as build job
     steps:
@@ -207,7 +207,7 @@ jobs:
   deploy-staging:
     name: deploy staging
     needs: [build, promote]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: [self-hosted, signal-scout-runner]
     environment:
       name: staging
