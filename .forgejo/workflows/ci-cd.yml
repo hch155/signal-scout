@@ -223,12 +223,13 @@ jobs:
           chmod 600 ~/.ssh/lxc_deploy
           ssh-keyscan -H "${{ env.LXC_IP }}" >> ~/.ssh/known_hosts 2>/dev/null
           ssh -i ~/.ssh/lxc_deploy -o StrictHostKeyChecking=accept-new \
-              deploy@"${{ env.LXC_IP }}" bash -s <<'REMOTE'
+              deploy@"${{ env.LXC_IP }}" bash -s "$STAGING_TAG" <<'REMOTE'
             set -euo pipefail
+            IMAGE_TAG_NEW="$1"
             STACK=/opt/stacks/signal-scout-staging
             cd "${STACK}"
             cp .env .env.bak
-            sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${STAGING_TAG}|" .env
+            sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG_NEW}|" .env
             docker compose pull app
             docker compose up -d --no-deps --wait app
           REMOTE
@@ -265,12 +266,13 @@ jobs:
           chmod 600 ~/.ssh/lxc_deploy
           ssh-keyscan -H "${{ env.LXC_IP }}" >> ~/.ssh/known_hosts 2>/dev/null
           ssh -i ~/.ssh/lxc_deploy -o StrictHostKeyChecking=accept-new \
-              deploy@"${{ env.LXC_IP }}" bash -s <<'REMOTE'
+              deploy@"${{ env.LXC_IP }}" bash -s "$PROD_TAG" <<'REMOTE'
             set -euo pipefail
+            IMAGE_TAG_NEW="$1"
             STACK=/opt/stacks/signal-scout-prod
             cd "${STACK}"
             cp .env .env.bak
-            sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${PROD_TAG}|" .env
+            sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG_NEW}|" .env
             docker compose pull app
             docker compose up -d --no-deps --wait app
           REMOTE
