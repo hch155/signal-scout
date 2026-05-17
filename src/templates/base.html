@@ -6,10 +6,10 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     {# ── SEO ─────────────────────────────────────────────────────────── #}
-    <title>{% block title %}Signal-Scout — Find Nearest Cellular Base Stations in Poland{% endblock %}</title>
+    <title>{% if app_env and app_env != 'production' %}[{{ app_env|upper }}] {% endif %}{% block title %}Signal-Scout — Find Nearest Cellular Base Stations in Poland{% endblock %}</title>
     <meta name="description" content="{% block description %}Interactive map of ~22,000 cellular base stations across Poland (188,000+ frequency-band entries). Find the nearest tower from any major operator (Orange, Play, Plus, T-Mobile) and check coverage by frequency band.{% endblock %}">
     <link rel="canonical" href="{% block canonical %}{{ canonical_origin }}{{ request.path }}{% endblock %}">
-    <meta name="robots" content="{% block robots %}index,follow{% endblock %}">
+    <meta name="robots" content="{% block robots %}{% if app_env and app_env != 'production' %}noindex,nofollow{% else %}index,follow{% endif %}{% endblock %}">
 
     {# Open Graph #}
     <meta property="og:site_name" content="Signal-Scout">
@@ -68,7 +68,12 @@
     {% block head_extra %}{% endblock %}
   </head>
   <body class="bg-gradient-to-t from-custom-blue-start via-custom-blue-mid to-custom-blue-end dark:from-custom-dark-start dark:via-custom-dark-mid dark:to-custom-dark-end flex flex-col min-h-screen">
-      
+      {% if app_env and app_env != 'production' %}
+      <div role="alert" class="bg-yellow-400 text-black text-center text-sm font-semibold py-1 px-3 border-b-2 border-yellow-600">
+          {{ app_env|upper }} environment — non-production data, do not rely on for real-world decisions
+      </div>
+      {% endif %}
+
       {# ── Header ────────────────────────────────────────────────────────
          Mobile-first: `flex-wrap` lets the right-hand auth/theme cluster wrap
          under the nav at narrow widths (the existing behaviour at 375px).
@@ -283,6 +288,9 @@
             {% else %}
             | <span class="text-xs text-gray-500 dark:text-gray-400 ml-1"
                     title="Local development build">v{{ app_version }}</span>
+            {% endif %}
+            {% if app_env and app_env != 'production' %}
+            <span class="text-xs ml-1 px-1.5 py-0.5 rounded bg-yellow-200 text-yellow-900 font-semibold uppercase tracking-wide">{{ app_env }}</span>
             {% endif %}
     </footer>
 

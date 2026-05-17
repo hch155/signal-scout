@@ -230,6 +230,8 @@ jobs:
             cd "${STACK}"
             cp .env .env.bak
             sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG_NEW}|" .env
+            sed -i "s|^APP_VERSION=.*|APP_VERSION=${IMAGE_TAG_NEW}|" .env
+            grep -q "^ENV=" .env || echo "ENV=staging" >> .env
             docker compose pull app
             docker compose up -d --no-deps --wait app
           REMOTE
@@ -273,6 +275,8 @@ jobs:
             cd "${STACK}"
             cp .env .env.bak
             sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG_NEW}|" .env
+            sed -i "s|^APP_VERSION=.*|APP_VERSION=${IMAGE_TAG_NEW}|" .env
+            grep -q "^ENV=" .env || echo "ENV=production" >> .env
             docker compose pull app
             docker compose up -d --no-deps --wait app
           REMOTE

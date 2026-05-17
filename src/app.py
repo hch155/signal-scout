@@ -760,6 +760,7 @@ app.jinja_env.globals['marketing_enabled'] = settings.marketing_enabled
 app.jinja_env.globals['app_version'] = settings.app_version
 app.jinja_env.globals['app_version_sha'] = settings.app_version_sha
 app.jinja_env.globals['repo_url'] = settings.repo_url
+app.jinja_env.globals['app_env'] = settings.env
 # PR #48.7: OAuth provider gating in base.html. Buttons hidden when
 # the corresponding client_id env var is empty.
 app.jinja_env.globals['google_oauth_enabled'] = bool(settings.google_oauth_client_id)
