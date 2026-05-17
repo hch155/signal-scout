@@ -95,9 +95,16 @@ jobs:
     needs: lint
     runs-on: [self-hosted, signal-scout-runner]
     container:
-      image: docker.io/aquasec/trivy:latest
+      image: docker.io/library/node:20-bookworm-slim
     steps:
       - uses: actions/checkout@v4
+      - name: install trivy
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends wget ca-certificates gnupg
+          wget -qO- https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor > /usr/share/keyrings/trivy.gpg
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb bookworm main" > /etc/apt/sources.list.d/trivy.list
+          apt-get update -qq && apt-get install -y trivy
       - name: trivy fs (advisory — log only, don't block)
         continue-on-error: true
         run: trivy fs --severity HIGH,CRITICAL --ignore-unfixed --skip-dirs tools,src/static/vendor,node_modules,mobile . || true
