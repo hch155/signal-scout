@@ -485,10 +485,6 @@ function passwordVisibilityToggle(passwordInputId, confirmPasswordInputId, toggl
   let confirmPasswordInput = confirmPasswordInputId ? document.getElementById(confirmPasswordInputId) : null;
   let toggleButton = document.getElementById(toggleButtonId);
 
-  // Press-and-hold UX (security: password is never left visible on screen
-  // — it appears only while the user is actively pressing the button).
-  // Label "Hold to show" makes the affordance discoverable; on press the
-  // label flips to "Holding" so the state change is visible.
   toggleButton.setAttribute('type', 'button');
   toggleButton.textContent = 'Hold to show';
   toggleButton.setAttribute('title', 'Press and hold to reveal the password');
