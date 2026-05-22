@@ -352,17 +352,22 @@ function initializeModalToggle() {
 }
 
 function initializeFormSubmissions() {
-  document.getElementById('registrationForm').addEventListener('submit', handleRegistrationSubmit);
-  document.getElementById('signInForm').addEventListener('submit', handleSignInSubmit);
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  const registrationForm = document.getElementById('registrationForm');
-
-  if (registrationForm) {
-      registrationForm.addEventListener('submit', handleRegistrationSubmit);
+  // Idempotent: forms live in base.html as persistent modal elements (not
+  // re-created on logout), so we must guard against the bootstrap path
+  // calling us a second time (e.g. via resetUIAndListeners after logout).
+  // Without this guard, every logout/login cycle stacked another listener
+  // and the success toast fired N times.
+  const signIn = document.getElementById('signInForm');
+  const register = document.getElementById('registrationForm');
+  if (signIn && !signIn.dataset.submitBound) {
+      signIn.addEventListener('submit', handleSignInSubmit);
+      signIn.dataset.submitBound = '1';
   }
-});
+  if (register && !register.dataset.submitBound) {
+      register.addEventListener('submit', handleRegistrationSubmit);
+      register.dataset.submitBound = '1';
+  }
+}
 
 function handleRegistrationSubmit(e) {
   e.preventDefault(); // Prevent default form submission
@@ -480,27 +485,29 @@ function passwordVisibilityToggle(passwordInputId, confirmPasswordInputId, toggl
   let confirmPasswordInput = confirmPasswordInputId ? document.getElementById(confirmPasswordInputId) : null;
   let toggleButton = document.getElementById(toggleButtonId);
 
-  // Helper fuunction to toggle password visibility
+  // Press-and-hold UX (security: password is never left visible on screen
+  // — it appears only while the user is actively pressing the button).
+  // Label "Hold to show" makes the affordance discoverable; on press the
+  // label flips to "Holding" so the state change is visible.
+  toggleButton.setAttribute('type', 'button');
+  toggleButton.textContent = 'Hold to show';
+  toggleButton.setAttribute('title', 'Press and hold to reveal the password');
+
   function togglePassword(show) {
-      if (show) {
-          passwordInput.type = 'text';
-          toggleButton.textContent = 'Hide';
-          if (confirmPasswordInput) confirmPasswordInput.type = 'text';
-      } else {
-          passwordInput.type = 'password';
-          toggleButton.textContent = 'Show';
-          if (confirmPasswordInput) confirmPasswordInput.type = 'password';
-      }
+      const type = show ? 'text' : 'password';
+      passwordInput.type = type;
+      if (confirmPasswordInput) confirmPasswordInput.type = type;
+      toggleButton.textContent = show ? 'Holding' : 'Hold to show';
+      toggleButton.setAttribute('aria-pressed', show ? 'true' : 'false');
   }
 
-  // Mouse and touch event listeners
   toggleButton.addEventListener('mousedown', () => togglePassword(true));
   toggleButton.addEventListener('mouseup', () => togglePassword(false));
   toggleButton.addEventListener('mouseleave', () => togglePassword(false));
 
-  // Touch events for mobile devices
-  toggleButton.addEventListener('touchstart', () => togglePassword(true));
+  toggleButton.addEventListener('touchstart', (e) => { e.preventDefault(); togglePassword(true); });
   toggleButton.addEventListener('touchend', () => togglePassword(false));
+  toggleButton.addEventListener('touchcancel', () => togglePassword(false));
 }
 
 function handleSignInSubmit(e) {
