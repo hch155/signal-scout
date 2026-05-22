@@ -474,7 +474,7 @@ setTimeout(() => {
 
 function requestAndSendGPSLocation() {
     // Leaflet's locate to find the user's position
-    mymap.locate({ setView: true, maxZoom: 7, enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+    mymap.locate({ setView: true, maxZoom: 13, enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
     mymap.on('locationfound', function(e) {
         let userLat = e.latlng.lat;
         let userLng = e.latlng.lng;
