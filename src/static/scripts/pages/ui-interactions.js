@@ -341,12 +341,8 @@ let filterControl = L.control({position: 'topright'});
 filterControl.onAdd = function(map) {
     let div = L.DomUtil.create('div', 'filter-control-container');
     div.innerHTML = `
-        <button id="toggle-filters-btn" class="bg-blue-500 hover:bg-blue-700 dark:bg-gray-800 dark:hover:bg-gray-500 text-white dark:text-white font-bold py-1 px-2 rounded w-76">
+        <button id="toggle-filters-btn" class="block bg-blue-500 hover:bg-blue-700 dark:bg-gray-800 dark:hover:bg-gray-500 text-white dark:text-white font-bold py-1 px-2 rounded w-76">
         Toggle Filters
-        </button>
-
-        <button id="reset-filters-btn" class="bg-blue-500 hover:bg-blue-700 dark:bg-gray-800 dark:hover:bg-gray-500 text-white dark:text-white font-bold py-1 px-2 rounded w-76">
-        Reset Filters
         </button>
 
         <div id="filterContainer" class="bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400 hidden">
@@ -381,9 +377,14 @@ filterControl.onAdd = function(map) {
                     </div>
                 </div>
 
-                <button id="apply-filters" class="apply-filters-btn mt-2 w-full text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 rounded">
-                    Apply Filters
-                </button>
+                <div class="flex gap-2 mt-2">
+                    <button id="apply-filters" class="apply-filters-btn flex-1 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 rounded">
+                        Apply Filters
+                    </button>
+                    <button id="clear-filters-btn" class="px-3 text-gray-700 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:text-white dark:hover:bg-gray-500 rounded">
+                        Clear
+                    </button>
+                </div>
 
                 <div class="slider-container my-2">
                     <div class="flex justify-between items-center">
@@ -419,8 +420,7 @@ document.getElementById('toggle-filters-btn').addEventListener('click', function
         filterContainer.classList.toggle('hidden');
         });
 
-document.getElementById('reset-filters-btn').addEventListener('click', resetFiltersUI); {
-};        
+document.getElementById('clear-filters-btn').addEventListener('click', resetFiltersUI);
 
 document.getElementById('apply-filters').addEventListener('click', function() {
     let frequencyBands = Array.from(document.querySelectorAll('input[name="frequency_bands"]:checked')).map(el => el.value);
