@@ -173,20 +173,22 @@ def init_api_docs(app: Flask) -> Swagger:
 
     Picks the `servers` list per-environment so the dropdown only shows
     targets that actually make sense from the page the user is on:
-    - PRODUCTION: prod Cloud Run URL (+ apex once domain mapping is done)
-    - non-prod : Local dev so a developer running 127.0.0.1:8080 can
-      hit "Try it out" against their own instance.
+    - PRODUCTION: production + staging public hosts
+    - STAGING:    staging public host
+    - non-prod :  Local dev so a developer running 127.0.0.1:8080 can
+                  hit "Try it out" against their own instance.
     """
     import os
-    is_prod = (os.getenv('ENV') or '').upper() == 'PRODUCTION'
+    env = (os.getenv('ENV') or '').upper()
     template = dict(SWAGGER_TEMPLATE)
-    if is_prod:
+    if env == 'PRODUCTION':
         template['servers'] = [
-            {"url": "https://signal-scout.run.app",
-             "description": "Production (Cloud Run)"},
-            # Apex (signal-scout.com) is currently a path-stripping 302 →
-            # only useful as a target after Cloud Run Domain Mapping lands
-            # (see ROADMAP). Re-enable then.
+            {"url": "https://signal-scout.com", "description": "Production"},
+            {"url": "https://staging.signal-scout.com", "description": "Staging"},
+        ]
+    elif env == 'STAGING':
+        template['servers'] = [
+            {"url": "https://staging.signal-scout.com", "description": "Staging"},
         ]
     else:
         template['servers'] = [

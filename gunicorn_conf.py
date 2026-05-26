@@ -1,7 +1,7 @@
 """Gunicorn config — prometheus_client multiprocess support.
 
-Without this, the 2-worker gunicorn fleet behind Cloud Run kept per-
-worker copies of every Counter / Histogram / Gauge in process memory.
+Without this, the 2-worker gunicorn fleet kept per-worker copies of
+every Counter / Histogram / Gauge in process memory.
 A /metrics scrape lands on a random worker → returns only that worker's
 counter values → Prometheus sees the series jump up and down between
 scrapes → `increase()` / `rate()` queries treat that as counter resets

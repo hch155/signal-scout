@@ -120,7 +120,16 @@ Browser (Leaflet + vanilla JS)
    │  GET /, /stations, …             POST /login, /submit_location
    │       Referer-gated               CSRF-token-gated
    ▼
-Cloud Run (signal-scout.run.app)
+Hetzner edge (CX23, NPM @ HETZNER_EDGE_IP)  — TLS + reverse proxy
+   │  signal-scout.com / staging.signal-scout.com
+   │
+   │  Tailscale mesh tunnel (edge ↔ home LXC)
+   ▼
+the prod host on NUC_HOST (LXC_LAN_IP)
+   │  Docker compose stacks:
+   │    /opt/stacks/signal-scout-prod      → app on :8080
+   │    /opt/stacks/signal-scout-staging   → app on :8081
+   │
    │  Flask app — see src/
    │  ├── app.py             routes (stations, content, api/v1 aliases)
    │  ├── auth_routes.py     auth blueprint (register/login/logout/account)
@@ -131,13 +140,13 @@ Cloud Run (signal-scout.run.app)
    │  ├── queries.py         SQLAlchemy queries
    │  └── models.py          BaseStation + User
    │
-   ├── stations.db (read-only, monthly UKE refresh via GHA)
+   ├── stations.db (read-only, monthly UKE refresh via Forgejo Actions)
    ├── users.db    (Flask-Session + auth)
    └── /metrics    (bearer-auth Prometheus exposition)
                        │
-                       │  HTTPS scrape, 60s
+                       │  HTTP scrape on LAN, 30s, per env
                        ▼
-       Self-hosted observability (NUC, ops/docker-compose.yml)
+       Self-hosted observability (NUC, /opt/monitoring-stack/)
        ├── Prometheus      v2.55.1  — scrape, alert rules
        ├── Alertmanager    v0.27.0  — routing (default config; wire
        │                              email / Telegram / Slack receiver
@@ -266,13 +275,31 @@ Multi-stage build, non-root, HEALTHCHECK against `/healthz`. Image ~580MB.
 
 ## Deployment
 
-Cloud Run (production) — pushed automatically by `.github/workflows/cd.yaml`
-on every merge to `main`. Required GitHub Actions secrets:
+Self-hosted on the prod host (NUC_HOST), promoted from a Harbor-cached staging
+image. Pipeline driven by `.forgejo/workflows/ci-cd.yml` on every merge to
+`main` and runs on a self-hosted Forgejo runner (the CI runner host on the same NUC):
+
+```
+lint → test → trivy fs → build + push Harbor (staging tag)
+     → trivy image scan → promote (re-tag staging digest as prod, zero rebuild)
+     → deploy-staging (ssh the prod host, compose pull+up app on :8081, smoke)
+     → deploy-prod    (ssh the prod host, compose pull+up app on :8080, smoke,
+                        auto-rollback on smoke fail via .env.bak)
+```
+
+Required Forgejo Actions secrets:
 
 - `SECRET_KEY` — Flask session signing
-- `GCP_CREDENTIALS` — service account JSON for `gcloud`
-- `METRICS_BEARER_TOKEN` — Prometheus scrape auth
+- `HARBOR_USERNAME`, `HARBOR_PASSWORD` — image registry auth
+- `LXC_DEPLOY_KEY` — SSH key to the prod host used by the deploy jobs
+- `METRICS_BEARER_TOKEN_PROD`, `METRICS_BEARER_TOKEN_STAGING` — scrape auth per env
 - `PLAUSIBLE_DOMAIN`, `PLAUSIBLE_SCRIPT_URL` — analytics tracker (optional)
+
+A separate `.forgejo/workflows/monthly-db-update.yml` runs on cron
+(`15 19 27 * *`, ~21:15 Warsaw on the 27th) — pulls fresh UKE data,
+rebuilds `stations.db`, commits + pushes back via `FORGEJO_PUSH_TOKEN`;
+that commit then drives `ci-cd.yml` to rebuild + redeploy with the new
+dataset.
 
 For homelab observability deploy, see `ops/homelab-integration/README.md`.
 

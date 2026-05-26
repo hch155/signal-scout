@@ -15,12 +15,7 @@ import requests
 
 pytestmark = [pytest.mark.smoke]
 
-# Default to the Cloud Run URL because the signal-scout.com apex currently
-# does a path-stripping 302 → cloud run root for any non-/ path (filed under
-# deferred infra fix in docs/ROADMAP.md). The smoke tests want to hit the
-# real app, not a redirect that lies. Override via SMOKE_TARGET if the apex
-# redirect is fixed.
-PROD_URL = os.getenv("SMOKE_TARGET", "https://signal-scout.run.app")
+PROD_URL = os.getenv("SMOKE_TARGET", "https://signal-scout.com")
 PAUSE_S = float(os.getenv("SMOKE_PAUSE_S", "2.0"))
 
 session = requests.Session()
