@@ -333,5 +333,5 @@ jobs:
           ssh -i ~/.ssh/lxc_deploy -o StrictHostKeyChecking=accept-new \
               deploy@"${{ env.LXC_IP }}" bash -s <<'REMOTE'
             set -euo pipefail
-            docker exec signal-scout-prod python run_coverage_sweep.py --verbose
+            docker exec signal-scout-prod python -m run_coverage_sweep --verbose
           REMOTE
