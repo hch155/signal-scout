@@ -289,11 +289,15 @@ lint → test → trivy fs → build + push Harbor (staging tag)
 
 Required Forgejo Actions secrets:
 
-- `SECRET_KEY` — Flask session signing
-- `HARBOR_USERNAME`, `HARBOR_PASSWORD` — image registry auth
-- `LXC_DEPLOY_KEY` — SSH key to the prod host used by the deploy jobs
+- `HARBOR_USER`, `HARBOR_PASSWORD` — image registry auth
+- `LXC_DEPLOY_SSH_KEY` — SSH key to the prod host used by the deploy jobs
 - `METRICS_BEARER_TOKEN_PROD`, `METRICS_BEARER_TOKEN_STAGING` — scrape auth per env
+- `FORGEJO_PUSH_TOKEN` — PAT with `write:repository` scope, used by the monthly DB-update workflow to commit + push the refreshed `stations.db`
 - `PLAUSIBLE_DOMAIN`, `PLAUSIBLE_SCRIPT_URL` — analytics tracker (optional)
+
+`SECRET_KEY` lives in `/opt/stacks/signal-scout-prod/.env` on the prod host
+(not in CI) — the deploy job doesn't write it, the container reads it
+on boot.
 
 A separate `.forgejo/workflows/monthly-db-update.yml` runs on cron
 (`15 19 27 * *`, ~21:15 Warsaw on the 27th) — pulls fresh UKE data,
