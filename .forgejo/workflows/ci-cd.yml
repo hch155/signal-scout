@@ -315,10 +315,7 @@ jobs:
   coverage-sweep:
     name: coverage alert sweep (post-deploy)
     needs: [deploy-prod]
-    if: |
-      always() &&
-      needs.deploy-prod.result == 'success' &&
-      contains(toJSON(github.event.head_commit), 'src/instance/stations.db')
+    if: needs.deploy-prod.result == 'success'
     runs-on: [self-hosted, signal-scout-runner]
     environment:
       name: production
@@ -336,5 +333,5 @@ jobs:
           ssh -i ~/.ssh/lxc_deploy -o StrictHostKeyChecking=accept-new \
               deploy@"${{ env.LXC_IP }}" bash -s <<'REMOTE'
             set -euo pipefail
-            docker exec signal-scout-prod python scripts/coverage_alert_run.py --verbose
+            docker exec signal-scout-prod python run_coverage_sweep.py --verbose
           REMOTE
