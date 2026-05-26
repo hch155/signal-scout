@@ -7,7 +7,7 @@
 #     as non-root, has a HEALTHCHECK against /healthz (added in PR #3).
 #
 # Why: ~200MB smaller image, no compilers/headers in runtime → fewer Trivy
-# CVE hits, faster Cloud Run cold starts, smaller attack surface.
+# CVE hits, faster cold starts, smaller attack surface.
 
 # ── Builder ─────────────────────────────────────────────────────────────────
 FROM python:3.12-slim AS builder
@@ -31,9 +31,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/usr/src/app/src
 
 # wget for HEALTHCHECK; tini as PID 1 for clean signal handling under
-# Gunicorn (Cloud Run sends SIGTERM on scale-down — without an init that
-# reaps zombies, Gunicorn workers occasionally hang the shutdown for the
-# default 30s grace period).
+# Gunicorn (the runtime sends SIGTERM on scale-down / restart — without
+# an init that reaps zombies, Gunicorn workers occasionally hang the
+# shutdown for the default 30s grace period).
 # `apt-get upgrade -y` pulls in security-fixed Debian packages that are
 # newer than the base image's frozen snapshot — closes ~tens of HIGH/CRIT
 # CVEs that Trivy flags on stale base images.
@@ -48,9 +48,8 @@ RUN apt-get update \
 RUN useradd --system --create-home --uid 1000 --shell /usr/sbin/nologin appuser
 
 # Writable session dir outside the read-only app source — flask-session
-# needs to mkdir/write here. /tmp is a tmpfs on Cloud Run; using /var/lib
-# instead so containers persist sessions across restarts on regular hosts
-# (Cloud Run wipes either way).
+# needs to mkdir/write here. Using /var/lib so containers persist sessions
+# across restarts (a tmpfs /tmp would wipe them).
 RUN mkdir -p /var/lib/signal-scout/sessions \
     && chown -R appuser:appuser /var/lib/signal-scout
 ENV SESSION_FILE_DIR=/var/lib/signal-scout/sessions
@@ -71,14 +70,14 @@ USER appuser
 
 EXPOSE 8080
 
-# Liveness probe consumed by Cloud Run / Kubernetes / Portainer. /healthz
+# Liveness probe consumed by Docker / Kubernetes / Portainer. /healthz
 # was added in PR #3 — does NOT touch the DB so a degraded DB doesn't
 # trigger restart loops.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget -qO- http://127.0.0.1:8080/healthz || exit 1
 
 # tini → gunicorn. --access-logfile=- routes access logs to stdout for
-# Cloud Run / GCP logging ingest.
+# the container runtime / log-shipper to ingest.
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["gunicorn", \
      "--workers=2", \
