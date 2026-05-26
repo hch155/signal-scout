@@ -311,3 +311,30 @@ jobs:
             docker compose pull app
             docker compose up -d --no-deps --wait app
           REMOTE
+
+  coverage-sweep:
+    name: coverage alert sweep (post-deploy)
+    needs: [deploy-prod]
+    if: |
+      always() &&
+      needs.deploy-prod.result == 'success' &&
+      contains(toJSON(github.event.head_commit), 'src/instance/stations.db')
+    runs-on: [self-hosted, signal-scout-runner]
+    environment:
+      name: production
+      url: https://signal-scout.com
+    timeout-minutes: 10
+    steps:
+      - name: ssh -> prod LXC + run sweep inside the app container
+        env:
+          SSH_KEY: ${{ secrets.LXC_DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${SSH_KEY}" > ~/.ssh/lxc_deploy
+          chmod 600 ~/.ssh/lxc_deploy
+          ssh-keyscan -H "${{ env.LXC_IP }}" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/lxc_deploy -o StrictHostKeyChecking=accept-new \
+              deploy@"${{ env.LXC_IP }}" bash -s <<'REMOTE'
+            set -euo pipefail
+            docker exec signal-scout-prod python scripts/coverage_alert_run.py --verbose
+          REMOTE

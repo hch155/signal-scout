@@ -441,6 +441,15 @@ coverage_alert_sweep_sent_total = Counter(
     labelnames=("status",),
 )
 
+coverage_alert_sweep_last_run_timestamp = Gauge(
+    "signal_scout_coverage_alert_sweep_last_run_timestamp",
+    "Unix timestamp of the last completed coverage-alert sweep. Alert "
+    "(CoverageSweepStale) when now - this > 35 days — UKE refresh is "
+    "monthly, so a gap means the wired CI job stopped firing or the runner "
+    "is down. max-mode so multi-worker setups don't lose the latest stamp.",
+    multiprocess_mode="max"
+)
+
 stations_db_age_seconds = Gauge(
     "signal_scout_stations_db_age_seconds",
     "now - mtime(stations.db). Recomputed at every /metrics scrape. Alert "

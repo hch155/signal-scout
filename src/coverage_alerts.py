@@ -218,38 +218,54 @@ def run_coverage_alert_sweep(*, dry_run: bool = False,
     MUST be called inside an active Flask app context (the script
     runner pushes one explicitly; the admin endpoint is already
     inside one for the duration of the request)."""
+    import os as _os
     import time as _t
+
+    counts = {
+        'first-run': 0, 'no-change': 0, 'sent': 0,
+        'send-failed': 0, 'skipped': 0, 'error': 0,
+    }
+
+    if _os.getenv('COVERAGE_ALERTS_DISABLED', '').strip().lower() in ('1', 'true', 'yes', 'on'):
+        logger.info("coverage sweep killed by COVERAGE_ALERTS_DISABLED env var — exit 0, no work done")
+        counts['total_processed'] = 0
+        return counts
+
     q = UserLocation.query.filter_by(alerting_enabled=True)
     if user_id is not None:
         q = q.filter_by(user_id=user_id)
     locs = q.order_by(UserLocation.id).all()
 
-    counts = {
-        'first-run': 0, 'no-change': 0, 'sent': 0,
-        'send-failed': 0, 'skipped': 0,
-    }
     started = _t.time()
     for loc in locs:
-        status = _process(loc, dry_run=dry_run, verbose=verbose)
+        try:
+            status = _process(loc, dry_run=dry_run, verbose=verbose)
+        except Exception:
+            logger.exception(
+                "coverage sweep: _process raised for loc id=%s user_id=%s — counted as error, continuing",
+                loc.id, loc.user_id,
+            )
+            db.session.rollback()
+            status = 'error'
         counts[status] = counts.get(status, 0) + 1
     elapsed = _t.time() - started
     counts['total_processed'] = sum(
         counts[k] for k in
-        ('first-run', 'no-change', 'sent', 'send-failed', 'skipped')
+        ('first-run', 'no-change', 'sent', 'send-failed', 'skipped', 'error')
     )
 
-    # 2026-04-29 observability: per-status counter + sweep duration so
-    # Grafana can plot the monthly cron health (latency vs the 180s
-    # Cloud-Scheduler attempt-deadline, real-emails-sent vs noise).
     try:
         from observability import (
-            coverage_alert_sweep_seconds, coverage_alert_sweep_sent_total,
+            coverage_alert_sweep_seconds,
+            coverage_alert_sweep_sent_total,
+            coverage_alert_sweep_last_run_timestamp,
         )
         coverage_alert_sweep_seconds.observe(elapsed)
-        for status in ('first-run', 'no-change', 'sent', 'send-failed', 'skipped'):
+        for status in ('first-run', 'no-change', 'sent', 'send-failed', 'skipped', 'error'):
             n = counts.get(status, 0)
             if n:
                 coverage_alert_sweep_sent_total.labels(status=status).inc(n)
+        coverage_alert_sweep_last_run_timestamp.set(_t.time())
     except Exception:
         logger.exception("coverage_alert_sweep metrics emit failed")
 
