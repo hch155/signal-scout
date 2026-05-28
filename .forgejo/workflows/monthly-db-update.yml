@@ -5,7 +5,10 @@
 # Differences vs GH version:
 #   - runs on self-hosted runner with Python container from Harbor cache
 #   - issue creation via Forgejo REST API (no actions/github-script)
-#   - git push uses FORGEJO_PUSH_TOKEN secret
+#   - commit-back clones a fresh tree instead of pushing from the checkout:
+#     act_runner's container checkout leaves no usable .git in the workspace
+#     (git metadata stays in the host-side act cache), so `git push` from the
+#     workspace fails with "fatal: not in a git directory".
 
 name: Monthly Database Update
 
@@ -78,16 +81,27 @@ jobs:
         run: python3 scripts/update_data_date.py
 
       - name: Commit and push
+        env:
+          PUSH_TOKEN: ${{ secrets.FORGEJO_PUSH_TOKEN }}
         run: |
-          git config user.name "forgejo-actions[bot]"
-          git config user.email "forgejo-actions[bot]@example.local"
-          git add base_station_data/*.xlsx src/instance/stations.db src/content/data.md
+          git config --global user.name "forgejo-actions[bot]"
+          git config --global user.email "forgejo-actions[bot]@example.local"
+          SERVER="${GITHUB_SERVER_URL#https://}"
+          PUSH_DIR="$(mktemp -d)"
+          git clone --depth 1 --branch main \
+            "https://hcylwik:${PUSH_TOKEN}@${SERVER}/${GITHUB_REPOSITORY}.git" "$PUSH_DIR"
+          rm -f "$PUSH_DIR"/base_station_data/*.xlsx
+          cp base_station_data/*.xlsx "$PUSH_DIR"/base_station_data/
+          cp src/instance/stations.db "$PUSH_DIR"/src/instance/stations.db
+          cp src/content/data.md "$PUSH_DIR"/src/content/data.md
+          cd "$PUSH_DIR"
+          git add -A base_station_data src/instance/stations.db src/content/data.md
           if git diff --cached --quiet; then
             echo "No changes from UKE this month"
             exit 0
           fi
           git commit -m "chore: database update $(date +'%B %Y')"
-          git push
+          git push origin HEAD:main
 
       - name: Open failure issue on Forgejo
         if: failure()
