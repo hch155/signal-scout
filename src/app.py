@@ -189,6 +189,32 @@ with app.app_context():
 # Add api_key / api_tier columns to existing prod users.db (no-op on fresh DB).
 # When the app grows to multiple DB engines this gets replaced by Alembic.
 ensure_user_api_columns(app, db)
+
+# 2026-06-03: WAL on users.db. After the Cloud Run → home-LXC move users.db
+# lives on a local bind mount (not gcsfuse), so WAL's -shm/mmap coordination
+# works — readers no longer block the writer under multiple gunicorn workers.
+# journal_mode persists in the file header; synchronous=NORMAL is per-connection
+# and safe under WAL. Only the writable bind — stations.db is read-only.
+# NOTE: backups must use `sqlite3 .backup` / `VACUUM INTO`, never `cp`, since
+# committed data may still sit in the -wal file (see Ansible backup role).
+from sqlalchemy import event as _wal_event
+
+
+def _users_wal_pragma(dbapi_conn, _conn_record):
+    cur = dbapi_conn.cursor()
+    cur.execute("PRAGMA journal_mode=WAL")
+    cur.execute("PRAGMA synchronous=NORMAL")
+    cur.close()
+
+
+with app.app_context():
+    try:
+        _users_engine = db.engines.get('users')
+        if _users_engine is not None:
+            _wal_event.listen(_users_engine, "connect", _users_wal_pragma)
+            _users_engine.dispose()
+    except Exception:
+        app.logger.exception("users.db WAL pragma wiring failed")
 # Audit fix L-NEW-4 (2026-04-27): plant honeypot rows in BaseStation
 # so prefix-search scrapers surface them. No-op when HONEYPOT_BTS_IDS
 # env is unset.
