@@ -14,19 +14,19 @@
        Mobile: 2x2 grid; tablet+: 4 in a row. #}
     <div class="px-2 md:px-4 mb-4 max-w-6xl mx-auto">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <a href="#locations" class="block bg-white dark:bg-gray-800 rounded-lg border-l-4 border-indigo-500 p-3 shadow-sm hover:shadow-md transition-shadow">
+            <a href="#locations" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
                 <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Saved spots</p>
                 <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ quick_stats.saved_locations }}</p>
             </a>
-            <a href="#api-access" class="block bg-white dark:bg-gray-800 rounded-lg border-l-4 border-blue-500 p-3 shadow-sm hover:shadow-md transition-shadow">
+            <a href="#api-access" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
                 <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">API keys</p>
                 <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ quick_stats.active_keys }}</p>
             </a>
-            <a href="#two-factor" class="block bg-white dark:bg-gray-800 rounded-lg border-l-4 border-purple-500 p-3 shadow-sm hover:shadow-md transition-shadow">
+            <a href="#two-factor" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
                 <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">2FA</p>
                 <p class="text-2xl font-bold {% if quick_stats.two_fa_on %}text-green-600 dark:text-green-400{% else %}text-gray-400{% endif %}">{% if quick_stats.two_fa_on %}On{% else %}Off{% endif %}</p>
             </a>
-            <a href="#notifications" class="block bg-white dark:bg-gray-800 rounded-lg border-l-4 border-amber-500 p-3 shadow-sm hover:shadow-md transition-shadow">
+            <a href="#notifications" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
                 <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Alerts</p>
                 <p class="text-2xl font-bold {% if quick_stats.alerts_on %}text-green-600 dark:text-green-400{% else %}text-gray-400{% endif %}">{% if quick_stats.alerts_on %}On{% else %}Off{% endif %}</p>
             </a>
@@ -54,54 +54,24 @@
 
         {# Desktop: sticky sidebar (hidden <lg) #}
         <aside class="hidden lg:block w-56 shrink-0">
-            <nav class="sticky top-20 space-y-1" aria-label="Account sections">
-                <a href="#locations" class="account-nav-link flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">
-                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>Saved locations
-                </a>
-                <a href="#api-access" class="account-nav-link flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">
-                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>API access
-                </a>
-                <a href="#api-keys" class="account-nav-link flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">
-                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Named API keys
-                </a>
-                <a href="#activity" class="account-nav-link flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">
-                    <span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>Recent activity
-                </a>
-                <a href="#two-factor" class="account-nav-link flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">
-                    <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>Two-factor
-                </a>
-                <a href="#profile" class="account-nav-link flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">
-                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Profile
-                </a>
-                <a href="#notifications" class="account-nav-link flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Notifications
-                </a>
-                <a href="#password" class="account-nav-link flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">
-                    <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>Password
-                </a>
-                <a href="#danger" class="account-nav-link flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border-l-2 border-transparent">
-                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>Danger zone
-                </a>
+            <nav class="sticky top-20 space-y-0.5" aria-label="Account sections">
+                <a href="#locations" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">Saved locations</a>
+                <a href="#api-access" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">API access</a>
+                <a href="#api-keys" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">Named API keys</a>
+                <a href="#activity" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">Recent activity</a>
+                <a href="#two-factor" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">Two-factor</a>
+                <a href="#profile" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">Profile</a>
+                <a href="#notifications" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">Notifications</a>
+                <a href="#password" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">Password</a>
+                <a href="#danger" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border-l-2 border-transparent">Danger zone</a>
             </nav>
         </aside>
 
         <div class="w-full lg:max-w-3xl space-y-6 scroll-smooth">
 
-            {# ── API access (existing) ───────────────────────────────────
-               The eight account sections used to all carry the same
-               `<h3 class="text-lg font-semibold">` and an unbordered
-               white card, so scanning the page on desktop was effectively
-               a wall of identical rectangles. Each card now gets a
-               coloured left-border accent + icon-prefixed `text-xl`
-               heading; the colour matches the section's intent (blue =
-               API, indigo = locations, blue = keys, gray = activity,
-               purple = 2FA, blue = profile, yellow = password, red =
-               danger). Mobile (≤640px) the border collapses to 4px so it
-               still fits without horizontal jitter; nothing else moves.
-               Action buttons keep the locked `bg-blue-500 hover:bg-blue-700`
-               pattern; only the focus-visible ring is added (a11y). #}
-            <div id="api-access" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-4 border-l-4 border-blue-500">
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            {# ── API access (existing) ─────────────────────────────────── #}
+            <div id="api-access" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                     API access
                 </h3>
                 <div>
@@ -177,9 +147,9 @@
             </div>
 
             {# ── Saved locations (PR #30) ─────────────────────────────── #}
-            <div id="locations" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-l-4 border-indigo-500">
+            <div id="locations" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
                 <div class="flex items-center justify-between">
-                    <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                         Saved locations
                     </h3>
                     <button id="loc-add-btn"
@@ -260,8 +230,9 @@
                        in a different country, etc.). #}
                     <div class="flex items-center gap-2">
                         <button type="button" id="loc-use-my-location-btn"
-                                class="bg-blue-500 hover:bg-blue-700 text-white text-xs font-semibold py-1.5 px-3 rounded">
-                            📍 Use my location
+                                class="inline-flex items-center gap-1.5 bg-blue-500 hover:bg-blue-700 text-white text-xs font-semibold py-1.5 px-3 rounded">
+                            <svg aria-hidden="true" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                            Use my location
                         </button>
                         <span id="loc-geo-status" class="text-xs text-gray-500 dark:text-gray-400"></span>
                     </div>
@@ -307,8 +278,8 @@
             </div>
 
             {# ── Named API keys (PR #14) ──────────────────────────────── #}
-            <div id="api-keys" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-l-4 border-cyan-500">
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <div id="api-keys" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                     API keys
                 </h3>
                 <p class="text-xs text-gray-600 dark:text-gray-300">
@@ -388,8 +359,8 @@
             </div>
 
             {# ── Recent activity (PR #15) ─────────────────────────────── #}
-            <div id="activity" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-l-4 border-gray-500">
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <div id="activity" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                     Recent activity
                 </h3>
                 <p class="text-xs text-gray-600 dark:text-gray-300">
@@ -428,8 +399,8 @@
             </div>
 
             {# ── 2FA TOTP (rebuilt PR #25) ────────────────────────────── #}
-            <div id="two-factor" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-l-4 border-purple-500">
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <div id="two-factor" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                     Two-factor authentication (TOTP)
                 </h3>
 
@@ -548,8 +519,8 @@
             </div>
 
             {# ── Profile (simplified in PR #19) ───────────────────────── #}
-            <div id="profile" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-l-4 border-emerald-500">
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <div id="profile" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                     Profile
                 </h3>
                 <form id="profile-form" class="space-y-3">
@@ -577,8 +548,8 @@
             </div>
 
             {# ── PR #48.3: Email notifications toggle ────────────────── #}
-            <div id="notifications" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-l-4 border-amber-500">
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white">Email notifications</h3>
+            <div id="notifications" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Email notifications</h3>
                 <p class="text-sm text-gray-700 dark:text-gray-300">
                     Signal-Scout sends transactional + security email
                     (password change, 2FA changes, recovery code use,
@@ -594,15 +565,16 @@
                     </span>
                 </label>
                 <p id="email-pref-status" class="text-xs mt-1"></p>
-                <p class="text-xs text-amber-700 dark:text-amber-300">
-                    ⚠️ Turning off silences <strong>all</strong> email — including
-                    security alerts. We recommend keeping this on.
+                <p class="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
+                    <svg aria-hidden="true" class="w-4 h-4 shrink-0 mt-px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    <span>Turning off silences <strong>all</strong> email — including
+                    security alerts. We recommend keeping this on.</span>
                 </p>
             </div>
 
             {# ── Change password ──────────────────────────────────────── #}
-            <div id="password" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-l-4 border-yellow-500">
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <div id="password" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                     Change password
                 </h3>
                 <form id="password-form" class="space-y-3">
@@ -644,9 +616,9 @@
             </div>
 
             {# ── Danger zone ─────────────────────────────────────────── #}
-            <div id="danger" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3 border-2 border-red-500 dark:border-red-500">
-                <h3 class="text-xl font-bold text-red-600 dark:text-red-400 flex items-center gap-2">
-                    <span aria-hidden="true">&#9888;&#65039;</span> Danger zone
+            <div id="danger" class="account-section scroll-mt-16 md:scroll-mt-24 bg-red-50/50 dark:bg-red-900/10 rounded-lg shadow-sm dark:shadow-black/30 border border-red-300 dark:border-red-800 p-4 md:p-6 space-y-3">
+                <h3 class="text-lg font-semibold text-red-600 dark:text-red-400">
+                    Danger zone
                 </h3>
                 <p class="text-sm text-gray-600 dark:text-gray-300">
                     Permanently delete your account and API key. This cannot be undone.

@@ -491,14 +491,20 @@ th[onclick]:hover {
   background-color: #4b5563;
 }
 
-.signal-bar.active {
-  background-color: currentColor;
-}
-
 .signal-bar:nth-child(1) { height: 8px; }
 .signal-bar:nth-child(2) { height: 12px; }
 .signal-bar:nth-child(3) { height: 16px; }
 .signal-bar:nth-child(4) { height: 20px; }
+
+.signal-bar.active:nth-child(1) { background-color: #22c55e; }
+.signal-bar.active:nth-child(2) { background-color: #84cc16; }
+.signal-bar.active:nth-child(3) { background-color: #facc15; }
+.signal-bar.active:nth-child(4) { background-color: #f97316; }
+
+.dark .signal-bar.active:nth-child(1) { background-color: #4ade80; }
+.dark .signal-bar.active:nth-child(2) { background-color: #a3e635; }
+.dark .signal-bar.active:nth-child(3) { background-color: #fde047; }
+.dark .signal-bar.active:nth-child(4) { background-color: #fb923c; }
 
 .signal-excellent { color: #22c55e; }
 .signal-good { color: #facc15; }

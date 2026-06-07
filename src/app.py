@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, session, make_respon
 from flask_bcrypt import Bcrypt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from sqlalchemy import event
 from database import db
 from models import BaseStation, User
 from queries import find_nearest_stations, get_stats, find_coverage_gaps
@@ -197,9 +198,6 @@ ensure_user_api_columns(app, db)
 # and safe under WAL. Only the writable bind — stations.db is read-only.
 # NOTE: backups must use `sqlite3 .backup` / `VACUUM INTO`, never `cp`, since
 # committed data may still sit in the -wal file (see Ansible backup role).
-from sqlalchemy import event as _wal_event
-
-
 def _users_wal_pragma(dbapi_conn, _conn_record):
     cur = dbapi_conn.cursor()
     cur.execute("PRAGMA journal_mode=WAL")
@@ -211,7 +209,7 @@ with app.app_context():
     try:
         _users_engine = db.engines.get('users')
         if _users_engine is not None:
-            _wal_event.listen(_users_engine, "connect", _users_wal_pragma)
+            event.listen(_users_engine, "connect", _users_wal_pragma)
             _users_engine.dispose()
     except Exception:
         app.logger.exception("users.db WAL pragma wiring failed")

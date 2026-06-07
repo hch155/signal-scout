@@ -11,7 +11,7 @@
     <div class="flex justify-center px-2 md:px-4 pb-10">
         <div class="w-full max-w-3xl space-y-6">
 
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
                 <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Location details</h3>
                     <a href="/account" class="text-sm text-blue-500 hover:underline">← Back to account</a>
@@ -43,7 +43,7 @@
             </div>
 
             {% if snapshots and not diff %}
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-2">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-2">
                     <p class="text-sm text-gray-700 dark:text-gray-200">
                         First snapshot captured {{ snapshots[0].taken_at.strftime('%Y-%m-%d %H:%M') }} — {{ current_count }} stations within radius. Take another snapshot after the next stations.db refresh to see what changed.
                     </p>
@@ -51,7 +51,7 @@
             {% endif %}
 
             {% if not snapshots %}
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-2">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-2">
                     <p class="text-sm text-gray-500 dark:text-gray-400 italic">
                         No snapshots yet for this location. Click "Take snapshot now" to capture the current state.
                     </p>
@@ -59,7 +59,7 @@
             {% endif %}
 
             {% if diff %}
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-3">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                         Changes between {{ snapshots[1].taken_at.strftime('%Y-%m-%d %H:%M') }} and {{ snapshots[0].taken_at.strftime('%Y-%m-%d %H:%M') }}
                     </h3>
@@ -71,7 +71,7 @@
                 </div>
 
                 {% if diff.added %}
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-2">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-2">
                     <h4 class="font-semibold text-green-700 dark:text-green-300">New stations ({{ diff.added|length }})</h4>
                     <ul class="text-sm text-gray-700 dark:text-gray-200 space-y-1">
                         {% for s in diff.added %}
@@ -82,7 +82,7 @@
                 {% endif %}
 
                 {% if diff.removed %}
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-2">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-2">
                     <h4 class="font-semibold text-red-700 dark:text-red-300">Removed stations ({{ diff.removed|length }})</h4>
                     <ul class="text-sm text-gray-700 dark:text-gray-200 space-y-1">
                         {% for s in diff.removed %}
@@ -93,7 +93,7 @@
                 {% endif %}
 
                 {% if diff.band_changed %}
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 space-y-2">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-2">
                     <h4 class="font-semibold text-yellow-700 dark:text-yellow-300">Frequency-band changes ({{ diff.band_changed|length }})</h4>
                     <ul class="text-sm text-gray-700 dark:text-gray-200 space-y-2">
                         {% for c in diff.band_changed %}
@@ -108,7 +108,7 @@
                 {% endif %}
 
                 {% if not diff.added and not diff.removed and not diff.band_changed %}
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6">
                     <p class="text-sm text-gray-500 dark:text-gray-400 italic">
                         No changes between these two snapshots — same stations, same frequency bands.
                     </p>
