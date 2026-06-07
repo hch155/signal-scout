@@ -1585,6 +1585,10 @@ def totp_regenerate():
 SNAPSHOT_RADIUS_KM = 15.0
 SNAPSHOT_RADIUS_MIN_KM = 1.0
 SNAPSHOT_RADIUS_MAX_KM = 50.0
+# Stations shown for an exact-spot (radius 0) location = the nearest N the
+# click surfaced. Matches /submit_location's default limit so the baseline
+# captures exactly what the user saw.
+SNAPSHOT_DEFAULT_LIMIT = 9
 
 
 def _compute_snapshot_payload(user: 'User', radius_km: float = SNAPSHOT_RADIUS_KM):
@@ -1906,6 +1910,20 @@ def create_location():
         logger.exception("create_location commit failed for user_id=%s", user.id)
         return jsonify({'error': 'Could not create location'}), 500
 
+    # Initial baseline snapshot so /account/locations/<id>/changes can diff
+    # from the moment the spot is saved — captures the stations the user just
+    # saw. Best-effort: a snapshot failure must not fail the create.
+    try:
+        _snap, _stations = _capture_location_snapshot(user, loc)
+        _audit('snapshot.taken', user.id, {
+            'location_id': loc.id, 'radius_km': loc.radius_km,
+            'count': len(_stations), 'initial': True,
+        })
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+        logger.exception("initial snapshot failed for loc_id=%s", loc.id)
+
     return jsonify({'success': True, 'location': _serialize_location(loc)}), 200
 
 
@@ -1982,6 +2000,35 @@ def delete_location(loc_id: int):
     return jsonify({'success': True}), 200
 
 
+def _capture_location_snapshot(user, loc):
+    """Stage (no commit) a baseline snapshot of the stations a saved location
+    currently surfaces, mirroring the map's display query so it reflects what
+    the user saw: a positive radius captures everything inside it; radius 0
+    (the default 'exact spot') captures the nearest SNAPSHOT_DEFAULT_LIMIT the
+    click showed. Returns (snapshot, stations)."""
+    from queries import find_nearest_stations
+    import json as _json
+    if loc.radius_km and loc.radius_km > 0:
+        result = find_nearest_stations(
+            loc.lat, loc.lng, max_distance=loc.radius_km, limit=None,
+        )
+    else:
+        result = find_nearest_stations(
+            loc.lat, loc.lng, limit=SNAPSHOT_DEFAULT_LIMIT,
+        )
+    stations = result.get('stations', []) if result else []
+    snap = UserStationSnapshot(
+        user_id=user.id,
+        user_location_id=loc.id,
+        centre_lat=loc.lat,
+        centre_lng=loc.lng,
+        radius_km=loc.radius_km,
+        stations_json=_json.dumps(stations),
+    )
+    _db().session.add(snap)
+    return snap, stations
+
+
 def take_location_snapshot(loc_id: int):
     """POST /account/locations/<id>/snapshot — capture a fresh snapshot
     scoped to the given UserLocation. Mirrors the legacy /account/snapshot
@@ -1998,24 +2045,7 @@ def take_location_snapshot(loc_id: int):
     if loc is None:
         return jsonify({'error': 'Not found'}), 404
 
-    from queries import find_nearest_stations
-    result = find_nearest_stations(
-        loc.lat, loc.lng,
-        max_distance=loc.radius_km,
-        limit=None,
-    )
-    stations = result.get('stations', []) if result else []
-
-    import json as _json
-    snap = UserStationSnapshot(
-        user_id=user.id,
-        user_location_id=loc.id,
-        centre_lat=loc.lat,
-        centre_lng=loc.lng,
-        radius_km=loc.radius_km,
-        stations_json=_json.dumps(stations),
-    )
-    _db().session.add(snap)
+    snap, stations = _capture_location_snapshot(user, loc)
     try:
         _db().session.commit()
     except Exception:

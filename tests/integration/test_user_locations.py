@@ -270,8 +270,10 @@ def test_location_changes_page_renders(authed_client, csrf_token):
     assert r.status_code == 200
     body = r.data.decode("utf-8")
     assert "Cabin" in body
-    # No snapshots yet → empty-state copy.
-    assert "No snapshots yet" in body
+    # Saving a location auto-captures an initial baseline snapshot, so the
+    # empty state is gone and the first-snapshot copy is shown instead.
+    assert "No snapshots yet" not in body
+    assert "First snapshot captured" in body
 
 
 def test_location_changes_page_for_unknown_id_404(authed_client):
