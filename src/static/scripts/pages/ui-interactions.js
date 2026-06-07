@@ -224,10 +224,7 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
     frequencyRangeLegend.onAdd = function(map) {
         let div = L.DomUtil.create('div', 'gps-location-control');
         div.style.cursor = 'grab';
-        div.style.userSelect = "none"; 
-        div.style.position = 'absolute';
-        div.style.top = '112px';
-        div.style.left = '0px';
+        div.style.userSelect = "none";
 
         let toggleBtn = L.DomUtil.create('button', 'map-control-btn', div);
         toggleBtn.id = 'toggleFrequencyRangeLegendBtn';
@@ -244,7 +241,7 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
             window.matchMedia('(max-width: 767px)').matches;
         let legendDiv = L.DomUtil.create(
             'div',
-            'frequency-range-container bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400'
+            'frequency-range-container bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white accent-blue-500 dark:accent-gray-400'
             + (legendInitiallyHidden ? ' hidden' : ''),
             div,
         );
@@ -278,8 +275,10 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
             toggleBtn.classList.add('collapsed');
         });
 
-        // Make draggable 
+        // Make draggable
         let startPos = null;
+        let offsetX = 0;
+        let offsetY = 0;
         const onDragStart = function(e) {
             startPos = { x: e.clientX, y: e.clientY };
             div.style.cursor = 'grabbing';
@@ -289,26 +288,22 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
 
         const onDragMove = function(e) {
             if (startPos) {
-                let xDiff = e.clientX - startPos.x;
-                let yDiff = e.clientY - startPos.y;
+                offsetX += e.clientX - startPos.x;
+                offsetY += e.clientY - startPos.y;
 
-                // Calculate new position based on the difference
-                let newLeft = parseInt(div.style.left, 10) + xDiff;
-                let newTop = parseInt(div.style.top, 10) + yDiff;
-
-                // Get map container's dimensions to constrain the movement
                 let mapContainer = mymap.getContainer();
-                let maxLeft = mapContainer.offsetWidth - div.offsetWidth;
-                let maxTop = mapContainer.offsetHeight - div.offsetHeight;
+                let base = div.getBoundingClientRect();
+                let mapRect = mapContainer.getBoundingClientRect();
+                let homeLeft = base.left - offsetX - mapRect.left;
+                let homeTop = base.top - offsetY - mapRect.top;
+                let maxOffsetX = mapContainer.offsetWidth - div.offsetWidth - homeLeft;
+                let maxOffsetY = mapContainer.offsetHeight - div.offsetHeight - homeTop;
 
-                // Apply constraints
-                newLeft = Math.max(0, Math.min(newLeft, maxLeft));
-                newTop = Math.max(0, Math.min(newTop, maxTop));
+                offsetX = Math.max(-homeLeft, Math.min(offsetX, maxOffsetX));
+                offsetY = Math.max(-homeTop, Math.min(offsetY, maxOffsetY));
 
-                div.style.left = newLeft + 'px';
-                div.style.top = newTop + 'px';
+                div.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
 
-                // Update startPos for the next call
                 startPos = { x: e.clientX, y: e.clientY };
             }
         };
