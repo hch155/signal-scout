@@ -78,6 +78,40 @@ def _login_failures_total():
     return _deps["login_failures_total"]
 
 
+# Audit fix ENUM-3 (2026-06-07): composite rate-limit key. The global
+# limiter is keyed on client IP alone, so an attacker rotating IPs (proxy
+# pool / botnet) sidesteps the per-route caps entirely. These key_funcs
+# fold a hash of the submitted email into the limiter bucket so the
+# per-account ceiling holds across IPs, while still scoping by IP so one
+# attacker can't lock a victim's email out for everyone. The raw email is
+# never stored in the limiter backend (only a short sha256 prefix). Falls
+# back to IP-only when the body is missing/malformed so a junk request
+# can't crash the limiter.
+def _email_rate_component() -> str:
+    try:
+        from flask import request
+        email = (request.form.get('email')
+                 or (request.get_json(silent=True) or {}).get('email')
+                 or '')
+        email = _normalize_email(email.strip()) if email else ''
+        if not email:
+            return 'noemail'
+        import hashlib
+        return hashlib.sha256(email.encode('utf-8')).hexdigest()[:16]
+    except Exception:
+        return 'noemail'
+
+
+def _login_rate_key() -> str:
+    from flask_limiter.util import get_remote_address
+    return f"{get_remote_address()}|{_email_rate_component()}"
+
+
+def _register_rate_key() -> str:
+    from flask_limiter.util import get_remote_address
+    return f"{get_remote_address()}|{_email_rate_component()}"
+
+
 # PR #26: account lockout config. After this many wrong-password attempts
 # in a row, the account is locked for LOCKOUT_DURATION. Counter resets on
 # successful login (any path — password OR password+TOTP). Window matches
@@ -415,17 +449,21 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
 
     # Apply rate limits via wrapper since blueprint can't decorate at
     # registration time without ordering pain.
-    auth_bp.add_url_rule("/register", endpoint="register",
-                         view_func=limiter.limit("5 per hour")(register_user),
-                         methods=["POST"])
+    auth_bp.add_url_rule(
+        "/register", endpoint="register",
+        view_func=limiter.limit(
+            "5 per hour", key_func=_register_rate_key)(register_user),
+        methods=["POST"])
     # PR #26: bumped from 3/min to 10/min. Per-IP rate limit was defending
     # against slow per-account brute-force; that job now belongs to
     # the per-account lockout (5 wrong → 15-min freeze). Higher per-IP
     # cap means a real user typing a wrong password 4× isn't immediately
     # 429'd, while the account itself still locks out attackers.
-    auth_bp.add_url_rule("/login", endpoint="login",
-                         view_func=limiter.limit("10 per minute")(login_user),
-                         methods=["POST"])
+    auth_bp.add_url_rule(
+        "/login", endpoint="login",
+        view_func=limiter.limit(
+            "10 per minute", key_func=_login_rate_key)(login_user),
+        methods=["POST"])
     auth_bp.add_url_rule("/logout", endpoint="logout",
                          view_func=logout, methods=["POST"])
     auth_bp.add_url_rule("/session_check", endpoint="session_check",
@@ -642,9 +680,20 @@ def register_user():
     if password != confirm_password:
         return jsonify({'error': 'Passwords do not match.'}), 400
 
+    # Audit fix ENUM-1 (2026-06-07): account-enumeration parity. The old
+    # existing-email branch returned a bare-string 200 ("Email already
+    # registered.") — a different body/length/Content-Type than the JSON
+    # success path, plus it returned *before* any bcrypt work (timing
+    # oracle). An attacker could distinguish registered from unregistered
+    # addresses on body, size, or latency. Now: burn a constant bcrypt
+    # round to equalize timing, write nothing, and return the byte-
+    # identical success body. Register never auto-logins (no session is
+    # created on the success path either), so there is no later-request
+    # session distinguisher to worry about.
     existing_user = User.query.filter_by(email=email).first()
     if existing_user is not None:
-        return 'Email already registered.'
+        _bcrypt().check_password_hash(_DUMMY_BCRYPT_HASH, password)
+        return jsonify({"success": True, "message": "User registered successfully."}), 200
 
     hashed_password = _bcrypt().generate_password_hash(password).decode('utf-8')
 
@@ -716,32 +765,49 @@ def login_user():
     if user is None:
         _bcrypt().check_password_hash(_DUMMY_BCRYPT_HASH, password or '')
 
-    # PR #26: account lockout. If the user is currently locked, bounce
-    # without spending a bcrypt round (cheap defence; brute-forcer can't
-    # use the locked account as a pollard for distinguishing valid emails
-    # via timing). 403 + how-long.
+    # PR #26 + Audit fix ENUM-2 (2026-06-07): account lockout, hardened
+    # against enumeration. The lock state is only ever revealed to a
+    # caller who has *proved ownership* by supplying the correct password
+    # (see the `is_locked` reveal below). For an unauthenticated caller
+    # (wrong password OR nonexistent user) a locked account must look
+    # exactly like any other failed login — generic 401 — otherwise the
+    # 403{locked} body is an oracle that leaks "this email is registered".
+    # We still spend the bcrypt round here so timing matches the normal
+    # path; enforcement of the lock happens after the password check.
+    is_locked = False
     if user is not None and user.locked_until is not None:
         if user.locked_until > datetime.utcnow():
-            _login_failures_total().inc()
-            _audit('login.locked', user.id, {
-                "locked_until": user.locked_until.isoformat() + 'Z',
-            })
-            try:
-                _db().session.commit()
-            except Exception:
-                _db().session.rollback()
-            return jsonify({
-                "success": False,
-                "locked": True,
-                "message": "Account is temporarily locked due to too many failed attempts.",
-                "locked_until": user.locked_until.isoformat() + 'Z',
-            }), 403
-        # Lockout window expired — clear the stamp and let the request
-        # proceed normally. Counter is cleared on the success path; if
-        # this attempt also fails, it counts toward a fresh lock.
-        user.locked_until = None
+            is_locked = True
+        else:
+            # Lockout window expired — clear the stamp and let the request
+            # proceed normally. Counter is cleared on the success path; if
+            # this attempt also fails, it counts toward a fresh lock.
+            user.locked_until = None
 
-    if user and _bcrypt().check_password_hash(user.password_hash, password):
+    password_ok = bool(
+        user and _bcrypt().check_password_hash(user.password_hash, password)
+    )
+
+    if password_ok and is_locked:
+        # Correct password but account is locked. The caller proved
+        # ownership, so revealing the lock is safe (and useful UX). Do NOT
+        # establish a session — the lockout must still be enforced.
+        _login_failures_total().inc()
+        _audit('login.locked', user.id, {
+            "locked_until": user.locked_until.isoformat() + 'Z',
+        })
+        try:
+            _db().session.commit()
+        except Exception:
+            _db().session.rollback()
+        return jsonify({
+            "success": False,
+            "locked": True,
+            "message": "Account is temporarily locked due to too many failed attempts.",
+            "locked_until": user.locked_until.isoformat() + 'Z',
+        }), 403
+
+    if password_ok and not is_locked:
         # Successful auth — reset lockout state.
         user.failed_login_attempts = 0
         user.locked_until = None

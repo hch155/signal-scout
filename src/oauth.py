@@ -209,7 +209,7 @@ def callback_for_provider(provider: str):
             )
             return redirect(
                 url_for('home') +
-                '?oauth_error=password_account_exists'
+                '?oauth_error=provider_error'
             )
 
     user.last_login_date = datetime.utcnow()

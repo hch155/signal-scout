@@ -58,7 +58,11 @@ def test_register_password_mismatch(csrf_client, csrf_token):
     assert r.status_code == 400
 
 
-def test_register_duplicate_email_rejected(csrf_client, csrf_token):
+def test_register_duplicate_email_indistinguishable(csrf_client, csrf_token):
+    """Audit fix ENUM-1: re-registering an existing email must look exactly
+    like a fresh registration — same status, Content-Type and JSON body —
+    so the response is not an account-enumeration oracle. (Replaces the
+    old test that asserted the leaky "already registered" text body.)"""
     payload = {
         "_csrf_token": csrf_token,
         "email": "dup@example.com",
@@ -68,9 +72,38 @@ def test_register_duplicate_email_rejected(csrf_client, csrf_token):
     first = csrf_client.post("/register", data=payload)
     assert first.status_code == 200
     second = csrf_client.post("/register", data=payload)
-    # Endpoint returns 200 with literal text body for this case (legacy quirk)
-    body = second.get_data(as_text=True).lower()
-    assert "already" in body or second.status_code != 200
+    assert second.status_code == first.status_code
+    assert second.headers["Content-Type"] == first.headers["Content-Type"]
+    assert second.get_data() == first.get_data()
+    # And nothing leaks the existence of the account.
+    assert b"already" not in second.get_data().lower()
+
+
+def test_register_existing_byte_identical_to_new(csrf_client, csrf_token):
+    """The existing-email response is byte-identical to a brand-new
+    successful registration (different email)."""
+    new_payload = {
+        "_csrf_token": csrf_token,
+        "email": "freshreg@example.com",
+        "password": VALID_PASSWORD,
+        "confirm_password": VALID_PASSWORD,
+    }
+    new_resp = csrf_client.post("/register", data=new_payload)
+    assert new_resp.status_code == 200
+
+    # Register, then re-register the same email → existing-email branch.
+    dup_payload = {
+        "_csrf_token": csrf_token,
+        "email": "dupbyte@example.com",
+        "password": VALID_PASSWORD,
+        "confirm_password": VALID_PASSWORD,
+    }
+    csrf_client.post("/register", data=dup_payload)
+    existing_resp = csrf_client.post("/register", data=dup_payload)
+
+    assert existing_resp.status_code == new_resp.status_code
+    assert existing_resp.headers["Content-Type"] == new_resp.headers["Content-Type"]
+    assert existing_resp.get_data() == new_resp.get_data()
 
 
 # ── Login ───────────────────────────────────────────────────────────────────
@@ -119,6 +152,50 @@ def test_login_wrong_password_returns_401(csrf_client, csrf_token):
     assert r.status_code == 401
 
 
+def test_login_failure_responses_are_indistinguishable(csrf_client, csrf_token):
+    """Audit fix ENUM-2: wrong-password, nonexistent-email, AND
+    locked-account-with-wrong-password all return the identical generic
+    401 body+status. An unauthenticated caller must not be able to tell a
+    locked (hence existing) account from any other failed login."""
+    GENERIC = {"success": False, "message": "Invalid email or password."}
+
+    # 1) Existing account, wrong password.
+    csrf_client.post("/register", data={
+        "_csrf_token": csrf_token, "email": "enum1@example.com",
+        "password": VALID_PASSWORD, "confirm_password": VALID_PASSWORD,
+    })
+    wrong = csrf_client.post("/login", data={
+        "_csrf_token": csrf_token, "email": "enum1@example.com",
+        "password": "WrongPass1!",
+    })
+
+    # 2) Nonexistent account.
+    ghost = csrf_client.post("/login", data={
+        "_csrf_token": csrf_token, "email": "enum-ghost@example.com",
+        "password": "WrongPass1!",
+    })
+
+    # 3) Locked account, wrong password. Lock it first.
+    csrf_client.post("/register", data={
+        "_csrf_token": csrf_token, "email": "enum2@example.com",
+        "password": VALID_PASSWORD, "confirm_password": VALID_PASSWORD,
+    })
+    for i in range(5):
+        csrf_client.post("/login", data={
+            "_csrf_token": csrf_token, "email": "enum2@example.com",
+            "password": f"WrongPw1!{i}",
+        })
+    locked_wrong = csrf_client.post("/login", data={
+        "_csrf_token": csrf_token, "email": "enum2@example.com",
+        "password": "StillWrong1!",
+    })
+
+    for r in (wrong, ghost, locked_wrong):
+        assert r.status_code == 401, r.data
+        assert r.get_json() == GENERIC, r.data
+        assert "locked" not in r.get_data(as_text=True).lower()
+
+
 # ── PR #26: account lockout ─────────────────────────────────────────────────
 
 def test_login_locks_account_after_5_failed_attempts(csrf_client, csrf_token, app):
@@ -134,7 +211,8 @@ def test_login_locks_account_after_5_failed_attempts(csrf_client, csrf_token, ap
         })
         assert r.status_code == 401, f"attempt {i+1} expected 401, got {r.status_code}"
 
-    # 6th attempt — even with correct password — is locked out (403)
+    # 6th attempt — with the CORRECT password — is locked out (403).
+    # Revealing the lock here is safe: the caller proved ownership.
     r = csrf_client.post("/login", data={
         "_csrf_token": csrf_token, "email": "lock@example.com",
         "password": VALID_PASSWORD,
@@ -143,6 +221,8 @@ def test_login_locks_account_after_5_failed_attempts(csrf_client, csrf_token, ap
     body = r.get_json()
     assert body.get("locked") is True
     assert "locked_until" in body
+    # And the lock did NOT establish a session.
+    assert csrf_client.get("/session_check").get_json() == {"logged_in": False}
 
     # DB shows the lockout state
     from models import User

@@ -84,6 +84,45 @@ def test_oauth_2fa_challenge_with_pending_session_renders_form(client, csrf_toke
 
 
 # ──────────────────────────────────────────────────────────────────────
+# OAuth account-enumeration: non-verifying provider must not confirm that
+# a password account exists for the email.
+# ──────────────────────────────────────────────────────────────────────
+
+def test_oauth_existing_password_account_returns_generic_error(client, app, monkeypatch):
+    """Facebook (no verified-email flag) sign-in onto an existing password
+    account must redirect with a GENERIC oauth_error, never a code that
+    confirms the account exists (account-enumeration leak)."""
+    import oauth as oauth_mod
+    from database import db
+    from models import User
+
+    email = f"enum-{secrets.token_hex(3)}@example.com"
+    with app.app_context():
+        db.session.add(User(
+            email=email,
+            password_hash="$2b$12$" + "x" * 53,  # real bcrypt-shaped hash, not !OAUTH-
+            api_tier="free",
+            email_alerts_enabled=True,
+            registration_date=datetime.utcnow(),
+        ))
+        db.session.commit()
+
+    class _FakeClient:
+        def authorize_access_token(self):
+            return {"access_token": "t"}
+
+    monkeypatch.setattr(oauth_mod, "_provider_enabled", lambda name: True)
+    monkeypatch.setattr(oauth_mod.oauth, "create_client", lambda name: _FakeClient())
+    monkeypatch.setattr(oauth_mod, "_resolve_email", lambda *a, **k: email)
+
+    r = client.get("/auth/facebook/callback", follow_redirects=False)
+    assert r.status_code == 302
+    loc = r.headers["Location"]
+    assert "password_account_exists" not in loc
+    assert "oauth_error=provider_error" in loc
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Request body cap (H-NEW-1, MAX_CONTENT_LENGTH)
 # ──────────────────────────────────────────────────────────────────────
 

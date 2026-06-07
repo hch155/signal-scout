@@ -47,8 +47,6 @@ function showOAuthErrorIfPresent() {
   if (!code) return;
 
   const messages = {
-    password_account_exists:
-      'Facebook doesn\'t verify your email with us, so we can\'t safely link it to your existing password account. Sign in with your password (or use Google / GitHub).',
     no_email:
       'Your sign-in provider didn\'t share an email address with us. Please use a different sign-in method.',
     no_pending_2fa:
