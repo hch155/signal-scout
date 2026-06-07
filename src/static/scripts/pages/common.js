@@ -218,7 +218,7 @@ function initializeThemeToggle() {
     const themeIcon = document.createElement('img');
     
     const updateThemeIcon = (isDarkMode) => {
-        themeIcon.src = isDarkMode ? 'static/images/sunrise.svg' : 'static/images/sunset.svg';
+        themeIcon.src = isDarkMode ? '/static/images/sunrise.svg' : '/static/images/sunset.svg';
         themeIcon.style.filter = isDarkMode ? 'invert(100%)' : 'none';
         if (!btnThemeToggler.contains(themeIcon)) {
             btnThemeToggler.appendChild(themeIcon);
