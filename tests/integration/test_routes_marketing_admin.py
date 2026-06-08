@@ -241,7 +241,7 @@ def test_admin_stats_invalid_days_falls_back_to_default(authed_client):
     _promote_session_user_to_admin(authed_client)
     r = authed_client.get("/admin/stats?days=abc&format=json")
     assert r.status_code == 200
-    assert r.get_json()["window_days"] == 1
+    assert r.get_json()["window_days"] == 30
 
 
 # ── /admin/email_preview/<template> ──────────────────────────────────────────

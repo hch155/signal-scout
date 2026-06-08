@@ -4,7 +4,7 @@
     <section class="text-center text-[#333] dark:text-white p-3 md:p-5 mb-2">
         <h2 class="text-xl font-bold">Changes — {{ location.name }}</h2>
         <p class="hidden md:block text-lg text-gray-600 dark:text-gray-300">
-            What changed in the BTS dataset within {{ "%.0f" % location.radius_km }} km of this saved location.
+            What changed in the BTS dataset {% if location.radius_km and location.radius_km > 0 %}within {{ "%.0f" % location.radius_km }} km of{% else %}at{% endif %} this saved location.
         </p>
     </section>
 
@@ -24,7 +24,7 @@
                 </p>
                 <p class="text-sm text-gray-700 dark:text-gray-200">
                     Centre: <code class="font-mono">{{ "%.4f" % location.lat }}, {{ "%.4f" % location.lng }}</code>
-                    · Radius: {{ "%.0f" % location.radius_km }} km
+                    · {% if location.radius_km and location.radius_km > 0 %}Radius: {{ "%.0f" % location.radius_km }} km{% else %}Exact spot (nearest stations){% endif %}
                     · Alerts:
                     {% if location.alerting_enabled %}
                         <span class="inline-block px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs font-semibold">on</span>

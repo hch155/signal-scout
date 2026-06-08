@@ -1672,9 +1672,9 @@ def admin_stats():
 
     # 24h-window aggregates by default; ?days=N to widen.
     try:
-        days = max(1, min(30, int(request.args.get('days', '1'))))
+        days = max(1, min(30, int(request.args.get('days', '30'))))
     except (TypeError, ValueError):
-        days = 1
+        days = 30
     from sqlalchemy import func as _f
     cutoff = datetime.utcnow() - timedelta(days=days)
 
