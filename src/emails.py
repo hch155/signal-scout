@@ -336,6 +336,15 @@ def send_password_changed(user) -> bool:
     )
 
 
+def send_password_reset(user, reset_url: str) -> bool:
+    return _send(
+        user,
+        subject="Reset your Signal-Scout password",
+        template='password_reset',
+        reset_url=reset_url,
+    )
+
+
 def send_2fa_enabled(user) -> bool:
     return _send(
         user,

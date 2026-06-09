@@ -112,6 +112,13 @@ def _register_rate_key() -> str:
     return f"{get_remote_address()}|{_email_rate_component()}"
 
 
+def _forgot_password_rate_key() -> str:
+    # 2026-06-08: composite IP+email bucket (same shape as login/register) so
+    # an attacker rotating IPs can't keep spraying reset mail at one inbox.
+    from flask_limiter.util import get_remote_address
+    return f"{get_remote_address()}|{_email_rate_component()}"
+
+
 # PR #26: account lockout config. After this many wrong-password attempts
 # in a row, the account is locked for LOCKOUT_DURATION. Counter resets on
 # successful login (any path — password OR password+TOTP). Window matches
@@ -466,6 +473,22 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
         methods=["POST"])
     auth_bp.add_url_rule("/logout", endpoint="logout",
                          view_func=logout, methods=["POST"])
+    # 2026-06-08: password reset (forgot-password). POST endpoints are
+    # rate-limited on the composite IP+email key so reset-mail spray at one
+    # inbox is capped even across rotating IPs.
+    auth_bp.add_url_rule("/forgot-password", endpoint="forgot_password_page",
+                         view_func=forgot_password_page, methods=["GET"])
+    auth_bp.add_url_rule(
+        "/forgot-password", endpoint="forgot_password",
+        view_func=limiter.limit(
+            "5 per hour", key_func=_forgot_password_rate_key)(forgot_password),
+        methods=["POST"])
+    auth_bp.add_url_rule("/reset-password", endpoint="reset_password_page",
+                         view_func=reset_password_page, methods=["GET"])
+    auth_bp.add_url_rule(
+        "/reset-password", endpoint="reset_password",
+        view_func=limiter.limit("10 per hour")(reset_password),
+        methods=["POST"])
     auth_bp.add_url_rule("/session_check", endpoint="session_check",
                          view_func=session_check, methods=["GET"])
     auth_bp.add_url_rule("/account", endpoint="account_page",
@@ -1077,6 +1100,162 @@ def change_password():
     except Exception:
         logger.exception("send_password_changed failed for user_id=%s", user.id)
     return jsonify({'success': True, 'csrf_token': new_csrf}), 200
+
+
+# ── Password reset (forgot-password), 2026-06-08 ───────────────────────────
+# Anti-enumeration by construction: POST /forgot-password ALWAYS returns the
+# same body/status whether or not the email maps to a real, password-bearing
+# account, and burns a constant bcrypt round on the miss path so timing
+# matches the send path. Token is a URLSafeTimedSerializer payload bound to a
+# prefix of the current password hash (`pwf`): once the password changes the
+# bound prefix changes, so a used (or pre-reset) token is rejected — that is
+# the single-use guarantee, no server-side token store needed.
+_PW_RESET_SALT = "password-reset"
+_PW_RESET_MAX_AGE = 3600  # 1 hour
+_PW_RESET_GENERIC_MESSAGE = (
+    "If an account exists for that email, we've sent a password reset link."
+)
+
+
+def _pw_reset_serializer():
+    from itsdangerous import URLSafeTimedSerializer
+    from config import settings
+    return URLSafeTimedSerializer(settings.secret_key, salt=_PW_RESET_SALT)
+
+
+def _password_fingerprint(password_hash: str | None) -> str:
+    """First 16 hex chars of sha256(current password hash). Embedded in the
+    reset token so a hash change (i.e. a completed reset) invalidates the
+    token — the single-use mechanism."""
+    import hashlib
+    return hashlib.sha256((password_hash or '').encode('utf-8')).hexdigest()[:16]
+
+
+def _make_password_reset_token(user) -> str:
+    return _pw_reset_serializer().dumps({
+        "uid": user.id,
+        "pwf": _password_fingerprint(user.password_hash),
+    })
+
+
+def _verify_password_reset_token(token: str):
+    """Return the User for a valid, unexpired, hash-bound token, else None.
+    Treats expired / tampered / malformed tokens identically (None)."""
+    from itsdangerous import SignatureExpired, BadSignature, BadData
+    if not token:
+        return None
+    try:
+        data = _pw_reset_serializer().loads(token, max_age=_PW_RESET_MAX_AGE)
+    except (SignatureExpired, BadSignature, BadData):
+        return None
+    if not isinstance(data, dict):
+        return None
+    uid = data.get("uid")
+    pwf = data.get("pwf")
+    if uid is None or pwf is None:
+        return None
+    user = _db().session.get(User, uid)
+    if user is None or not user.password_hash:
+        return None
+    if pwf != _password_fingerprint(user.password_hash):
+        return None
+    return user
+
+
+def _password_reset_url(token: str) -> str:
+    from config import settings
+    origin = (settings.email_link_origin or '').rstrip('/')
+    return f"{origin}/reset-password?token={token}"
+
+
+def forgot_password_page():
+    return render_template('forgot_password.html')
+
+
+def forgot_password():
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='forgot_password').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+
+    email = _normalize_email((request.form.get('email') or '').strip())
+    user = User.query.filter_by(email=email).first() if email else None
+
+    # Only send to a real account that actually has a usable (local) password.
+    # OAuth-only rows (password_hash NULL) fall through to the dummy branch so
+    # the response + timing are identical to the not-found case.
+    if user is not None and user.password_hash:
+        try:
+            token = _make_password_reset_token(user)
+            from emails import send_password_reset
+            send_password_reset(user, _password_reset_url(token))
+        except Exception:
+            logger.exception(
+                "send_password_reset failed for user_id=%s", user.id)
+    else:
+        # Constant-time parity with the send path's bcrypt-shaped work.
+        _bcrypt().check_password_hash(_DUMMY_BCRYPT_HASH, "x")
+
+    return render_template('forgot_password.html',
+                           message=_PW_RESET_GENERIC_MESSAGE), 200
+
+
+def reset_password_page():
+    token = request.args.get('token') or ''
+    user = _verify_password_reset_token(token)
+    if user is None:
+        return render_template(
+            'reset_password.html', valid=False,
+            error="This reset link is invalid or has expired."), 400
+    return render_template('reset_password.html', valid=True, token=token)
+
+
+def reset_password():
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='reset_password').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+
+    token = request.form.get('token') or ''
+    user = _verify_password_reset_token(token)
+    if user is None:
+        return render_template(
+            'reset_password.html', valid=False,
+            error="This reset link is invalid or has expired."), 400
+
+    password = request.form.get('password') or ''
+    confirm = request.form.get('confirm_password')
+    if not _PASSWORD_REGEX.fullmatch(password):
+        return render_template(
+            'reset_password.html', valid=True, token=token,
+            error="Password does not meet criteria."), 400
+    if confirm is not None and password != confirm:
+        return render_template(
+            'reset_password.html', valid=True, token=token,
+            error="Passwords do not match."), 400
+
+    user.password_hash = _bcrypt().generate_password_hash(password).decode('utf-8')
+    user.last_password_change = datetime.utcnow()
+    # Clear any lockout state so a user who reset because they were locked
+    # out can sign in immediately.
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    _audit('password.reset', user.id, {"via": "forgot_password"})
+    try:
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+        logger.exception("reset_password commit failed for user_id=%s", user.id)
+        return render_template(
+            'reset_password.html', valid=True, token=token,
+            error="Could not update password. Please try again."), 500
+
+    try:
+        from emails import send_password_changed
+        send_password_changed(user)
+    except Exception:
+        logger.exception(
+            "send_password_changed failed after reset for user_id=%s", user.id)
+
+    return render_template('reset_password.html', success=True), 200
 
 
 def delete_account():
