@@ -36,7 +36,7 @@ name: CI/CD signal-scout
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
     tags: ['v*']
   pull_request:
     branches: [main]
@@ -213,8 +213,14 @@ jobs:
 
   deploy-staging:
     name: deploy staging
-    needs: [build, promote]
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    # promote intentionally NOT in needs[]: a push to the `staging` branch
+    # deploys staging from the staging tag without minting a prod tag.
+    # deploy-prod still requires promote, which only runs on main — so the
+    # staging branch can never reach production.
+    needs: [build]
+    if: |
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
     runs-on: [self-hosted, signal-scout-runner]
     environment:
       name: staging
