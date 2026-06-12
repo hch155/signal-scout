@@ -1269,18 +1269,12 @@ const VERDICT_HEADLINES = {
     fair: 'Moderate coverage here',
     poor: 'Weak coverage here',
 };
-const VERDICT_BORDERS = {
-    excellent: 'border-l-green-600',
-    good: 'border-l-yellow-400',
-    fair: 'border-l-orange-400',
-    poor: 'border-l-red-500',
-};
-const VERDICT_CHIP_COLORS = {
-    excellent: 'bg-green-600 text-white dark:bg-green-700',
-    good: 'bg-yellow-300 text-black dark:bg-yellow-400',
-    fair: 'bg-orange-400 text-black',
-    poor: 'bg-red-500 text-white dark:bg-red-600',
-};
+const VERDICT_PROVIDERS = [
+    ['Orange', 'orange'],
+    ['Play', 'play'],
+    ['Plus', 'plus'],
+    ['T-Mobile', 'tmobile'],
+];
 
 function formatVerdictDistance(km) {
     return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
@@ -1297,27 +1291,30 @@ function createVerdictCard(stations) {
         const name = providerShortNames[st.service_provider] || st.service_provider;
         if (!(name in byProvider) || st.distance < byProvider[name]) byProvider[name] = st.distance;
     });
-    const chips = ['Orange', 'Play', 'Plus', 'T-Mobile'].map(name => {
+    const providerSummary = VERDICT_PROVIDERS.map(([name, cls]) => {
         if (name in byProvider) {
-            const lvl = getSignalStrength(byProvider[name]).level;
-            return `<span class="px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${VERDICT_CHIP_COLORS[lvl]}">${escapeHtml(name)} · ${formatVerdictDistance(byProvider[name])}</span>`;
+            return `<span class="inline-flex items-center"><span class="provider-dot ${cls}"></span>${escapeHtml(name)} · ${formatVerdictDistance(byProvider[name])}</span>`;
         }
-        return `<span class="px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400">${escapeHtml(name)} · ${t('none in range')}</span>`;
-    }).join(' ');
+        return `<span class="inline-flex items-center text-gray-400 dark:text-gray-500">${escapeHtml(name)} · ${t('none in range')}</span>`;
+    }).join('');
 
     const card = document.createElement('div');
     card.id = 'verdict-card';
-    card.className = `col-span-full bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 border-l-4 ${VERDICT_BORDERS[signal.level]} p-3`;
+    card.className = 'stats-panel col-span-full';
     card.innerHTML = `
         <div class="flex items-center gap-2">
             ${createSignalBars(signal)}
-            <span class="font-semibold text-gray-900 dark:text-white">${t(VERDICT_HEADLINES[signal.level])}</span>
+            <span class="font-medium">${t(VERDICT_HEADLINES[signal.level])}</span>
         </div>
-        <p class="mt-1 text-sm text-gray-700 dark:text-gray-300">
+        <div class="mt-1 text-sm text-gray-600 dark:text-gray-300">
             ${t('Nearest mast:')} ${formatVerdictDistance(nearest.distance)} (${escapeHtml(provider)})${has5G ? ' · ' + t('5G in range') : ''}
-        </p>
-        <div class="mt-2 flex flex-wrap gap-1.5">${chips}</div>
-        <p class="mt-2 text-[11px] text-gray-400 dark:text-gray-500">${t('Estimate from mast distance and UKE permit data — not a signal measurement.')}</p>
+        </div>
+        <div class="provider-summary">
+            ${providerSummary}
+        </div>
+        <div class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+            ${t('Estimate from mast distance and UKE permit data — not a signal measurement.')}
+        </div>
     `;
     return card;
 }
