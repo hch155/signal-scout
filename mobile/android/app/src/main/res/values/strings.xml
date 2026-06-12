@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Signal-Scout</string>
-    <string name="title_activity_main">Signal-Scout</string>
-    <string name="package_name">com.signalscout.app</string>
-    <string name="custom_url_scheme">com.signalscout.app</string>
-</resources>

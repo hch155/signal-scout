@@ -309,6 +309,8 @@ For homelab observability deploy, see `ops/homelab-integration/README.md`.
 
 ## Documentation
 
+- Mobile (Capacitor iOS/Android wrappers) is parked on the `mobile-archive`
+  branch until store publication is back on the table
 - `docs/CHANGELOG.md` — per-PR descriptions of recent work
 - `docs/ROADMAP.md` — what's deferred for future PRs
 - `ops/README.md` — observability stack on a NUC via Portainer
