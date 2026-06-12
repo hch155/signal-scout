@@ -45,21 +45,21 @@
     <div class="px-2 md:px-4 mb-4 max-w-5xl mx-auto">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div class="bg-white dark:bg-gray-800 rounded-lg border-l-4 border-blue-500 p-3 shadow-sm">
-                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Sites</p>
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ _('Sites') }}</p>
                 <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ "{:,}".format(stats.grand_total_sites) }}</p>
                 {% if deltas %}{{ delta_badge(deltas.grand_total_sites) }}{% endif %}
             </div>
             <div class="bg-white dark:bg-gray-800 rounded-lg border-l-4 border-emerald-500 p-3 shadow-sm">
-                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Band entries</p>
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ _('Band entries') }}</p>
                 <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ "{:,}".format(stats.grand_total_entries) }}</p>
                 {% if deltas %}{{ delta_badge(deltas.grand_total_entries) }}{% endif %}
             </div>
             <div class="bg-white dark:bg-gray-800 rounded-lg border-l-4 border-purple-500 p-3 shadow-sm">
-                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Operators</p>
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ _('Operators') }}</p>
                 <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.providers|length }}</p>
             </div>
             <div class="bg-white dark:bg-gray-800 rounded-lg border-l-4 border-amber-500 p-3 shadow-sm">
-                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Last refresh</p>
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ _('Last refresh') }}</p>
                 <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ last_refresh }}</p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
                     {% if history_count > 1 %}{{ history_count }} snapshots in history{% else %}monthly UKE{% endif %}
@@ -71,7 +71,7 @@
     {# ── Generation breakdown: 5G vs LTE vs UMTS vs GSM per operator ── #}
     <div class="px-2 md:px-4 mb-4 max-w-5xl mx-auto">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">Generation mix per operator</h3>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">{{ _('Generation mix per operator') }}</h3>
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
                 Bar widths are share of that operator's total band entries (5G + LTE + UMTS + GSM = 100%).
             </p>
@@ -170,7 +170,7 @@
 
         {# Top metros by site count #}
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Top 10 cities by site count</h3>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">{{ _('Top 10 cities by site count') }}</h3>
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
                 Cities with the most physical towers across all four operators — a quick look at where the network is densest.
             </p>
@@ -193,7 +193,7 @@
     {# ── Sites per generation: the "real coverage" cut ─────────── #}
     <div class="px-2 md:px-4 mb-4 max-w-5xl mx-auto">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Sites per generation</h3>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">{{ _('Sites per generation') }}</h3>
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
                 Distinct physical locations broadcasting at least one band of that generation. Closest single-query approximation of real coverage. <span class="text-gray-400 dark:text-gray-500">Avg = bands per site for that operator/generation.</span>
             </p>
@@ -201,7 +201,7 @@
             <table class="w-full text-xs md:text-sm min-w-[480px]">
                 <thead>
                     <tr class="bg-blue-50 dark:bg-gray-700 text-gray-700 dark:text-gray-100">
-                        <th class="stats-th text-left pl-3">Operator</th>
+                        <th class="stats-th text-left pl-3">{{ _('Operator') }}</th>
                         {% for gen in stats.generations %}
                             <th class="stats-th">
                                 <span class="inline-block w-2 h-2 rounded-sm {{ generation_color[gen] }} mr-1 align-middle"></span>{{ gen }} sites
@@ -240,7 +240,7 @@
     <div class="px-2 md:px-4 mb-4 max-w-5xl mx-auto">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
             <div class="flex flex-wrap items-baseline justify-between gap-2 mb-1">
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Trend over time</h3>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ _('Trend over time') }}</h3>
                 <p class="text-xs text-gray-500 dark:text-gray-400">{{ monthly_history|length }} months tracked (one snapshot per UKE refresh)</p>
             </div>
 
@@ -249,11 +249,11 @@
                is the #1 source of misleading dashboards). Hover bars
                for exact values; tap on mobile = pseudo-tooltip. #}
             <div id="stats-chart-controls" class="flex flex-wrap gap-1.5 mb-3 text-xs" role="tablist" aria-label="Trend chart view">
-                <button type="button" data-view="entries" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-blue-600 text-white" aria-pressed="true">Total band entries</button>
-                <button type="button" data-view="sites" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">Physical sites</button>
-                <button type="button" data-view="generations" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">Stacked by generation</button>
+                <button type="button" data-view="entries" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-blue-600 text-white" aria-pressed="true">{{ _('Total band entries') }}</button>
+                <button type="button" data-view="sites" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">{{ _('Physical sites') }}</button>
+                <button type="button" data-view="generations" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">{{ _('Stacked by generation') }}</button>
                 <button type="button" data-view="5G" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">5G only</button>
-                <button type="button" data-view="LTE" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">LTE only</button>
+                <button type="button" data-view="LTE" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">{{ _('LTE only') }}</button>
             </div>
 
             <div id="stats-chart-host"
@@ -295,14 +295,14 @@
                 <table class="w-full border-collapse text-xs md:text-sm">
                     <thead>
                         <tr class="bg-blue-50 dark:bg-gray-700">
-                            <th class="stats-th">Band</th>
+                            <th class="stats-th">{{ _('Band') }}</th>
                             {% for provider in stats.providers %}
                                 <th class="stats-th">
                                     <span class="md:hidden">{{ provider_short.get(provider, provider) }}</span>
                                     <span class="hidden md:inline">{{ provider }}</span>
                                 </th>
                             {% endfor %}
-                            <th class="stats-th">Total</th>
+                            <th class="stats-th">{{ _('Total') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -329,7 +329,7 @@
                     </tbody>
                     <tfoot>
                         <tr class="bg-blue-50 dark:bg-gray-700 font-bold">
-                            <td class="stats-td">Sites</td>
+                            <td class="stats-td">{{ _('Sites') }}</td>
                             {% for provider in stats.providers %}
                                 <td class="stats-td">{{ "{:,}".format(stats.physical_sites.get(provider, 0)) }}</td>
                             {% endfor %}

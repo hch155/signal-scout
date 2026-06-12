@@ -116,13 +116,13 @@
       width: width, height: height,
       viewBox: '0 0 ' + width + ' ' + height,
       role: 'img',
-      'aria-label': 'Monthly trend chart',
+      'aria-label': t('Monthly trend chart'),
     });
 
     // Series for the active view.
     var series; // [{ key, color, get(h) -> number }]
     if (view === 'sites') {
-      series = [{ key: 'Sites', color: colorFor('LTE'),
+      series = [{ key: t('Sites'), color: colorFor('LTE'),
                   get: function (h) { return h.sites || 0; } }];
     } else if (view === 'generations') {
       series = ['5G', 'LTE', 'UMTS', 'GSM'].map(function (g) {
@@ -137,7 +137,7 @@
                   get: function (h) { return (h.gen && h.gen[g]) || 0; } }];
     } else {
       // Default: total band entries.
-      series = [{ key: 'Band entries', color: colorFor('5G'),
+      series = [{ key: t('Band entries'), color: colorFor('5G'),
                   get: function (h) { return h.entries || 0; } }];
     }
 

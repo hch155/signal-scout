@@ -992,8 +992,21 @@ def home():
 _MARKDOWN_HTML_CACHE: dict[str, tuple[float, str]] = {}
 
 
+def _resolve_md_path(file_name):
+    """Pick the language variant of a content file: '<stem>.pl.md' when the
+    active language is Polish and the translation exists, else the English
+    original. privacy.md has no .pl.md on purpose (legal text), so it falls
+    through to English here."""
+    if get_active_lang() == 'pl':
+        stem, ext = os.path.splitext(file_name)
+        pl_path = os.path.join(basedir, 'content', f"{stem}.pl{ext}")
+        if os.path.exists(pl_path):
+            return pl_path
+    return os.path.join(basedir, 'content', file_name)
+
+
 def get_html_content_from_markdown(file_name):
-    file_path = os.path.join(basedir, 'content', file_name)
+    file_path = _resolve_md_path(file_name)
     try:
         mtime = os.path.getmtime(file_path)
     except OSError:
@@ -1008,12 +1021,12 @@ def get_html_content_from_markdown(file_name):
     return html_content
 
 def _md_etag_key(file_name: str) -> str:
-    """Cache key for a markdown page: file path + mtime."""
-    file_path = os.path.join(basedir, 'content', file_name)
+    """Cache key for a markdown page: resolved (language-aware) path + mtime."""
+    file_path = _resolve_md_path(file_name)
     try:
-        return f"{file_name}:{os.path.getmtime(file_path):.6f}"
+        return f"{os.path.basename(file_path)}:{os.path.getmtime(file_path):.6f}"
     except OSError:
-        return f"{file_name}:0"
+        return f"{os.path.basename(file_path)}:0"
 
 
 @app.route('/data')

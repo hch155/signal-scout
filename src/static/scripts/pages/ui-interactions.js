@@ -230,7 +230,7 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
         toggleBtn.id = 'toggleFrequencyRangeLegendBtn';
         toggleBtn.title = 'Signal Range Legend';
         toggleBtn.innerHTML = `
-            <span class="control-icon text-lg">ℹ️</span>
+            <span class="control-icon text-lg">ⓘ</span>
             <span class="control-label">${t('Range')}</span>
         `;
 
