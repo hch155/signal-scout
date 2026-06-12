@@ -82,6 +82,23 @@ function showOAuthErrorIfPresent() {
 
 window.addEventListener('resize', adjustFooterPosition);
 
+window.SS_I18N = (function() {
+  try {
+    const el = document.getElementById('ss-i18n');
+    const parsed = el ? JSON.parse(el.textContent) : null;
+    if (parsed && typeof parsed === 'object') {
+      return { lang: parsed.lang || 'en', strings: parsed.strings || {} };
+    }
+  } catch (_) { /* fall through to English */ }
+  return { lang: 'en', strings: {} };
+})();
+
+function t(s) {
+  const strings = window.SS_I18N && window.SS_I18N.strings;
+  return (strings && strings[s]) || s;
+}
+window.t = t;
+
 function getCsrfToken() {
   const meta = document.querySelector('meta[name="csrf-token"]');
   return meta ? meta.getAttribute('content') : '';
@@ -484,14 +501,14 @@ function passwordVisibilityToggle(passwordInputId, confirmPasswordInputId, toggl
   let toggleButton = document.getElementById(toggleButtonId);
 
   toggleButton.setAttribute('type', 'button');
-  toggleButton.textContent = 'Hold to show';
+  toggleButton.textContent = t('Hold to show');
   toggleButton.setAttribute('title', 'Press and hold to reveal the password');
 
   function togglePassword(show) {
       const type = show ? 'text' : 'password';
       passwordInput.type = type;
       if (confirmPasswordInput) confirmPasswordInput.type = type;
-      toggleButton.textContent = show ? 'Holding' : 'Hold to show';
+      toggleButton.textContent = show ? t('Holding') : t('Hold to show');
       toggleButton.setAttribute('aria-pressed', show ? 'true' : 'false');
   }
 
@@ -523,10 +540,10 @@ function submitForm(url, formData) {
               checkLoginStateAndUpdateUI();
               executeCurrentPageAction();
               window.dispatchEvent(new CustomEvent('userLoggedIn'));
-              showToast('Logged in', 'success');
+              showToast(t('Logged in'), 'success');
           }
           if (url === '/register') {
-            showToast('User registered', 'success');
+            showToast(t('User registered'), 'success');
             resetPasswordCriteriaIndicators();
           }
       } else {

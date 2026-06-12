@@ -2,9 +2,9 @@
 
 {% block content %}
     <section class="text-center text-[#333] dark:text-white p-3 md:p-5 mb-2">
-        <h2 class="text-xl font-bold">Your account</h2>
+        <h2 class="text-xl font-bold">{{ _('Your account') }}</h2>
         <p class="hidden md:block text-lg text-gray-600 dark:text-gray-300">
-            Profile, security, and API access.
+            {{ _('Profile, security, and API access.') }}
         </p>
     </section>
 
@@ -15,20 +15,20 @@
     <div class="px-2 md:px-4 mb-4 max-w-6xl mx-auto">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <a href="#locations" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
-                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Saved spots</p>
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ _('Saved spots') }}</p>
                 <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ quick_stats.saved_locations }}</p>
             </a>
             <a href="#api-access" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
-                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">API keys</p>
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ _('API keys') }}</p>
                 <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ quick_stats.active_keys }}</p>
             </a>
             <a href="#two-factor" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
                 <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">2FA</p>
-                <p class="text-2xl font-bold {% if quick_stats.two_fa_on %}text-green-600 dark:text-green-400{% else %}text-gray-400{% endif %}">{% if quick_stats.two_fa_on %}On{% else %}Off{% endif %}</p>
+                <p class="text-2xl font-bold {% if quick_stats.two_fa_on %}text-green-600 dark:text-green-400{% else %}text-gray-400{% endif %}">{% if quick_stats.two_fa_on %}{{ _('On') }}{% else %}{{ _('Off') }}{% endif %}</p>
             </a>
             <a href="#notifications" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
-                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Alerts</p>
-                <p class="text-2xl font-bold {% if quick_stats.alerts_on %}text-green-600 dark:text-green-400{% else %}text-gray-400{% endif %}">{% if quick_stats.alerts_on %}On{% else %}Off{% endif %}</p>
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ _('Alerts') }}</p>
+                <p class="text-2xl font-bold {% if quick_stats.alerts_on %}text-green-600 dark:text-green-400{% else %}text-gray-400{% endif %}">{% if quick_stats.alerts_on %}{{ _('On') }}{% else %}{{ _('Off') }}{% endif %}</p>
             </a>
         </div>
     </div>
@@ -41,29 +41,29 @@
 
         {# Mobile: horizontal scrollable tabs (visible <lg) #}
         <nav class="lg:hidden -mx-2 px-2 overflow-x-auto whitespace-nowrap pb-2" aria-label="Account sections">
-            <a href="#locations" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">Locations</a>
+            <a href="#locations" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">{{ _('Locations') }}</a>
             <a href="#api-access" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">API</a>
-            <a href="#api-keys" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">Named keys</a>
-            <a href="#activity" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">Activity</a>
+            <a href="#api-keys" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">{{ _('Named keys') }}</a>
+            <a href="#activity" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">{{ _('Activity') }}</a>
             <a href="#two-factor" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">2FA</a>
-            <a href="#profile" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">Profile</a>
-            <a href="#notifications" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">Notifications</a>
-            <a href="#password" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">Password</a>
-            <a href="#danger" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900">Danger</a>
+            <a href="#profile" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">{{ _('Profile') }}</a>
+            <a href="#notifications" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">{{ _('Notifications') }}</a>
+            <a href="#password" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">{{ _('Password') }}</a>
+            <a href="#danger" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900">{{ _('Danger') }}</a>
         </nav>
 
         {# Desktop: sticky sidebar (hidden <lg) #}
         <aside class="hidden lg:block w-56 shrink-0">
             <nav class="sticky top-20 space-y-0.5" aria-label="Account sections">
-                <a href="#locations" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">Saved locations</a>
-                <a href="#api-access" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">API access</a>
-                <a href="#api-keys" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">Named API keys</a>
-                <a href="#activity" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">Recent activity</a>
-                <a href="#two-factor" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">Two-factor</a>
-                <a href="#profile" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">Profile</a>
-                <a href="#notifications" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">Notifications</a>
-                <a href="#password" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">Password</a>
-                <a href="#danger" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border-l-2 border-transparent">Danger zone</a>
+                <a href="#locations" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">{{ _('Saved locations') }}</a>
+                <a href="#api-access" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">{{ _('API access') }}</a>
+                <a href="#api-keys" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">{{ _('Named API keys') }}</a>
+                <a href="#activity" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">{{ _('Recent activity') }}</a>
+                <a href="#two-factor" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">{{ _('Two-factor') }}</a>
+                <a href="#profile" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">{{ _('Profile') }}</a>
+                <a href="#notifications" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">{{ _('Notifications') }}</a>
+                <a href="#password" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">{{ _('Password') }}</a>
+                <a href="#danger" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border-l-2 border-transparent">{{ _('Danger zone') }}</a>
             </nav>
         </aside>
 
@@ -72,7 +72,7 @@
             {# ── API access (existing) ─────────────────────────────────── #}
             <div id="api-access" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-4">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    API access
+                    {{ _('API access') }}
                 </h3>
                 <div>
                     <p class="text-sm text-gray-600 dark:text-gray-300">Email</p>
@@ -122,7 +122,7 @@
                     <button id="regen-api-key"
                             aria-label="Regenerate API key"
                             class="bg-red-500 hover:bg-red-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
-                        Regenerate API key
+                        {{ _('Regenerate API key') }}
                     </button>
                     <p id="regen-status" class="text-sm mt-2"></p>
                     {# PR #47: one-shot reveal for the freshly-rotated
@@ -140,7 +140,7 @@
                         <div class="flex items-center gap-2 mt-2">
                             <code id="regen-key-value" class="font-mono text-xs break-all p-2 bg-white dark:bg-gray-900 dark:text-white rounded flex-1"></code>
                             <button type="button" id="regen-copy-btn"
-                                    class="bg-blue-500 hover:bg-blue-700 text-white text-xs font-bold py-2 px-3 rounded">Copy</button>
+                                    class="bg-blue-500 hover:bg-blue-700 text-white text-xs font-bold py-2 px-3 rounded">{{ _('Copy') }}</button>
                         </div>
                     </div>
                 </div>
@@ -150,11 +150,11 @@
             <div id="locations" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
                 <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                        Saved locations
+                        {{ _('Saved locations') }}
                     </h3>
                     <button id="loc-add-btn"
                             class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-1.5 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
-                        + Add
+                        {{ _('+ Add') }}
                     </button>
                 </div>
                 <p class="text-xs text-gray-600 dark:text-gray-300">
@@ -232,7 +232,7 @@
                         <button type="button" id="loc-use-my-location-btn"
                                 class="inline-flex items-center gap-1.5 bg-blue-500 hover:bg-blue-700 text-white text-xs font-semibold py-1.5 px-3 rounded">
                             <svg aria-hidden="true" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                            Use my location
+                            {{ _('Use my location') }}
                         </button>
                         <span id="loc-geo-status" class="text-xs text-gray-500 dark:text-gray-400"></span>
                     </div>
@@ -266,11 +266,11 @@
                     <div class="flex gap-2">
                         <button type="submit"
                                 class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
-                            Save location
+                            {{ _('Save location') }}
                         </button>
                         <button type="button" id="loc-cancel-btn"
                                 class="bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
-                            Cancel
+                            {{ _('Cancel') }}
                         </button>
                     </div>
                     <p id="create-location-status" class="text-sm mt-2"></p>
@@ -280,7 +280,7 @@
             {# ── Named API keys (PR #14) ──────────────────────────────── #}
             <div id="api-keys" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    API keys
+                    {{ _('API keys') }}
                 </h3>
                 <p class="text-xs text-gray-600 dark:text-gray-300">
                     Create one key per integration so you can revoke them
@@ -346,7 +346,7 @@
                     </label>
                     <button type="submit"
                             class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
-                        Create API key
+                        {{ _('Create API key') }}
                     </button>
                     <p id="create-key-status" class="text-sm mt-2"></p>
                     <div id="new-key-display" class="hidden mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded">
@@ -361,7 +361,7 @@
             {# ── Recent activity (PR #15) ─────────────────────────────── #}
             <div id="activity" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    Recent activity
+                    {{ _('Recent activity') }}
                 </h3>
                 <p class="text-xs text-gray-600 dark:text-gray-300">
                     Logins, password changes, key creations and revokes — last 20.
@@ -401,7 +401,7 @@
             {# ── 2FA TOTP (rebuilt PR #25) ────────────────────────────── #}
             <div id="two-factor" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    Two-factor authentication (TOTP)
+                    {{ _('Two-factor authentication (TOTP)') }}
                 </h3>
 
                 {% if user.totp_enabled %}
@@ -414,11 +414,11 @@
                     <div class="flex gap-2">
                         <button id="totp-regen-btn"
                                 class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
-                            Regenerate
+                            {{ _('Regenerate') }}
                         </button>
                         <button id="totp-disable-show-btn"
                                 class="bg-red-500 hover:bg-red-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
-                            Disable 2FA
+                            {{ _('Disable 2FA') }}
                         </button>
                     </div>
 
@@ -441,7 +441,7 @@
                         </label>
                         <button type="submit"
                                 class="bg-red-500 hover:bg-red-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
-                            Confirm disable
+                            {{ _('Confirm disable') }}
                         </button>
                         <p id="totp-disable-status" class="text-sm mt-2"></p>
                     </form>
@@ -461,7 +461,7 @@
                         </label>
                         <button type="submit"
                                 class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
-                            Generate new secret
+                            {{ _('Generate new secret') }}
                         </button>
                         <p id="totp-regen-status" class="text-sm mt-2"></p>
                     </form>
@@ -471,7 +471,7 @@
                     </p>
                     <button id="totp-setup-btn"
                             class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
-                        Set up 2FA
+                        {{ _('Set up 2FA') }}
                     </button>
                 {% endif %}
 
@@ -504,7 +504,7 @@
                         </label>
                         <button type="submit"
                                 class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
-                            Verify and enable
+                            {{ _('Verify and enable') }}
                         </button>
                         <p id="totp-verify-status" class="text-sm mt-2"></p>
                     </form>
@@ -521,7 +521,7 @@
             {# ── Profile (simplified in PR #19) ───────────────────────── #}
             <div id="profile" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    Profile
+                    {{ _('Profile') }}
                 </h3>
                 <form id="profile-form" class="space-y-3">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -541,7 +541,7 @@
 
                     <button type="submit"
                             class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
-                        Save profile
+                        {{ _('Save profile') }}
                     </button>
                     <p id="profile-status" class="text-sm mt-2"></p>
                 </form>
@@ -549,7 +549,7 @@
 
             {# ── PR #48.3: Email notifications toggle ────────────────── #}
             <div id="notifications" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Email notifications</h3>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ _('Email notifications') }}</h3>
                 <p class="text-sm text-gray-700 dark:text-gray-300">
                     Signal-Scout sends transactional + security email
                     (password change, 2FA changes, recovery code use,
@@ -561,7 +561,7 @@
                            {% if user.email_alerts_enabled %}checked{% endif %}
                            class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500">
                     <span class="text-sm text-gray-900 dark:text-white">
-                        Send me email from Signal-Scout
+                        {{ _('Send me email from Signal-Scout') }}
                     </span>
                 </label>
                 <p id="email-pref-status" class="text-xs mt-1"></p>
@@ -575,7 +575,7 @@
             {# ── Change password ──────────────────────────────────────── #}
             <div id="password" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    Change password
+                    {{ _('Change password') }}
                 </h3>
                 <form id="password-form" class="space-y-3">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -609,7 +609,7 @@
 
                     <button type="submit"
                             class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
-                        Update password
+                        {{ _('Update password') }}
                     </button>
                     <p id="password-status" class="text-sm mt-2"></p>
                 </form>
@@ -618,7 +618,7 @@
             {# ── Danger zone ─────────────────────────────────────────── #}
             <div id="danger" class="account-section scroll-mt-16 md:scroll-mt-24 bg-red-50/50 dark:bg-red-900/10 rounded-lg shadow-sm dark:shadow-black/30 border border-red-300 dark:border-red-800 p-4 md:p-6 space-y-3">
                 <h3 class="text-lg font-semibold text-red-600 dark:text-red-400">
-                    Danger zone
+                    {{ _('Danger zone') }}
                 </h3>
                 <p class="text-sm text-gray-600 dark:text-gray-300">
                     Permanently delete your account and API key. This cannot be undone.
@@ -640,7 +640,7 @@
 
                     <button type="submit"
                             class="bg-red-500 hover:bg-red-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
-                        Delete my account
+                        {{ _('Delete my account') }}
                     </button>
                     <p id="delete-status" class="text-sm mt-2"></p>
                 </form>

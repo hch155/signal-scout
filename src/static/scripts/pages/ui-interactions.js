@@ -231,7 +231,7 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
         toggleBtn.title = 'Signal Range Legend';
         toggleBtn.innerHTML = `
             <span class="control-icon text-green-500 text-lg">◎</span>
-            <span class="control-label">Range</span>
+            <span class="control-label">${t('Range')}</span>
         `;
 
         // 2026-04-28: legend is HIDDEN by default on mobile (was always
@@ -249,17 +249,17 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
             <table class="frequency-table min-w-full divide-y divide-gray-200">
                 <thead class="text-gray-700 font-bold dark:text-white">
                     <tr>
-                        <th>Signal Strength</th>
-                        <th class="column-high" data-band="high">High Band Frequency<br>(5G3600, L2600) (km)</th>
-                        <th class="column-mid" data-band="mid">Mid Band Frequency <br>(5G/L2100, L1800) (km)</th>
-                        <th class="column-low" data-band="low">Low Band Frequency<br>(L900, L800, G900) (km)</th>
+                        <th>${t('Signal Strength')}</th>
+                        <th class="column-high" data-band="high">${t('High Band Frequency')}<br>(5G3600, L2600) (km)</th>
+                        <th class="column-mid" data-band="mid">${t('Mid Band Frequency')} <br>(5G/L2100, L1800) (km)</th>
+                        <th class="column-low" data-band="low">${t('Low Band Frequency')}<br>(L900, L800, G900) (km)</th>
                     </tr>
                 </thead>
                 <tbody class="text-gray-700 font-bold dark:text-white divide-y divide-gray-200">
-                    <tr class="bg-green-600 dark:bg-green-700"><td>Excellent</td><td>0.2</td><td>0.3</td><td>0.5</td></tr>
-                    <tr class="bg-yellow-300 dark:bg-yellow-400"><td>Good</td><td>0.5</td><td>0.75</td><td>1.5</td></tr>
-                    <tr class="bg-orange-400 dark:bg-orange-400"><td>Fair</td><td>1.0</td><td>1.5</td><td>3.0</td></tr>
-                    <tr class="bg-red-500 dark:bg-red-600"><td>Poor</td><td>1.5</td><td>2.0</td><td>5.0</td></tr>
+                    <tr class="bg-green-600 dark:bg-green-700"><td>${t('Excellent')}</td><td>0.2</td><td>0.3</td><td>0.5</td></tr>
+                    <tr class="bg-yellow-300 dark:bg-yellow-400"><td>${t('Good')}</td><td>0.5</td><td>0.75</td><td>1.5</td></tr>
+                    <tr class="bg-orange-400 dark:bg-orange-400"><td>${t('Fair')}</td><td>1.0</td><td>1.5</td><td>3.0</td></tr>
+                    <tr class="bg-red-500 dark:bg-red-600"><td>${t('Poor')}</td><td>1.5</td><td>2.0</td><td>5.0</td></tr>
                 </tbody>
             </table>
         `;
@@ -327,7 +327,7 @@ let btsCountControl = L.control({position: 'bottomleft'});
 btsCountControl.onAdd = function(map) {
     let div = L.DomUtil.create('div', '');
     div.className = 'bg-white p-2 dark:mt-[-4.5rem] dark:md:mt-0 rounded shadow text-black dark:bg-gray-800 dark:hover:bg-gray-500 dark:text-white';
-    div.innerHTML = 'BTS count: <span id="btsCounter">0</span>';
+    div.innerHTML = `${t('BTS count:')} <span id="btsCounter">0</span>`;
     return div;
 }
 btsCountControl.addTo(mymap);
@@ -337,13 +337,13 @@ filterControl.onAdd = function(map) {
     let div = L.DomUtil.create('div', 'filter-control-container');
     div.innerHTML = `
         <button id="toggle-filters-btn" class="block bg-blue-500 hover:bg-blue-700 dark:bg-gray-800 dark:hover:bg-gray-500 text-white dark:text-white font-bold py-1 px-2 rounded w-76">
-        Toggle Filters
+        ${t('Toggle Filters')}
         </button>
 
         <div id="filterContainer" class="bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400 hidden">
             <div class="static-content">
                 <div class="my-2">
-                    <p class="text-gray-700 font-bold dark:text-white">Service Provider:</p>
+                    <p class="text-gray-700 font-bold dark:text-white">${t('Service Provider:')}</p>
                     <div class="flex flex-wrap label-container gap-1">    
                         <label><input type="checkbox" name="service_provider" value="P4 Sp. z o.o.'"> Play</label>
                         <label><input type="checkbox" name="service_provider" value="Orange Polska S.A."> Orange</label>
@@ -353,7 +353,7 @@ filterControl.onAdd = function(map) {
                 </div>
 
                 <div class="my-2">
-                    <p class="text-gray-700 font-bold dark:text-white">Frequency:</p>
+                    <p class="text-gray-700 font-bold dark:text-white">${t('Frequency:')}</p>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-1">
                         <label><input type="checkbox" name="frequency_bands" value="5G3600"> 5G3600</label>
                         <label><input type="checkbox" name="frequency_bands" value="5G2100"> 5G2100</label>
@@ -374,23 +374,23 @@ filterControl.onAdd = function(map) {
 
                 <div class="flex gap-2 mt-2">
                     <button id="apply-filters" class="apply-filters-btn flex-1 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 rounded">
-                        Apply Filters
+                        ${t('Apply Filters')}
                     </button>
                     <button id="clear-filters-btn" class="px-3 text-gray-700 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:text-white dark:hover:bg-gray-500 rounded">
-                        Clear
+                        ${t('Clear')}
                     </button>
                 </div>
 
                 <div class="slider-container my-2">
                     <div class="flex justify-between items-center">
-                        <button id="showNearestBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 rounded">Show Nearest BTS</button>
+                        <button id="showNearestBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 rounded">${t('Show Nearest BTS')}</button>
                     </div>
                     <input type="number" id="nearestBtsRange" min="1" max="10" placeholder="" class="w-[4.25rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
                 </div>
 
                 <div class="slider-container my-2">
                     <div class="flex justify-between items-center">
-                        <button id="showWithinDistanceBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 rounded">Show BTS Within Distance</button>
+                        <button id="showWithinDistanceBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 rounded">${t('Show BTS Within Distance')}</button>
                     </div>
                     <input type="number" id="withinDistanceRange" min="0.5" max="10" step="0.5" placeholder="" class="w-[4.25rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
                 </div>
@@ -473,7 +473,7 @@ function requestAndSendGPSLocation() {
     mymap.on('locationfound', function(e) {
         let userLat = e.latlng.lat;
         let userLng = e.latlng.lng;
-        gpsMarker = L.marker([userLat, userLng], {icon: greenIcon}).addTo(mymap).bindPopup(`<div class=" dark:text-white">Your Location</div>`).openPopup();
+        gpsMarker = L.marker([userLat, userLng], {icon: greenIcon}).addTo(mymap).bindPopup(`<div class=" dark:text-white">${t('Your Location')}</div>`).openPopup();
         sendLocation(userLat, userLng);
     });
 
@@ -659,12 +659,12 @@ function renderCoverageGapsCTA(lat, lng) {
 
     const label = document.createElement('div');
     label.className = 'text-xs text-gray-700 dark:text-gray-300';
-    label.textContent = 'Check per-band coverage gaps at this spot';
+    label.textContent = t('Check per-band coverage gaps at this spot');
 
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'shrink-0 bg-gray-700 hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500 text-white text-xs font-semibold py-1 px-2.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
-    btn.textContent = 'Analyse';
+    btn.textContent = t('Analyse');
     btn.addEventListener('click', () => {
         cta.remove();
         renderCoverageGaps(lat, lng);
@@ -691,7 +691,7 @@ function renderCoverageGaps(lat, lng) {
     const widget = document.createElement('div');
     widget.id = 'coverage-gaps-widget';
     widget.className = 'col-span-full mb-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm';
-    widget.innerHTML = '<div class="text-xs text-gray-500 dark:text-gray-400">Checking coverage at this spot…</div>';
+    widget.innerHTML = `<div class="text-xs text-gray-500 dark:text-gray-400">${t('Checking coverage at this spot…')}</div>`;
     sidebar.insertBefore(widget, sidebar.firstChild);
 
     globalFetch(`/coverage_gaps?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`)
@@ -720,7 +720,7 @@ function renderCoverageGaps(lat, lng) {
             widget.textContent = '';
             const title = document.createElement('div');
             title.className = 'text-sm font-semibold text-gray-900 dark:text-white mb-1';
-            title.textContent = 'Coverage at this spot';
+            title.textContent = t('Coverage at this spot');
             widget.appendChild(title);
 
             const summaryEl = document.createElement('div');
@@ -730,7 +730,7 @@ function renderCoverageGaps(lat, lng) {
 
             const hint = document.createElement('div');
             hint.className = 'text-[10px] text-gray-500 dark:text-gray-400 mb-1';
-            hint.textContent = 'Click a band to show its closest BTS on the map.';
+            hint.textContent = t('Click a band to show its closest BTS on the map.');
             widget.appendChild(hint);
 
             const ul = document.createElement('ul');
@@ -948,14 +948,14 @@ function buildBandHighlightPopup(station, gap) {
     const gmaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(station.latitude)},${encodeURIComponent(station.longitude)}`;
     return `
         <div class="bg-blue-50 dark:bg-gray-800 dark:text-white p-1 rounded-lg text-sm">
-            <div class="font-semibold mb-1">Nearest ${escapeHtml(gap.band)} · ${gap.nearest_distance_km} km</div>
-            <b>Service Provider:</b> ${escapeHtml(station.service_provider)}<br>
-            <b>Base Station ID:</b> ${escapeHtml(station.basestation_id)}<br>
-            <b>Frequency Bands:</b> ${escapeHtml(bands)}<br>
-            <b>City:</b> ${escapeHtml(station.city)}<br>
-            <b>Location:</b> ${escapeHtml(station.location)}<br>
-            <b>Coordinates:</b> ${lat}°N, ${lng}°E<br>
-            <a href="${escapeHtml(gmaps)}" target="_blank" rel="noopener noreferrer" class="no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold">View on Google Maps</a>
+            <div class="font-semibold mb-1">${t('Nearest')} ${escapeHtml(gap.band)} · ${gap.nearest_distance_km} km</div>
+            <b>${t('Service Provider:')}</b> ${escapeHtml(station.service_provider)}<br>
+            <b>${t('Base Station ID:')}</b> ${escapeHtml(station.basestation_id)}<br>
+            <b>${t('Frequency Bands:')}</b> ${escapeHtml(bands)}<br>
+            <b>${t('City:')}</b> ${escapeHtml(station.city)}<br>
+            <b>${t('Location:')}</b> ${escapeHtml(station.location)}<br>
+            <b>${t('Coordinates:')}</b> ${lat}°N, ${lng}°E<br>
+            <a href="${escapeHtml(gmaps)}" target="_blank" rel="noopener noreferrer" class="no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold">${t('View on Google Maps')}</a>
         </div>`;
 }
 
@@ -973,7 +973,7 @@ function addBandHighlightSidebarCard(station, gap, userLat, userLng) {
     head.className = 'flex items-center justify-between gap-2 mb-2';
     const title = document.createElement('div');
     title.className = 'text-sm font-semibold text-violet-900 dark:text-violet-100';
-    title.textContent = `Nearest ${gap.band} · ${gap.nearest_distance_km} km`;
+    title.textContent = `${t('Nearest')} ${gap.band} · ${gap.nearest_distance_km} km`;
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'text-violet-700 dark:text-violet-200 opacity-70 hover:opacity-100 text-lg leading-none';
@@ -1006,7 +1006,7 @@ function addBandHighlightSidebarCard(station, gap, userLat, userLng) {
     const navBtn = document.createElement('button');
     navBtn.type = 'button';
     navBtn.className = 'mt-2 w-full bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold py-1.5 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
-    navBtn.textContent = 'Navigate to station';
+    navBtn.textContent = t('Navigate to station');
     navBtn.addEventListener('click', () => {
         const bounds = L.latLngBounds(
             [userLat, userLng],
@@ -1055,7 +1055,7 @@ function renderSaveSpotShortcut(lat, lng, nearestCity) {
 
     const label = document.createElement('div');
     label.className = 'text-sm text-gray-800 dark:text-gray-100';
-    label.textContent = 'Save this spot — we\'ll email you after our monthly UKE data refresh if coverage here changes.';
+    label.textContent = t('Save this spot — we\'ll email you after our monthly UKE data refresh if coverage here changes.');
 
     const row = document.createElement('div');
     row.className = 'flex items-center gap-2';
@@ -1070,7 +1070,7 @@ function renderSaveSpotShortcut(lat, lng, nearestCity) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-1.5 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
-    btn.textContent = 'Save';
+    btn.textContent = t('Save');
 
     row.appendChild(nameInput);
     row.appendChild(btn);
@@ -1079,7 +1079,7 @@ function renderSaveSpotShortcut(lat, lng, nearestCity) {
         const chosenName = (nameInput.value || '').trim() || defaultName;
         btn.disabled = true;
         nameInput.disabled = true;
-        btn.textContent = 'Saving…';
+        btn.textContent = t('Saving…');
         globalFetch('/account/locations', {
             method: 'POST',
             headers: {
@@ -1108,13 +1108,13 @@ function renderSaveSpotShortcut(lat, lng, nearestCity) {
             } else {
                 btn.disabled = false;
                 nameInput.disabled = false;
-                btn.textContent = 'Save';
+                btn.textContent = t('Save');
                 label.textContent = (resp && resp.error) || 'Save failed — try again from /account.';
             }
         }).catch(() => {
             btn.disabled = false;
             nameInput.disabled = false;
-            btn.textContent = 'Save';
+            btn.textContent = t('Save');
             label.textContent = 'Save failed — check your session, then try again.';
         });
     });
@@ -1197,10 +1197,10 @@ function getSignalStrength(distance) {
     const thresholds = frequencyRanges[currentBand];
     const distanceMeters = distance * 1000;
 
-    if (distanceMeters <= thresholds[0]) return { level: 'excellent', bars: 4, label: 'Excellent' };
-    if (distanceMeters <= thresholds[1]) return { level: 'good', bars: 3, label: 'Good' };
-    if (distanceMeters <= thresholds[2]) return { level: 'fair', bars: 2, label: 'Fair' };
-    return { level: 'poor', bars: 1, label: 'Poor' };
+    if (distanceMeters <= thresholds[0]) return { level: 'excellent', bars: 4, label: t('Excellent') };
+    if (distanceMeters <= thresholds[1]) return { level: 'good', bars: 3, label: t('Good') };
+    if (distanceMeters <= thresholds[2]) return { level: 'fair', bars: 2, label: t('Fair') };
+    return { level: 'poor', bars: 1, label: t('Poor') };
 }
 
 // Calculate bearing from user location to station
@@ -1256,8 +1256,8 @@ function showEmptyState() {
     let sidebarContent = document.getElementById('sidebar');
     sidebarContent.innerHTML = `
         <div class="empty-state col-span-full">
-            <div class="empty-state-title">No stations found</div>
-            <div class="empty-state-text">Try adjusting your filters or clicking a different location on the map.</div>
+            <div class="empty-state-title">${t('No stations found')}</div>
+            <div class="empty-state-text">${t('Try adjusting your filters or clicking a different location on the map.')}</div>
         </div>
     `;
     sidebarContent.classList.remove('hidden');
@@ -1342,19 +1342,19 @@ function createStatsPanel(stations) {
         <div class="stats-grid">
             <div class="stat-item">
                 <div class="stat-value">${Number(totalStations)}</div>
-                <div class="stat-label">Stations</div>
+                <div class="stat-label">${t('Stations')}</div>
             </div>
             <div class="stat-item">
                 <div class="stat-value">${escapeHtml(avgDistance)}</div>
-                <div class="stat-label">Avg Dist</div>
+                <div class="stat-label">${t('Avg Dist')}</div>
             </div>
             <div class="stat-item">
                 <div class="stat-value">${nearestStation.distance.toFixed(2)}</div>
-                <div class="stat-label">Nearest</div>
+                <div class="stat-label">${t('Nearest')}</div>
             </div>
             <div class="stat-item">
                 <div class="stat-value flex justify-center">${createSignalBars(nearestSignal)}</div>
-                <div class="stat-label">Best Signal</div>
+                <div class="stat-label">${t('Best Signal')}</div>
             </div>
         </div>
         <div class="provider-summary">
@@ -1362,7 +1362,7 @@ function createStatsPanel(stations) {
         </div>
         <div class="nearest-quick-card" data-index="${Number(nearestIndex)}">
             <div class="quick-card-header">
-                <span class="quick-card-badge">📍 Nearest</span>
+                <span class="quick-card-badge">📍 ${t('Nearest')}</span>
                 <span class="quick-card-arrow">→</span>
             </div>
             <div class="quick-card-content">
@@ -1530,14 +1530,14 @@ function createPopupContent(station, index) {
 
     return `
         <div class="bg-blue-50 dark:bg-gray-800 dark:text-white p-1 rounded-lg">
-            <b>${Number(index) + 1}. Service Provider:</b> ${escapeHtml(station.service_provider)}<br>
-            <b>Distance:</b> ${formattedDistance}km<br>
-            <b>Base Station ID:</b> ${escapeHtml(station.basestation_id)}<br>
-            <b>Frequency Bands:</b> ${escapeHtml(bands)}<br>
-            <b>City:</b> ${escapeHtml(station.city)}<br>
-            <b>Location:</b> ${escapeHtml(station.location)}<br>
-            <b>Coordinates:</b> ${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}<br>
-            <a href="${escapeHtml(googleMapsLink)}" target="_blank" rel="noopener noreferrer" class="no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold">View on Google Maps</a>
+            <b>${Number(index) + 1}. ${t('Service Provider:')}</b> ${escapeHtml(station.service_provider)}<br>
+            <b>${t('Distance:')}</b> ${formattedDistance}km<br>
+            <b>${t('Base Station ID:')}</b> ${escapeHtml(station.basestation_id)}<br>
+            <b>${t('Frequency Bands:')}</b> ${escapeHtml(bands)}<br>
+            <b>${t('City:')}</b> ${escapeHtml(station.city)}<br>
+            <b>${t('Location:')}</b> ${escapeHtml(station.location)}<br>
+            <b>${t('Coordinates:')}</b> ${formattedLat}°${latHemisphere}, ${formattedLng}°${lngHemisphere}<br>
+            <a href="${escapeHtml(googleMapsLink)}" target="_blank" rel="noopener noreferrer" class="no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold">${t('View on Google Maps')}</a>
         </div>`;
 }
 
@@ -1608,11 +1608,11 @@ function createSidebarContent(station, index) {
                 <span>${formattedDistance} km</span>
                 ${bearingHtml}
             </div>
-            <p class="text-xs md:text-sm mb-1"><b>Bands:</b> ${bandsHtml}</p>
+            <p class="text-xs md:text-sm mb-1"><b>${t('Bands:')}</b> ${bandsHtml}</p>
             <p class="text-xs md:text-sm mb-1 text-gray-600 dark:text-gray-300">${cityLocation}</p>
             <p class="text-xs md:text-sm mb-0 text-gray-500 dark:text-gray-400">
                 ${coordsText}
-                <button data-copy-coords="${formattedLat}, ${formattedLng}" class="copy-btn" title="Copy coordinates">📋</button>
+                <button data-copy-coords="${formattedLat}, ${formattedLng}" class="copy-btn" title="${t('Copy coordinates')}">📋</button>
             </p>
         </div>`;
 }
@@ -1768,31 +1768,31 @@ function updateDynamicContent() {
         if (isLoggedIn) {
             dynamicContent.innerHTML = `
                 <div id="latLngContainer" class="flex flex-col space-y-0.5">
-                <button id="submitCoords" class="mt-2 w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded">Search</button>
+                <button id="submitCoords" class="mt-2 w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded">${t('Search')}</button>
                     <div class="flex space-x-2">
                     <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5.5rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="48" max="58" step="0.1">
                     <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5.5rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="13.5" max="24.5" step="0.1">
                     </div>
                 </div>
-                <div id="searchByBtsContainer" class="mt-4 flex flex-col space-y-0.5">    
-                    <button id="submitfilteredstation" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded">Search</button>
+                <div id="searchByBtsContainer" class="mt-4 flex flex-col space-y-0.5">
+                    <button id="submitfilteredstation" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded">${t('Search')}</button>
                     <div class="flex space-x-2">
-                        <input type="text" id="baseStationIdInput" placeholder="Enter Base Station ID" class="w-[8rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
+                        <input type="text" id="baseStationIdInput" placeholder="${t('Enter Base Station ID')}" class="w-[8rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
                     </div>
                 </div>`;
         } else {
             dynamicContent.innerHTML = `
-                <div id="latLngContainer" class="opacity-50 cursor-not-allowed flex flex-col space-y-0.5 title="Log in to use this feature.">
-                    <button id="submitCoords" class="mt-2 w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="Log in to use this feature.">Search</button>
+                <div id="latLngContainer" class="opacity-50 cursor-not-allowed flex flex-col space-y-0.5 title="${t('Log in to use this feature.')}">
+                    <button id="submitCoords" class="mt-2 w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="${t('Log in to use this feature.')}">${t('Search')}</button>
                     <div class="flex space-x-2">
-                        <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5.5rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" min="48" max="58" step="0.1" disabled title="Log in to use this feature.">
-                        <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5.5rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" min="13.5" max="24.5" step="0.1" disabled title="Log in to use this feature.">
+                        <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5.5rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" min="48" max="58" step="0.1" disabled title="${t('Log in to use this feature.')}">
+                        <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5.5rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" min="13.5" max="24.5" step="0.1" disabled title="${t('Log in to use this feature.')}">
                     </div>
                 </div>
-                <div id="searchByBtsContainer" class="mt-4 opacity-50 cursor-not-allowed flex flex-col space-y-0.5 title="Log in to use this feature.">
-                    <button id="submitfilteredstation" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="Log in to use this feature.">Search</button>
+                <div id="searchByBtsContainer" class="mt-4 opacity-50 cursor-not-allowed flex flex-col space-y-0.5 title="${t('Log in to use this feature.')}">
+                    <button id="submitfilteredstation" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="${t('Log in to use this feature.')}">${t('Search')}</button>
                     <div class="flex space-x-2">
-                        <input type="text" id="baseStationIdInput" placeholder="Enter Base Station ID" class="w-[8rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" disabled title="Log in to use this feature.">
+                        <input type="text" id="baseStationIdInput" placeholder="${t('Enter Base Station ID')}" class="w-[8rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" disabled title="${t('Log in to use this feature.')}">
                     </div>
                 </div>`;
         }
@@ -2156,7 +2156,7 @@ function applyFrequencyColors() {
 function applyFrequencyColorsToTooltipContent(content, distance) {
     // Find the distance if not provided
     if (!distance) {
-        const distanceMatch = content.match(/<b>Distance:<\/b>\s*(\d+\.?\d*)km/);
+        const distanceMatch = content.match(new RegExp(`<b>${t('Distance:')}<\\/b>\\s*(\\d+\\.?\\d*)km`));
         if (distanceMatch) {
             distance = parseFloat(distanceMatch[1]);
         }
@@ -2164,17 +2164,17 @@ function applyFrequencyColorsToTooltipContent(content, distance) {
 
     if (distance) {
         // Find the frequency bands substring in the content
-        const bandsMatch = content.match(/<b>Frequency Bands:<\/b>\s*([^<]+)/);
+        const bandsMatch = content.match(new RegExp(`<b>${t('Frequency Bands:')}<\\/b>\\s*([^<]+)`));
         if (bandsMatch && bandsMatch[1]) {
             // Split the bands into array
             const bandsList = bandsMatch[1].split(',').map(band => band.trim());
             const coloredBandsHtml = bandsList.map(band => {
-                const colorClass = getFrequencyColorForDistance(band, distance); 
+                const colorClass = getFrequencyColorForDistance(band, distance);
 
                 return `<span class="text-${colorClass}-600">${band}</span>`;
             }).join(', ');
 
-            content = content.replace(bandsMatch[0], `<b>Frequency Bands:</b> ${coloredBandsHtml}`);
+            content = content.replace(bandsMatch[0], `<b>${t('Frequency Bands:')}</b> ${coloredBandsHtml}`);
         }
     }
 

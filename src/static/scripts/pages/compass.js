@@ -139,7 +139,7 @@ function updateCompassDisplay() {
         compassRing.style.transform = `rotate(${-compassState.deviceHeading}deg)`;
 
         if (headingText) {
-            headingText.textContent = `You face: ${Math.round(compassState.deviceHeading)}° ${getBearingDirection(compassState.deviceHeading)}`;
+            headingText.textContent = `${t('You face:')} ${Math.round(compassState.deviceHeading)}° ${getBearingDirection(compassState.deviceHeading)}`;
         }
     }
 
@@ -150,7 +150,7 @@ function updateCompassDisplay() {
         }
 
         if (bearingText) {
-            bearingText.textContent = `Station: ${Math.round(compassState.bearingToTarget)}° ${getBearingDirection(compassState.bearingToTarget)}`;
+            bearingText.textContent = `${t('Station:')} ${Math.round(compassState.bearingToTarget)}° ${getBearingDirection(compassState.bearingToTarget)}`;
         }
 
         // Check alignment and update visuals
@@ -487,7 +487,7 @@ function showCompassUI() {
             </div>
 
             <!-- Direction instruction (mobile only) -->
-            <div id="compass-direction" class="compass-mobile-only mt-3 text-base font-semibold text-blue-600 dark:text-blue-400">Rotate until arrow points up</div>
+            <div id="compass-direction" class="compass-mobile-only mt-3 text-base font-semibold text-blue-600 dark:text-blue-400">${t('Rotate until arrow points up')}</div>
 
             <!-- Desktop notice (shown when no orientation data) -->
             <div id="compass-desktop-notice" class="hidden mt-3 text-center">
@@ -500,8 +500,8 @@ function showCompassUI() {
 
             <!-- Details -->
             <div class="text-xs text-gray-500 dark:text-gray-400 mt-2 space-y-0.5 text-center">
-                <div id="compass-heading" class="compass-mobile-only">You face: --°</div>
-                <div id="compass-bearing">Station: --°</div>
+                <div id="compass-heading" class="compass-mobile-only">${t('You face:')} --°</div>
+                <div id="compass-bearing">${t('Station:')} --°</div>
             </div>
 
             <!-- Help text (mobile only) -->
@@ -517,7 +517,7 @@ function showCompassUI() {
     }
 
     // Update target name
-    document.getElementById('compass-target-name').textContent = compassState.targetName || 'Station';
+    document.getElementById('compass-target-name').textContent = compassState.targetName || t('Station');
 
     compassContainer.classList.remove('hidden');
     updateCompassDisplay();
@@ -541,7 +541,7 @@ function addCompassButton(stationLat, stationLng, stationName, userLat, userLng)
             <polygon points="12,2 15,10 12,8 9,10" fill="currentColor"/>
             <line x1="12" y1="12" x2="12" y2="16"/>
         </svg>
-        Navigate to Station
+        ${t('Navigate to Station')}
     `;
     btn.addEventListener('click', async (e) => {
         e.preventDefault();

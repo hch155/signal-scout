@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     emailToggle.addEventListener('change', () => {
       const desired = emailToggle.checked;
       if (emailPrefStatus) {
-        emailPrefStatus.textContent = 'Saving…';
+        emailPrefStatus.textContent = t('Saving…');
         emailPrefStatus.className = 'text-xs mt-1 text-gray-500 dark:text-gray-400';
       }
       globalFetch('/account/email_preference', {
@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
     copyBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(keyEl.textContent.trim()).then(() => {
         const orig = copyBtn.textContent;
-        copyBtn.textContent = 'Copied!';
+        copyBtn.textContent = t('Copied!');
         setTimeout(() => { copyBtn.textContent = orig; }, 1500);
       });
     });
@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     regenCopyBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(regenValue.textContent.trim()).then(() => {
         const orig = regenCopyBtn.textContent;
-        regenCopyBtn.textContent = 'Copied!';
+        regenCopyBtn.textContent = t('Copied!');
         setTimeout(() => { regenCopyBtn.textContent = orig; }, 1500);
       });
     });
@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     formId: 'profile-form',
     statusId: 'profile-status',
     url: '/account/profile',
-    okMsg: 'Profile saved.',
+    okMsg: t('Profile saved.'),
   });
 
   // ── Change password form ────────────────────────────────────────────
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     formId: 'password-form',
     statusId: 'password-status',
     url: '/account/password',
-    okMsg: 'Password updated.',
+    okMsg: t('Password updated.'),
     onSuccess: (data, form) => {
       // Server rotated the session — patch CSRF token across the page so
       // subsequent forms keep working without a reload.
@@ -425,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (locGeoStatus) locGeoStatus.textContent = 'Geolocation not supported by this browser.';
         return;
       }
-      if (locGeoStatus) locGeoStatus.textContent = 'Locating…';
+      if (locGeoStatus) locGeoStatus.textContent = t('Locating…');
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const lat = pos.coords.latitude.toFixed(5);
@@ -466,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
         radius_km: parseFloat(fd.get('radius_km') || '15'),
         alerting_enabled: fd.get('alerting_enabled') === 'on',
       };
-      locStatus.textContent = 'Saving…';
+      locStatus.textContent = t('Saving…');
       locStatus.className = 'text-sm mt-2 text-gray-500';
 
       globalFetch('/account/locations', {
@@ -478,7 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(body),
       }).then(data => {
         if (data && data.success && data.location) {
-          locStatus.textContent = 'Location saved. Reloading…';
+          locStatus.textContent = t('Location saved. Reloading…');
           locStatus.className = 'text-sm mt-2 text-green-600 dark:text-green-400';
           // Easiest path to refresh the table + audit log: full reload.
           setTimeout(() => window.location.reload(), 500);

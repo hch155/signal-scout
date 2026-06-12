@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Polish Mobile Network Statistics — Sites per Operator | Signal-Scout{% endblock %}
+{% block title %}{{ _('Polish Mobile Network Statistics — Sites per Operator | Signal-Scout') }}{% endblock %}
 {% block description %}Frequency band deployment and physical site counts across Polish mobile operators (Orange, Play, Plus, T-Mobile). Live data, updated monthly.{% endblock %}
 
 {% set provider_short = {
@@ -19,8 +19,8 @@
 
 {% block content %}
     <section class="text-center text-[#333] dark:text-white p-3 md:p-5 mb-2">
-        <h2 class="text-xl font-bold">Network Statistics</h2>
-        <p class="hidden md:block text-lg text-gray-600 dark:text-gray-300">Frequency band deployment and physical site counts across Polish mobile operators</p>
+        <h2 class="text-xl font-bold">{{ _('Network Statistics') }}</h2>
+        <p class="hidden md:block text-lg text-gray-600 dark:text-gray-300">{{ _('Frequency band deployment and physical site counts across Polish mobile operators') }}</p>
     </section>
 
     {# ── Hero strip: at-a-glance totals ──────────────────────────── #}

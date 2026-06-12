@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, make_response, g, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, make_response, g, redirect, url_for, has_request_context
 from flask_bcrypt import Bcrypt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -50,6 +50,7 @@ from api_access import (
 )
 from api_docs import init_api_docs
 from oauth import init_oauth, login_with_provider, callback_for_provider
+from i18n import translate, js_translations, SUPPORTED_LANGS, DEFAULT_LANG
 from dotenv import load_dotenv
 from datetime import timedelta, datetime
 import hmac
@@ -823,9 +824,10 @@ _PUBLIC_CACHE_PATHS = {'/data', '/stats', '/tips', '/tips/content', '/privacy'}
 _PUBLIC_CACHE_MAX_AGE = 300
 _PUBLIC_CACHE_SWR     = 600
 # /tips serves different content for logged-in vs anonymous users
-# (tips_registered.md vs tips.md). Without Vary:Cookie an intermediary
-# cache could serve the registered version to a logged-out user.
-_COOKIE_VARYING_CACHE_PATHS = {'/tips', '/tips/content'}
+# (tips_registered.md vs tips.md), and every public page renders nav /
+# title strings in the session-selected language. Without Vary:Cookie an
+# intermediary cache could serve the wrong variant.
+_COOKIE_VARYING_CACHE_PATHS = set(_PUBLIC_CACHE_PATHS)
 
 
 def _set_content_etag(response, content_key: str) -> None:
@@ -841,7 +843,7 @@ def _set_content_etag(response, content_key: str) -> None:
     """
     import hashlib as _h
     digest = _h.sha256(
-        f"{content_key}|{settings.app_version}".encode('utf-8')
+        f"{content_key}|{settings.app_version}|{get_active_lang()}".encode('utf-8')
     ).hexdigest()
     response.set_etag(digest)
 
@@ -879,6 +881,30 @@ def set_public_cache_headers(response):
         if 'Cookie' not in existing_vary:
             response.headers['Vary'] = (existing_vary + ', Cookie').lstrip(', ')
     return response
+
+
+def get_active_lang() -> str:
+    if not has_request_context():
+        return DEFAULT_LANG
+    lang = session.get('lang')
+    return lang if lang in SUPPORTED_LANGS else DEFAULT_LANG
+
+
+@app.before_request
+def _set_language():
+    lang = request.args.get('lang')
+    if lang in SUPPORTED_LANGS:
+        session['lang'] = lang
+
+
+@app.context_processor
+def _inject_i18n():
+    lang = get_active_lang()
+    return {
+        '_': lambda text: translate(text, lang),
+        'active_lang': lang,
+        'ss_i18n': {'lang': lang, 'strings': js_translations(lang)},
+    }
 
 
 def generate_csrf_token():
