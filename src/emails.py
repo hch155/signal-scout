@@ -38,6 +38,17 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 
+def _redact_email(addr: str) -> str:
+    """Audit 2026-06-10: full addresses don't belong in app logs —
+    /privacy describes app-side records as the truncated-IP audit log
+    only. `h***@example.com` keeps logs greppable per-domain and
+    distinguishable without storing the actual address."""
+    local, _, domain = (addr or '').partition('@')
+    if not domain:
+        return '***'
+    return f"{local[:1]}***@{domain}"
+
+
 @dataclass
 class EmailMessage:
     to: str
@@ -64,7 +75,7 @@ class NoopBackend(EmailBackend):
     unset or in tests."""
     def send(self, msg: EmailMessage) -> bool:
         logger.info("[email:noop] to=%s subject=%r (body len html=%d text=%d)",
-                    msg.to, msg.subject, len(msg.html_body), len(msg.text_body))
+                    _redact_email(msg.to), msg.subject, len(msg.html_body), len(msg.text_body))
         return True
 
 
@@ -98,11 +109,11 @@ class SmtpBackend(EmailBackend):
                 if self.username and self.password:
                     smtp.login(self.username, self.password)
                 smtp.sendmail(settings.email_from, [msg.to], mime.as_string())
-            logger.info("[email:smtp] sent to=%s subject=%r", msg.to, msg.subject)
+            logger.info("[email:smtp] sent to=%s subject=%r", _redact_email(msg.to), msg.subject)
             return True
         except Exception:
             logger.exception("[email:smtp] failed to=%s subject=%r",
-                             msg.to, msg.subject)
+                             _redact_email(msg.to), msg.subject)
             return False
 
 
@@ -121,7 +132,7 @@ class SendGridBackend(EmailBackend):
     def send(self, msg: EmailMessage) -> bool:
         if not self.api_key:
             logger.error("[email:sendgrid] no API key, refusing to send to=%s",
-                         msg.to)
+                         _redact_email(msg.to))
             return False
         try:
             # Lazy import — sendgrid pulls a few transitive deps; not loading
@@ -147,15 +158,15 @@ class SendGridBackend(EmailBackend):
             ok = 200 <= response.status_code < 300
             if ok:
                 logger.info("[email:sendgrid] sent to=%s subject=%r status=%d",
-                            msg.to, msg.subject, response.status_code)
+                            _redact_email(msg.to), msg.subject, response.status_code)
             else:
                 logger.error("[email:sendgrid] non-2xx to=%s status=%d body=%s",
-                             msg.to, response.status_code,
+                             _redact_email(msg.to), response.status_code,
                              (getattr(response, 'body', b'') or b'')[:500])
             return ok
         except Exception:
             logger.exception("[email:sendgrid] exception to=%s subject=%r",
-                             msg.to, msg.subject)
+                             _redact_email(msg.to), msg.subject)
             return False
 
 
@@ -276,7 +287,7 @@ def _send(user, subject: str, template: str, **ctx) -> bool:
         sup = _ES.query.filter_by(email=user.email.lower()).first()
         if sup:
             logger.info("[email] suppressed %s to=%s reason=%s (since %s)",
-                        template, user.email, sup.reason, sup.created_at)
+                        template, _redact_email(user.email), sup.reason, sup.created_at)
             _bump('suppressed')
             return True
     except Exception:

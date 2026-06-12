@@ -423,6 +423,29 @@ def purge_submit_location_events_older_than_30_days(engine) -> int:
         return result.rowcount or 0
 
 
+def purge_email_events_older_than_90_days(engine) -> int:
+    """Delete EmailEvent rows older than 90 days. Returns the rowcount.
+
+    Audit 2026-06-10: email_event stored addresses + raw SendGrid JSON
+    indefinitely, contradicting the /privacy retention table. 90 days
+    covers the deliverability-forensics window (bounce streaks, spam-
+    report follow-up); the suppression list — the part that must
+    survive — lives in email_suppression and is untouched here.
+    Idempotent; called from boot and /admin/run_retention like the
+    submit-location purge above.
+    """
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    if 'email_event' not in insp.get_table_names():
+        return 0
+    with engine.begin() as conn:
+        result = conn.execute(text(
+            "DELETE FROM email_event "
+            "WHERE created_at < datetime('now', '-90 days')"
+        ))
+        return result.rowcount or 0
+
+
 def ensure_user_api_columns(app, db) -> None:
     """Idempotently add api_key + api_tier columns to existing users.db.
 
@@ -710,6 +733,7 @@ def ensure_user_api_columns(app, db) -> None:
         # silently lapsed when min-instances=1 kept a worker hot for
         # weeks; the explicit cron path closes that GDPR gap.
         purge_submit_location_events_older_than_30_days(engine)
+        purge_email_events_older_than_90_days(engine)
 
         for u in User.query.filter(User.api_key.isnot(None)).all():
             already = ApiKey.query.filter_by(user_id=u.id, key=u.api_key).first()

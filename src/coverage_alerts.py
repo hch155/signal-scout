@@ -174,8 +174,8 @@ def _process(loc: UserLocation, *, dry_run: bool, verbose: bool) -> str:
         return 'skipped'
 
     logger.info(
-        "loc id=%s user=%s name=%r → diff: gained=%s lost=%s distance_changes=%d",
-        loc.id, user.email, loc.name,
+        "loc id=%s user_id=%s name=%r → diff: gained=%s lost=%s distance_changes=%d",
+        loc.id, user.id, loc.name,
         gained or '-', lost or '-', len(distance_changes),
     )
 

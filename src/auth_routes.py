@@ -692,7 +692,8 @@ def register_user():
     # disposable hosts pop up daily; this is a high-precision floor,
     # not a complete defence.
     if _is_disposable_email_domain(email):
-        logger.info("[register] blocked disposable-domain signup: %s", email)
+        logger.info("[register] blocked disposable-domain signup: domain=%s",
+                    email.rpartition('@')[2])
         return "Please use a non-disposable email address.", 400
 
     if not password or not re.fullmatch(
@@ -1296,6 +1297,16 @@ def delete_account():
         # this, orphan rows would still authenticate and crash
         # /api/v1/* on `ak.user.api_tier`. (C-NEW-1, audit 2026-04-27.)
         ApiKey.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+        # EmailEvent rows are keyed by address, not user_id — without this
+        # the deleted user's email survives in email_event indefinitely,
+        # contradicting /privacy's erasure section. The suppression list
+        # (email_suppression) is intentionally kept so we never re-mail a
+        # bounced/complained address. (Audit 2026-06-10.)
+        from models import EmailEvent
+        from sqlalchemy import func as _func
+        EmailEvent.query.filter(
+            _func.lower(EmailEvent.email) == user.email.lower()
+        ).delete(synchronize_session=False)
         _db().session.delete(user)
         _db().session.commit()
     except Exception:

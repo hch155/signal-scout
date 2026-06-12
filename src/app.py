@@ -1369,15 +1369,22 @@ def admin_run_retention():
         if not validate_csrf():
             return jsonify({"error": "csrf_failed"}), 403
 
-    from api_access import purge_submit_location_events_older_than_30_days
+    from api_access import (
+        purge_email_events_older_than_90_days,
+        purge_submit_location_events_older_than_30_days,
+    )
     engine = db.get_engine(app, bind='users')
     try:
         deleted = purge_submit_location_events_older_than_30_days(engine)
+        deleted_email_events = purge_email_events_older_than_90_days(engine)
     except Exception:
         app.logger.exception("admin_run_retention failed")
         return jsonify({"error": "retention_failed"}), 500
-    app.logger.info("Retention sweep deleted %d SubmitLocationEvent rows", deleted)
-    return jsonify({"success": True, "deleted": deleted}), 200
+    app.logger.info(
+        "Retention sweep deleted %d SubmitLocationEvent rows, %d EmailEvent rows",
+        deleted, deleted_email_events)
+    return jsonify({"success": True, "deleted": deleted,
+                    "deleted_email_events": deleted_email_events}), 200
 
 
 @app.route('/admin/run_coverage_alerts', methods=['POST'])
