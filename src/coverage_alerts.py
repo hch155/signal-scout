@@ -172,6 +172,15 @@ def _process(loc: UserLocation, *, dry_run: bool, verbose: bool) -> str:
             loc.id, loc.user_id,
         )
         return 'skipped'
+    # 2026-06-11: alert mail only to verified addresses — otherwise
+    # registering someone else's email + a saved location turns the
+    # sweep into a spam cannon aimed at the victim's inbox.
+    if not user.email_verified:
+        logger.info(
+            "loc id=%s user_id=%s skipped (email unverified)",
+            loc.id, user.id,
+        )
+        return 'skipped'
 
     logger.info(
         "loc id=%s user_id=%s name=%r → diff: gained=%s lost=%s distance_changes=%d",

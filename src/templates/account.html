@@ -69,6 +69,19 @@
 
         <div class="w-full lg:max-w-3xl space-y-6 scroll-smooth">
 
+            {% if not user.email_verified %}
+            <div class="bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-500 rounded p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <p class="text-sm text-gray-900 dark:text-white">
+                    {{ _('Your email address is not verified yet — coverage alerts stay paused until you click the link we sent you.') }}
+                </p>
+                <button id="resendVerification"
+                        class="shrink-0 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-semibold px-3 py-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300 transition-colors">
+                    {{ _('Resend verification email') }}
+                </button>
+                <span id="resendVerificationStatus" class="text-sm text-gray-600 dark:text-gray-300"></span>
+            </div>
+            {% endif %}
+
             {# ── API access (existing) ─────────────────────────────────── #}
             <div id="api-access" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-4">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">

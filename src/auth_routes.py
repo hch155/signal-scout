@@ -485,6 +485,17 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
         methods=["POST"])
     auth_bp.add_url_rule("/reset-password", endpoint="reset_password_page",
                          view_func=reset_password_page, methods=["GET"])
+    # 2026-06-11: email verification. GET is the link target from the
+    # welcome email; resend is session-authed (the lost-email case still
+    # works because login is not gated on verification).
+    auth_bp.add_url_rule("/verify-email", endpoint="verify_email",
+                         view_func=limiter.limit("20 per hour")(verify_email),
+                         methods=["GET"])
+    auth_bp.add_url_rule("/account/resend_verification",
+                         endpoint="resend_verification",
+                         view_func=limiter.limit(
+                             "3 per hour")(resend_verification),
+                         methods=["POST"])
     auth_bp.add_url_rule(
         "/reset-password", endpoint="reset_password",
         view_func=limiter.limit("10 per hour")(reset_password),
@@ -739,6 +750,7 @@ def register_user():
         )
         _db().session.add(user)
         _db().session.commit()
+        _send_verification_email(user)
         # PR #44 funnel step 2: register completed (HTTP 200 path).
         funnel_register_completed_total.inc()
         # 2026-04-28: also bump the unified user_action_total counter
@@ -1167,6 +1179,96 @@ def _password_reset_url(token: str) -> str:
     from config import settings
     origin = (settings.email_link_origin or '').rstrip('/')
     return f"{origin}/reset-password?token={token}"
+
+
+# ── Email verification, 2026-06-11 ─────────────────────────────────────────
+# Same stateless itsdangerous shape as the password reset above. Token is
+# bound to the email it was issued for, so a manual ops-side email change
+# invalidates any in-flight link. Legacy accounts were backfilled as
+# verified in migration 0002; only post-migration signups start NULL.
+_EMAIL_VERIFY_SALT = "email-verify"
+_EMAIL_VERIFY_MAX_AGE = 172800  # 48 hours
+
+
+def _email_verify_serializer():
+    from itsdangerous import URLSafeTimedSerializer
+    from config import settings
+    return URLSafeTimedSerializer(settings.secret_key, salt=_EMAIL_VERIFY_SALT)
+
+
+def _make_email_verify_token(user) -> str:
+    return _email_verify_serializer().dumps({"uid": user.id, "em": user.email})
+
+
+def _verify_email_token(token: str):
+    """Return the User for a valid, unexpired, email-bound token, else None."""
+    from itsdangerous import SignatureExpired, BadSignature, BadData
+    if not token:
+        return None
+    try:
+        data = _email_verify_serializer().loads(
+            token, max_age=_EMAIL_VERIFY_MAX_AGE)
+    except (SignatureExpired, BadSignature, BadData):
+        return None
+    if not isinstance(data, dict):
+        return None
+    uid = data.get("uid")
+    em = data.get("em")
+    if uid is None or em is None:
+        return None
+    user = _db().session.get(User, uid)
+    if user is None or user.email != em:
+        return None
+    return user
+
+
+def _email_verification_url(token: str) -> str:
+    from config import settings
+    origin = (settings.email_link_origin or '').rstrip('/')
+    return f"{origin}/verify-email?token={token}"
+
+
+def _send_verification_email(user) -> bool:
+    """Best-effort — an email-backend outage must never block /register."""
+    try:
+        from emails import send_welcome
+        return send_welcome(
+            user, _email_verification_url(_make_email_verify_token(user)))
+    except Exception:
+        logger.exception("verification email failed for user_id=%s", user.id)
+        return False
+
+
+def verify_email():
+    user = _verify_email_token(request.args.get('token', ''))
+    if user is None:
+        return render_template('verify_email.html', outcome='invalid'), 400
+    if user.email_verified_at is None:
+        user.email_verified_at = datetime.utcnow()
+        _audit('email_verified', user.id)
+        try:
+            _db().session.commit()
+        except Exception:
+            _db().session.rollback()
+            logger.exception("verify_email commit failed for user_id=%s",
+                             user.id)
+            return render_template('verify_email.html', outcome='error'), 500
+    return render_template('verify_email.html', outcome='ok')
+
+
+def resend_verification():
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='resend_verification').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    user, err = _current_user_or_401()
+    if err:
+        return err
+    if user.email_verified_at is not None:
+        return jsonify({'success': True,
+                        'message': 'Email is already verified.'}), 200
+    _send_verification_email(user)
+    return jsonify({'success': True,
+                    'message': 'Verification email sent.'}), 200
 
 
 def forgot_password_page():

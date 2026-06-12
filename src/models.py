@@ -95,6 +95,18 @@ class User(db.Model):
     # alerts). Trade-off documented in /privacy + the unsubscribe
     # confirmation page.
     email_alerts_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    # 2026-06-11: email verification. NULL = unverified (post-migration
+    # signups only — migration 0002 backfills legacy rows with their
+    # registration_date, since blocking long-standing accounts
+    # retroactively would be wrong). Stamped by /verify-email or
+    # immediately on OAuth signup (provider already verified the email).
+    # Coverage-alert sends are gated on this so an attacker can't
+    # register someone else's address and aim alert mail at it.
+    email_verified_at = db.Column(db.DateTime)
+
+    @property
+    def email_verified(self) -> bool:
+        return self.email_verified_at is not None
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

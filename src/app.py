@@ -187,10 +187,15 @@ app.config['SQLALCHEMY_BINDS_ENGINE_OPTIONS'] = {
     'users': {'connect_args': {'timeout': 30}},
 }
 db.init_app(app)
+# Alembic (2026-06-11): schema changes to users.db are migrations now.
+# Runs before create_all so column adds land on existing prod DBs;
+# create_all stays for brand-new tables in dev/tests and no-ops otherwise.
+from db_migrations import upgrade_users_db  # noqa: E402
+upgrade_users_db(users_db_path)
 with app.app_context():
     db.create_all()
-# Add api_key / api_tier columns to existing prod users.db (no-op on fresh DB).
-# When the app grows to multiple DB engines this gets replaced by Alembic.
+# Legacy pre-Alembic column backfill — kept for old DBs restored from
+# backup; new schema changes go in migrations/versions/.
 ensure_user_api_columns(app, db)
 
 # 2026-06-03: WAL on users.db. After the Cloud Run → home-LXC move users.db

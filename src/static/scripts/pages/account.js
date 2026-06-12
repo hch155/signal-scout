@@ -82,6 +82,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const resendBtn = document.getElementById('resendVerification');
+  const resendStatus = document.getElementById('resendVerificationStatus');
+  if (resendBtn && resendStatus) {
+    resendBtn.addEventListener('click', () => {
+      resendBtn.disabled = true;
+      resendStatus.textContent = t('Sending…');
+      globalFetch('/account/resend_verification', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': getCsrfToken() }
+      }).then(data => {
+        resendStatus.textContent = (data && data.message) || t('Verification email sent.');
+      }).catch(() => {
+        resendBtn.disabled = false;
+        resendStatus.textContent = t('Could not send — try again.');
+      });
+    });
+  }
+
   if (regenBtn && status) {
     regenBtn.addEventListener('click', () => {
       if (!confirm('Regenerating invalidates the current key immediately. Continue?')) {

@@ -185,6 +185,9 @@ def callback_for_provider(provider: str):
             api_tier='free',
             email_alerts_enabled=True,
             registration_date=datetime.utcnow(),
+            # _resolve_email only returns provider-verified addresses,
+            # so the mailbox is already proven — no welcome-link round.
+            email_verified_at=datetime.utcnow(),
         )
         db.session.add(user)
     else:
@@ -215,6 +218,10 @@ def callback_for_provider(provider: str):
     user.last_login_date = datetime.utcnow()
     user.failed_login_attempts = 0
     user.locked_until = None
+    # A successful OAuth round-trip with a verified-email provider proves
+    # mailbox ownership for password accounts too.
+    if user.email_verified_at is None:
+        user.email_verified_at = datetime.utcnow()
     try:
         db.session.commit()
     except Exception:
