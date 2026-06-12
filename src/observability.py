@@ -39,6 +39,7 @@ Three frameworks layered on top of the existing counters:
 
 from __future__ import annotations
 
+import hmac
 import os
 import time
 from collections import OrderedDict
@@ -844,13 +845,7 @@ def _bearer_token_from_request() -> str:
 
 
 def _constant_time_eq(a: str, b: str) -> bool:
-    """Length-leaking? Yes. Constant-time across same-length strings."""
-    if len(a) != len(b):
-        return False
-    result = 0
-    for x, y in zip(a.encode(), b.encode()):
-        result |= x ^ y
-    return result == 0
+    return hmac.compare_digest(a.encode(), b.encode())
 
 
 # 2026-04-30: dynamic-gauge refresh registry. MultiProcessCollector

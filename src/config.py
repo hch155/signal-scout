@@ -156,7 +156,7 @@ class Config:
     # ── Derived properties ───────────────────────────────────────────────
     @property
     def is_production(self) -> bool:
-        return self.env == "PRODUCTION"
+        return self.env.strip().upper() == "PRODUCTION"
 
     @property
     def cookie_secure(self) -> bool:

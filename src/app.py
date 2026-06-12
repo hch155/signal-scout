@@ -52,6 +52,7 @@ from api_docs import init_api_docs
 from oauth import init_oauth, login_with_provider, callback_for_provider
 from dotenv import load_dotenv
 from datetime import timedelta, datetime
+import hmac
 import markdown
 import os
 import random
@@ -254,6 +255,10 @@ limiter = Limiter(
     app=app,
     key_func=get_remote_address,
     default_limits=[os.getenv("DEFAULT_RATE_LIMIT", "16 per minute")],
+    # Default memory:// is per-gunicorn-worker (each worker counts its own
+    # window, so effective limits are workers× the configured value and reset
+    # on redeploy). Point at redis://... to share counters across workers.
+    storage_uri=os.getenv("RATELIMIT_STORAGE_URI", "memory://"),
 )
 
 # PL geographic bounds for input validation. Strict PL would be
@@ -1351,7 +1356,8 @@ def admin_run_retention():
     auth_header = request.headers.get('Authorization', '')
     bearer_ok = bool(
         settings.metrics_bearer_token
-        and auth_header == f"Bearer {settings.metrics_bearer_token}"
+        and hmac.compare_digest(
+            auth_header, f"Bearer {settings.metrics_bearer_token}")
     )
     if not bearer_ok:
         if 'user_id' not in session:
@@ -1400,7 +1406,8 @@ def admin_run_coverage_alerts():
     auth_header = request.headers.get('Authorization', '')
     bearer_ok = bool(
         settings.metrics_bearer_token
-        and auth_header == f"Bearer {settings.metrics_bearer_token}"
+        and hmac.compare_digest(
+            auth_header, f"Bearer {settings.metrics_bearer_token}")
     )
     if not bearer_ok:
         if 'user_id' not in session:
