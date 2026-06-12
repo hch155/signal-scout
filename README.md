@@ -115,6 +115,47 @@ Legacy unprefixed routes (`/stations`, `/find_station`, `/search_stations`,
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    subgraph internet[" "]
+        B["Browser / API client"]
+        TILES["Map tiles<br/>CARTO · Esri · OSM"]
+    end
+    B -.->|"tiles (browser-direct)"| TILES
+
+    subgraph edge["Hetzner CX23 · Falkenstein"]
+        NPM["Nginx Proxy Manager<br/>TLS (Let's Encrypt)"]
+    end
+
+    subgraph home["Home lab · Proxmox on NUC"]
+        subgraph lxc["LXC · Docker"]
+            APP["Flask + gunicorn :8080"]
+            SDB[("stations.db<br/>188k rows · read-only")]
+            UDB[("users.db")]
+        end
+        OBS["Prometheus · Grafana<br/>Zabbix · Plausible"]
+    end
+
+    subgraph cicd["Self-hosted CI/CD"]
+        FG["Forgejo Actions"]
+        HB["Harbor registry"]
+    end
+
+    B -->|"HTTPS · Cloudflare DNS (DNS-only)"| NPM
+    NPM -->|"Tailscale mesh"| APP
+    APP --> SDB
+    APP --> UDB
+    OBS -->|"scrape /metrics (bearer)"| APP
+
+    UKE["UKE permit data<br/>(monthly XLSX)"] --> FG
+    FG -->|"lint · test · scan · build"| HB
+    HB -->|"compose deploy + smoke + auto-rollback"| APP
+
+    APP <-->|"email + signed event webhook"| SG["SendGrid"]
+```
+
+Request path + module detail:
+
 ```
 Browser (Leaflet + vanilla JS)
    │  GET /, /stations, …             POST /login, /submit_location
@@ -309,6 +350,8 @@ For homelab observability deploy, see `ops/homelab-integration/README.md`.
 
 ## Documentation
 
+- `docs/case-study-performance.md` — **performance case study**: p95 186 → 48 ms,
+  and the CI/SLO machinery that keeps it that way
 - Mobile (Capacitor iOS/Android wrappers) is parked on the `mobile-archive`
   branch until store publication is back on the table
 - `docs/CHANGELOG.md` — per-PR descriptions of recent work
