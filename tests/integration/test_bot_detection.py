@@ -8,9 +8,8 @@ behaves per the weight table (observability.compute_bot_score docstring):
     - /api/v1/_trap hit                            → score 5+
 
 Also covers the supporting plumbing:
-    - first request mints an `ss_sid` cookie + bumps sessions_seen_total
+    - first request mints an `ss_sid` anti-abuse cookie
     - /api/v1/_pulse returns 204 + flips the JS-pulse session flag
-    - active_anon_sessions gauge reflects the TTL set
     - /_trap and /_pulse are NOT listed in robots.txt or sitemap.xml
 """
 from __future__ import annotations
@@ -49,7 +48,7 @@ def _reset_session_state(app):  # depend on `app` so src/ is on sys.path
     yield
 
 
-# ── ss_sid cookie + sessions_seen_total ───────────────────────────────────
+# ── ss_sid anti-abuse cookie ──────────────────────────────────────────────
 
 def _cookie_value(client, name):
     """Pull a cookie value off the test client across Flask 2.x/3.x APIs."""
@@ -81,13 +80,6 @@ def test_first_request_mints_ss_sid_cookie(client):
     assert r.status_code == 200
     sid = _cookie_value(c, "ss_sid")
     assert sid is not None and len(sid) == 32  # 16 bytes hex
-
-
-def test_sessions_seen_total_increments_on_first_visit(client, monkeypatch):
-    _ = _scrape(client, monkeypatch)
-    client.get("/")  # mints cookie
-    body = _scrape(client, monkeypatch)
-    assert "signal_scout_sessions_seen_total" in body
 
 
 # ── /api/v1/_pulse ────────────────────────────────────────────────────────
@@ -254,13 +246,6 @@ def test_cli_user_agent_scores_higher_than_browser(client, monkeypatch):
     assert (end_high - base_high) >= 1
     # Sanity: the 0 bucket did NOT grow by the CLI traffic volume.
     assert (end_high - base_high) > (end_0 - base_0) / 2
-
-
-def test_active_anon_sessions_gauge_present_after_visit(client, monkeypatch):
-    client.get("/")  # mint a cookie + register the session in the TTL set
-    body = _scrape(client, monkeypatch)
-    # Gauge must be exported.
-    assert "signal_scout_active_anon_sessions" in body
 
 
 def test_active_authed_sessions_gauge_present(client, monkeypatch):

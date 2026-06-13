@@ -492,25 +492,17 @@ bot_score_total = Counter(
     labelnames=("score",),
 )
 
-sessions_seen_total = Counter(
-    "signal_scout_sessions_seen_total",
-    "New ss_sid cookies minted (one per distinct anonymous visitor across "
-    "the cookie lifetime). Use rate(...) for 'new visitors per minute'.",
-)
-
-active_anon_sessions = Gauge(
-    "signal_scout_active_anon_sessions",
-    "Distinct ss_sid cookies seen in the last 15 minutes. In-memory TTL "
-    "set, capped at 100k entries with LRU eviction — single-instance "
-    "staging metric; resets on cold start. For canonical DAU use Plausible.",
-    multiprocess_mode="max",
-)
+# 2026-06-13: sessions_seen_total + active_anon_sessions removed. They
+# counted distinct ss_sid cookies (anonymous-visitor analytics), which
+# made ss_sid a consent-triggering cookie under ePrivacy. Anonymous
+# visitor counting now lives only in cookieless Plausible; ss_sid is
+# strictly-necessary anti-abuse only. See /privacy.
 
 active_authed_sessions = Gauge(
     "signal_scout_active_authed_sessions",
-    "Distinct logged-in user_ids seen in the last 15 minutes. Same TTL "
-    "set shape as active_anon_sessions. Complements active_users_24h "
-    "(which is sourced from SubmitLocationEvent only) by capturing any "
+    "Distinct logged-in user_ids seen in the last 15 minutes. In-memory "
+    "TTL set; resets on cold start. Complements active_users_24h (which "
+    "is sourced from SubmitLocationEvent only) by capturing any "
     "authenticated activity, not just location submissions.",
     multiprocess_mode="max",
 )
@@ -570,7 +562,6 @@ def bot_score_label(score: int) -> str:
 
 _ACTIVE_SESSION_TTL_SECONDS = 15 * 60
 _ACTIVE_SESSION_CAP = 100_000
-_ACTIVE_ANON_SESSIONS: "OrderedDict[str, float]" = OrderedDict()
 _ACTIVE_AUTHED_SESSIONS: "OrderedDict[int, float]" = OrderedDict()
 
 
@@ -597,13 +588,6 @@ def _ttl_count(store: "OrderedDict", now: float) -> int:
     return len(store)
 
 
-def record_anon_session_seen(ss_sid: str, now: float | None = None) -> None:
-    """Bump the active-anon-sessions TTL set."""
-    if not ss_sid:
-        return
-    _ttl_touch(_ACTIVE_ANON_SESSIONS, ss_sid, now if now is not None else time.time())
-
-
 def record_authed_session_seen(user_id: int, now: float | None = None) -> None:
     """Bump the active-authed-sessions TTL set."""
     if user_id is None:
@@ -611,18 +595,13 @@ def record_authed_session_seen(user_id: int, now: float | None = None) -> None:
     _ttl_touch(_ACTIVE_AUTHED_SESSIONS, user_id, now if now is not None else time.time())
 
 
-def active_anon_session_count(now: float | None = None) -> int:
-    return _ttl_count(_ACTIVE_ANON_SESSIONS, now if now is not None else time.time())
-
-
 def active_authed_session_count(now: float | None = None) -> int:
     return _ttl_count(_ACTIVE_AUTHED_SESSIONS, now if now is not None else time.time())
 
 
 def _reset_session_state_for_tests() -> None:
-    """Wipe the TTL sets between tests so a 'new session' assertion is
+    """Wipe the TTL set between tests so a 'new session' assertion is
     deterministic. Called from the integration test fixtures."""
-    _ACTIVE_ANON_SESSIONS.clear()
     _ACTIVE_AUTHED_SESSIONS.clear()
 
 

@@ -27,16 +27,14 @@ from observability import (
     public_requests_total,
     record_incident,
     compute_public_status,
-    # 2026-05-17: bot-score + session analytics (ANALYTICS-PLAN.md PR-1)
+    # 2026-05-17: bot-score (ANALYTICS-PLAN.md PR-1). The anon-visitor
+    # analytics (sessions_seen_total / active_anon_sessions) were dropped
+    # 2026-06-13 so ss_sid stays a strictly-necessary anti-abuse cookie.
     bot_score_total,
     bot_score_label,
     compute_bot_score,
-    sessions_seen_total,
-    active_anon_sessions,
     active_authed_sessions,
-    record_anon_session_seen,
     record_authed_session_seen,
-    active_anon_session_count,
     active_authed_session_count,
     honeypot_hit_total,
 )
@@ -376,13 +374,10 @@ try:
         except Exception:
             app.logger.exception("db_query_seconds listener wiring failed")
 
-    # 2026-05-17: live gauges for the bot-score / session analytics PR.
-    # Both gauges sweep the in-memory TTL set on each /metrics scrape so
-    # stale ss_sid / user_id entries are evicted before the count goes
-    # out the door.
-    register_gauge_refresher(
-        active_anon_sessions, lambda: float(active_anon_session_count())
-    )
+    # 2026-05-17: live gauge for authed sessions. Sweeps the in-memory TTL
+    # set on each /metrics scrape so stale user_id entries are evicted
+    # before the count goes out the door. (The anon-session gauge was
+    # removed 2026-06-13 — see ss_sid scoping.)
     register_gauge_refresher(
         active_authed_sessions, lambda: float(active_authed_session_count())
     )
@@ -566,10 +561,10 @@ def _record_user_agent_class(response):
 
 # ── 2026-05-17: bot-score + session-cookie hooks (ANALYTICS-PLAN PR-1) ─────
 #
-# Plants the opaque `ss_sid` cookie on first request, bumps the
-# new-sessions counter, refreshes the in-memory TTL sets used by
-# active_anon_sessions / active_authed_sessions gauges, and emits
-# bot_score_total{score} from the composite signal table.
+# Plants the opaque `ss_sid` anti-abuse cookie on first request, refreshes
+# the authed-session TTL set (keyed on the logged-in user_id), and emits
+# bot_score_total{score} from the composite signal table. ss_sid feeds the
+# bot-score "seen before?" signal only — no analytics (2026-06-13).
 #
 # Runs in two halves: a before_request reads the cookie (or mints one
 # into flask.g for the response to pick up) and bumps the request
@@ -585,15 +580,14 @@ def _ss_sid_and_session_probe():
     if request.path in _INFRA_PATHS:
         return
     # Cookie present? Note it on flask.g for both the after_request
-    # bot-score hook and the response cookie-setter.
+    # bot-score hook and the response cookie-setter. ss_sid is a
+    # strictly-necessary anti-abuse cookie: its only consumer is the
+    # bot-score "have I seen this browser before" signal — it feeds no
+    # analytics (2026-06-13 scoping; see /privacy).
     g._ss_sid_present = bool(request.cookies.get(SS_SID_COOKIE))
     g._ss_sid_to_set = None
     if not g._ss_sid_present:
         g._ss_sid_to_set = secrets.token_hex(16)
-        try:
-            sessions_seen_total.inc()
-        except Exception:
-            pass
 
     # Per-Flask-session request counter — used for the no-cookie / no-pulse
     # signals (we shouldn't penalise request #1 for not having state yet).
@@ -602,15 +596,9 @@ def _ss_sid_and_session_probe():
     except Exception:
         pass
 
-    # Refresh the active-sessions TTL set on every request, so the
-    # gauge value at scrape time is current. ss_sid is the anon key;
-    # session user_id (if any) is the authed key.
-    sid = request.cookies.get(SS_SID_COOKIE) or g._ss_sid_to_set
-    if sid:
-        try:
-            record_anon_session_seen(sid)
-        except Exception:
-            pass
+    # Refresh the authed-sessions TTL set (keyed on the logged-in user_id
+    # from the strictly-necessary session cookie — not on ss_sid) so the
+    # saturation gauge is current at scrape time.
     try:
         uid = session.get('user_id')
         if uid is not None:
