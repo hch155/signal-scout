@@ -6,7 +6,7 @@ function loadTipsContent() {
     }
 
     if (typeof DOMPurify === 'undefined' || typeof DOMPurify.sanitize !== 'function') {
-        contentContainer.textContent = 'Tips temporarily unavailable. Please refresh the page.';
+        contentContainer.textContent = t('Tips temporarily unavailable. Please refresh the page.');
         console.error('DOMPurify unavailable — refusing to render unsanitized content');
         return;
     }
@@ -22,7 +22,7 @@ function loadTipsContent() {
             contentContainer.innerHTML = DOMPurify.sanitize(htmlContent);
         })
         .catch(error => {
-            contentContainer.textContent = 'Tips temporarily unavailable. Please refresh the page.';
+            contentContainer.textContent = t('Tips temporarily unavailable. Please refresh the page.');
             console.error('Error loading tips content:', error);
         });
 }

@@ -548,7 +548,7 @@ function submitForm(url, formData) {
           }
       } else {
         if (url === '/login')
-          showToast(data.errorMessage || 'Login failed. Wrong email or password. Please try again.', 'error');
+          showToast(data.errorMessage || t('Login failed. Wrong email or password. Please try again.'), 'error');
       }
   })
   .catch(error => {

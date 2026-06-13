@@ -479,13 +479,13 @@ function requestAndSendGPSLocation() {
     mymap.on('locationerror', function(e) {
 
         if (e.message.includes("denied")) {
-            showToast('Location permission was denied. Please enable it to use this feature.', 'error');
+            showToast(t('Location permission was denied. Please enable it to use this feature.'), 'error');
         } else if (e.message.includes("unavailable")) {
-            showToast('Location information is currently unavailable.', 'error');
+            showToast(t('Location information is currently unavailable.'), 'error');
         } else if (e.message.includes("timeout")) {
-            showToast('The request to get your location timed out. Please try again.', 'error');
+            showToast(t('The request to get your location timed out. Please try again.'), 'error');
         } else {
-            showToast('An unknown location error occurred. ' + e.message, 'error');
+            showToast(t('An unknown location error occurred.') + ' ' + e.message, 'error');
         }
     });
 }
@@ -782,7 +782,7 @@ function renderCoverageGaps(lat, lng) {
 
             const foot = document.createElement('div');
             foot.className = 'text-[10px] text-gray-400 dark:text-gray-500 mt-2 italic';
-            foot.textContent = 'Thresholds: high-band ≤1.5 km · mid ≤2 km · low ≤5 km. Line-of-sight; real signal varies.';
+            foot.textContent = t('Thresholds: high-band ≤1.5 km · mid ≤2 km · low ≤5 km. Line-of-sight; real signal varies.');
             widget.appendChild(foot);
         })
         .catch(() => {
@@ -1096,10 +1096,10 @@ function renderSaveSpotShortcut(lat, lng, nearestCity) {
             if (resp && resp.success) {
                 cta.classList.remove('bg-blue-50', 'dark:bg-blue-900/30', 'border-blue-200', 'dark:border-blue-800');
                 cta.classList.add('bg-green-50', 'dark:bg-green-900/30', 'border-green-200', 'dark:border-green-800');
-                label.textContent = `Saved as "${chosenName}". Rename or edit alerts in `;
+                label.textContent = `${t('Saved as')} "${chosenName}". ${t('Rename or edit alerts in')} `;
                 const acctLink = document.createElement('a');
                 acctLink.href = '/account';
-                acctLink.textContent = 'your account';
+                acctLink.textContent = t('your account');
                 acctLink.className = 'underline hover:no-underline font-medium';
                 label.appendChild(acctLink);
                 label.appendChild(document.createTextNode('.'));
@@ -1108,13 +1108,13 @@ function renderSaveSpotShortcut(lat, lng, nearestCity) {
                 btn.disabled = false;
                 nameInput.disabled = false;
                 btn.textContent = t('Save');
-                label.textContent = (resp && resp.error) || 'Save failed — try again from /account.';
+                label.textContent = (resp && resp.error) || t('Save failed — try again from /account.');
             }
         }).catch(() => {
             btn.disabled = false;
             nameInput.disabled = false;
             btn.textContent = t('Save');
-            label.textContent = 'Save failed — check your session, then try again.';
+            label.textContent = t('Save failed — check your session, then try again.');
         });
     });
     cta.appendChild(label);
@@ -1863,7 +1863,7 @@ function updateLatLngFilters() {
     const longitudeInput = document.getElementById('longitudeInput');
 
     if (!latitudeInput.value.trim() || !longitudeInput.value.trim()) {
-        showToast('Both latitude and longitude must be filled out to proceed.', 'error');
+        showToast(t('Both latitude and longitude must be filled out to proceed.'), 'error');
         return;
     }
 
@@ -1872,12 +1872,12 @@ function updateLatLngFilters() {
     let validationPassed = true;
 
     if (isNaN(lat) || lat < 48 || lat > 58) {
-        showToast('Latitude is out of range. Please enter a value between 48 and 58.', 'error');
+        showToast(t('Latitude is out of range. Please enter a value between 48 and 58.'), 'error');
         validationPassed = false;
     }
 
     if (isNaN(lng) || lng < 13.5 || lng > 24.5) {
-        showToast('Longitude is out of range. Please enter a value between 13 and 25.', 'error');
+        showToast(t('Longitude is out of range. Please enter a value between 13 and 25.'), 'error');
         validationPassed = false;
     }
 
@@ -1899,11 +1899,11 @@ function updateStationFilters() {
     let basestation_id = baseStationIdInput.value;
     basestation_id = basestation_id.toUpperCase();
     if (!basestation_id || basestation_id.length > 7 || !/^[A-Za-z0-9]+$/.test(basestation_id)) {
-        showToast('Base Station ID must be up to 7 letters or digits.', 'error');
+        showToast(t('Base Station ID must be up to 7 letters or digits.'), 'error');
         return;
     }
     if (!basestation_id) {
-        showToast('Base Station ID is required', 'error');
+        showToast(t('Base Station ID is required'), 'error');
         return;
     }
 
@@ -2080,7 +2080,7 @@ function changeFrequency(band) {
     const columnClass = `column-${band}`;
 
     if (currentFilters.lat === null || currentFilters.lng === null) {
-        showToast('Please submit your location before changing the frequency.', 'error');
+        showToast(t('Please submit your location before changing the frequency.'), 'error');
         return;
     }
 

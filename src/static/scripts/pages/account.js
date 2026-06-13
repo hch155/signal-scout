@@ -34,14 +34,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           emailToggle.checked = !desired;
           if (emailPrefStatus) {
-            emailPrefStatus.textContent = (data && data.error) || 'Save failed.';
+            emailPrefStatus.textContent = (data && data.error) || t('Save failed.');
             emailPrefStatus.className = 'text-xs mt-1 text-red-600 dark:text-red-400';
           }
         }
       }).catch(() => {
         emailToggle.checked = !desired;
         if (emailPrefStatus) {
-          emailPrefStatus.textContent = 'Network error — try again.';
+          emailPrefStatus.textContent = t('Network error — try again.');
           emailPrefStatus.className = 'text-xs mt-1 text-red-600 dark:text-red-400';
         }
       });
@@ -102,10 +102,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (regenBtn && status) {
     regenBtn.addEventListener('click', () => {
-      if (!confirm('Regenerating invalidates the current key immediately. Continue?')) {
+      if (!confirm(t('Regenerating invalidates the current key immediately. Continue?'))) {
         return;
       }
-      status.textContent = 'Regenerating…';
+      status.textContent = t('Regenerating…');
       status.className = 'text-sm mt-2 text-gray-500';
 
       globalFetch('/account/regenerate_api_key', {
@@ -124,10 +124,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const k = data.api_key;
             keyEl.textContent = k.slice(0, 8) + '…' + k.slice(-4);
           }
-          status.textContent = 'New API key generated. Save it now — it will not be shown again.';
+          status.textContent = t('New API key generated. Save it now. It will not be shown again.');
           status.className = 'text-sm mt-2 text-green-600 dark:text-green-400';
         } else {
-          status.textContent = 'Failed to regenerate. Try again.';
+          status.textContent = t('Failed to regenerate. Try again.');
           status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         }
       }).catch(err => {
@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const fd = new FormData(createKeyForm);
       const body = { name: fd.get('name') };
-      createKeyStatus.textContent = 'Creating…';
+      createKeyStatus.textContent = t('Creating…');
       createKeyStatus.className = 'text-sm mt-2 text-gray-500';
 
       globalFetch('/account/keys', {
@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(body),
       }).then(data => {
         if (data && data.success && data.key) {
-          createKeyStatus.textContent = 'Key created.';
+          createKeyStatus.textContent = t('Key created.');
           createKeyStatus.className = 'text-sm mt-2 text-green-600 dark:text-green-400';
           if (newKeyBox && newKeyValue) {
             newKeyValue.textContent = data.key;
@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
           appendKeyRow(data);
           createKeyForm.reset();
         } else {
-          const err = (data && data.error) || 'Failed.';
+          const err = (data && data.error) || t('Failed.');
           createKeyStatus.textContent = err;
           createKeyStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         }
@@ -244,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (showTotpSetupPayload(data)) {
           totpSetupBtn.disabled = true;
         } else {
-          alert((data && data.error) || 'Setup failed.');
+          alert((data && data.error) || t('Setup failed.'));
         }
       }).catch(e => alert('Error: ' + e.message));
     });
@@ -263,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const fd = new FormData(totpRegenConfirmForm);
       const status = document.getElementById('totp-regen-status');
-      status.textContent = 'Generating…';
+      status.textContent = t('Generating…');
       status.className = 'text-sm mt-2 text-gray-500';
       globalFetch('/account/2fa/regenerate', {
         method: 'POST',
@@ -271,10 +271,10 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ current_password: fd.get('current_password') }),
       }).then(data => {
         if (showTotpSetupPayload(data)) {
-          status.textContent = 'New secret ready — verify below.';
+          status.textContent = t('New secret ready. Verify below.');
           status.className = 'text-sm mt-2 text-green-600 dark:text-green-400';
         } else {
-          status.textContent = (data && data.error) || 'Regenerate failed.';
+          status.textContent = (data && data.error) || t('Regenerate failed.');
           status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         }
       }).catch(e => {
@@ -291,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const fd = new FormData(totpVerifyForm);
       const status = document.getElementById('totp-verify-status');
-      status.textContent = 'Verifying…';
+      status.textContent = t('Verifying…');
       status.className = 'text-sm mt-2 text-gray-500';
       globalFetch('/account/2fa/verify', {
         method: 'POST',
@@ -313,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
             box.classList.remove('hidden');
           }
         } else {
-          status.textContent = (data && data.error) || 'Verify failed.';
+          status.textContent = (data && data.error) || t('Verify failed.');
           status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         }
       }).catch(e => {
@@ -334,10 +334,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (totpDisableForm) {
     totpDisableForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      if (!confirm('Disable 2FA? Your account will only be protected by your password.')) return;
+      if (!confirm(t('Disable 2FA? Your account will only be protected by your password.'))) return;
       const fd = new FormData(totpDisableForm);
       const status = document.getElementById('totp-disable-status');
-      status.textContent = 'Disabling…';
+      status.textContent = t('Disabling…');
       status.className = 'text-sm mt-2 text-gray-500';
       globalFetch('/account/2fa/disable', {
         method: 'POST',
@@ -350,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data && data.success) {
           window.location.reload();
         } else {
-          status.textContent = (data && data.error) || 'Disable failed.';
+          status.textContent = (data && data.error) || t('Disable failed.');
           status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         }
       }).catch(e => {
@@ -440,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (locUseGeoBtn && locLatInput && locLngInput) {
     locUseGeoBtn.addEventListener('click', () => {
       if (!('geolocation' in navigator)) {
-        if (locGeoStatus) locGeoStatus.textContent = 'Geolocation not supported by this browser.';
+        if (locGeoStatus) locGeoStatus.textContent = t('Geolocation not supported by this browser.');
         return;
       }
       if (locGeoStatus) locGeoStatus.textContent = t('Locating…');
@@ -501,7 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
           // Easiest path to refresh the table + audit log: full reload.
           setTimeout(() => window.location.reload(), 500);
         } else {
-          locStatus.textContent = (data && data.error) || 'Failed.';
+          locStatus.textContent = (data && data.error) || t('Failed.');
           locStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         }
       }).catch(err => {
@@ -514,7 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('button[data-loc-delete-id]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = parseInt(btn.dataset.locDeleteId, 10);
-      if (!confirm('Delete this location and all its snapshots?')) return;
+      if (!confirm(t('Delete this location and all its snapshots?'))) return;
       globalFetch('/account/locations/' + id + '/delete', {
         method: 'POST',
         headers: { 'X-CSRF-Token': getCsrfToken() },
@@ -558,12 +558,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (deleteForm && deleteStatus) {
     deleteForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      if (!confirm('This will permanently delete your account and API key. Continue?')) {
+      if (!confirm(t('This will permanently delete your account and API key. Continue?'))) {
         return;
       }
       const fd = new FormData(deleteForm);
       const body = Object.fromEntries(fd.entries());
-      deleteStatus.textContent = 'Deleting…';
+      deleteStatus.textContent = t('Deleting…');
       deleteStatus.className = 'text-sm mt-2 text-gray-500';
 
       globalFetch('/account/delete', {
@@ -579,7 +579,7 @@ document.addEventListener('DOMContentLoaded', () => {
           // not reachable via Back-button (would 401 anyway).
           window.location.replace('/');
         } else {
-          const err = (data && data.error) || 'Delete failed.';
+          const err = (data && data.error) || t('Delete failed.');
           deleteStatus.textContent = err;
           deleteStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         }
@@ -600,7 +600,7 @@ function wireForm({ formId, statusId, url, okMsg, onSuccess }) {
     e.preventDefault();
     const fd = new FormData(form);
     const body = Object.fromEntries(fd.entries());
-    statusEl.textContent = 'Saving…';
+    statusEl.textContent = t('Saving…');
     statusEl.className = 'text-sm mt-2 text-gray-500';
 
     globalFetch(url, {
@@ -616,7 +616,7 @@ function wireForm({ formId, statusId, url, okMsg, onSuccess }) {
         statusEl.className = 'text-sm mt-2 text-green-600 dark:text-green-400';
         if (typeof onSuccess === 'function') onSuccess(data, form);
       } else {
-        const err = (data && data.error) || 'Failed.';
+        const err = (data && data.error) || t('Failed.');
         statusEl.textContent = err;
         statusEl.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
       }
@@ -628,7 +628,7 @@ function wireForm({ formId, statusId, url, okMsg, onSuccess }) {
 }
 
 function revokeKey(keyId) {
-  if (!confirm('Revoke this API key? Any client using it will get 403.')) return;
+  if (!confirm(t('Revoke this API key? Any client using it will get 403.'))) return;
   globalFetch('/account/keys/' + keyId + '/revoke', {
     method: 'POST',
     headers: { 'X-CSRF-Token': getCsrfToken() },

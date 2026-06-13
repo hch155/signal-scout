@@ -31,10 +31,6 @@
     return n.toLocaleString('en-US');
   }
 
-  function pluralize(n, singular, plural) {
-    return n === 1 ? singular : plural;
-  }
-
   function svgEl(name, attrs) {
     var el = document.createElementNS('http://www.w3.org/2000/svg', name);
     if (attrs) {
@@ -294,19 +290,19 @@
     var label, get;
     switch (view) {
       case 'sites':
-        label = 'physical ' + pluralize(2, 'site', 'sites');
+        label = t('physical sites');
         get = function (h) { return h.sites || 0; };
         break;
       case 'generations':
-        label = 'total band entries (all generations)';
+        label = t('total band entries (all generations)');
         get = function (h) { return h.entries || 0; };
         break;
       case '5G': case 'LTE': case 'UMTS': case 'GSM':
-        label = view + ' band entries';
+        label = view + ' ' + t('band entries');
         get = function (h) { return (h.gen && h.gen[view]) || 0; };
         break;
       default:
-        label = 'band entries';
+        label = t('band entries');
         get = function (h) { return h.entries || 0; };
     }
     var d = get(last) - get(first);

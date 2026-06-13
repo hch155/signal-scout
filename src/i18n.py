@@ -225,6 +225,110 @@ TRANSLATIONS = {
     'Password updated.': 'Zaktualizowano hasło.',
     'Location saved. Reloading…': 'Zapisano lokalizację. Odświeżanie…',
     'Locating…': 'Ustalanie lokalizacji…',
+
+    # stats.html — body copy (Jinja _())
+    'snapshots in history': 'migawek w historii',
+    "Bar widths are share of that operator's total band entries (5G + LTE + UMTS + GSM = 100%).":
+        'Szerokość paska to udział danego operatora w łącznej liczbie wpisów pasmowych (5G + LTE + UMTS + GSM = 100%).',
+    '"Entries" inflate LTE: each site typically broadcasts 4–6 LTE bands (700/800/900/1800/2100/2600), 1–3 5G bands, and 1–2 GSM bands. The site-count table below shows real coverage.':
+        '„Wpisy” zawyżają LTE: każda lokalizacja zwykle nadaje 4–6 pasm LTE (700/800/900/1800/2100/2600), 1–3 pasma 5G i 1–2 pasma GSM. Tabela z liczbą lokalizacji poniżej pokazuje rzeczywisty zasięg.',
+    'entries': 'wpisów',
+    '5G race': 'Wyścig 5G',
+    'Operators ranked by absolute count of sites broadcasting at least one 5G band. The KPI vendors quote in investor decks.':
+        'Operatorzy uszeregowani według bezwzględnej liczby lokalizacji nadających co najmniej jedno pasmo 5G. Wskaźnik, który dostawcy podają w prezentacjach dla inwestorów.',
+    '5G sites': 'lokalizacji 5G',
+    'of fleet': 'floty',
+    'sites': 'lokalizacji',
+    'Cities with the most physical towers across all four operators — a quick look at where the network is densest.':
+        'Miasta z największą liczbą fizycznych masztów u wszystkich czterech operatorów, czyli szybki rzut oka na to, gdzie sieć jest najgęstsza.',
+    'Distinct physical locations broadcasting at least one band of that generation. Closest single-query approximation of real coverage.':
+        'Odrębne fizyczne lokalizacje nadające co najmniej jedno pasmo danej generacji. Najbliższe rzeczywistemu zasięgowi przybliżenie z jednego zapytania.',
+    'Avg = bands per site for that operator/generation.':
+        'Śr. = liczba pasm na lokalizację dla danego operatora/generacji.',
+    'avg': 'śr.',
+    'bands/site': 'pasm/lokalizację',
+    'months tracked (one snapshot per UKE refresh)':
+        'śledzonych miesięcy (jedna migawka na aktualizację UKE)',
+    '5G only': 'Tylko 5G',
+    'from': 'od',
+    'to': 'do',
+    'Change since previous snapshot': 'Zmiana od poprzedniej migawki',
+    'Trend chart view': 'Widok wykresu trendu',
+    "Bold-blue numbers mark the band leader. Hover any cell to see its share of the band's total entries. Source: monthly UKE permit data.":
+        'Pogrubione niebieskie liczby oznaczają lidera pasma. Najedź na dowolną komórkę, aby zobaczyć jej udział w łącznej liczbie wpisów pasma. Źródło: comiesięczne dane z pozwoleń UKE.',
+
+    # stats-chart.js — axis/legend label fragments (JS t())
+    'physical sites': 'lokalizacje fizyczne',
+    'total band entries (all generations)': 'wpisy pasmowe (wszystkie generacje)',
+    'band entries': 'wpisy pasmowe',
+
+    # JS — alerts / toasts / status
+    'Login failed. Wrong email or password. Please try again.':
+        'Logowanie nie powiodło się. Błędny e-mail lub hasło. Spróbuj ponownie.',
+    'Thresholds: high-band ≤1.5 km · mid ≤2 km · low ≤5 km. Line-of-sight; real signal varies.':
+        'Progi: pasmo wysokie ≤1,5 km · średnie ≤2 km · niskie ≤5 km. Linia wzroku; rzeczywisty sygnał się różni.',
+    'Tips temporarily unavailable. Please refresh the page.':
+        'Porady chwilowo niedostępne. Odśwież stronę.',
+    'Location permission was denied. Please enable it to use this feature.':
+        'Odmówiono dostępu do lokalizacji. Włącz go, aby skorzystać z tej funkcji.',
+    'Location information is currently unavailable.':
+        'Informacje o lokalizacji są obecnie niedostępne.',
+    'The request to get your location timed out. Please try again.':
+        'Upłynął limit czasu pobierania lokalizacji. Spróbuj ponownie.',
+    'Both latitude and longitude must be filled out to proceed.':
+        'Aby kontynuować, podaj zarówno szerokość, jak i długość geograficzną.',
+    'Latitude is out of range. Please enter a value between 48 and 58.':
+        'Szerokość geograficzna poza zakresem. Podaj wartość od 48 do 58.',
+    'Longitude is out of range. Please enter a value between 13 and 25.':
+        'Długość geograficzna poza zakresem. Podaj wartość od 13 do 25.',
+    'Base Station ID must be up to 7 letters or digits.':
+        'ID stacji bazowej może mieć maksymalnie 7 liter lub cyfr.',
+    'Base Station ID is required':
+        'ID stacji bazowej jest wymagane',
+    'Please submit your location before changing the frequency.':
+        'Zatwierdź swoją lokalizację przed zmianą częstotliwości.',
+    'An unknown location error occurred.':
+        'Wystąpił nieznany błąd lokalizacji.',
+    'Saved as': 'Zapisano jako',
+    'Rename or edit alerts in': 'Zmień nazwę lub edytuj alerty w sekcji',
+    'your account': 'Twoje konto',
+    'Save failed — try again from /account.':
+        'Zapis nie powiódł się. Spróbuj ponownie z poziomu /account.',
+    'Save failed — check your session, then try again.':
+        'Zapis nie powiódł się. Sprawdź swoją sesję i spróbuj ponownie.',
+
+    # account.js — confirms / status words / messages
+    'Regenerating invalidates the current key immediately. Continue?':
+        'Wygenerowanie nowego klucza natychmiast unieważnia bieżący. Kontynuować?',
+    'New API key generated. Save it now. It will not be shown again.':
+        'Wygenerowano nowy klucz API. Zapisz go teraz. Nie zostanie ponownie pokazany.',
+    'Disable 2FA? Your account will only be protected by your password.':
+        'Wyłączyć 2FA? Twoje konto będzie chronione wyłącznie hasłem.',
+    'Delete this location and all its snapshots?':
+        'Usunąć tę lokalizację i wszystkie jej migawki?',
+    'This will permanently delete your account and API key. Continue?':
+        'Spowoduje to trwałe usunięcie Twojego konta i klucza API. Kontynuować?',
+    'Revoke this API key? Any client using it will get 403.':
+        'Unieważnić ten klucz API? Każdy klient, który go używa, otrzyma błąd 403.',
+    'Geolocation not supported by this browser.':
+        'Ta przeglądarka nie obsługuje geolokalizacji.',
+    'Regenerating…': 'Generowanie ponownie…',
+    'Creating…': 'Tworzenie…',
+    'Generating…': 'Generowanie…',
+    'Verifying…': 'Weryfikowanie…',
+    'Disabling…': 'Wyłączanie…',
+    'Deleting…': 'Usuwanie…',
+    'Key created.': 'Utworzono klucz.',
+    'Setup failed.': 'Konfiguracja nie powiodła się.',
+    'Network error — try again.': 'Błąd sieci. Spróbuj ponownie.',
+    'Save failed.': 'Zapis nie powiódł się.',
+    'Failed.': 'Nie powiodło się.',
+    'Failed to regenerate. Try again.': 'Nie udało się wygenerować ponownie. Spróbuj ponownie.',
+    'Delete failed.': 'Usuwanie nie powiodło się.',
+    'Disable failed.': 'Wyłączanie nie powiodło się.',
+    'Regenerate failed.': 'Generowanie ponowne nie powiodło się.',
+    'Verify failed.': 'Weryfikacja nie powiodła się.',
+    'New secret ready. Verify below.': 'Nowy sekret gotowy. Zweryfikuj poniżej.',
 }
 
 JS_STRING_KEYS = (
@@ -302,6 +406,51 @@ JS_STRING_KEYS = (
     'Password updated.',
     'Location saved. Reloading…',
     'Locating…',
+    'physical sites',
+    'total band entries (all generations)',
+    'band entries',
+    'Login failed. Wrong email or password. Please try again.',
+    'Thresholds: high-band ≤1.5 km · mid ≤2 km · low ≤5 km. Line-of-sight; real signal varies.',
+    'Tips temporarily unavailable. Please refresh the page.',
+    'Location permission was denied. Please enable it to use this feature.',
+    'Location information is currently unavailable.',
+    'The request to get your location timed out. Please try again.',
+    'Both latitude and longitude must be filled out to proceed.',
+    'Latitude is out of range. Please enter a value between 48 and 58.',
+    'Longitude is out of range. Please enter a value between 13 and 25.',
+    'Base Station ID must be up to 7 letters or digits.',
+    'Base Station ID is required',
+    'Please submit your location before changing the frequency.',
+    'An unknown location error occurred.',
+    'Saved as',
+    'Rename or edit alerts in',
+    'your account',
+    'Save failed — try again from /account.',
+    'Save failed — check your session, then try again.',
+    'Regenerating invalidates the current key immediately. Continue?',
+    'New API key generated. Save it now. It will not be shown again.',
+    'Disable 2FA? Your account will only be protected by your password.',
+    'Delete this location and all its snapshots?',
+    'This will permanently delete your account and API key. Continue?',
+    'Revoke this API key? Any client using it will get 403.',
+    'Geolocation not supported by this browser.',
+    'Regenerating…',
+    'Creating…',
+    'Generating…',
+    'Verifying…',
+    'Disabling…',
+    'Deleting…',
+    'Key created.',
+    'Setup failed.',
+    'Network error — try again.',
+    'Save failed.',
+    'Failed.',
+    'Failed to regenerate. Try again.',
+    'Delete failed.',
+    'Disable failed.',
+    'Regenerate failed.',
+    'Verify failed.',
+    'New secret ready. Verify below.',
 )
 
 
