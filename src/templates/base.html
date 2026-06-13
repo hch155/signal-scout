@@ -9,7 +9,7 @@
     <script src="{{ url_for('static', filename='theme-init.js') }}?v={{ app_version }}"></script>
 
     {# ── SEO ─────────────────────────────────────────────────────────── #}
-    <title>{% if app_env and app_env != 'production' %}[{{ app_env|upper }}] {% endif %}{% block title %}Signal-Scout — Find Nearest Cellular Base Stations in Poland{% endblock %}</title>
+    <title>{% if app_env and app_env != 'production' %}[{{ 'DEV' if app_env == 'development' else app_env|upper }}] Signal-Scout{% else %}{% block title %}Signal-Scout — Find Nearest Cellular Base Stations in Poland{% endblock %}{% endif %}</title>
     <meta name="description" content="{% block description %}Interactive map of ~22,000 cellular base stations across Poland (188,000+ frequency-band entries). Find the nearest tower from any major operator (Orange, Play, Plus, T-Mobile) and check coverage by frequency band.{% endblock %}">
     <link rel="canonical" href="{% block canonical %}{{ canonical_origin }}{{ request.path }}{% endblock %}">
     <meta name="robots" content="{% block robots %}{% if app_env and app_env != 'production' %}noindex,nofollow{% else %}index,follow{% endif %}{% endblock %}">
