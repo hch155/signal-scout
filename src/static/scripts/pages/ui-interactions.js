@@ -1264,10 +1264,10 @@ function showEmptyState() {
 
 
 const VERDICT_HEADLINES = {
-    excellent: 'Strong coverage here',
-    good: 'Good coverage here',
-    fair: 'Moderate coverage here',
-    poor: 'Weak coverage here',
+    excellent: 'Strong signal',
+    good: 'Good signal',
+    fair: 'Patchy signal',
+    poor: 'Weak signal',
 };
 const VERDICT_PROVIDERS = [
     ['Orange', 'orange'],
@@ -1304,7 +1304,7 @@ function createVerdictCard(stations) {
     card.innerHTML = `
         <div class="flex items-center gap-2">
             ${createSignalBars(signal)}
-            <span class="font-medium">${t(VERDICT_HEADLINES[signal.level])}</span>
+            <span class="font-medium text-gray-900 dark:text-white">${t(VERDICT_HEADLINES[signal.level])}</span>
         </div>
         <div class="mt-1 text-sm text-gray-600 dark:text-gray-300">
             ${t('Nearest mast:')} ${formatVerdictDistance(nearest.distance)} (${escapeHtml(provider)})${has5G ? ' · ' + t('5G in range') : ''}
@@ -1312,8 +1312,8 @@ function createVerdictCard(stations) {
         <div class="provider-summary">
             ${providerSummary}
         </div>
-        <div class="mt-1 text-xs text-gray-400 dark:text-gray-500">
-            ${t('Estimate from mast distance and UKE permit data — not a signal measurement.')}
+        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            ${t('Estimated from mast distance and UKE data. Not a measured signal.')}
         </div>
     `;
     return card;

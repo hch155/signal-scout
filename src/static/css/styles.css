@@ -499,15 +499,15 @@ th[onclick]:hover {
 
 .signal-bar.active { background-color: currentColor; }
 
-.signal-excellent { color: #22c55e; }
+.signal-excellent { color: #16a34a; }
 .signal-good { color: #facc15; }
-.signal-fair { color: #fb923c; }
-.signal-poor { color: #f87171; }
+.signal-fair { color: #f97316; }
+.signal-poor { color: #dc2626; }
 
-.dark .signal-excellent { color: #4ade80; }
-.dark .signal-good { color: #fde047; }
-.dark .signal-fair { color: #fdba74; }
-.dark .signal-poor { color: #fca5a5; }
+.dark .signal-excellent { color: #16a34a; }
+.dark .signal-good { color: #facc15; }
+.dark .signal-fair { color: #f97316; }
+.dark .signal-poor { color: #dc2626; }
 
 /* Signal badge */
 .signal-badge {
