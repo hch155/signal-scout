@@ -50,12 +50,21 @@ def test_sitemap_xml_served(client):
     ("/tips", "Tips: Boost Your Cellular Signal"),
 ])
 def test_per_page_titles(client, path, unique_substr):
-    r = client.get(path)
-    assert r.status_code == 200
-    body = r.data.decode("utf-8")
-    m = re.search(r'<title>([^<]+)</title>', body)
-    assert m and unique_substr in m.group(1), \
-        f"{path} title doesn't contain {unique_substr!r}: {m and m.group(1)!r}"
+    # Per-page SEO titles matter in production (that's what crawlers index);
+    # in dev/staging the title is a short "[DEV] Signal-Scout" environment
+    # marker by design, so assert the production behavior here.
+    app = client.application
+    prev = app.jinja_env.globals.get('app_env')
+    app.jinja_env.globals['app_env'] = 'production'
+    try:
+        r = client.get(path)
+        assert r.status_code == 200
+        body = r.data.decode("utf-8")
+        m = re.search(r'<title>([^<]+)</title>', body)
+        assert m and unique_substr in m.group(1), \
+            f"{path} title doesn't contain {unique_substr!r}: {m and m.group(1)!r}"
+    finally:
+        app.jinja_env.globals['app_env'] = prev
 
 
 def test_meta_description_per_page(client):
