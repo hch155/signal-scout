@@ -107,62 +107,6 @@ if (settings.users_db_path
         "Seeded users.db from image into persistent mount: %s", settings.users_db_path
     )
 
-# 2026-04-28: same idea for stats_history.jsonl. Lives next to users.db
-# (gcsfuse mount in prod) so /stats can render MoM deltas + the
-# 24-month trend chart without waiting another month for the next
-# refresh to accumulate a comparison baseline. The image ships with
-# the historical-replay-bootstrapped jsonl (see scripts/replay_stats_
-# history*.py); this seed only copies on FIRST boot of a fresh mount,
-# so subsequent live snapshots written into the mount are preserved.
-_baked_stats_history = os.path.join(basedir, 'instance', 'stats_history.jsonl')
-if settings.users_db_path and os.path.exists(_baked_stats_history):
-    _live_stats_history = os.path.join(
-        os.path.dirname(settings.users_db_path), 'stats_history.jsonl'
-    )
-    try:
-        os.makedirs(os.path.dirname(_live_stats_history), exist_ok=True)
-        # Merge instead of pure copy: any baked snapshot whose
-        # db_mtime isn't already in the live file gets appended.
-        # Idempotent across re-deploys, and survives the case where
-        # the live mount already had a single live-written snapshot
-        # (pre-seed deploys did this).
-        import json as _json
-        live_mtimes = set()
-        if os.path.exists(_live_stats_history):
-            with open(_live_stats_history, encoding='utf-8') as _f:
-                for _line in _f:
-                    try:
-                        _m = _json.loads(_line).get('db_mtime')
-                        if _m is not None:
-                            live_mtimes.add(round(float(_m)))
-                    except _json.JSONDecodeError:
-                        continue
-        added = 0
-        with open(_baked_stats_history, encoding='utf-8') as _src, \
-             open(_live_stats_history, 'a', encoding='utf-8') as _dst:
-            for _line in _src:
-                try:
-                    _entry = _json.loads(_line)
-                    _m = _entry.get('db_mtime')
-                    if _m is None:
-                        continue
-                    if round(float(_m)) in live_mtimes:
-                        continue
-                    _dst.write(_line if _line.endswith('\n') else _line + '\n')
-                    live_mtimes.add(round(float(_m)))
-                    added += 1
-                except _json.JSONDecodeError:
-                    continue
-        if added:
-            logging.getLogger(__name__).info(
-                "Merged %d baked stats_history snapshots into %s",
-                added, _live_stats_history,
-            )
-    except OSError:
-        logging.getLogger(__name__).exception(
-            "Failed to seed stats_history.jsonl"
-        )
-
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{stations_db_path}'
 app.config['SQLALCHEMY_BINDS'] = {
     'users': f'sqlite:///{users_db_path}'
@@ -192,6 +136,20 @@ from db_migrations import upgrade_users_db  # noqa: E402
 upgrade_users_db(users_db_path)
 with app.app_context():
     db.create_all()
+    # One-time import of the historical stats snapshots from the legacy
+    # JSONL into the stats_snapshot table (migration 0003). No-op once the
+    # table has rows. Reads the image-baked file plus any live JSONL next
+    # to the prod users.db mount, deduped on snapshot_key.
+    from stats_history import backfill_from_jsonl_if_empty  # noqa: E402
+    _baked_stats_history = os.path.join(
+        basedir, 'instance', 'stats_history.jsonl'
+    )
+    try:
+        backfill_from_jsonl_if_empty(users_db_path, _baked_stats_history)
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "stats snapshot backfill failed"
+        )
 # Legacy pre-Alembic column backfill — kept for old DBs restored from
 # backup; new schema changes go in migrations/versions/.
 ensure_user_api_columns(app, db)
@@ -1039,9 +997,9 @@ def stats_page():
     # metadata, not the file's mtime (which resets on every image build).
     last_refresh_iso = get_data_date(stations_db_path)
 
-    # 2026-04-28: append-only stats history. Snapshots every refresh
-    # of stations.db (idempotent — keyed on db_mtime) so /stats can
-    # render MoM deltas + a multi-month trend chart.
+    # Stats history snapshots, one per UKE refresh (idempotent — keyed on
+    # the data date) so /stats can render MoM deltas + a multi-month trend
+    # chart. Stored in the users.db stats_snapshot table.
     previous = None
     history_count = 0
     monthly_history: list = []
@@ -1049,18 +1007,18 @@ def stats_page():
         from stats_history import (
             maybe_write_snapshot, previous_snapshot, read_history,
         )
-        if db_mtime:
-            maybe_write_snapshot(users_db_path, db_mtime, stats)
-            previous = previous_snapshot(users_db_path, db_mtime)
+        if last_refresh_iso != 'unknown':
+            maybe_write_snapshot(users_db_path, last_refresh_iso, stats)
+            previous = previous_snapshot(users_db_path, last_refresh_iso)
             all_rows = read_history(users_db_path)
             history_count = len(all_rows)
             # Dedupe to one row per (year, month) — keep the LAST one
-            # in each month (sorted by db_mtime). Multiple commits in
+            # in each month (sorted by snapshot_key). Multiple commits in
             # the same month happen during DB-update fix-ups; the last
             # one is the durable shape.
             by_month: dict = {}
-            for r in sorted(all_rows, key=lambda r: r.get('db_mtime', 0)):
-                month_key = (r.get('recorded_at') or '')[:7]
+            for r in sorted(all_rows, key=lambda r: r.get('snapshot_key', '')):
+                month_key = (r.get('snapshot_key') or '')[:7]
                 if month_key:
                     by_month[month_key] = r
             # 2026-04-29: also expose per-generation entries so the

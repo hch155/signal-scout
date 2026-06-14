@@ -358,6 +358,25 @@ class SubmitLocationEvent(db.Model):
                                               cascade='all, delete-orphan',
                                               lazy='dynamic'))
 
+class StatsSnapshot(db.Model):
+    """Monthly /stats aggregate snapshot. Replaces stats_history.jsonl.
+
+    One row per UKE refresh. `snapshot_key` is the data date (YYYY-MM-DD),
+    UNIQUE so re-recording the same refresh is idempotent and ascending
+    string sort == chronological order. `payload` is the JSON-encoded
+    aggregate (physical_sites, sites_per_generation, provider_totals,
+    generation_breakdown, generation_totals, grand_total_sites,
+    grand_total_entries). `recorded_at` is the ISO time we observed it.
+    """
+    __bind_key__ = 'users'
+    __tablename__ = 'stats_snapshot'
+
+    id = db.Column(db.Integer, primary_key=True)
+    snapshot_key = db.Column(db.Text, unique=True, nullable=False)
+    recorded_at = db.Column(db.Text)
+    payload = db.Column(db.Text, nullable=False)
+
+
 class EmailEvent(db.Model):
     """2026-04-29: SendGrid Event Webhook ingestion. One row per
     delivery / open / click / bounce / spamreport / dropped /
