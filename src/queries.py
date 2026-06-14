@@ -1,9 +1,40 @@
 import math
 import logging
+import os
+import sqlite3
+from datetime import datetime
 from models import BaseStation, db
 from sqlalchemy import func, distinct, case
 
 logger = logging.getLogger(__name__)
+
+
+def get_data_date(stations_db_path):
+    """Return the UKE data date (YYYY-MM-DD) for the stations.db.
+
+    Prefers the `data_date` row in the stations.db `metadata` table (written
+    by scripts/stations_database_setup.py). Falls back to the file's mtime for
+    DBs built before the metadata table existed; returns 'unknown' if even
+    that can't be read.
+    """
+    try:
+        conn = sqlite3.connect(f"file:{stations_db_path}?mode=ro", uri=True)
+        try:
+            row = conn.execute(
+                "SELECT value FROM metadata WHERE key = 'data_date'"
+            ).fetchone()
+            if row and row[0]:
+                return row[0]
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        pass
+    try:
+        return datetime.utcfromtimestamp(
+            os.path.getmtime(stations_db_path)
+        ).strftime('%Y-%m-%d')
+    except OSError:
+        return 'unknown'
 
 def haversine(lat1, lon1, lat2, lon2):
     lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
