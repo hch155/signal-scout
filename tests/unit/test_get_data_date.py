@@ -1,5 +1,4 @@
 """Unit tests for queries.get_data_date — UKE data date resolution."""
-import os
 import sqlite3
 
 import pytest
