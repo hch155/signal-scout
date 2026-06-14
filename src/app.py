@@ -89,23 +89,11 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 stations_db_path = settings.stations_db_path or os.path.join(basedir, 'instance', 'stations.db')
 users_db_path = settings.users_db_path or os.path.join(basedir, 'instance', 'users.db')
 
-# Persistence seed: when USERS_DB_PATH points to an external mount (e.g.
-# Cloud Run gcsfuse volume) and the file isn't there yet, seed it from the
-# image-baked copy. Preserves any users that existed when the file was
-# committed; on subsequent boots, the mount already has the live data and
-# this is a no-op. Without this step, the first boot of a fresh mount would
-# create_all() into an empty file → existing users wiped.
-import shutil  # noqa: E402
-_baked_users_db = os.path.join(basedir, 'instance', 'users.db')
-if (settings.users_db_path
-        and settings.users_db_path != _baked_users_db
-        and not os.path.exists(settings.users_db_path)
-        and os.path.exists(_baked_users_db)):
+# A fresh users.db mount needs its parent dir to exist before Alembic /
+# create_all open it. The schema itself is owned by Alembic
+# (upgrade_users_db) now — no image-baked DB is copied in.
+if settings.users_db_path:
     os.makedirs(os.path.dirname(settings.users_db_path), exist_ok=True)
-    shutil.copy2(_baked_users_db, settings.users_db_path)
-    logging.getLogger(__name__).info(
-        "Seeded users.db from image into persistent mount: %s", settings.users_db_path
-    )
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{stations_db_path}'
 app.config['SQLALCHEMY_BINDS'] = {
