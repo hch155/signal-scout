@@ -1,172 +1,50 @@
 # Signal-Scout
 
-[Signal-Scout](https://www.signal-scout.com) — find the nearest cellular
-base stations across Poland (~22k unique BTS / 188k+ frequency-band rows, 4 operators, all current bands)
-on an interactive Leaflet map. Public web app + documented JSON API.
+Find the nearest cellular base stations across Poland on an interactive map.
+Public web app + documented JSON API. Live: <https://www.signal-scout.com>
 
 [![CI](https://github.com/hch155/signal-scout/actions/workflows/ci.yaml/badge.svg)](https://github.com/hch155/signal-scout/actions/workflows/ci.yaml)
 
----
+## Numbers
 
-## What's in the box
+| | |
+|---|---|
+| Dataset | ~22k unique BTS / 188k+ frequency-band rows |
+| Operators / bands | 4 operators, all current bands (5G / LTE / UMTS / GSM) |
+| API latency | p95 48 ms (mixed-endpoint, prod dataset); ~250–300 ms end-to-end from PL |
+| 2024 perf arc | ~4 s → 42 ms (~100×), hand-measured on Cloud Run |
+| 2026 perf arc | p95 186 → 48 ms (−74%), SQL grouping + composite index |
+| Tests | 477 passing (unit + integration + Playwright E2E) |
+| CI/CD | lint → test → trivy fs → build → trivy image → promote → staging → prod (smoke + auto-rollback) |
+| Hosting | self-hosted, ~€7/mo cash (Hetzner edge + home LXC + Tailscale) |
+| History | solo project since 2024 (1181 commits); most of it pre-dates AI coding tools |
 
-- **Map UI** — Leaflet, click anywhere in PL to see the nearest stations,
-  filter by provider / frequency band, distance-based RSRP color coding.
+## What's in it
+
+- **Map UI** — Leaflet, click anywhere in PL for the nearest stations,
+  filter by provider / frequency band, distance-based RSRP color coding,
+  answer-first verdict card ("is this spot covered").
+- **Public API** — same data, machine-readable. Swagger UI at
+  `/api/v1/docs/`, OpenAPI 3 spec at `/api/v1/openapi.json`.
 - **Compass mode** — mobile users navigate to a station with live bearing.
-- **Public API** — same data, machine-readable.
-  - Swagger UI: `https://signal-scout.com/api/v1/docs/`
-  - OpenAPI 3.0 spec: `https://signal-scout.com/api/v1/openapi.json`
-  - Auth: `X-API-Key: <token>` header (generate at `/account` after signup)
-    or same-origin browser request (cookies + Referer).
-  - Keys are stored hashed at rest (SHA-256) — the full token is shown
-    only once at creation; `/account` lists `first8…last4` for
-    recognition. Keep your copy safe; lost keys require a regenerate.
-  - Tiered rate limits: anonymous 10/min · free 60/min · pro 300/min ·
-    enterprise 3000/min.
-
-## API at a glance
-
-```bash
-# Anonymous browser-style call (Referer required)
-curl -H "Referer: https://signal-scout.com/" \
-  "https://signal-scout.com/api/v1/stations?lat=52.23&lng=21.00&limit=5"
-
-# With API key (no Referer needed, higher rate limit)
-curl -H "X-API-Key: sk_..." \
-  "https://signal-scout.com/api/v1/stations?lat=52.23&lng=21.00&limit=5"
-```
-
-Endpoints — full schemas in Swagger UI at `/api/v1/docs/`. Compact map:
-
-**Public read API** (Referer-gated for anonymous; X-API-Key bypass + tier limits)
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/v1/stations` | Nearest stations with optional provider/band filters |
-| GET | `/api/v1/find_station?basestation_id=…` | Exact lookup by BTS ID |
-| GET | `/api/v1/search_stations?q=…` | Autocomplete by ID prefix |
-| GET | `/api/v1/coverage_gaps?lat=…&lng=…` | Per-band "is this spot dead?" verdict (5G/LTE/UMTS/GSM) |
-| POST | `/api/v1/submit_location` | Persist click location to session, return nearest stations |
-| GET | `/api/v1/healthz` | Liveness probe (no auth) |
-| GET | `/api/v1/openapi.json` | OpenAPI 3 spec |
-
-Legacy unprefixed routes (`/stations`, `/find_station`, `/search_stations`,
-`/coverage_gaps`, `/submit_location`, `/healthz`) stay live for back-compat.
-
-**Site pages** (HTML, no auth)
-
-| Path | Purpose |
-|------|---------|
-| `/` | Map (Leaflet + sidebar) |
-| `/data` | About the dataset (markdown) |
-| `/stats` | Per-operator coverage stats |
-| `/tips` | Tips & tricks (registered users get extended version) |
-| `/tips/content` | JSON content fetcher used by `/tips` page (anon vs registered split) |
-| `/privacy` | GDPR Art. 13 transparency notice — what we collect, why, retention, user rights |
-| `/status` | Customer-facing service health (uptime %, search latency, requests/day) |
-| `/embed/widget` | Embeddable widget (`?lat=…&lng=…&zoom=…`) for third-party iframes |
-| `/favicon.ico`, `/robots.txt`, `/sitemap.xml` | SEO + browser-mandated assets |
-
-**Auth & account** (POST unless noted; CSRF-required)
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| POST | `/register` | Create account (email + password) |
-| POST | `/login` | Step 1: password. Returns `totp_required` if 2FA on. |
-| POST | `/login/totp` | Step 2: TOTP code or one-shot recovery code |
-| GET | `/auth/google/login` | Start Google OAuth flow (hidden if `GOOGLE_OAUTH_CLIENT_ID` unset) |
-| GET | `/auth/google/callback` | Google OAuth redirect target |
-| GET | `/auth/github/login` | Start GitHub OAuth flow (hidden if `GITHUB_OAUTH_CLIENT_ID` unset) |
-| GET | `/auth/github/callback` | GitHub OAuth redirect target |
-| POST | `/logout` | Clear session |
-| GET  | `/session_check` | Returns `{logged_in: bool}` |
-| GET  | `/account` | Account dashboard |
-| POST | `/account/profile` | Update company name |
-| POST | `/account/password` | Change password (rotates session) |
-| POST | `/account/delete` | Delete account + cascade audit/snapshots |
-| POST | `/account/regenerate_api_key` | Rotate the legacy default key |
-| POST | `/account/keys` | Create a new named API key (multi-key system) |
-| POST | `/account/keys/<id>/revoke` | Revoke a key (soft-delete) |
-| POST | `/account/2fa/setup` | Begin TOTP enrollment (returns secret + QR + URI) |
-| POST | `/account/2fa/verify` | Confirm enrollment with current code; mints recovery codes |
-| POST | `/account/2fa/regenerate` | Mint a new TOTP secret without disabling 2FA |
-| POST | `/account/2fa/disable` | Turn 2FA off (requires password + current code) |
-
-**Saved locations** (multi-named places per user; PR #30)
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| POST | `/account/locations` | Create a saved location |
-| GET  | `/account/locations/<id>` | View one |
-| POST | `/account/locations/<id>` | Update name/description/coords/radius/alerting |
-| POST | `/account/locations/<id>/delete` | Delete (cascades snapshots) |
-| POST | `/account/locations/<id>/snapshot` | Capture station snapshot now |
-| GET  | `/account/locations/<id>/changes` | Diff feed (added/removed BTS over time) |
-| POST | `/account/snapshot` | Legacy: snapshot at the user's single saved location |
-| GET  | `/account/changes` | Legacy single-location diff feed |
-
-**Ops & metrics**
-
-| Path | Purpose | Auth |
-|------|---------|------|
-| `/healthz` | Liveness — does NOT touch DB | open |
-| `/metrics` | Prometheus exposition | bearer (`METRICS_BEARER_TOKEN`) — 404 when unset |
-| `/api/v1/docs/` | Swagger UI | open |
+- **Saved locations + coverage alerts** — registered users save up to 20
+  named places; on the monthly dataset refresh they get a diff (added /
+  removed BTS, band changes) and an optional email alert.
 
 ## Architecture
-
-```mermaid
-flowchart LR
-    subgraph internet[" "]
-        B["Browser / API client"]
-        TILES["Map tiles<br/>CARTO · Esri · OSM"]
-    end
-    B -.->|"tiles (browser-direct)"| TILES
-
-    subgraph edge["Hetzner CX23 · Falkenstein"]
-        NPM["Nginx Proxy Manager<br/>TLS (Let's Encrypt)"]
-    end
-
-    subgraph home["Home lab · Proxmox on NUC"]
-        subgraph lxc["LXC · Docker"]
-            APP["Flask + gunicorn :8080"]
-            SDB[("stations.db<br/>188k rows · read-only")]
-            UDB[("users.db")]
-        end
-        OBS["Prometheus · Grafana<br/>Zabbix · Plausible"]
-    end
-
-    subgraph cicd["Self-hosted CI/CD"]
-        FG["Forgejo Actions"]
-        HB["Harbor registry"]
-    end
-
-    B -->|"HTTPS · Cloudflare DNS (DNS-only)"| NPM
-    NPM -->|"Tailscale mesh"| APP
-    APP --> SDB
-    APP --> UDB
-    OBS -->|"scrape /metrics (bearer)"| APP
-
-    UKE["UKE permit data<br/>(monthly XLSX)"] --> FG
-    FG -->|"lint · test · scan · build"| HB
-    HB -->|"compose deploy + smoke + auto-rollback"| APP
-
-    APP <-->|"email + signed event webhook"| SG["SendGrid"]
-```
-
-Request path + module detail:
 
 ```
 Browser (Leaflet + vanilla JS)
    │  GET /, /stations, …             POST /login, /submit_location
    │       Referer-gated               CSRF-token-gated
    ▼
-Hetzner edge (CX23, NPM @ HETZNER_EDGE_IP)  — TLS + reverse proxy
+Hetzner edge (CX23, Falkenstein) — NPM reverse proxy + TLS (Let's Encrypt)
    │  signal-scout.com / staging.signal-scout.com
+   │  Cloudflare DNS (DNS-only)
    │
-   │  Tailscale mesh tunnel (edge ↔ home LXC)
+   │  Tailscale mesh tunnel (edge ↔ home LXC, ~42 ms hop)
    ▼
-the prod host on NUC_HOST (LXC_LAN_IP)
+the prod host on NUC_HOST (Proxmox)
    │  Docker compose stacks:
    │    /opt/stacks/signal-scout-prod      → app on :8080
    │    /opt/stacks/signal-scout-staging   → app on :8081
@@ -182,75 +60,162 @@ the prod host on NUC_HOST (LXC_LAN_IP)
    │  └── models.py          BaseStation + User
    │
    ├── stations.db (read-only, monthly UKE refresh via Forgejo Actions)
-   ├── users.db    (Flask-Session + auth)
-   └── /metrics    (bearer-auth Prometheus exposition)
+   ├── users.db    (auth, sessions, snapshots — Alembic-owned schema)
+   └── /metrics    (bearer-auth Prometheus exposition; 404 when token unset)
                        │
-                       │  HTTP scrape on LAN, 30s, per env
+                       │  HTTP scrape on LAN, per env
                        ▼
-       Self-hosted observability (NUC, /opt/monitoring-stack/)
-       ├── Prometheus      v2.55.1  — scrape, alert rules
-       ├── Alertmanager    v0.27.0  — routing (default config; wire
-       │                              email / Telegram / Slack receiver
-       │                              in alertmanager.yml when needed)
-       └── Grafana         v11.3.1  — Signal-Scout dashboard
-                                       (15 panels — RPS, latency,
-                                       errors, security, product)
+       Self-hosted observability (NUC)
+       ├── Prometheus  — scrape, alert rules, SLO burn-rate
+       ├── Grafana     — Signal-Scout dashboard (21 panels / 6 rows)
+       ├── Zabbix 7.0  — pulls Prom + Plausible via HTTP-agent items
+       │                 (single source of truth — no double scrape)
+       └── Plausible   — cookie-less visitor analytics (GDPR-friendly)
 
-       Self-hosted analytics (NUC, ops/homelab-integration/plausible/)
-       └── Plausible       v3.0.0   — visitors, sources, countries,
-                                       trends (cookie-less, GDPR-friendly,
-                                       no banner needed)
-
-       Self-hosted alerts + reports (NUC)
-       └── Zabbix          7.0.25   — pulls Prom & Plausible via
-                                       HTTP-agent items (single source
-                                       of truth — no double scrape).
-                                       16-widget dashboard, 5 triggers.
+   CI/CD: Forgejo Actions runner (the CI runner host) + Harbor registry (same NUC)
 ```
 
-## Security posture
+## Engineering depth
 
-| Layer        | What's enforced                                                     |
-|--------------|---------------------------------------------------------------------|
-| Headers      | CSP (no `unsafe-inline` in `script-src`), HSTS, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy, COOP, CORP |
-| Frontend     | Every user-controlled string is `escapeHtml()`-escaped; SRI on Leaflet + DOMPurify CDN scripts; no inline event handlers (CSP-strict) |
-| CSRF         | `X-CSRF-Token` header (or `_csrf_token` form field) on every state-changing POST; rotated through login session-fixation defense |
-| API keys     | Per-user 32-byte URL-safe token; X-API-Key header; tier-based rate limits |
-| Honeypot     | Reserved fake BTS IDs (set via `HONEYPOT_BTS_IDS`) trigger paging alert when looked up — scrape & data-leak detection |
-| Rate limits  | Per-tier (`anonymous` / `free` / `pro` / `enterprise`); 429 metric + alert on sustained spike |
-| Logging      | `logger.exception()` for stack traces (server-side only); generic 500 message to client |
-| Auth         | bcrypt hashing; password regex (8+ chars, mixed case, digit, special); session rotation on login; CSRF preserved across rotation |
-| Container    | Multistage Dockerfile, non-root `appuser` (UID 1000), `tini` PID 1, no compilers in runtime image, HEALTHCHECK against `/healthz` |
-| Supply chain | Trivy fs+image scan in CI (HIGH/CRITICAL), pip-audit, bandit, syft SBOM artifact (CycloneDX, 90-day retention) |
-| Repo         | `gunicorn.sh` (info-disclosure script) removed; `terraform/`, `aws/`, `helm/` (dead infra) removed |
+### Security
 
-## Observability
+Two written audits (`docs/security-audit-2026-04-26.md`,
+`docs/security-audit-2026-06-10.md`), each fix landed as a PR tied to a
+finding ID.
 
-`/metrics` exposes (bearer-auth, gated by `METRICS_BEARER_TOKEN` — returns
-404 when unset):
+- **Auth** — bcrypt (cost 12) + password regex; account lockout after 5
+  failed logins (atomic SQL increment), extended to all bcrypt endpoints;
+  session rotation on login with CSRF preserved across rotation;
+  account-enumeration oracles closed (dummy bcrypt burn).
+- **2FA** — TOTP (pyotp) + bcrypt-per-code recovery codes; replay
+  protection within the validity window; half-session TTL.
+- **Secrets** — TOTP secret **KMS-wrapped at rest** (`src/kms.py`, Noop
+  default, Google backend flips on via env, legacy-plaintext read
+  fallback); API keys stored **sha256-hashed** (full token shown once,
+  `first8…last4` for recognition).
+- **CSRF** — `hmac.compare_digest`, token rotation across the login
+  privilege boundary; coverage on every state-changing POST.
+- **Audit log** — tamper-evident hash chain on `audit_event`; GDPR IP
+  redaction (`/24` v4, `/48` v6, first XFF hop only).
+- **Headers** — strict CSP (`script-src 'self'`, no `unsafe-inline`), HSTS
+  preload, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy,
+  COOP, CORP. Leaflet + DOMPurify vendored same-origin (no CDN).
+- **Honeypot** — reserved fake BTS IDs (`HONEYPOT_BTS_IDS`) return a
+  normal-miss shape but page on lookup (scrape / data-leak detection).
+- **Webhook** — SendGrid event webhook verified by ECDSA, fail-closed.
+- **GDPR** — `/privacy` Art. 13 transparency notice; `/data-deletion`
+  Art. 17 erasure with cascade across audit/locations/snapshots/keys.
 
-- HTTP request latency / count / status (auto, prometheus-flask-exporter)
-- `signal_scout_csrf_failures_total{endpoint}`
-- `signal_scout_login_failures_total`
-- `signal_scout_rate_limit_hits_total{endpoint}`
-- `signal_scout_station_search_total{endpoint}`
-- `signal_scout_provider_filter_used_total{provider}`
-- `signal_scout_band_filter_used_total{band}`
-- `signal_scout_compass_used_total`
-- `signal_scout_empty_result_total`
-- `signal_scout_requests_by_user_agent_class_total{ua_class}` — bucketed
-  (googlebot/bingbot/other_bot/browser_chrome/firefox/safari/other/cli/unknown)
-- `signal_scout_api_referer_blocked_total{endpoint}`
-- `signal_scout_api_key_used_total{tier}`
-- `signal_scout_honeypot_hit_total{endpoint}`
-- `signal_scout_nearest_stations_compute_seconds` (histogram)
+### Observability
 
-Pair Prometheus + Grafana with **Plausible** for visitor analytics:
-- Prometheus answers "what's happening right now / is the bot traffic growing"
-- Plausible answers "who's actually visiting / where from / how does it trend over months"
+Three SRE frameworks, deliberately overlapping:
 
-Deploy bundle: `ops/homelab-integration/` (Portainer-friendly, scrapes
-Cloud Run with bearer auth from a self-hosted NUC stack).
+- **Four Golden Signals** — Latency / Traffic / Errors / Saturation
+  (in-process `in_flight_requests` vs configured workers gauge).
+- **RED** — Rate / Errors / Duration per resource
+  (`api_requests_total{tier,endpoint,outcome}`).
+- **USE** — Utilisation / Saturation / Errors of resources.
+- **SLI/SLO + burn-rate** — availability 99.5%, `/stations` latency 95%
+  under 500 ms, error-budget-remaining; fast-burn 14.4× + 28-day budget
+  triggers in Zabbix.
+
+Stack: Prometheus + Grafana (21 panels) + Zabbix 7.0 + Plausible, all
+self-hosted on the NUC. Public `/status` page backed by the in-process
+registry only — `compute_public_status()` never reads CSRF / login /
+honeypot / API-key counters (privacy boundary enforced in code).
+
+### CI/CD
+
+Self-hosted Forgejo Actions runner (the CI runner host) + Harbor registry, on every
+merge to `main`:
+
+```
+lint (ruff) → test → trivy fs → build + push Harbor (staging tag)
+  → trivy image scan → promote (re-tag staging digest as prod, zero rebuild)
+  → deploy-staging (ssh the prod host, compose up :8081, smoke)
+  → deploy-prod    (ssh the prod host, compose up :8080, smoke,
+                    auto-rollback on smoke fail via .env.bak)
+```
+
+Plus SBOM (syft, CycloneDX), pip-audit, bandit. "Build once, promote the
+digest" guarantees staging and prod run identical bytes. A separate
+monthly cron (`monthly-db-update.yml`) pulls fresh UKE data, rebuilds
+`stations.db`, commits + pushes, which redeploys with the new dataset.
+
+### Data
+
+- **SQLite, read-heavy single-writer.** `stations.db` is read-only at
+  runtime (188k rows), rebuilt out-of-band monthly — a perfect fit for
+  SQLite's read concurrency without a server process. `users.db` is the
+  only writer (WAL enabled), low write volume.
+- **Alembic** owns the `users.db` schema (no boot-time create-all); the
+  dataset date lives in `stations.db` metadata (`data_date`), not file
+  mtime.
+- **Monthly UKE refresh** via Forgejo cron; stats snapshot history is a
+  `users.db` table (migrated off a baked JSONL).
+
+> The UKE ingestion/parsing pipeline (`base_station_data/` + build scripts)
+> is **not included in this public repo**. The built `stations.db` ships
+> with the app so it runs end-to-end; the pipeline that produces it is kept
+> private.
+
+## Performance
+
+Full write-ups: `docs/case-study-performance.md` (both eras) and
+`docs/build-log.md` (the chronological journal).
+
+- **2024 (Cloud Run, hand-measured):** ~4 s → 42 ms (~100×). The dominant
+  win was algorithmic — bucketing rows by latitude segment. JS `--mangle`
+  changed nothing measurable and is recorded as a null result.
+- **2026 (self-hosted, SQL grouping):** moved per-request frequency-band
+  grouping out of a Python loop into SQL `GROUP_CONCAT` + a composite index
+  matching the query's filter shape. Mixed-endpoint p95 186 → 48 ms (−74%);
+  found and fixed a pre-existing grouping bug in the same PR.
+- A per-PR CI gate fires 100 requests at `/` and fails the build if p95 >
+  500 ms; a daily smoke cron probes prod. Every perf-relevant change has a
+  committed snapshot under `tests/results/`.
+
+## Why this exists / build history
+
+Solo side project, started in 2024 (earliest tree state 2023), 1181
+commits. The build log (`docs/build-log.md`) is the raw chronology: a
+hand-built Flask app on Cloud Run → algorithmic perf work → self-hosted
+migration → security hardening → observability → CI/CD. Most of the work
+pre-dates AI coding tools.
+
+## API
+
+```bash
+# Anonymous browser-style call (Referer required)
+curl -H "Referer: https://signal-scout.com/" \
+  "https://signal-scout.com/api/v1/stations?lat=52.23&lng=21.00&limit=5"
+
+# With API key (no Referer needed, higher rate limit)
+curl -H "X-API-Key: sk_..." \
+  "https://signal-scout.com/api/v1/stations?lat=52.23&lng=21.00&limit=5"
+```
+
+Auth: `X-API-Key: <token>` header (generate at `/account`) or same-origin
+browser request (cookies + Referer). Keys are sha256-hashed at rest — the
+full token is shown only once at creation. Tiered rate limits: anonymous
+10/min · free 60/min · pro 300/min · enterprise 3000/min.
+
+Full schemas in Swagger UI at `/api/v1/docs/`. Public read endpoints
+(Referer-gated for anonymous, X-API-Key bypass + tier limits):
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/stations` | Nearest stations with optional provider/band filters |
+| GET | `/api/v1/find_station?basestation_id=…` | Exact lookup by BTS ID |
+| GET | `/api/v1/search_stations?q=…` | Autocomplete by ID prefix |
+| GET | `/api/v1/coverage_gaps?lat=…&lng=…` | Per-band "is this spot dead?" verdict |
+| POST | `/api/v1/submit_location` | Persist click location to session, return nearest |
+| GET | `/api/v1/healthz` | Liveness probe (no auth) |
+| GET | `/api/v1/openapi.json` | OpenAPI 3 spec |
+
+Legacy unprefixed routes (`/stations`, `/find_station`, …) stay live for
+back-compat. Full route inventory (auth, account, saved locations, ops):
+see the Swagger UI and `src/app.py` / `src/auth_routes.py`.
 
 ## Local dev
 
@@ -261,104 +226,59 @@ python3.12 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt -r tests/requirements-test.txt
 playwright install chromium                            # for E2E tests
 
-# Run app
 PYTHONPATH=src python src/app.py
 # → http://localhost:8080
 ```
 
-Environment variables (all optional in dev — defaults are safe):
+Env vars are all optional in dev (defaults are safe). Notable ones:
 
-| Var                       | What                                              | Default                          |
-|---------------------------|---------------------------------------------------|----------------------------------|
-| `ENV`                     | `PRODUCTION` enables HSTS-secure cookies          | (unset = dev mode)               |
-| `SECRET_KEY`              | Flask session signing                             | random per process               |
-| `STATIONS_DB_PATH`        | Override stations DB path                         | `src/instance/stations.db`       |
-| `USERS_DB_PATH`           | Override users DB path                            | `src/instance/users.db`          |
-| `SESSION_FILE_DIR`        | Where filesystem sessions live                    | `./flask_session/`               |
-| `METRICS_BEARER_TOKEN`    | If unset, `/metrics` returns 404                  | (unset)                          |
-| `HONEYPOT_BTS_IDS`        | Comma-list of fake BTS IDs                        | (none)                           |
-| `PLAUSIBLE_DOMAIN`        | `data-domain` for Plausible script tag            | (unset → tracker not rendered)   |
-| `PLAUSIBLE_SCRIPT_URL`    | Plausible script URL                              | (unset)                          |
-| `APP_VERSION`             | Reported by `/healthz`                            | `dev`                            |
+| Var | What | Default |
+|---|---|---|
+| `ENV` | `PRODUCTION` enables HSTS-secure cookies + SECRET_KEY boot guard | (unset = dev) |
+| `SECRET_KEY` | Flask session signing | random per process |
+| `STATIONS_DB_PATH` / `USERS_DB_PATH` | Override DB paths | `src/instance/*.db` |
+| `METRICS_BEARER_TOKEN` | If unset, `/metrics` returns 404 | (unset) |
+| `HONEYPOT_BTS_IDS` | Comma-list of fake BTS IDs | (none) |
+| `PLAUSIBLE_DOMAIN` / `PLAUSIBLE_SCRIPT_URL` | Analytics tracker | (unset → not rendered) |
+| `APP_VERSION` | Reported by `/healthz` | `dev` |
 
 See `src/config.py` for the full catalog (single source of truth).
 
 ## Tests
 
 ```bash
-# Unit + integration (fast, default)
-pytest tests/unit tests/integration
-
-# Plus Playwright E2E (chromium headless)
-pytest tests/unit tests/integration tests/e2e --browser chromium
-
-# Slow rate-limit tests (opt-in)
-pytest -m slow
-
-# Production smoke (read-only, polite, hits Cloud Run direct URL)
-pytest -m smoke
+pytest tests/unit tests/integration                       # fast, default
+pytest tests/unit tests/integration tests/e2e --browser chromium   # + E2E
+pytest -m slow                                            # rate-limit tests
+pytest -m smoke                                           # prod smoke (read-only)
 ```
 
-156/156 currently green: 30 unit + 19 access-control + 13 OpenAPI + 13
-observability + 14 auth + 9 stations + 11 security headers + … + 8 E2E.
-Coverage 93% on `src/app.py` + `src/queries.py` + `src/models.py`.
+477 passing (unit + integration + Playwright E2E). Coverage gate 80% in CI;
+93% on `src/app.py` + `src/queries.py` + `src/models.py`.
 
 ## Docker
 
 ```bash
 docker build -t signal-scout .
-docker run -e SECRET_KEY=$(openssl rand -hex 32) \
-           -e ENV=PRODUCTION \
+docker run -e SECRET_KEY=$(openssl rand -hex 32) -e ENV=PRODUCTION \
            -p 8080:8080 signal-scout
 ```
 
-Multi-stage build, non-root, HEALTHCHECK against `/healthz`. Image ~580MB.
-
-## Deployment
-
-Self-hosted on the prod host (NUC_HOST), promoted from a Harbor-cached staging
-image. Pipeline driven by `.forgejo/workflows/ci-cd.yml` on every merge to
-`main` and runs on a self-hosted Forgejo runner (the CI runner host on the same NUC):
-
-```
-lint → test → trivy fs → build + push Harbor (staging tag)
-     → trivy image scan → promote (re-tag staging digest as prod, zero rebuild)
-     → deploy-staging (ssh the prod host, compose pull+up app on :8081, smoke)
-     → deploy-prod    (ssh the prod host, compose pull+up app on :8080, smoke,
-                        auto-rollback on smoke fail via .env.bak)
-```
-
-Required Forgejo Actions secrets:
-
-- `HARBOR_USER`, `HARBOR_PASSWORD` — image registry auth
-- `LXC_DEPLOY_SSH_KEY` — SSH key to the prod host used by the deploy jobs
-- `METRICS_BEARER_TOKEN_PROD`, `METRICS_BEARER_TOKEN_STAGING` — scrape auth per env
-- `FORGEJO_PUSH_TOKEN` — PAT with `write:repository` scope, used by the monthly DB-update workflow to commit + push the refreshed `stations.db`
-- `PLAUSIBLE_DOMAIN`, `PLAUSIBLE_SCRIPT_URL` — analytics tracker (optional)
-
-`SECRET_KEY` lives in `/opt/stacks/signal-scout-prod/.env` on the prod host
-(not in CI) — the deploy job doesn't write it, the container reads it
-on boot.
-
-A separate `.forgejo/workflows/monthly-db-update.yml` runs on cron
-(`15 19 27 * *`, ~21:15 Warsaw on the 27th) — pulls fresh UKE data,
-rebuilds `stations.db`, commits + pushes back via `FORGEJO_PUSH_TOKEN`;
-that commit then drives `ci-cd.yml` to rebuild + redeploy with the new
-dataset.
-
-For homelab observability deploy, see `ops/homelab-integration/README.md`.
+Multi-stage build, non-root `appuser` (UID 1000), `tini` PID 1,
+HEALTHCHECK against `/healthz`. Image ~580 MB.
 
 ## Documentation
 
-- `docs/case-study-performance.md` — **performance case study**: p95 186 → 48 ms,
-  and the CI/SLO machinery that keeps it that way
-- Mobile (Capacitor iOS/Android wrappers) is parked on the `mobile-archive`
-  branch until store publication is back on the table
-- `docs/CHANGELOG.md` — per-PR descriptions of recent work
-- `docs/ROADMAP.md` — what's deferred for future PRs
-- `ops/README.md` — observability stack on a NUC via Portainer
-- `ops/homelab-integration/README.md` — drop-in snippets for an existing
-  homelab Prometheus/Grafana stack
+- `docs/build-log.md` — raw chronological engineering journal (start here).
+- `docs/case-study-performance.md` — both performance eras + the CI/SLO
+  machinery.
+- `docs/migration-cloud-run-to-self-hosted.md` — the migration, including
+  the honest cost analysis (this is *not* the cheapest option, and the doc
+  says so).
+- `docs/security-audit-2026-04-26.md`, `docs/security-audit-2026-06-10.md`
+  — the two audits.
+- `docs/CHANGELOG.md` — per-PR descriptions.
+- `docs/ROADMAP.md` — deferred work.
 
 ## Contact
 
