@@ -162,7 +162,7 @@ monthly cron (`monthly-db-update.yml`) pulls fresh UKE data, rebuilds
 ## Performance
 
 Full write-ups: `docs/case-study-performance.md` (both eras) and
-`docs/build-log.md` (the chronological journal).
+`src/content/build-log.md` (the chronological journal; live at `/build-log`).
 
 - **2024 (Cloud Run, hand-measured):** ~4 s → 42 ms (~100×). The dominant
   win was algorithmic — bucketing rows by latitude segment. JS `--mangle`
@@ -178,7 +178,7 @@ Full write-ups: `docs/case-study-performance.md` (both eras) and
 ## Why this exists / build history
 
 Solo side project, started in 2024 (earliest tree state 2023), 1181
-commits. The build log (`docs/build-log.md`) is the raw chronology: a
+commits. The build log (`src/content/build-log.md`, live at `/build-log`) is the raw chronology: a
 hand-built Flask app on Cloud Run → algorithmic perf work → self-hosted
 migration → security hardening → observability → CI/CD. Most of the work
 pre-dates AI coding tools.
@@ -269,7 +269,7 @@ HEALTHCHECK against `/healthz`. Image ~580 MB.
 
 ## Documentation
 
-- `docs/build-log.md` — raw chronological engineering journal (start here).
+- `src/content/build-log.md` — raw chronological engineering journal (start here; live at `/build-log`).
 - `docs/case-study-performance.md` — both performance eras + the CI/SLO
   machinery.
 - `docs/migration-cloud-run-to-self-hosted.md` — the migration, including
