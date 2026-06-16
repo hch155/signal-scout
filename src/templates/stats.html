@@ -71,7 +71,7 @@
     {# ── Generation breakdown: 5G vs LTE vs UMTS vs GSM per operator ── #}
     <div class="px-2 md:px-4 mb-4 max-w-5xl mx-auto">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">{{ _('Generation mix per operator') }}</h3>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">{{ _('Technology mix per operator') }}</h3>
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
                 {{ _("Bar widths are share of that operator's total band entries (5G + LTE + UMTS + GSM = 100%).") }}
             </p>
@@ -190,10 +190,10 @@
         </div>
     </div>
 
-    {# ── Sites per generation: the "real coverage" cut ─────────── #}
+    {# ── Sites per technology: the "real coverage" cut ─────────── #}
     <div class="px-2 md:px-4 mb-4 max-w-5xl mx-auto">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">{{ _('Sites per generation') }}</h3>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">{{ _('Sites per technology') }}</h3>
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
                 {{ _('Distinct physical locations broadcasting at least one band of that generation. Closest single-query approximation of real coverage.') }} <span class="text-gray-400 dark:text-gray-500">{{ _('Avg = bands per site for that operator/generation.') }}</span>
             </p>
@@ -251,7 +251,7 @@
             <div id="stats-chart-controls" class="flex flex-wrap gap-1.5 mb-3 text-xs" role="tablist" aria-label="{{ _('Trend chart view') }}">
                 <button type="button" data-view="entries" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-blue-600 text-white" aria-pressed="true">{{ _('Total band entries') }}</button>
                 <button type="button" data-view="sites" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">{{ _('Physical sites') }}</button>
-                <button type="button" data-view="generations" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">{{ _('Stacked by generation') }}</button>
+                <button type="button" data-view="generations" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">{{ _('Stacked by technology') }}</button>
                 <button type="button" data-view="5G" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">{{ _('5G only') }}</button>
                 <button type="button" data-view="LTE" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">{{ _('LTE only') }}</button>
             </div>

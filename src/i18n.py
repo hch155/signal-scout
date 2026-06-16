@@ -171,14 +171,14 @@ TRANSLATIONS = {
     'Band entries': 'Wpisy pasmowe',
     'Operators': 'Operatorzy',
     'Last refresh': 'Ostatnia aktualizacja',
-    'Generation mix per operator': 'Udział generacji per operator',
+    'Technology mix per operator': 'Udział technologii per operator',
     'Top 10 cities by site count': 'Top 10 miast wg liczby lokalizacji',
-    'Sites per generation': 'Lokalizacje wg generacji',
+    'Sites per technology': 'Lokalizacje wg technologii',
     'Operator': 'Operator',
     'Trend over time': 'Trend w czasie',
     'Total band entries': 'Łącznie wpisów pasmowych',
     'Physical sites': 'Lokalizacje fizyczne',
-    'Stacked by generation': 'Wg generacji (skumulowane)',
+    'Stacked by technology': 'Wg technologii (skumulowane)',
     'LTE only': 'Tylko LTE',
     'Band': 'Pasmo',
     'Total': 'Razem',
@@ -243,9 +243,9 @@ TRANSLATIONS = {
     'Cities with the most physical towers across all four operators — a quick look at where the network is densest.':
         'Miasta z największą liczbą fizycznych masztów u wszystkich czterech operatorów, czyli szybki rzut oka na to, gdzie sieć jest najgęstsza.',
     'Distinct physical locations broadcasting at least one band of that generation. Closest single-query approximation of real coverage.':
-        'Odrębne fizyczne lokalizacje nadające co najmniej jedno pasmo danej generacji. Najbliższe rzeczywistemu zasięgowi przybliżenie z jednego zapytania.',
+        'Odrębne fizyczne lokalizacje nadające co najmniej jedno pasmo danej technologii. Najbliższe rzeczywistemu zasięgowi przybliżenie z jednego zapytania.',
     'Avg = bands per site for that operator/generation.':
-        'Śr. = liczba pasm na lokalizację dla danego operatora/generacji.',
+        'Śr. = liczba pasm na lokalizację dla danego operatora/technologii.',
     'avg': 'śr.',
     'bands/site': 'pasm/lokalizację',
     'months tracked (one snapshot per UKE refresh)':
@@ -260,7 +260,7 @@ TRANSLATIONS = {
 
     # stats-chart.js — axis/legend label fragments (JS t())
     'physical sites': 'lokalizacje fizyczne',
-    'total band entries (all generations)': 'wpisy pasmowe (wszystkie generacje)',
+    'total band entries (all generations)': 'wpisy pasmowe (wszystkie technologie)',
     'band entries': 'wpisy pasmowe',
 
     # JS — alerts / toasts / status
