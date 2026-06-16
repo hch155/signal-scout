@@ -2,7 +2,6 @@
 
 Headless Chromium against the live Flask server in a thread.
 """
-import re
 import pytest
 
 pytestmark = [pytest.mark.e2e]
@@ -62,19 +61,23 @@ def test_marker_popup_shows_basestation_id(page, base_url):
     assert "Base Station ID" in popup_text
 
 
-def test_sidebar_band_chips_get_color_class(page, base_url):
-    """Regression for the sidebar bands fix in PR #1: each band lives in its
-    own .band-chip span and applyFrequencyColors recolors with text-{color}-600."""
+def test_sidebar_bands_render_as_neutral_text(page, base_url):
+    """Sidebar bands are de-vibed: band values render as plain neutral text
+    (no per-band color chips). The bold group labels (5G:/LTE:/3G:/GSM:) stay,
+    the signal tier is carried by the .signal-bar glyph only."""
     page.goto(base_url + "/")
     _wait_for_app_ready(page)
     page.evaluate("sendLocation(52.2297, 21.0122, 3, null)")
-    page.wait_for_selector(".sidebar-item .band-chip", timeout=5000)
-    chip = page.locator(".sidebar-item .band-chip").first
-    cls = chip.get_attribute("class") or ""
-    assert "band-chip" in cls
-    assert re.search(r"text-(green|yellow|orange|red)-600", cls), \
-        f"band chip not colored: {cls!r}"
-    text = chip.inner_text().strip()
-    # Must be an actual band name, NOT the previous regression label like "5G:"
-    assert ":" not in text
-    assert any(text.startswith(p) for p in ("5G", "LTE", "UMTS", "GSM"))
+    page.wait_for_selector(".sidebar-item", timeout=5000)
+    item = page.locator(".sidebar-item").first
+
+    # No more colored band chips anywhere in the card.
+    assert item.locator(".band-chip").count() == 0
+
+    # The bands paragraph still lists real band names behind a bold label.
+    bands_p = item.locator("p", has_text="Bands:").first
+    text = bands_p.inner_text()
+    assert any(p in text for p in ("5G", "LTE", "UMTS", "GSM"))
+
+    # Signal tier indicator (the restrained bar glyph) is present in the header.
+    assert item.locator(".signal-label .signal-bar").count() >= 1

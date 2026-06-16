@@ -258,6 +258,24 @@
     background-color: #f0f0f0;
 }
 
+/* Keep the top-right filter panel above the bottom-right Leaflet
+   attribution control and clear of it, so the base-station-ID input and
+   Search button at the bottom of the open panel stay visible and tappable.
+   The attribution stays present (legally required for OSM/CARTO tiles). */
+.filter-control-container {
+    z-index: 1100;
+}
+
+.filter-control-container #filterContainer {
+    max-height: calc(100vh - 7rem);
+    overflow-y: auto;
+    margin-bottom: 1.75rem;
+}
+
+.leaflet-control-attribution {
+    z-index: 900;
+}
+
 /* Map control buttons with labels */
 .map-control-btn {
     display: flex !important;
@@ -459,12 +477,11 @@ th[onclick]:hover {
 
 /* Sidebar station cards */
 .sidebar-item {
-  @apply bg-white dark:bg-gray-800 rounded-lg p-3 md:p-4 shadow-sm border-l-4 transition-all duration-200 cursor-pointer border border-gray-100 dark:border-gray-700;
-  border-left-color: #9ca3af;
+  @apply bg-white dark:bg-gray-800 rounded-lg p-3 md:p-4 shadow-sm transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-700;
 }
 
 .sidebar-item:hover {
-  @apply shadow-md transform scale-[1.01] border-gray-200 dark:border-gray-600;
+  @apply shadow-md transform scale-[1.01] border-gray-300 dark:border-gray-600;
 }
 
 .sidebar-item.selected {
@@ -478,23 +495,6 @@ th[onclick]:hover {
 
 .sidebar-item p {
   @apply text-gray-700 dark:text-gray-200;
-}
-
-/* Provider color borders */
-.sidebar-item.provider-play {
-  border-left-color: #8b5cf6; /* violet */
-}
-
-.sidebar-item.provider-orange {
-  border-left-color: #f97316; /* orange */
-}
-
-.sidebar-item.provider-tmobile {
-  border-left-color: #ef4444; /* red */
-}
-
-.sidebar-item.provider-plus {
-  border-left-color: #22c55e; /* green */
 }
 
 /* Signal strength indicator */
@@ -528,25 +528,10 @@ th[onclick]:hover {
 .dark .signal-fair { color: #f97316; }
 .dark .signal-poor { color: #dc2626; }
 
-/* Signal badge */
-.signal-badge {
-  @apply inline-flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-semibold whitespace-nowrap;
-}
-
-.signal-badge.excellent {
-  @apply bg-green-100 text-green-800 dark:bg-green-800/50 dark:text-green-300 dark:border dark:border-green-600;
-}
-
-.signal-badge.good {
-  @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-800/50 dark:text-yellow-300 dark:border dark:border-yellow-600;
-}
-
-.signal-badge.fair {
-  @apply bg-orange-100 text-orange-800 dark:bg-orange-800/50 dark:text-orange-300 dark:border dark:border-orange-600;
-}
-
-.signal-badge.poor {
-  @apply bg-red-100 text-red-800 dark:bg-red-800/50 dark:text-red-300 dark:border dark:border-red-600;
+/* Signal label: signal bars + plain muted text (no coloured pill chrome).
+   The signal tier colour lives on the bars via .signal-{level}. */
+.signal-label {
+  @apply inline-flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs font-medium whitespace-nowrap text-gray-600 dark:text-gray-300;
 }
 
 /* Empty state */
@@ -705,7 +690,7 @@ th[onclick]:hover {
     @apply flex-wrap text-xs gap-1;
   }
 
-  .sidebar-item .signal-badge {
+  .sidebar-item .signal-label {
     @apply mt-1;
   }
 }

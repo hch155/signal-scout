@@ -592,7 +592,6 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
             showSidebar();
             displayStations(data.stations);
             addRingsForLocation(lat, lng);
-            applyFrequencyColors();
             // PR #46.9: shortcut for logged-in users — save the
             // currently-clicked spot as a saved location for alerts,
             // without driving them through /account → + Add → manual
@@ -1624,10 +1623,9 @@ function createSidebarContent(station, index) {
             </span>`;
     }
 
-    // Group frequency bands by type. Each individual band sits in its own
-    // <span class="band-chip">…</span> so applyFrequencyColors() can recolor
-    // them per RSRP-signal-level. Labels stay as plain bold text — they would
-    // otherwise be picked up by the band-color rebuild and replace real values.
+    // Group frequency bands by type. Labels (5G:/LTE:/3G:/GSM:) stay bold;
+    // band values render as neutral text — the per-station signal tier is
+    // already carried by the signal bars, so bands aren't colour-coded.
     const bandsArr = Array.isArray(station.frequency_bands) ? station.frequency_bands : [];
     const bands5G = bandsArr.filter(b => b.startsWith('5G'));
     const bandsLTE = bandsArr.filter(b => b.startsWith('LTE'));
@@ -1636,8 +1634,8 @@ function createSidebarContent(station, index) {
 
     function bandGroup(label, bands) {
         if (bands.length === 0) return '';
-        const chips = bands.map(b => `<span class="band-chip">${escapeHtml(b)}</span>`).join(', ');
-        return `<b>${label}</b> ${chips} `;
+        const values = bands.map(b => escapeHtml(b)).join(', ');
+        return `<b>${label}</b> ${values} `;
     }
 
     const bandsHtml =
@@ -1654,7 +1652,7 @@ function createSidebarContent(station, index) {
         <div class="dark:text-white">
             <div class="card-header">
                 <h4>${Number(index) + 1}. ${escapeHtml(station.basestation_id)}</h4>
-                <span class="signal-badge ${escapeHtml(signal.level)}">
+                <span class="signal-label">
                     ${createSignalBars(signal)}
                     <span class="hidden sm:inline">${escapeHtml(signal.label)}</span>
                 </span>
@@ -1729,7 +1727,6 @@ function fetchStations() {
         if (currentFilters.lat && currentFilters.lng) {
             addRingsForLocation(currentFilters.lat, currentFilters.lng);
         }
-        applyFrequencyColors();
         scrollToSidebar();
     })
     .catch(error => {
@@ -2182,33 +2179,6 @@ function getFrequencyColorForDistance(band, distanceKm) {
     }
     
     return 'red'; // If distance exceeds all thresholds, default to red
-}
-
-function applyFrequencyColors() {
-    const sidebarItems = document.querySelectorAll('.sidebar-item');
-
-    sidebarItems.forEach((item) => {
-        // Extract distance from .card-meta span (format: "X.XX km")
-        let distance = null;
-        const metaSpans = item.querySelectorAll('.card-meta span');
-        metaSpans.forEach(span => {
-            const distanceMatch = span.textContent.match(/^(\d+\.?\d*)\s*km$/);
-            if (distanceMatch) {
-                distance = parseFloat(distanceMatch[1]);
-            }
-        });
-
-        if (distance !== null) {
-            // Recolor each .band-chip in place so labels (5G:/LTE:/3G:/GSM:)
-            // and per-group separators stay intact.
-            item.querySelectorAll('.band-chip').forEach(chip => {
-                const band = chip.textContent.trim();
-                if (!band) return;
-                const color = getFrequencyColorForDistance(band, distance);
-                chip.className = `band-chip text-${color}-600 dark:text-${color}-400 font-medium`;
-            });
-        }
-    });
 }
 
 function applyFrequencyColorsToTooltipContent(content, distance) {
