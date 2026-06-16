@@ -11,13 +11,13 @@ Public web app + documented JSON API. Live: <https://www.signal-scout.com>
 |---|---|
 | Dataset | ~22k unique BTS / 188k+ frequency-band rows |
 | Operators / bands | 4 operators, all current bands (5G / LTE / UMTS / GSM) |
-| API latency | p95 48 ms (mixed-endpoint, prod dataset); ~250–300 ms end-to-end from PL |
-| 2024 perf arc | ~4 s → 42 ms (~100×), hand-measured on Cloud Run |
-| 2026 perf arc | p95 186 → 48 ms (−74%), SQL grouping + composite index |
+| Query latency (server-side) | `/stations` p95 ~28 ms on the 188k-row prod dataset — compute only |
+| End-to-end latency | `/stations` p95 ~170 ms, median ~140 ms from PL — network-dominated (~125 ms floor: Hetzner edge + Tailscale mesh + home LXC) |
+| Perf optimization | 2024: page response ~4 s → ~40 ms (latitude segmentation, Cloud Run). 2026: query p95 186 → 48 ms (−74%, SQL grouping + composite index). Distinct metrics/eras — see [case study](docs/case-study-performance.md). |
 | Tests | 477 passing (unit + integration + Playwright E2E) |
 | CI/CD | lint → test → trivy fs → build → trivy image → promote → staging → prod (smoke + auto-rollback) |
 | Hosting | self-hosted, ~€7/mo cash (Hetzner edge + home LXC + Tailscale) |
-| History | solo project since 2024 (1181 commits); most of it pre-dates AI coding tools |
+| History | solo project, 1181 commits since 2024; build log at [/build-log](https://www.signal-scout.com/build-log) |
 
 ## What's in it
 
@@ -171,6 +171,12 @@ Full write-ups: `docs/case-study-performance.md` (both eras) and
   grouping out of a Python loop into SQL `GROUP_CONCAT` + a composite index
   matching the query's filter shape. Mixed-endpoint p95 186 → 48 ms (−74%);
   found and fixed a pre-existing grouping bug in the same PR.
+- **Today (measured 2026-06):** server-side compute is the fast part —
+  `/stations` p95 ~28 ms on the prod dataset. End-to-end from PL is ~140 ms
+  median / ~170 ms p95, **dominated by the network path** (~125 ms floor:
+  edge + Tailscale mesh + home LXC), not compute. The two arcs above are
+  *compute* optimizations measured with different tools/datasets/eras — they
+  are not a single comparable series.
 - A per-PR CI gate fires 100 requests at `/` and fails the build if p95 >
   500 ms; a daily smoke cron probes prod. Every perf-relevant change has a
   committed snapshot under `tests/results/`.
@@ -178,10 +184,10 @@ Full write-ups: `docs/case-study-performance.md` (both eras) and
 ## Why this exists / build history
 
 Solo side project, started in 2024 (earliest tree state 2023), 1181
-commits. The build log (`src/content/build-log.md`, live at `/build-log`) is the raw chronology: a
-hand-built Flask app on Cloud Run → algorithmic perf work → self-hosted
-migration → security hardening → observability → CI/CD. Most of the work
-pre-dates AI coding tools.
+commits. The build log (`src/content/build-log.md`, live at `/build-log`)
+is the raw chronology: a hand-built Flask app on Cloud Run → algorithmic
+perf work → self-hosted migration → security hardening → observability →
+CI/CD.
 
 ## API
 
