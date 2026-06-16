@@ -230,27 +230,20 @@ function adjustFooterPosition() {
 
 function initializeThemeToggle() {
     const btnThemeToggler = document.getElementById('themeToggle');
-    const themeIcon = document.createElement('img');
-    
-    const updateThemeIcon = (isDarkMode) => {
-        themeIcon.src = isDarkMode ? '/static/images/sunrise.svg' : '/static/images/sunset.svg';
-        themeIcon.style.filter = isDarkMode ? 'invert(100%)' : 'none';
-        if (!btnThemeToggler.contains(themeIcon)) {
-            btnThemeToggler.appendChild(themeIcon);
-        }
-    };
+    if (!btnThemeToggler) return;
 
+    // The icon is two inline SVGs in the button (sun/moon) toggled by the
+    // `dark` class in CSS — no <img> swap here (that broke in Safari).
+    // theme-init.js already set the `dark` class before first paint; this
+    // just keeps it in sync and persists the user's choice.
     const storedTheme = localStorage.getItem('theme');
     const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const isDarkModePreferred = storedTheme === 'dark' || (!storedTheme && prefersDarkMode);
-
     document.documentElement.classList.toggle('dark', isDarkModePreferred);
-    updateThemeIcon(isDarkModePreferred);
 
     btnThemeToggler.addEventListener('click', () => {
         const isDarkModeNow = document.documentElement.classList.toggle('dark');
         localStorage.setItem('theme', isDarkModeNow ? 'dark' : 'light');
-        updateThemeIcon(isDarkModeNow);
         window.dispatchEvent(new CustomEvent('themeChanged', { detail: { isDarkMode: isDarkModeNow } }));
     });
 }
