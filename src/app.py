@@ -970,13 +970,6 @@ def data_page():
     _set_content_etag(response, _md_etag_key('data.md'))
     return response
 
-@app.route('/build-log')
-def build_log_page():
-    html_content = get_html_content_from_markdown('build-log.md')
-    response = make_response(render_template('build_log.html', content=html_content))
-    _set_content_etag(response, _md_etag_key('build-log.md'))
-    return response
-
 @app.route('/stats')
 def stats_page():
     stats = get_stats()
@@ -2202,7 +2195,6 @@ def sitemap_xml():
         ('/data', '0.8', 'monthly'),
         ('/stats', '0.8', 'monthly'),
         ('/tips', '0.7', 'monthly'),
-        ('/build-log', '0.5', 'weekly'),
         ('/privacy', '0.3', 'yearly'),
     ]
     origin = settings.canonical_origin

@@ -17,7 +17,7 @@ Public web app + documented JSON API. Live: <https://www.signal-scout.com>
 | Tests | 477 passing (unit + integration + Playwright E2E) |
 | CI/CD | lint → test → trivy fs → build → trivy image → promote → staging → prod (smoke + auto-rollback) |
 | Hosting | self-hosted, ~€7/mo cash (Hetzner edge + home LXC + Tailscale) |
-| History | solo project, 1181 commits since 2024; build log at [/build-log](https://www.signal-scout.com/build-log) |
+| History | solo project, 1181 commits since 2024 |
 
 ## What's in it
 
@@ -162,7 +162,7 @@ monthly cron (`monthly-db-update.yml`) pulls fresh UKE data, rebuilds
 ## Performance
 
 Full write-ups: `docs/case-study-performance.md` (both eras) and
-`src/content/build-log.md` (the chronological journal; live at `/build-log`).
+`docs/build-log.md` (the chronological journal).
 
 - **2024 (Cloud Run, hand-measured):** ~4 s → 42 ms (~100×). The dominant
   win was algorithmic — bucketing rows by latitude segment. JS `--mangle`
@@ -184,7 +184,7 @@ Full write-ups: `docs/case-study-performance.md` (both eras) and
 ## Why this exists / build history
 
 Solo side project, started in 2024 (earliest tree state 2023), 1181
-commits. The build log (`src/content/build-log.md`, live at `/build-log`)
+commits. The build log (`docs/build-log.md`)
 is the raw chronology: a hand-built Flask app on Cloud Run → algorithmic
 perf work → self-hosted migration → security hardening → observability →
 CI/CD.
@@ -275,7 +275,7 @@ HEALTHCHECK against `/healthz`. Image ~580 MB.
 
 ## Documentation
 
-- `src/content/build-log.md` — raw chronological engineering journal (start here; live at `/build-log`).
+- `docs/build-log.md` — raw chronological engineering journal (start here).
 - `docs/case-study-performance.md` — both performance eras + the CI/SLO
   machinery.
 - `docs/migration-cloud-run-to-self-hosted.md` — the migration, including

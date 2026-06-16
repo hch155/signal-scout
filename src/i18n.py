@@ -19,7 +19,6 @@ TRANSLATIONS = {
     'Close': 'Zamknij',
     'Privacy': 'Prywatność',
     'Contact': 'Kontakt',
-    'Build log': 'Dziennik prac',
     'Raw chronological engineering journal': 'Surowy chronologiczny dziennik inżynierski',
 
     # base.html — auth modal

@@ -295,7 +295,6 @@
             | <a href="/contact" class="underline hover:no-underline">{{ _('Contact') }}</a>
             {% endif %}
             | <a href="{{ url_for('privacy_page') }}" class="underline hover:no-underline">{{ _('Privacy') }}</a>
-            | <a href="{{ url_for('build_log_page') }}" class="underline hover:no-underline">{{ _('Build log') }}</a>
             | <a href="/api/v1/docs/" class="underline hover:no-underline" target="_blank" rel="noopener">API</a>
             {% if app_version_sha %}
             | <a href="{{ repo_url }}/commit/{{ app_version_sha }}"
