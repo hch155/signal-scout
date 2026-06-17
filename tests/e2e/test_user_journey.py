@@ -61,23 +61,25 @@ def test_marker_popup_shows_basestation_id(page, base_url):
     assert "Base Station ID" in popup_text
 
 
-def test_sidebar_bands_render_as_neutral_text(page, base_url):
-    """Sidebar bands are de-vibed: band values render as plain neutral text
-    (no per-band color chips). The bold group labels (5G:/LTE:/3G:/GSM:) stay,
-    the signal tier is carried by the .signal-bar glyph only."""
+def test_sidebar_bands_colored_by_distance(page, base_url):
+    """De-vibe removed the card's colored accent-border + signal pill (chrome)
+    but KEEPS per-band colouring — it's data: each band is tinted by its own
+    reach at the station distance (a far low-band can be 'good' while a
+    high-band at the same spot is 'poor'). Favicon tier palette. The bold
+    group labels (5G:/LTE:/3G:/GSM:) stay; the .band-chip class is gone."""
     page.goto(base_url + "/")
     _wait_for_app_ready(page)
     page.evaluate("sendLocation(52.2297, 21.0122, 3, null)")
     page.wait_for_selector(".sidebar-item", timeout=5000)
     item = page.locator(".sidebar-item").first
 
-    # No more colored band chips anywhere in the card.
+    # The old colored-chip class is gone (that was the vibe-y version).
     assert item.locator(".band-chip").count() == 0
 
-    # The bands paragraph still lists real band names behind a bold label.
+    # Band values are per-band colour-coded via inline style (the feature).
     bands_p = item.locator("p", has_text="Bands:").first
-    text = bands_p.inner_text()
-    assert any(p in text for p in ("5G", "LTE", "UMTS", "GSM"))
+    assert any(p in bands_p.inner_text() for p in ("5G", "LTE", "UMTS", "GSM"))
+    assert bands_p.locator("span[style*='color']").count() >= 1
 
     # Signal tier indicator (the restrained bar glyph) is present in the header.
     assert item.locator(".signal-label .signal-bar").count() >= 1

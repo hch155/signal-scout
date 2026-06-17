@@ -127,7 +127,9 @@ const frequencyRanges = {
     low: [500, 1500, 3000, 5000] // low band frequency
 };
 
-const frequencyRangecolors = ['green', 'yellow', 'orange', 'red'];
+// Favicon-matched signal tiers (same palette as the verdict card, legend
+// and signal bars): Excellent / Good / Fair / Poor.
+const frequencyRangecolors = ['#16A34A', '#FACC15', '#F97316', '#DC2626'];
 
 window.onload = hideSidebar; // Hide the sidebar initially
 
@@ -1222,14 +1224,17 @@ function getCompassDirection(bearing) {
     return directions[index];
 }
 
+// Clean inline copy/check icons (feather, currentColor) — no emoji glyph.
+const COPY_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+const CHECK_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+
 // Copy to clipboard helper
 function copyToClipboard(text, button) {
     navigator.clipboard.writeText(text).then(() => {
-        const originalText = button.innerHTML;
-        button.innerHTML = '✓';
-        button.style.color = '#22c55e';
+        button.innerHTML = CHECK_ICON_SVG;
+        button.style.color = '#16a34a';
         setTimeout(() => {
-            button.innerHTML = originalText;
+            button.innerHTML = COPY_ICON_SVG;
             button.style.color = '';
         }, 1500);
     }).catch(err => {
@@ -1634,7 +1639,12 @@ function createSidebarContent(station, index) {
 
     function bandGroup(label, bands) {
         if (bands.length === 0) return '';
-        const values = bands.map(b => escapeHtml(b)).join(', ');
+        // Per-band colour by THIS band's reach at the station distance — the
+        // actual signal: a far low-band can be "good" while a high-band at the
+        // same spot is "poor". This is data, not decoration.
+        const values = bands.map(b =>
+            `<span style="color:${getFrequencyColorForDistance(b, station.distance)}">${escapeHtml(b)}</span>`
+        ).join(', ');
         return `<b>${label}</b> ${values} `;
     }
 
@@ -1668,7 +1678,7 @@ function createSidebarContent(station, index) {
             <p class="text-xs md:text-sm mb-1 text-gray-600 dark:text-gray-300">${cityLocation}</p>
             <p class="text-xs md:text-sm mb-0 text-gray-500 dark:text-gray-400">
                 ${coordsText}
-                <button data-copy-coords="${formattedLat}, ${formattedLng}" class="copy-btn" title="${t('Copy coordinates')}">📋</button>
+                <button data-copy-coords="${formattedLat}, ${formattedLng}" class="copy-btn" title="${t('Copy coordinates')}" aria-label="${t('Copy coordinates')}">${COPY_ICON_SVG}</button>
             </p>
         </div>`;
 }
