@@ -63,6 +63,47 @@ import json
 
 load_dotenv()
 
+
+def _scrub_sentry_event(event, hint):
+    """Strip user data before an error event leaves the box for GlitchTip —
+    keeps the SDK consistent with /privacy. Map endpoints carry lat/lng in
+    the query string; requests carry IP/cookies/tokens. We send the error +
+    stack trace, never where the user clicked or who they are."""
+    req = event.get("request")
+    if isinstance(req, dict):
+        req.pop("cookies", None)
+        req.pop("data", None)
+        req["query_string"] = ""
+        url = req.get("url")
+        if isinstance(url, str) and "?" in url:
+            req["url"] = url.split("?", 1)[0]
+        headers = req.get("headers")
+        if isinstance(headers, dict):
+            for h in ("Cookie", "X-Forwarded-For", "X-Real-Ip", "X-Real-IP",
+                      "Authorization", "X-Api-Key", "X-API-Key", "X-Csrf-Token"):
+                headers.pop(h, None)
+        env = req.get("env")
+        if isinstance(env, dict):
+            env.pop("REMOTE_ADDR", None)
+    event.pop("user", None)
+    return event
+
+
+# GlitchTip (self-hosted, Sentry protocol) — only when GLITCHTIP_DSN is set;
+# unset (dev/tests/CI) → no-op, sentry_sdk isn't even imported.
+if settings.glitchtip_dsn:
+    import sentry_sdk  # noqa: E402
+    from sentry_sdk.integrations.flask import FlaskIntegration  # noqa: E402
+    sentry_sdk.init(
+        dsn=settings.glitchtip_dsn,
+        integrations=[FlaskIntegration()],
+        environment=settings.env,
+        release=settings.app_version,
+        send_default_pii=False,
+        traces_sample_rate=0.0,
+        before_send=_scrub_sentry_event,
+    )
+
 app = Flask(__name__)
 # Cloud Run terminates TLS at the edge and forwards to the container over
 # HTTP. Without ProxyFix, request.scheme is "http" and url_for(_external=True)

@@ -91,6 +91,11 @@ class Config:
     email_from: str = field(default_factory=lambda: _str("EMAIL_FROM", "noreply@signal-scout.com"))
     email_from_name: str = field(default_factory=lambda: _str("EMAIL_FROM_NAME", "Signal-Scout"))
     sendgrid_api_key: str = field(default_factory=lambda: _str("SENDGRID_API_KEY"))
+    # 2026-06-17: GlitchTip (self-hosted, Sentry-protocol) error tracking.
+    # Empty → SDK never initialises (no-op). In prod the DSN points at the
+    # GlitchTip LXC over the internal network (http://…@GLITCHTIP_VM_IP:8000/1)
+    # so error events don't depend on the public NPM/DNS path.
+    glitchtip_dsn: str = field(default_factory=lambda: _str("GLITCHTIP_DSN"))
     # 2026-04-29: ECDSA public key SendGrid uses to sign Event Webhook
     # POSTs. Pasted from Settings → Mail Settings → Event Webhook in
     # SendGrid (the "Verification Key" field after enabling Signed
