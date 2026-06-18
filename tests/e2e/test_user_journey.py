@@ -83,3 +83,30 @@ def test_sidebar_bands_colored_by_distance(page, base_url):
 
     # Signal tier indicator (the restrained bar glyph) is present in the header.
     assert item.locator(".signal-label .signal-bar").count() >= 1
+
+
+_COUNT_RINGS = (
+    "(() => { let n = 0; mymap.eachLayer(l => { if (l instanceof L.Circle) n++; }); return n; })()"
+)
+
+
+def test_outside_pl_click_does_not_break_next_inside_click(page, base_url):
+    """Outside-PL click then inside-PL click must still draw the 4 coverage
+    rings, and rings must not accumulate across clicks."""
+    page.goto(base_url + "/")
+    _wait_for_app_ready(page)
+    page.wait_for_function("typeof countryBoundaries !== 'undefined'", timeout=5000)
+
+    with page.expect_response(lambda r: "/submit_location" in r.url):
+        page.evaluate("mymap.fire('click', {latlng: L.latLng(48.8566, 2.3522)})")
+    assert page.evaluate(_COUNT_RINGS) == 0
+
+    with page.expect_response(lambda r: "/submit_location" in r.url):
+        page.evaluate("mymap.fire('click', {latlng: L.latLng(52.2297, 21.0122)})")
+    page.wait_for_selector(".sidebar-item", timeout=5000)
+    assert page.evaluate(_COUNT_RINGS) == 4
+
+    with page.expect_response(lambda r: "/stations" in r.url or "/submit_location" in r.url):
+        page.evaluate("mymap.fire('click', {latlng: L.latLng(50.0647, 19.9450)})")
+    page.wait_for_timeout(600)
+    assert page.evaluate(_COUNT_RINGS) == 4

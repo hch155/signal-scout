@@ -120,6 +120,7 @@ let countryBoundaries;
 let isFirstClick = true;
 let currentBand = 'low';
 let connectionLine = null;
+let _locationReqSeq = 0;
 
 const frequencyRanges = {
     high: [200, 500, 1000, 1500], // high band frequency distance radius
@@ -171,7 +172,6 @@ mymap.on('click', function(e) {
     currentFilters.lng = lng;
     if (isFirstClick) {
         sendLocation(lat, lng);
-        isFirstClick = false;
     } else {
         fetchStations();
     }
@@ -519,6 +519,7 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
     currentFilters.maxDistance = max_distance;
     locationSetInitially = true;
 
+    const reqSeq = ++_locationReqSeq;
     showLoadingSkeleton();
     let url = `/submit_location`;
     const userSubmittedLocation = { lat: lat, lng: lng };
@@ -576,6 +577,7 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
         body: JSON.stringify(requestData)
     })
     .then(data => {
+        if (reqSeq !== _locationReqSeq) return;
         // Backend signals out-of-PL with `outside_pl: true` (and an
         // empty stations[] so the API contract stays consistent).
         // Treat both that flag AND the local geometry check as "outside"
@@ -590,9 +592,11 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
         }
         messageBox.classList.add('hidden');
         if (data && Array.isArray(data.stations)) {
+            isFirstClick = false;
             updateBTSCount(data.count);
             showSidebar();
             displayStations(data.stations);
+            clearRings();
             addRingsForLocation(lat, lng);
             // PR #46.9: shortcut for logged-in users — save the
             // currently-clicked spot as a saved location for alerts,
@@ -618,6 +622,7 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
         }
     })
     .catch(err => {
+        if (reqSeq !== _locationReqSeq) return;
         // Network failure / 5xx / globalFetch threw on non-2xx. The
         // sidebar must come out of the loading state regardless of
         // whether we render anything else.
@@ -1706,12 +1711,14 @@ function constructFilterURL() {
 }
 
 function fetchStations() {
+    const reqSeq = ++_locationReqSeq;
     showLoadingSkeleton();
     let filterURL = constructFilterURL();
     const sidebar = document.getElementById('sidebar');
     const messageBox = document.getElementById('messageBox');
     globalFetch(filterURL)
     .then(data => {
+        if (reqSeq !== _locationReqSeq) return;
         // Assuming data is already the parsed JSON object
         if (!data || typeof data !== 'object') {
             console.error('Invalid data received:', data);
@@ -1735,6 +1742,7 @@ function fetchStations() {
         showSidebar();
         displayStations(data.stations);
         if (currentFilters.lat && currentFilters.lng) {
+            clearRings();
             addRingsForLocation(currentFilters.lat, currentFilters.lng);
         }
         scrollToSidebar();
