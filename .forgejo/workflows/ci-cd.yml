@@ -187,6 +187,8 @@ jobs:
             --severity CRITICAL \
             --exit-code 1 \
             --ignore-unfixed \
+            --scanners vuln \
+            --timeout 15m \
             "${{ needs.build.outputs.image_ref }}"
 
   promote:
