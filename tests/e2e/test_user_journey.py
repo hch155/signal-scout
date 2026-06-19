@@ -110,3 +110,16 @@ def test_outside_pl_click_does_not_break_next_inside_click(page, base_url):
         page.evaluate("mymap.fire('click', {latlng: L.latLng(50.0647, 19.9450)})")
     page.wait_for_timeout(600)
     assert page.evaluate(_COUNT_RINGS) == 4
+
+
+def test_language_toggle_preserves_location(page, base_url):
+    """Switching language must keep the clicked spot: the toggle carries
+    lat/lng so the deep-link restores the sidebar + rings after the reload."""
+    page.goto(base_url + "/")
+    _wait_for_app_ready(page)
+    page.evaluate("sendLocation(52.2297, 21.0122, 3, null)")
+    page.wait_for_selector(".sidebar-item", timeout=5000)
+    page.click("#langToggle")
+    page.wait_for_selector(".sidebar-item", timeout=6000)
+    assert "lang=" in page.url
+    assert page.evaluate(_COUNT_RINGS) == 4

@@ -2174,6 +2174,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }, 350);
 });
 
+// Language switch is a ?lang= reload; carry the active spot so it isn't lost.
+document.addEventListener('DOMContentLoaded', function () {
+    var toggle = document.getElementById('langToggle');
+    if (!toggle) return;
+    toggle.addEventListener('click', function (e) {
+        if (currentFilters.lat == null || currentFilters.lng == null) return;
+        try {
+            var url = new URL(toggle.href, window.location.origin);
+            url.searchParams.set('lat', currentFilters.lat);
+            url.searchParams.set('lng', currentFilters.lng);
+            e.preventDefault();
+            window.location.href = url.toString();
+        } catch (err) { /* keep default href */ }
+    });
+});
+
 function getFrequencyColorForDistance(band, distanceKm) {
     let distanceMeters = distanceKm * 1000;
     let bandKey;
