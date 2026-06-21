@@ -94,8 +94,9 @@ if settings.glitchtip_dsn:
         environment=settings.env,
         release=settings.app_version,
         send_default_pii=False,
-        traces_sample_rate=0.0,
+        traces_sample_rate=0.1,
         before_send=_scrub_sentry_event,
+        before_send_transaction=_scrub_sentry_event,
     )
 
 app = Flask(__name__)
