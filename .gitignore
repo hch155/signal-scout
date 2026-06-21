@@ -29,6 +29,17 @@ tests/fixtures/snapshots/
 *.log
 crash.log
 
+# Terraform (defensive — tfstate/tfvars hold secrets in plaintext)
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
 # Tooling
 .claude/
 
