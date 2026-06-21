@@ -1,44 +1,36 @@
-tools/
-flask_session/
+# Python
 __pycache__/
+venv/
+.coverage
+htmlcov/
+
+# Secrets / env
 .env
+ops/.env
 *.crt
 *.key
 *.pem
 certs/
-venv/
-src/static/dist/pages/*.map
-src/instance/stations.db.bak
-performance_scripts/
 
-**/.terraform/*
-
-*.tfstate
-*.tfstate.*
-terraform.tfstate*
-
-crash.log
-*.log
-
-*.tfvars
-*.tfvars.json
-
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
-.coverage
-htmlcov/
-ops/.env
-.claude/
-tests/fixtures/snapshots/
-
-# Audit Critical 4: per-instance SQLite DBs must NOT be committed —
-# they hold bcrypt hashes, plaintext API keys, TOTP secrets.
+# User data — never commit (bcrypt hashes, API keys, TOTP secrets)
 src/instance/users.db
-# -shm/-wal are SQLite WAL sidecars of the same DB - same data.
 src/instance/users.db-shm
 src/instance/users.db-wal
+src/instance/stations.db.bak
+.perf_users.db
+
+# Runtime / build artifacts
+flask_session/
+tools/
+src/static/dist/pages/*.map
+tests/fixtures/snapshots/
+
+# Logs
+*.log
+crash.log
+
+# Tooling
+.claude/
 
 # macOS
 .DS_Store
