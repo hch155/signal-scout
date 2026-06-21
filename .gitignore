@@ -39,3 +39,7 @@ src/instance/users.db
 # -shm/-wal are SQLite WAL sidecars of the same DB - same data.
 src/instance/users.db-shm
 src/instance/users.db-wal
+
+# macOS
+.DS_Store
+**/.DS_Store
