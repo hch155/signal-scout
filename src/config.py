@@ -56,10 +56,6 @@ class Config:
     repo_url: str = field(default_factory=lambda: _str(
         "REPO_URL", "https://github.com/hch155/signal-scout"))
 
-    # ── Plausible Analytics ──
-    plausible_domain: str = field(default_factory=lambda: _str("PLAUSIBLE_DOMAIN"))
-    plausible_script_url: str = field(default_factory=lambda: _str("PLAUSIBLE_SCRIPT_URL"))
-
     # ── Honeypot ──
     honeypot_bts_ids_raw: str = field(default_factory=lambda: _str("HONEYPOT_BTS_IDS"))
 

@@ -60,7 +60,7 @@ To keep the service available and protect it from bots and scrapers, we use a fe
 
 ### No cookie banner — and why
 
-We don't show a cookie-consent banner because we don't set any cookie that requires consent. The only cookies we use — the Flask session/CSRF cookie and the `ss_sid` anti-abuse cookie — are **strictly necessary** to run and protect the service (ePrivacy Art. 5(3) exemption). Our website analytics is **self-hosted Plausible, which is cookieless** and stores no personal identifiers. So there is nothing to consent to.
+We don't show a cookie-consent banner because we don't set any cookie that requires consent. The only cookies we use — the Flask session/CSRF cookie and the `ss_sid` anti-abuse cookie — are **strictly necessary** to run and protect the service (ePrivacy Art. 5(3) exemption). We run no third-party or cookie-based website analytics. So there is nothing to consent to.
 
 ### Automated decision-making
 

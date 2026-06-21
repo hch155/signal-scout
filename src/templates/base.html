@@ -42,11 +42,6 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <script id="ss-i18n" type="application/json">{{ ss_i18n|tojson }}</script>
     <script src="{{ url_for('static', filename='vendor/dompurify-3.2.7.js') }}"></script>
-    {% if plausible_script_url and plausible_domain %}
-    <script defer
-            data-domain="{{ plausible_domain }}"
-            src="{{ plausible_script_url }}"></script>
-    {% endif %}
     <script defer src="{{ url_for('static', filename='dist/pages/common.min.js') }}?v={{ app_version }}"></script>
     <script defer src="{{ url_for('static', filename='dist/pages/tips-interactions.min.js') }}?v={{ app_version }}"></script>
 

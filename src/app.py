@@ -386,31 +386,16 @@ def rate_limit_exceeded(e):
     return '<html><body><h1>Rate Limit Exceeded</h1><p>Please wait a minute before making new requests.</p><img src="/static/limitexceededfresh.png" alt="Rate Limit Exceeded"></body></html>', 429
 
 def _build_csp_policy() -> str:
-    """CSP composed at startup so the Plausible host (env-driven) is allowed
-    in script-src + connect-src only when configured. Keeps the CSP strict
-    by default and avoids opening allowances no one is using."""
-    plausible_url = settings.plausible_script_url.strip()
-    plausible_origin = ''
-    if plausible_url:
-        # Trim path/query to leave just scheme+host for CSP.
-        from urllib.parse import urlparse
-        parsed = urlparse(plausible_url)
-        if parsed.scheme and parsed.netloc:
-            plausible_origin = f"{parsed.scheme}://{parsed.netloc}"
-
-    script_extras = ' ' + plausible_origin if plausible_origin else ''
-    connect_extras = ' ' + plausible_origin if plausible_origin else ''
-
     return (
         "default-src 'self'; "
-        f"script-src 'self'{script_extras}; "
+        "script-src 'self'; "
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: blob: "
         "https://*.tile.openstreetmap.org https://tiles.stadiamaps.com "
         "https://*.basemaps.cartocdn.com "
         "https://server.arcgisonline.com; "
         "font-src 'self' data:; "
-        f"connect-src 'self'{connect_extras}; "
+        "connect-src 'self'; "
         "frame-ancestors 'none'; "
         "base-uri 'self'; "
         "form-action 'self'; "
@@ -719,8 +704,6 @@ def generate_csrf_token():
 
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
 
-app.jinja_env.globals['plausible_script_url'] = settings.plausible_script_url
-app.jinja_env.globals['plausible_domain'] = settings.plausible_domain
 app.jinja_env.globals['canonical_origin'] = settings.canonical_origin
 app.jinja_env.globals['email_link_origin'] = settings.email_link_origin
 app.jinja_env.globals['marketing_enabled'] = settings.marketing_enabled
