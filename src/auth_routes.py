@@ -28,11 +28,7 @@ from flask import Blueprint, jsonify, render_template, request, session
 
 from models import User, ApiKey, AuditEvent, UserLocation, UserStationSnapshot
 from kms import get_kms
-# PR #47: Stripe-style hashed API keys. Both helpers are pure functions
-# (no Flask context, no DB) so importing them at module level is safe.
 from api_access import hash_api_key, format_api_key_prefix
-# PR #44: register / first-key funnel counters. Imported directly because
-# they're plain Counters with no circular-import risk.
 from observability import (
     funnel_register_started_total,
     funnel_register_completed_total,
@@ -45,8 +41,6 @@ logger = logging.getLogger(__name__)
 auth_bp = Blueprint("auth", __name__)
 
 
-# These are filled in by register_auth_routes(); kept module-level so route
-# handlers can use them without a closure.
 _deps: dict = {}
 
 
@@ -78,15 +72,6 @@ def _login_failures_total():
     return _deps["login_failures_total"]
 
 
-# Audit fix ENUM-3 (2026-06-07): composite rate-limit key. The global
-# limiter is keyed on client IP alone, so an attacker rotating IPs (proxy
-# pool / botnet) sidesteps the per-route caps entirely. These key_funcs
-# fold a hash of the submitted email into the limiter bucket so the
-# per-account ceiling holds across IPs, while still scoping by IP so one
-# attacker can't lock a victim's email out for everyone. The raw email is
-# never stored in the limiter backend (only a short sha256 prefix). Falls
-# back to IP-only when the body is missing/malformed so a junk request
-# can't crash the limiter.
 def _email_rate_component() -> str:
     try:
         from flask import request
@@ -113,27 +98,13 @@ def _register_rate_key() -> str:
 
 
 def _forgot_password_rate_key() -> str:
-    # 2026-06-08: composite IP+email bucket (same shape as login/register) so
-    # an attacker rotating IPs can't keep spraying reset mail at one inbox.
     from flask_limiter.util import get_remote_address
     return f"{get_remote_address()}|{_email_rate_component()}"
 
 
-# PR #26: account lockout config. After this many wrong-password attempts
-# in a row, the account is locked for LOCKOUT_DURATION. Counter resets on
-# successful login (any path — password OR password+TOTP). Window matches
-# typical industry baselines (5/15min — long enough to deter brute-force,
-# short enough that a real user who fat-fingered isn't locked out
-# overnight).
 LOCKOUT_THRESHOLD = 5
 LOCKOUT_DURATION = timedelta(minutes=15)
 
-# Audit fix M-NEW-4 (2026-04-27): pre-computed bcrypt hash used to burn
-# constant time when the supplied email maps to no User row. Generated
-# at import time (cost paid once per worker boot, not per request) so
-# the runtime check is the same shape as a real lookup. Value is
-# bcrypt of a constant string — never matches any user-supplied
-# password by coincidence.
 _DUMMY_BCRYPT_HASH = (
     '$2b$12$wFRtPM8VvZdEdBbY5lJ4ZeEf4eXIYlD0d1yhxwOO5Z3cV1Mv8qC.O'
 )
@@ -200,8 +171,6 @@ def _record_failed_password_attempt(user, *, endpoint: str) -> None:
     except Exception:
         db.session.rollback()
         return
-    # Reload to see the post-update values (rowcount=1 always under
-    # WHERE id=?, so refresh is safe).
     db.session.refresh(user)
     audit_meta: dict = {
         "reason": "bad_password",
@@ -217,8 +186,6 @@ def _record_failed_password_attempt(user, *, endpoint: str) -> None:
         _audit('account.locked', user.id, audit_meta)
     elif user.failed_login_attempts < LOCKOUT_THRESHOLD:
         _audit('login.fail', user.id, audit_meta)
-    # else: was already locked, no fresh audit (avoids spam during
-    # the lock window when an attacker keeps probing).
     try:
         db.session.commit()
     except Exception:
@@ -226,10 +193,6 @@ def _record_failed_password_attempt(user, *, endpoint: str) -> None:
 
 
 # ── PR #39: KMS-wrapped TOTP secret ─────────────────────────────────────
-# Helpers route every TOTP secret read/write through get_kms() so flipping
-# GCP_KMS_KEY_NAME on Cloud Run env switches the storage format without
-# touching route code. Wire format on disk: base64(KMS_ciphertext) so a
-# TEXT column holds binary safely.
 
 def _wrap_totp_secret(plain: str) -> str:
     """Encrypt a plaintext TOTP secret for storage in
@@ -268,8 +231,6 @@ def _redact_ip(s: str) -> str:
     Empty / unparseable → empty (don't store junk)."""
     if not s:
         return ''
-    # X-Forwarded-For is a comma-separated list ('client, proxy1, proxy2').
-    # Take the first hop = client; rest are infrastructure.
     first = s.split(',')[0].strip()
     try:
         import ipaddress
@@ -280,8 +241,6 @@ def _redact_ip(s: str) -> str:
         parts = str(ip).split('.')
         parts[-1] = '0'
         return '.'.join(parts)
-    # IPv6: keep top 48 bits, zero the rest. ipaddress.ip_network handles
-    # the math cleanly.
     net = ipaddress.ip_network(f"{ip}/48", strict=False)
     return str(net.network_address)
 
@@ -308,13 +267,6 @@ def _compute_audit_row_hash(prev_hash: str, user_id: int, event_type: str,
     return hashlib.sha256(content.encode('utf-8')).hexdigest()
 
 
-# 2026-04-28: every audit event is also a Prometheus business-action
-# event. Map the audit event_type -> user_action label value so the
-# /metrics output gives Grafana per-action rate counters without the
-# per-route handlers each having to remember an extra .inc() call.
-# Events not in this map (e.g. login.fail, account.locked — already
-# covered by the lockout-counter Gauge / login_failures_total) are
-# intentionally skipped — adding them would double-count failures.
 _AUDIT_TO_USER_ACTION = {
     'login.success':    'login_password',
     'logout':           'logout',
@@ -350,9 +302,6 @@ def _audit(event_type: str, user_id: int, meta: dict | None = None) -> None:
         meta_json_str = json.dumps(meta) if meta else None
         created_at = datetime.utcnow()
 
-        # Look up the previous event's row_hash for this user. Use the
-        # session's own pending objects too — multiple _audit() calls
-        # in a single request must chain to each other, not skip past.
         sess = _db().session
         last_pending = next(
             (obj for obj in reversed(list(sess.new))
@@ -384,13 +333,8 @@ def _audit(event_type: str, user_id: int, meta: dict | None = None) -> None:
         )
         sess.add(ev)
     except Exception:
-        # Audit is best-effort — never let a failed log break the user-facing
-        # action. Log+continue.
         logger.exception("Failed to record audit event %s for user_id=%s",
                          event_type, user_id)
-    # Mirror to Prometheus user_action_total when the event is in
-    # the map (see _AUDIT_TO_USER_ACTION above). Same best-effort
-    # contract as the audit row insert.
     action = _AUDIT_TO_USER_ACTION.get(event_type)
     if action is not None:
         try:
@@ -454,18 +398,11 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
         "login_failures_total": login_failures_total,
     })
 
-    # Apply rate limits via wrapper since blueprint can't decorate at
-    # registration time without ordering pain.
     auth_bp.add_url_rule(
         "/register", endpoint="register",
         view_func=limiter.limit(
             "5 per hour", key_func=_register_rate_key)(register_user),
         methods=["POST"])
-    # PR #26: bumped from 3/min to 10/min. Per-IP rate limit was defending
-    # against slow per-account brute-force; that job now belongs to
-    # the per-account lockout (5 wrong → 15-min freeze). Higher per-IP
-    # cap means a real user typing a wrong password 4× isn't immediately
-    # 429'd, while the account itself still locks out attackers.
     auth_bp.add_url_rule(
         "/login", endpoint="login",
         view_func=limiter.limit(
@@ -473,9 +410,6 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
         methods=["POST"])
     auth_bp.add_url_rule("/logout", endpoint="logout",
                          view_func=logout, methods=["POST"])
-    # 2026-06-08: password reset (forgot-password). POST endpoints are
-    # rate-limited on the composite IP+email key so reset-mail spray at one
-    # inbox is capped even across rotating IPs.
     auth_bp.add_url_rule("/forgot-password", endpoint="forgot_password_page",
                          view_func=forgot_password_page, methods=["GET"])
     auth_bp.add_url_rule(
@@ -485,9 +419,6 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
         methods=["POST"])
     auth_bp.add_url_rule("/reset-password", endpoint="reset_password_page",
                          view_func=reset_password_page, methods=["GET"])
-    # 2026-06-11: email verification. GET is the link target from the
-    # welcome email; resend is session-authed (the lost-email case still
-    # works because login is not gated on verification).
     auth_bp.add_url_rule("/verify-email", endpoint="verify_email",
                          view_func=limiter.limit("20 per hour")(verify_email),
                          methods=["GET"])
@@ -508,9 +439,6 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
                          endpoint="regenerate_api_key",
                          view_func=limiter.limit("3 per hour")(regenerate_api_key),
                          methods=["POST"])
-    # PR #12: profile + password + delete. Tighter limit on /password and
-    # /delete because both are credential operations; profile updates are
-    # benign so they get a looser limit (still capped to discourage scrape).
     auth_bp.add_url_rule("/account/profile", endpoint="update_profile",
                          view_func=limiter.limit("20 per hour")(update_profile),
                          methods=["POST"])
@@ -520,8 +448,6 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
     auth_bp.add_url_rule("/account/delete", endpoint="delete_account",
                          view_func=limiter.limit("3 per hour")(delete_account),
                          methods=["POST"])
-    # PR #14: multi-key API. Create/revoke are rate-limited to discourage
-    # the "spray ten keys to find one that bypasses a per-tier limit" pattern.
     auth_bp.add_url_rule("/account/keys", endpoint="create_api_key",
                          view_func=limiter.limit("10 per hour")(create_api_key),
                          methods=["POST"])
@@ -529,8 +455,6 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
                          endpoint="revoke_api_key",
                          view_func=limiter.limit("20 per hour")(revoke_api_key),
                          methods=["POST"])
-    # PR #16: 2FA TOTP. Start/verify/disable + the second-step login
-    # verification after a correct password.
     auth_bp.add_url_rule("/account/2fa/setup", endpoint="totp_setup",
                          view_func=limiter.limit("10 per hour")(totp_setup),
                          methods=["POST"])
@@ -543,24 +467,14 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
     auth_bp.add_url_rule("/login/totp", endpoint="login_totp",
                          view_func=limiter.limit("10 per minute")(login_totp),
                          methods=["POST"])
-    # PR #25: rotate the TOTP secret without disabling 2FA outright. Same
-    # contract as setup → returns secret + QR + new recovery codes — but
-    # only callable when 2FA is currently enabled and only after password
-    # confirmation. Old secret + recovery codes invalidated atomically on
-    # totp_verify success.
     auth_bp.add_url_rule("/account/2fa/regenerate", endpoint="totp_regenerate",
                          view_func=limiter.limit("5 per hour")(totp_regenerate),
                          methods=["POST"])
-    # PR #29: per-user station diff feed.
     auth_bp.add_url_rule("/account/snapshot", endpoint="take_snapshot",
                          view_func=limiter.limit("6 per hour")(take_snapshot),
                          methods=["POST"])
     auth_bp.add_url_rule("/account/changes", endpoint="changes_page",
                          view_func=changes_page, methods=["GET"])
-    # PR #30: multiple named saved locations + per-location snapshots.
-    # Rate limits sized so a normal user (≤20 locations cap) cannot trip
-    # them in normal use, while bulk script abuse is rejected. Snapshot
-    # is the heaviest (runs find_nearest_stations) — kept tightest.
     auth_bp.add_url_rule("/account/locations", endpoint="create_location",
                          view_func=limiter.limit("20 per hour")(create_location),
                          methods=["POST"])
@@ -587,22 +501,9 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
 
 
 # ── Email-normalization + disposable-domain blocklist (2026-04-29) ─────────
-#
-# Both used at the registration boundary AND at login lookup. Gmail
-# treats `u.s.e.r@gmail.com` and `user@gmail.com` as the same inbox, and
-# treats anything after a `+` as a tag — same routing target. Without
-# normalising at write time, a single person can mint unlimited
-# distinct rows by varying dot positions or `+tagX` segments, which
-# defeats per-account rate limits, alert quotas, etc.
 
 _GMAIL_DOMAINS = {'gmail.com', 'googlemail.com'}
 
-# Hand-curated, high-precision list of disposable / throwaway email
-# providers. Not exhaustive — a maintained library (`email-validator` +
-# disposable-email-domains pip pkg) would be more complete, but this
-# floor catches the common signup-spam shapes without a new dependency.
-# Add hosts as we observe them in EmailEvent bounce stream / AuditEvent
-# patterns.
 _DISPOSABLE_DOMAINS = frozenset([
     '10minutemail.com', '10minutemail.net', 'mailinator.com',
     'mailinator.net', 'guerrillamail.com', 'guerrillamail.net',
@@ -636,8 +537,6 @@ def _normalize_email(raw: str) -> str:
     if '@' not in addr:
         return addr
     local, _, domain = addr.partition('@')
-    # Strip plus-aliasing for ALL providers (RFC-described convention,
-    # respected by Gmail / Outlook / FastMail / Proton / Yandex / etc.).
     local = local.split('+', 1)[0]
     if domain in _GMAIL_DOMAINS:
         local = local.replace('.', '')
@@ -656,22 +555,11 @@ def _is_disposable_email_domain(email: str) -> bool:
 # ── View functions ──────────────────────────────────────────────────────────
 
 def register_user():
-    # PR #44 funnel step 1: every register attempt counts (success and
-    # failure both — we want the success-rate ratio to reflect reality,
-    # including bot traffic that hits the page and fails on validation).
     funnel_register_started_total.inc()
     if not _validate_csrf():
         _csrf_failures_total().labels(endpoint='register').inc()
         return jsonify({'error': 'Invalid request'}), 403
 
-    # 2026-04-29 anti-bot honeypot. The signup modal carries an
-    # off-screen `website_url` input — humans can't see / tab to it
-    # (tabindex=-1, aria-hidden, position:absolute -9999px). Bots that
-    # blindly fill every <input> in the form populate it. We respond
-    # with a fake-success 200 so scrapers don't learn the trap and
-    # iterate on it; nothing is written to the DB. Telemetry'd via the
-    # funnel "started" metric so the success-rate ratio reflects the
-    # bot-attempts-vs-real-signups gap.
     if (request.form.get('website_url') or '').strip():
         logger.info("[register] honeypot triggered (suspected bot)")
         return jsonify({"success": True,
@@ -681,27 +569,13 @@ def register_user():
     password = request.form.get('password')
     confirm_password = request.form.get('confirm_password')
 
-    # Tighter regex than before: require at least one char in the local
-    # part, at least one TLD label of >=2 ASCII alpha chars. Blocks
-    # `a@b.c`, `x@@y.com`, `bare@local` and similar bot probe shapes.
     if not email_raw or not re.fullmatch(
         r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", email_raw
     ):
         return "Invalid email address.", 400
 
-    # 2026-04-29 normalize email so duplicate-check + storage are case-
-    # insensitive AND collapse Gmail dot-tricks. `u.s.e.r@gmail.com`,
-    # `User@Gmail.com`, `user@googlemail.com` — all the same inbox per
-    # Google's local-part rules; without this normalization the same
-    # human can spin up unlimited "distinct" accounts to bypass per-
-    # account limits.
     email = _normalize_email(email_raw)
 
-    # 2026-04-29 disposable / throwaway domain blocklist. Catches the
-    # most-common signup-spam vectors (mailinator, 10minutemail,
-    # guerrillamail family, tempmail, yopmail, etc). Best-effort — new
-    # disposable hosts pop up daily; this is a high-precision floor,
-    # not a complete defence.
     if _is_disposable_email_domain(email):
         logger.info("[register] blocked disposable-domain signup: domain=%s",
                     email.rpartition('@')[2])
@@ -715,16 +589,6 @@ def register_user():
     if password != confirm_password:
         return jsonify({'error': 'Passwords do not match.'}), 400
 
-    # Audit fix ENUM-1 (2026-06-07): account-enumeration parity. The old
-    # existing-email branch returned a bare-string 200 ("Email already
-    # registered.") — a different body/length/Content-Type than the JSON
-    # success path, plus it returned *before* any bcrypt work (timing
-    # oracle). An attacker could distinguish registered from unregistered
-    # addresses on body, size, or latency. Now: burn a constant bcrypt
-    # round to equalize timing, write nothing, and return the byte-
-    # identical success body. Register never auto-logins (no session is
-    # created on the success path either), so there is no later-request
-    # session distinguisher to worry about.
     existing_user = User.query.filter_by(email=email).first()
     if existing_user is not None:
         _bcrypt().check_password_hash(_DUMMY_BCRYPT_HASH, password)
@@ -733,12 +597,6 @@ def register_user():
     hashed_password = _bcrypt().generate_password_hash(password).decode('utf-8')
 
     try:
-        # PR #47: hash-on-create. The auto-generated registration key is
-        # stored as sha256(raw)+prefix only — we never persist the
-        # plaintext. Side-effect: the user does not get a directly-usable
-        # token at signup; they create one explicitly from /account
-        # (one-shot reveal). This matches Stripe / GitHub UX and removes
-        # the "DB compromise leaks every API key" failure mode.
         raw_key = _generate_api_key()
         user = User(
             email=email,
@@ -751,11 +609,7 @@ def register_user():
         _db().session.add(user)
         _db().session.commit()
         _send_verification_email(user)
-        # PR #44 funnel step 2: register completed (HTTP 200 path).
         funnel_register_completed_total.inc()
-        # 2026-04-28: also bump the unified user_action_total counter
-        # so Grafana per-action queries don't have to special-case
-        # the funnel metric.
         try:
             from observability import user_action_total, request_user_class
             user_action_total.labels(
@@ -778,11 +632,6 @@ def login_user():
     email_raw = request.form.get('email') or ''
     password = request.form.get('password')
 
-    # 2026-04-29: normalize then fall back to raw. Existing users
-    # registered before normalization may have mixed-case / dotted
-    # rows in the DB — try the normalized form first (the new shape),
-    # then the raw form (legacy rows). Once data has been migrated
-    # the second lookup becomes unreachable.
     email = _normalize_email(email_raw)
     user = User.query.filter_by(email=email).first()
     if user is None and email != email_raw.strip().lower():
@@ -790,34 +639,14 @@ def login_user():
     if user is None and email_raw != email_raw.lower():
         user = User.query.filter_by(email=email_raw).first()
 
-    # Audit fix M-NEW-4 (2026-04-27): close the bcrypt-skip timing leak.
-    # When `user is None` the code below short-circuits before the bcrypt
-    # check, returning ~5 ms vs. ~80 ms for an existing email. An
-    # attacker can statistically distinguish "registered" from
-    # "unregistered" addresses via that 75 ms delta, even with rate
-    # limiting. Spend a constant bcrypt round against a known-bad hash
-    # so the response time is the same shape regardless of email
-    # existence. The result is discarded.
     if user is None:
         _bcrypt().check_password_hash(_DUMMY_BCRYPT_HASH, password or '')
 
-    # PR #26 + Audit fix ENUM-2 (2026-06-07): account lockout, hardened
-    # against enumeration. The lock state is only ever revealed to a
-    # caller who has *proved ownership* by supplying the correct password
-    # (see the `is_locked` reveal below). For an unauthenticated caller
-    # (wrong password OR nonexistent user) a locked account must look
-    # exactly like any other failed login — generic 401 — otherwise the
-    # 403{locked} body is an oracle that leaks "this email is registered".
-    # We still spend the bcrypt round here so timing matches the normal
-    # path; enforcement of the lock happens after the password check.
     is_locked = False
     if user is not None and user.locked_until is not None:
         if user.locked_until > datetime.utcnow():
             is_locked = True
         else:
-            # Lockout window expired — clear the stamp and let the request
-            # proceed normally. Counter is cleared on the success path; if
-            # this attempt also fails, it counts toward a fresh lock.
             user.locked_until = None
 
     password_ok = bool(
@@ -825,9 +654,6 @@ def login_user():
     )
 
     if password_ok and is_locked:
-        # Correct password but account is locked. The caller proved
-        # ownership, so revealing the lock is safe (and useful UX). Do NOT
-        # establish a session — the lockout must still be enforced.
         _login_failures_total().inc()
         _audit('login.locked', user.id, {
             "locked_until": user.locked_until.isoformat() + 'Z',
@@ -848,19 +674,9 @@ def login_user():
         user.failed_login_attempts = 0
         user.locked_until = None
 
-        # Audit fix (High — CSRF token survives privilege boundary):
-        # rotate the CSRF token across session.clear(). Pre-login the
-        # token may have been captured by an attacker; if we kept it,
-        # the same token would authorize POSTs from the now-logged-in
-        # session. The new token goes back to the client in the JSON
-        # response, so the AJAX caller can update its meta tag for
-        # the next POST.
         import secrets
         new_csrf = secrets.token_hex(32)
 
-        # PR #16: if the user has 2FA enabled, password alone is not enough.
-        # Park the user_id in a half-session bucket and require a TOTP code
-        # at /login/totp before graduating to a real logged-in session.
         if user.totp_enabled:
             session.clear()
             session['_csrf_token'] = new_csrf
@@ -892,10 +708,6 @@ def login_user():
         }), 200
     else:
         _login_failures_total().inc()
-        # H-NEW-2: route through the shared atomic helper so login_user
-        # and the four /account/* endpoints all share one
-        # race-free implementation. Used to be inline Python-side
-        # read-modify-write here.
         _record_failed_password_attempt(user, endpoint='login')
         return jsonify({"success": False, "message": "Invalid email or password."}), 401
 
@@ -904,11 +716,6 @@ def logout():
     if not _validate_csrf():
         _csrf_failures_total().labels(endpoint='logout').inc()
         return jsonify({'error': 'Invalid request'}), 403
-    # Full session.clear() (not just session.pop('user_id')) so the next
-    # request gets a brand-new CSRF token and any other server-side session
-    # state is dropped. Combined with the Cache-Control: no-store header on
-    # /account, this closes the "Back-button shows my account after logout"
-    # leak.
     user_id = session.get('user_id')
     session.clear()
     if user_id:
@@ -932,40 +739,25 @@ def account_page():
     if not user:
         session.pop('user_id', None)
         return jsonify({"error": "Authentication required"}), 401
-    # PR #47: only auto-mint a default key if the user has neither a
-    # legacy plaintext value NOR a hashed one. After hash-on-create
-    # (registration), users come in with `api_key=None` but
-    # `api_key_hash` set — we must not overwrite that, otherwise we'd
-    # invalidate the hash they were issued at signup.
     if not user.api_key and not user.api_key_hash:
         raw_key = _generate_api_key()
         user.api_key_hash = hash_api_key(raw_key)
         user.api_key_prefix = format_api_key_prefix(raw_key)
         user.api_tier = user.api_tier or 'free'
         _db().session.commit()
-    # PR #14: list of named keys for this user, newest first. Active keys
-    # first, then revoked ones (history). The legacy User.api_key has its
-    # mirrored "default" ApiKey row from the migration; show it the same as
-    # any other key.
     api_keys = (ApiKey.query
                 .filter_by(user_id=user.id)
                 .order_by(ApiKey.revoked_at.is_(None).desc(), ApiKey.created_at.desc())
                 .all())
-    # PR #15: surface the user's last 20 audit events so they can spot
-    # logins they don't recognize, password changes they didn't initiate, etc.
     audit_events = (AuditEvent.query
                     .filter_by(user_id=user.id)
                     .order_by(AuditEvent.created_at.desc())
                     .limit(20)
                     .all())
-    # PR #30: list of named saved locations (newest first), shown in a
-    # dedicated card on /account with create/edit/delete inline.
     locations = (UserLocation.query
                  .filter_by(user_id=user.id)
                  .order_by(UserLocation.created_at.desc())
                  .all())
-    # Quick-stats hero (Faza B sidebar UX): cheap counts so the user
-    # sees what's in their account without scrolling.
     quick_stats = {
         "saved_locations": len(locations),
         "active_keys": sum(1 for k in api_keys if k.revoked_at is None),
@@ -987,11 +779,6 @@ def regenerate_api_key():
     if not user:
         session.pop('user_id', None)
         return jsonify({"error": "Authentication required"}), 401
-    # PR #47: hash-on-create rotation. Mint raw, store sha256(raw)+prefix
-    # only. The legacy plaintext column is cleared in the same txn so a
-    # later DB read can't return a stale value alongside the new hash.
-    # Raw token is returned in the response — that's the one-shot reveal
-    # the /account UI surfaces in its yellow callout banner.
     raw_key = _generate_api_key()
     user.api_key = None
     user.api_key_hash = hash_api_key(raw_key)
@@ -1027,10 +814,6 @@ def update_profile():
     # Accept both form-encoded and JSON for friendlier curl/UX.
     payload = request.get_json(silent=True) or request.form
 
-    # PR #19 / PR #36: only-update-fields-present semantics. The simplified
-    # /account UI sends just `company` and the legacy free-text profile
-    # columns (full_name/bio/profile_picture/date_of_birth) were dropped
-    # in PR #36 — `company` is the only writable profile field now.
     if 'company' in payload:
         company = (payload.get('company') or '').strip() or None
         if company and len(company) > 120:
@@ -1055,9 +838,6 @@ def change_password():
     if err:
         return err
 
-    # Audit fix (High — lockout bypass): refuse current-password
-    # checks while the account is locked. Without this gate, the
-    # /login lockout was bypassable via /account/password.
     if _is_locked(user):
         return jsonify({
             "success": False,
@@ -1072,8 +852,6 @@ def change_password():
     confirm = payload.get('confirm_password') or ''
 
     if not _bcrypt().check_password_hash(user.password_hash, current):
-        # Re-use the login_failures counter so brute-forcing the password
-        # change endpoint shows up on the same alert as login brute-forcing.
         _login_failures_total().inc()
         _record_failed_password_attempt(user, endpoint='change_password')
         return jsonify({'error': 'Current password is incorrect'}), 401
@@ -1088,11 +866,6 @@ def change_password():
     user.password_hash = _bcrypt().generate_password_hash(new).decode('utf-8')
     user.last_password_change = datetime.utcnow()
     _audit('password.changed', user.id)
-    # Rotate session as a precaution: a stolen cookie should not survive a
-    # password change. Audit fix (High — CSRF privilege boundary): also
-    # mint a fresh CSRF token rather than preserving the pre-change one.
-    # The new token is returned in the JSON response so the still-open
-    # form can update its X-CSRF-Token meta for the success follow-up.
     import secrets
     new_csrf = secrets.token_hex(32)
     session.clear()
@@ -1104,9 +877,6 @@ def change_password():
         _db().session.rollback()
         logger.exception("change_password commit failed for user_id=%s", user.id)
         return jsonify({'error': 'Could not save password'}), 500
-    # PR #48.5: security alert email. Best-effort — SendGrid outage
-    # must not break the password-change flow. emails._send() already
-    # respects user.email_alerts_enabled (silent skip).
     try:
         from emails import send_password_changed
         send_password_changed(user)
@@ -1116,13 +886,6 @@ def change_password():
 
 
 # ── Password reset (forgot-password), 2026-06-08 ───────────────────────────
-# Anti-enumeration by construction: POST /forgot-password ALWAYS returns the
-# same body/status whether or not the email maps to a real, password-bearing
-# account, and burns a constant bcrypt round on the miss path so timing
-# matches the send path. Token is a URLSafeTimedSerializer payload bound to a
-# prefix of the current password hash (`pwf`): once the password changes the
-# bound prefix changes, so a used (or pre-reset) token is rejected — that is
-# the single-use guarantee, no server-side token store needed.
 _PW_RESET_SALT = "password-reset"
 _PW_RESET_MAX_AGE = 3600  # 1 hour
 _PW_RESET_GENERIC_MESSAGE = (
@@ -1182,10 +945,6 @@ def _password_reset_url(token: str) -> str:
 
 
 # ── Email verification, 2026-06-11 ─────────────────────────────────────────
-# Same stateless itsdangerous shape as the password reset above. Token is
-# bound to the email it was issued for, so a manual ops-side email change
-# invalidates any in-flight link. Legacy accounts were backfilled as
-# verified in migration 0002; only post-migration signups start NULL.
 _EMAIL_VERIFY_SALT = "email-verify"
 _EMAIL_VERIFY_MAX_AGE = 172800  # 48 hours
 
@@ -1283,9 +1042,6 @@ def forgot_password():
     email = _normalize_email((request.form.get('email') or '').strip())
     user = User.query.filter_by(email=email).first() if email else None
 
-    # Only send to a real account that actually has a usable (local) password.
-    # OAuth-only rows (password_hash NULL) fall through to the dummy branch so
-    # the response + timing are identical to the not-found case.
     if user is not None and user.password_hash:
         try:
             token = _make_password_reset_token(user)
@@ -1295,7 +1051,6 @@ def forgot_password():
             logger.exception(
                 "send_password_reset failed for user_id=%s", user.id)
     else:
-        # Constant-time parity with the send path's bcrypt-shaped work.
         _bcrypt().check_password_hash(_DUMMY_BCRYPT_HASH, "x")
 
     return render_template('forgot_password.html',
@@ -1337,8 +1092,6 @@ def reset_password():
 
     user.password_hash = _bcrypt().generate_password_hash(password).decode('utf-8')
     user.last_password_change = datetime.utcnow()
-    # Clear any lockout state so a user who reset because they were locked
-    # out can sign in immediately.
     user.failed_login_attempts = 0
     user.locked_until = None
     _audit('password.reset', user.id, {"via": "forgot_password"})
@@ -1369,7 +1122,6 @@ def delete_account():
     if err:
         return err
 
-    # Audit fix (High — lockout bypass).
     if _is_locked(user):
         return jsonify({
             "success": False,
@@ -1386,24 +1138,12 @@ def delete_account():
         _login_failures_total().inc()
         _record_failed_password_attempt(user, endpoint='delete_account')
         return jsonify({'error': 'Current password is incorrect'}), 401
-    # Belt-and-suspenders: typed phrase prevents a single accidental click on
-    # a fake confirm dialog from nuking the account.
     if confirm_phrase != 'DELETE':
         return jsonify({'error': "Type DELETE to confirm"}), 400
 
     user_id = user.id
     try:
-        # ApiKey backref uses lazy='dynamic'; SQLAlchemy cascade='all,
-        # delete-orphan' is silently a no-op against dynamic loaders, so
-        # we delete the children explicitly before the parent. Without
-        # this, orphan rows would still authenticate and crash
-        # /api/v1/* on `ak.user.api_tier`. (C-NEW-1, audit 2026-04-27.)
         ApiKey.query.filter_by(user_id=user_id).delete(synchronize_session=False)
-        # EmailEvent rows are keyed by address, not user_id — without this
-        # the deleted user's email survives in email_event indefinitely,
-        # contradicting /privacy's erasure section. The suppression list
-        # (email_suppression) is intentionally kept so we never re-mail a
-        # bounced/complained address. (Audit 2026-06-10.)
         from models import EmailEvent
         from sqlalchemy import func as _func
         EmailEvent.query.filter(
@@ -1422,8 +1162,6 @@ def delete_account():
 # ── PR #14: multi-key API ──────────────────────────────────────────────────
 
 _MAX_KEY_NAME_LEN = 80
-# Cap on simultaneously-active keys per user. Keeps the /account UI sane and
-# discourages key sprawl (each unrevoked key is a leak risk).
 _MAX_ACTIVE_KEYS_PER_USER = 10
 
 
@@ -1450,14 +1188,8 @@ def create_api_key():
             'error': f'Active key limit reached ({_MAX_ACTIVE_KEYS_PER_USER}). Revoke one first.'
         }), 400
 
-    # PR #44 funnel step 3: count only the FIRST extra key created by
-    # this user (the auto-key minted at registration is not counted —
-    # it's a side-effect of registration, not "intent to use the API").
     if ApiKey.query.filter_by(user_id=user.id).count() <= 1:
         funnel_first_api_key_created_total.inc()
-    # PR #47: hash-on-create. Persist sha256(raw) + display prefix only;
-    # raw token returns in the JSON response as the one-shot reveal the
-    # /account UI flashes in its yellow callout banner.
     new_key_value = _generate_api_key()
     ak = ApiKey(
         user_id=user.id,
@@ -1501,19 +1233,12 @@ def revoke_api_key(key_id: int):
 
     ak = _db().session.get(ApiKey, key_id)
     if ak is None or ak.user_id != user.id:
-        # Same response for not-found and not-owned so a malicious caller
-        # can't enumerate other users' key IDs.
         return jsonify({'error': 'Not found'}), 404
     if ak.revoked_at is not None:
         return jsonify({'error': 'Already revoked'}), 400
 
     from datetime import datetime
     ak.revoked_at = datetime.utcnow()
-    # If the user revoked the legacy "default" key (the one mirrored on
-    # User.api_key), also clear the column so anyone still reading
-    # User.api_key directly sees the same picture. PR #47: also clear
-    # the hashed mirror — both pre-PR plaintext and post-PR hash live
-    # on User during the back-compat window.
     if ak.name == 'default':
         if user.api_key is not None and user.api_key == ak.key:
             user.api_key = None
@@ -1533,26 +1258,13 @@ def revoke_api_key(key_id: int):
 # ── PR #16: 2FA TOTP ───────────────────────────────────────────────────────
 
 _ISSUER = "signal-scout"
-# Valid codes allowed ±1 window (30s before/after) to tolerate clock skew.
 _TOTP_VALID_WINDOW = 1
 _RECOVERY_CODE_COUNT = 10
-# Audit fix L-NEW-2 (2026-04-27): the half-session set after a
-# successful password check (waiting for the TOTP code) used to live
-# until the cookie expired (7 days) — long enough for a stolen cookie
-# to brute-force the TOTP code subject only to the per-instance rate
-# limit. Stamp the start time and refuse /login/totp older than this.
 _PENDING_2FA_TTL_SECS = 300  # 5 minutes is plenty for a code prompt
-# Audit fix M-NEW-3 (2026-04-27): a TOTP code remains valid for
-# (2 * window + 1) * 30 s — 90 s with window=1. Within that window we
-# refuse a re-presentation of the same code so that an attacker who
-# observed it (shoulder-surf, screen recording, intercepted via a
-# moment of session leakage) can't fire it again.
 _TOTP_REPLAY_WINDOW_SECS = (2 * _TOTP_VALID_WINDOW + 1) * 30
 
 
 def _pyotp():
-    # Lazy import so the module stays importable if pyotp is absent (unlikely
-    # — pinned in requirements.txt — but keeps the blueprint self-contained).
     import pyotp
     return pyotp
 
@@ -1615,16 +1327,10 @@ def totp_setup():
     secret = pyotp.random_base32()
     uri = pyotp.TOTP(secret).provisioning_uri(name=user.email, issuer_name=_ISSUER)
 
-    # Render the URI as an SVG QR code so the user can scan with their
-    # phone instead of typing the secret manually. segno is a pure-Python
-    # QR lib (no Pillow); svg_inline() returns an XML string we can drop
-    # straight into the page via DOMParser.
     import segno
     qr = segno.make(uri, error='M')
     qr_svg = qr.svg_inline(scale=5, dark='#111827', light='#ffffff', border=2)
 
-    # Park the candidate secret in the session. totp_verify moves it onto
-    # the user row after the user proves possession with a valid code.
     session['pending_totp_secret'] = secret
     return jsonify({
         'success': True,
@@ -1691,9 +1397,6 @@ def totp_disable():
     if not user.totp_enabled:
         return jsonify({'error': '2FA is not enabled'}), 400
 
-    # Audit fix (High — lockout bypass): a brute-forcer who triggered
-    # the /login lockout was able to keep guessing the password through
-    # /account/2fa/disable, which also calls bcrypt.check_password_hash.
     if _is_locked(user):
         return jsonify({
             "error": "Account is temporarily locked due to too many failed attempts.",
@@ -1723,8 +1426,6 @@ def totp_disable():
         _db().session.rollback()
         logger.exception("totp_disable commit failed for user_id=%s", user.id)
         return jsonify({'error': 'Could not save'}), 500
-    # PR #48.5: security alert email — disabling 2FA is suspicious if
-    # not user-initiated. Best-effort.
     try:
         from emails import send_2fa_disabled
         send_2fa_disabled(user)
@@ -1743,9 +1444,6 @@ def login_totp():
     pending = session.get('pending_2fa_user_id')
     if not pending:
         return jsonify({'error': 'No 2FA step in progress'}), 400
-    # L-NEW-2: refuse to consume a stale half-session. Stolen cookie
-    # mid-2FA would otherwise have until cookie expiry (7 days) to
-    # brute-force the TOTP code.
     started_iso = session.get('pending_2fa_started_at')
     if started_iso:
         try:
@@ -1778,21 +1476,6 @@ def login_totp():
             hashes = _json.loads(old_json)
             for idx, h in enumerate(list(hashes)):
                 if _bcrypt().check_password_hash(h, code):
-                    # Audit fix M-NEW-2 (2026-04-27): atomic
-                    # compare-and-swap consumption. The old code did
-                    # hashes.pop(idx) + write-back as a Python-side
-                    # read-modify-write — two parallel /login/totp
-                    # requests with the same recovery code both saw
-                    # `ok=True` because the consumption wasn't durable
-                    # before the second verification ran. Effectively
-                    # made "single-use" recovery codes good for ≥2
-                    # back-to-back sessions if fired in parallel.
-                    #
-                    # New shape: UPDATE WHERE recovery_codes_json =
-                    # old_json. The first commit wins (rowcount=1);
-                    # the second sees rowcount=0 (the column changed
-                    # under it) and refuses the auth. Authlib-style
-                    # atomic CAS, no DB-engine-specific locking.
                     new_hashes = list(hashes)
                     new_hashes.pop(idx)
                     new_json = _json.dumps(new_hashes)
@@ -1813,10 +1496,6 @@ def login_totp():
                         ok = True
                         used_recovery = True
                     else:
-                        # Race detected — another concurrent request
-                        # consumed this code first. Fail the login;
-                        # the legitimate user can retry with a fresh
-                        # code.
                         _audit('login.2fa_recovery_race', user.id,
                                {'reason': 'cas_lost'})
                         try:
@@ -1827,20 +1506,7 @@ def login_totp():
 
     if not ok:
         _login_failures_total().inc()
-        # Audit fix TOTP-brute-force (2026-04-27): until now, a
-        # successful password check that opened the half-session let
-        # the attacker hammer /login/totp with TOTP guesses subject
-        # only to the per-instance Flask-Limiter (10/min/IP). With 2
-        # Cloud Run instances + a couple of egress IPs that's enough
-        # to brute-force a 6-digit TOTP within the 90 s window. Route
-        # failures through the same atomic-lockout helper that the
-        # password endpoints use — TOTP fails now count toward the
-        # shared LOCKOUT_THRESHOLD and trip the same lock that
-        # _is_locked() blocks on across all bcrypt sites.
         _record_failed_password_attempt(user, endpoint='login_totp')
-        # If the helper just locked the account, surface that explicitly
-        # so the client can render "you're locked" instead of yet
-        # another generic "Invalid code".
         if _is_locked(user):
             session.pop('pending_2fa_user_id', None)
             session.pop('pending_2fa_started_at', None)
@@ -1852,9 +1518,6 @@ def login_totp():
             }), 403
         return jsonify({'error': 'Invalid code'}), 401
 
-    # Audit fix (High — CSRF privilege boundary): rotate token across
-    # the half-session -> full-session promotion. New token returned
-    # in JSON for the AJAX caller to update its meta.
     import secrets
     new_csrf = secrets.token_hex(32)
     session.clear()
@@ -1867,10 +1530,6 @@ def login_totp():
         _db().session.commit()
     except Exception:
         _db().session.rollback()
-    # PR #48.5: when a recovery code was just consumed, alert the user.
-    # This is the highest-stakes signal in the auth surface — recovery
-    # codes are the last line of defence after losing 2FA, so an
-    # unexpected use means the attacker has the password AND a code.
     if used_recovery:
         try:
             from emails import send_recovery_code_used
@@ -1899,7 +1558,6 @@ def totp_regenerate():
     if not user.totp_enabled:
         return jsonify({'error': '2FA is not enabled — use /account/2fa/setup instead'}), 400
 
-    # Audit fix (High — lockout bypass).
     if _is_locked(user):
         return jsonify({
             "error": "Account is temporarily locked due to too many failed attempts.",
@@ -1921,8 +1579,6 @@ def totp_regenerate():
     qr_svg = segno.make(uri, error='M').svg_inline(
         scale=5, dark='#111827', light='#ffffff', border=2)
 
-    # Park as pending — totp_verify swaps it onto the user row when the
-    # caller proves they got it into their authenticator.
     session['pending_totp_secret'] = secret
     return jsonify({
         'success': True,
@@ -1934,18 +1590,9 @@ def totp_regenerate():
 
 # ── PR #29: per-user station diff feed ────────────────────────────────────
 
-# Default snapshot radius if the caller doesn't specify one. 5 km was the
-# initial pick but it's too tight in rural areas (Bieszczady, north-east —
-# typically 0-3 BTS within 5 km). 15 km covers most of Poland reasonably
-# while still keeping payloads compact in cities (~100-200 stations max).
-# Caller can override per-snapshot via JSON `radius_km`. Adaptive radius
-# (auto-grow until N ≥ 10) is roadmapped.
 SNAPSHOT_RADIUS_KM = 15.0
 SNAPSHOT_RADIUS_MIN_KM = 1.0
 SNAPSHOT_RADIUS_MAX_KM = 50.0
-# Stations shown for an exact-spot (radius 0) location = the nearest N the
-# click surfaced. Matches /submit_location's default limit so the baseline
-# captures exactly what the user saw.
 SNAPSHOT_DEFAULT_LIMIT = 9
 
 
@@ -2103,15 +1750,9 @@ def changes_page():
 
 # ── PR #30: multiple named user locations + per-location snapshots ────────
 
-# Sanity cap so a single user can't fill the table. Locations are tiny
-# (≈80 bytes/row) but each one carries its own snapshot history; 20 is
-# generous for the "home / work / parents / cabin" use case while still
-# bounding worst-case storage.
 _MAX_LOCATIONS_PER_USER = 20
 _LOC_NAME_MAX = 80
 _LOC_DESC_MAX = 255
-# Per-location snapshot radius bounds — same window as the legacy single-
-# location snapshot so behaviour matches once a user migrates.
 _LOC_RADIUS_MIN_KM = 0.0   # PR #46.9: 0 = "exact spot" alert mode (was 1.0)
 _LOC_RADIUS_MAX_KM = 50.0
 _LOC_RADIUS_DEFAULT_KM = 0.0  # PR #46.9: was 15 km — too noisy in cities
@@ -2125,7 +1766,6 @@ def _coords_in_pl_bounds(lat: float, lng: float) -> bool:
         from app import _coords_in_bounds
         return _coords_in_bounds(lat, lng)
     except Exception:
-        # Fallback to literal bounds (matches src/app.py PL_LAT/LNG_*).
         return 48.95 <= lat <= 55.55 and 13.95 <= lng <= 24.25
 
 
@@ -2146,9 +1786,6 @@ def _serialize_location(loc: UserLocation) -> dict:
 def _location_for_user_or_404(user: User, loc_id: int) -> UserLocation | None:
     loc = _db().session.get(UserLocation, loc_id)
     if loc is None or loc.user_id != user.id:
-        # Same response for not-found and not-owned so a malicious caller
-        # can't enumerate other users' location IDs (mirrors the ApiKey
-        # ownership pattern).
         return None
     return loc
 
@@ -2177,8 +1814,6 @@ def _parse_location_payload(payload, *, partial: bool):
             return None, (jsonify({'error': 'description too long'}), 400)
         out['description'] = desc
 
-    # lat/lng — both must change together if either is present, since one
-    # without the other puts the centre somewhere unintended.
     has_lat = 'lat' in payload
     has_lng = 'lng' in payload
     if has_lat != has_lng:
@@ -2232,8 +1867,6 @@ def create_location():
     if perr is not None:
         return perr
 
-    # Hard cap so a single user can't fill the table (and so the
-    # /account UI list stays scannable).
     existing = UserLocation.query.filter_by(user_id=user.id).count()
     if existing >= _MAX_LOCATIONS_PER_USER:
         return jsonify({
@@ -2268,9 +1901,6 @@ def create_location():
         logger.exception("create_location commit failed for user_id=%s", user.id)
         return jsonify({'error': 'Could not create location'}), 500
 
-    # Initial baseline snapshot so /account/locations/<id>/changes can diff
-    # from the moment the spot is saved — captures the stations the user just
-    # saw. Best-effort: a snapshot failure must not fail the create.
     try:
         _snap, _stations = _capture_location_snapshot(user, loc)
         _audit('snapshot.taken', user.id, {

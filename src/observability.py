@@ -255,17 +255,6 @@ slo_error_budget_remaining_ratio = Gauge(
 )
 
 # ── Per-endpoint HTTP funnel (added 2026-04-28) ───────────────────────────
-#
-# RED-method counter for EVERY HTTP route, not just /api/v1/*. Lets
-# Grafana / Zabbix answer:
-#   - "which endpoint is hottest right now?" — sort by rate(...)
-#   - "who's hitting /submit_location and how does it split between
-#     anon and logged-in?" — slice by user_class
-#   - "did the new /admin/run_retention land any 500s in the last hour?"
-#     — filter status>=500 on endpoint='admin_run_retention'
-#
-# Cardinality budget: ~30 routes × 4 status buckets × 5 user classes =
-# ~600 series. Well under any reasonable Prometheus host.
 
 http_requests_total = Counter(
     "signal_scout_http_requests_total",
@@ -289,11 +278,6 @@ http_request_duration_seconds = Histogram(
     ),
 )
 
-# Business-action counter for the user-visible verbs that aren't
-# 1:1 with an endpoint (e.g. submit_location can succeed or hit
-# bounds-validation 400 — both are 'submit_location' events but
-# only the success matters for the funnel). Bumped explicitly from
-# the route handlers — see app.py + auth_routes.py + oauth.py.
 user_action_total = Counter(
     "signal_scout_user_action_total",
     "High-level user actions completed successfully, broken down by "
@@ -369,12 +353,6 @@ public_requests_total = Counter(
 
 
 # ── 2026-04-29: extended observability surface ────────────────────────────
-#
-# Added per the Zabbix/Grafana cheat sheet — fills the gaps in the
-# pre-existing instrumentation so dashboards have meaningful series for
-# every monitoring concern (DB perf, email pipeline, product DAU,
-# saved-location growth, scheduled-job health, data freshness, deploy
-# correlation).
 
 db_query_seconds = Histogram(
     "signal_scout_db_query_seconds",
@@ -475,12 +453,6 @@ app_version_info = Gauge(
 
 
 # ── 2026-05-17: bot-score + session analytics (ANALYTICS-PLAN.md PR-1) ─────
-#
-# Composite bot score per request, computed from multiple weak signals:
-# UA bucket, JS-pulse presence, cookie persistence, referer block, honeypot
-# trip. Score buckets are bounded labels (0..5+) so cardinality stays at
-# exactly 6 series regardless of traffic shape. See ANALYTICS-PLAN.md §2.3
-# for the weight table.
 
 bot_score_total = Counter(
     "signal_scout_bot_score_total",
@@ -492,11 +464,6 @@ bot_score_total = Counter(
     labelnames=("score",),
 )
 
-# 2026-06-13: sessions_seen_total + active_anon_sessions removed. They
-# counted distinct ss_sid cookies (anonymous-visitor analytics), which
-# made ss_sid a consent-triggering cookie under ePrivacy. Anonymous
-# visitor counting now lives only in cookieless Plausible; ss_sid is
-# strictly-necessary anti-abuse only. See /privacy.
 
 active_authed_sessions = Gauge(
     "signal_scout_active_authed_sessions",
@@ -554,11 +521,6 @@ def bot_score_label(score: int) -> str:
 
 
 # ── In-memory TTL set for active-session gauges ────────────────────────────
-#
-# `dict[key -> last_seen_unix]` ordered by insertion; we sweep stale
-# entries on every touch + on every gauge refresh. Bounded by
-# _ACTIVE_SESSION_CAP — oldest entry evicted (LRU) when full, so a
-# burst of new cookies can't OOM the worker.
 
 _ACTIVE_SESSION_TTL_SECONDS = 15 * 60
 _ACTIVE_SESSION_CAP = 100_000
@@ -577,8 +539,6 @@ def _ttl_touch(store: "OrderedDict", key, now: float) -> None:
 def _ttl_count(store: "OrderedDict", now: float) -> int:
     """Sweep entries older than the TTL, return live population."""
     cutoff = now - _ACTIVE_SESSION_TTL_SECONDS
-    # OrderedDict is insertion-ordered, so once we hit a fresh-enough
-    # entry the rest are also fresh — short-circuit.
     while store:
         oldest_key = next(iter(store))
         if store[oldest_key] < cutoff:
@@ -608,15 +568,6 @@ def _reset_session_state_for_tests() -> None:
 # ── In-memory tracking for /status incident timestamp ──────────────────────
 
 _LAST_INCIDENT_TS: dict[str, float] = {"value": 0.0}
-# Audit fix M-NEW-8 (2026-04-27): bounded LRU instead of an unbounded
-# set. The previous set grew monotonically with every distinct user
-# the worker had ever served — fine for short-lived workers, but a
-# Cloud Run instance with min-instances=1 (cost-optimisation flip on
-# operator side) keeps a worker hot for weeks and the set grows
-# without bound. 10k entries cap covers any realistic concurrent-
-# active-user count; eviction order is insertion (oldest user re-
-# triggers the funnel-counter bump on next API call, which is fine —
-# it's a funnel metric, double-counts are noise not contamination).
 _FIRST_CALL_LRU_CAP = 10_000
 _FIRST_CALL_SEEN_USERS: "OrderedDict[int, None]" = None  # type: ignore[assignment]
 
@@ -827,14 +778,6 @@ def _constant_time_eq(a: str, b: str) -> bool:
     return hmac.compare_digest(a.encode(), b.encode())
 
 
-# 2026-04-30: dynamic-gauge refresh registry. MultiProcessCollector
-# (used when PROMETHEUS_MULTIPROC_DIR is set) reads only the per-worker
-# .db files — it does NOT call Gauge.set_function callbacks. Without a
-# manual refresh, set_function-backed gauges (DAU, saved_locations,
-# db age) stay at 0 forever in multiproc mode. We solve this by letting
-# app.py register `(gauge, compute_fn)` pairs here; every /metrics
-# scrape iterates the list and writes the fresh value to the worker's
-# multiproc file → multiproc collector picks it up via 'max' aggregation.
 _DYNAMIC_GAUGE_REFRESHERS: list = []
 
 
@@ -916,10 +859,6 @@ def _ensure_multiproc_dir() -> None:
 
 def init_observability(app: Flask, token_env_var: str = "METRICS_BEARER_TOKEN") -> None:
     """Wire Prometheus + /healthz onto the Flask app."""
-    # 2026-04-29: prepare PROMETHEUS_MULTIPROC_DIR for the gunicorn
-    # multi-worker fleet. Must run BEFORE PrometheusMetrics is wired
-    # because the underlying Counter/Histogram/Gauge constructors
-    # write their initial files into the dir at import time.
     _ensure_multiproc_dir()
 
     PrometheusMetrics(
@@ -939,11 +878,6 @@ def init_observability(app: Flask, token_env_var: str = "METRICS_BEARER_TOKEN") 
     except (TypeError, ValueError):
         gunicorn_workers_configured.set(1)
 
-    # 2026-05-01: switched from @app.route decorator to explicit
-    # add_url_rule. Same shape as /metrics above. Decorator path was
-    # silently failing on prod — endpoint returned Flask's default 404
-    # 'Not Found' page even though the function was defined. Both
-    # endpoints work now via the same registration mechanism.
     def _healthz_view():
         try:
             healthz_total.inc()

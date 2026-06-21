@@ -91,8 +91,6 @@ class GoogleKmsBackend(KmsBackend):
     name = "gcp"
 
     def __init__(self, key_name: str) -> None:
-        # Lazy import: dev environments don't need google-cloud-kms
-        # installed unless they set GCP_KMS_KEY_NAME.
         from google.cloud import kms  # type: ignore
         self._key_name = key_name
         self._client = kms.KeyManagementServiceClient()
@@ -134,10 +132,6 @@ def get_kms() -> KmsBackend:
             logger.info("KMS active: backend=gcp key_name=%s",
                         key_name.rsplit('/', 1)[-1])
         except Exception:
-            # Fail closed — if KMS was configured but the client can't
-            # initialise (missing google-cloud-kms install, no creds),
-            # crashing here is better than silently writing plaintext
-            # secrets to a "supposedly encrypted" column.
             logger.exception(
                 "KMS configured (GCP_KMS_KEY_NAME set) but client init "
                 "failed — refusing to fall back to NoopKms in prod."

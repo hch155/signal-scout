@@ -54,8 +54,6 @@ SWAGGER_TEMPLATE: dict = {
             "name": "Proprietary",
         },
     },
-    # Filled in by init_api_docs() based on ENV — in prod we don't want
-    # to dangle "http://127.0.0.1:8080" in front of public users.
     "servers": [],
     "components": {
         "securitySchemes": {
@@ -162,8 +160,6 @@ SWAGGER_CONFIG: dict = {
     "swagger_ui": True,
     "specs_route": "/api/v1/docs/",
     "openapi": "3.0.3",
-    # Hide the "Try it out" Authorize button's persistAuthorization tickle —
-    # Swagger UI v5 default is good. We just want a clean look.
     "uiversion": 3,
 }
 

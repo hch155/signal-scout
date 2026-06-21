@@ -50,17 +50,6 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-# Providers whose `_resolve_email()` only ever returns addresses that
-# the provider itself has verified (Google: `email_verified` claim in
-# the OIDC ID token; GitHub: `/user/emails` filtered to verified=true).
-# For these, the OAuth callback can safely sign the user in even when a
-# password account exists for the same address — the OAuth round-trip
-# already proved the human controls the mailbox, so the takeover vector
-# (attacker registers a password account using a victim's address before
-# the victim signs up via OAuth) doesn't apply: the mailbox owner is
-# the one signing in. Facebook is intentionally NOT in this set —
-# Graph API doesn't expose a verified flag, so we keep refusing OAuth
-# logins onto password accounts when the provider is Facebook.
 _VERIFIED_EMAIL_PROVIDERS = {'google', 'github'}
 oauth = OAuth()
 
@@ -91,10 +80,6 @@ def init_oauth(app: Flask) -> None:
             client_kwargs={'scope': 'read:user user:email'},
         )
     if settings.facebook_oauth_client_id and settings.facebook_oauth_client_secret:
-        # Facebook Graph API v18.0. `email` scope is granted without App
-        # Review for individual apps; verified email comes back via
-        # /me?fields=email,name. Note: the FB app must be in Live Mode (not
-        # Development Mode) for non-admin users to authenticate.
         oauth.register(
             name='facebook',
             client_id=settings.facebook_oauth_client_id,
@@ -139,17 +124,6 @@ def callback_for_provider(provider: str):
     if client is None:
         return redirect(url_for('home') + '?oauth_error=provider_not_configured')
 
-    # Provider-side rejection: when FB / Google / GitHub bounces the
-    # user back with `?error=...` (e.g. user denied consent, requested
-    # scope not granted, account suspended), there is no `code` to
-    # exchange — calling authorize_access_token() then explodes with
-    # MismatchingStateError because the state cookie lookup expects a
-    # successful round-trip. Surface the provider's own error code as
-    # a friendly oauth_error param instead of the cryptic
-    # token_exchange one. Common shapes:
-    #   FB:     ?error=...&error_code=100&error_message=...
-    #   Google: ?error=access_denied
-    #   GitHub: ?error=access_denied&error_description=...
     if request.args.get('error') or request.args.get('error_code'):
         provider_error = (request.args.get('error')
                           or request.args.get('error_code') or 'unknown')
@@ -175,33 +149,17 @@ def callback_for_provider(provider: str):
     from database import db
     user = User.query.filter(db.func.lower(User.email) == email.lower()).first()
     if user is None:
-        # First time we see this email — create an OAuth-only user. The
-        # `!OAUTH-` prefix is a sentinel: there's no real password, so
-        # bcrypt comparison can never succeed (refusing password login
-        # for the same email later would otherwise be a back door).
         user = User(
             email=email,
             password_hash='!OAUTH-' + secrets.token_urlsafe(32),
             api_tier='free',
             email_alerts_enabled=True,
             registration_date=datetime.utcnow(),
-            # _resolve_email only returns provider-verified addresses,
-            # so the mailbox is already proven — no welcome-link round.
             email_verified_at=datetime.utcnow(),
         )
         db.session.add(user)
     else:
         # ── Account-takeover protection (audit Critical 2, refined) ──
-        # The user already exists with a real bcrypt hash (NOT the
-        # `!OAUTH-` sentinel). The original guard refused the sign-in
-        # outright, but for providers in `_VERIFIED_EMAIL_PROVIDERS` the
-        # OAuth round-trip itself is proof of mailbox ownership — the
-        # takeover scenario (attacker pre-registers a password account
-        # using the victim's email) doesn't fire because the mailbox
-        # owner is the human currently signing in. So Google/GitHub get
-        # a normal sign-in (subject to the 2FA gate below). Facebook
-        # has no verified flag in the Graph API response, so the guard
-        # stays active for it.
         ph = user.password_hash or ''
         if ph and not ph.startswith('!OAUTH-') \
            and provider not in _VERIFIED_EMAIL_PROVIDERS:
@@ -218,41 +176,22 @@ def callback_for_provider(provider: str):
     user.last_login_date = datetime.utcnow()
     user.failed_login_attempts = 0
     user.locked_until = None
-    # A successful OAuth round-trip with a verified-email provider proves
-    # mailbox ownership for password accounts too.
     if user.email_verified_at is None:
         user.email_verified_at = datetime.utcnow()
     try:
         db.session.commit()
     except Exception:
         db.session.rollback()
-        # Audit fix (Medium privacy — log redaction): drop the email
-        # from the log line. user_id is enough for triage and avoids
-        # PII in centralized logging / Cloud Logging exports.
         logger.exception("OAuth upsert commit failed for user_id=%s provider=%s",
                          getattr(user, 'id', None), provider)
         return redirect(url_for('home') + '?oauth_error=db')
 
     # ── 2FA gate (audit Critical 1) ──
-    # If the user enabled TOTP, password sign-in routes them to a
-    # half-session (`pending_2fa_user_id`) before granting a real
-    # session. OAuth must do the same — anything less is a 2FA bypass.
-    # We park them in the same half-session and redirect to a tiny
-    # form that consumes /login/totp.
-    #
-    # Audit fix (High — CSRF privilege boundary): mint a fresh CSRF
-    # token for the new session instead of preserving the pre-auth one.
-    # Browser will pick the new token from the next page render's meta
-    # tag (we redirect, so this is automatic).
     new_csrf = secrets.token_hex(32)
     if getattr(user, 'totp_enabled', False):
         session.clear()
         session['_csrf_token'] = new_csrf
         session['pending_2fa_user_id'] = user.id
-        # L-NEW-2 (2026-04-27): TTL-stamp the half-session so a stolen
-        # cookie can't sit on it for the full 7-day cookie lifetime
-        # brute-forcing TOTP. login_totp checks this against
-        # _PENDING_2FA_TTL_SECS.
         session['pending_2fa_started_at'] = datetime.utcnow().isoformat()
         return redirect('/auth/2fa_challenge')
 
@@ -261,10 +200,6 @@ def callback_for_provider(provider: str):
     session['_csrf_token'] = new_csrf
     session['user_id'] = user.id
 
-    # 2026-04-28: business-action counter so Grafana can split
-    # OAuth-flow logins from password-flow logins (the latter goes
-    # through _audit('login.success', ...) which the audit→action
-    # map turns into 'login_password').
     try:
         from observability import user_action_total
         user_action_total.labels(
@@ -280,7 +215,6 @@ def callback_for_provider(provider: str):
 def _resolve_email(provider: str, client, token) -> Optional[str]:
     """Fish out the verified primary email from the provider."""
     if provider == 'google':
-        # `id_token` carries the email + email_verified claims (OIDC).
         info = token.get('userinfo')
         if info and info.get('email'):
             if info.get('email_verified'):
@@ -297,12 +231,6 @@ def _resolve_email(provider: str, client, token) -> Optional[str]:
         return None
 
     if provider == 'github':
-        # Audit fix (Critical 2 — Account Takeover):
-        # Skip /user.email — that field can be a public profile email
-        # the user typed in, not necessarily verified by GitHub. Use
-        # /user/emails exclusively, which exposes the per-address
-        # verified flag, and only return addresses where verified=true.
-        # Requires the `user:email` scope (already requested in init).
         try:
             resp = client.get('user/emails', token=token)
             emails = resp.json() or []
@@ -317,8 +245,6 @@ def _resolve_email(provider: str, client, token) -> Optional[str]:
         return None
 
     if provider == 'facebook':
-        # Graph API /me with email field. FB users without an email on
-        # file (rare but possible — phone-only signups) get None back.
         try:
             resp = client.get('me?fields=email,name', token=token)
             payload = resp.json() or {}

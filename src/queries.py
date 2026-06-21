@@ -70,14 +70,6 @@ def get_latitude_segment(latitude):
     return int((latitude - base_latitude) / segment_size)
 
 
-# PR #47: per-band "poor coverage" thresholds in km. Values come from
-# frequencyRanges in static/scripts/pages/ui-interactions.js — the same
-# constants the on-map signal-strength legend uses, so the UI and API
-# agree on what "dead" means. High-band (5G3600, LTE2600) drops off
-# fast; low-band (L800, L900, GSM900) penetrates much further.
-#
-# Bands not in this map fall back to DEFAULT_GAP_THRESHOLD_KM (3 km
-# = the mid-band poor-tier).
 COVERAGE_THRESHOLDS_KM = {
     "5G3600": 1.5,
     "LTE2600": 1.5,
@@ -91,9 +83,6 @@ COVERAGE_THRESHOLDS_KM = {
     "G900": 5.0,
 }
 DEFAULT_GAP_THRESHOLD_KM = 3.0
-# Search this many ±0.1° lat segments around the user. ~3 segments
-# ≈ 33 km — wide enough to catch a low-band station even if the user
-# is in the middle of nowhere; not so wide it scans the whole country.
 GAP_SEARCH_SEGMENTS = 3
 
 
@@ -126,10 +115,6 @@ def find_coverage_gaps(user_lat: float, user_lng: float) -> dict:
     ))
 
     try:
-        # PR #47.4: pull the full BTS row (provider, basestation_id,
-        # city, location) — not just the band+coords — so the band-click
-        # UI can open a real Leaflet popup + sidebar card without a
-        # second round-trip per click.
         rows = db.session.query(
             BaseStation.frequency_band,
             BaseStation.latitude,
@@ -145,15 +130,7 @@ def find_coverage_gaps(user_lat: float, user_lng: float) -> dict:
         logger.error(f"Error in find_coverage_gaps query: {e}")
         return {"gaps": [], "summary": {"total_bands": 0, "covered": 0, "dead": 0}}
 
-    # PR #47.3: also remember WHICH BTS is the nearest, so the UI can
-    # highlight that single station on the map when the user clicks a
-    # band. Storing only the distance was enough for the ✓/✗ verdict
-    # but not for "show me where it is".
     nearest_per_band: dict[str, dict] = {}
-    # PR #47.4: index every (lat, lng, provider) location → set of bands,
-    # so we can later answer "what other bands does the nearest BTS
-    # carry?" without re-querying. Keys quantised to 6 decimal places
-    # to dodge float-equality landmines.
     bands_at_loc: dict[tuple, set] = {}
     for band, lat, lng, provider, bts_id, city, location in rows:
         if not band:
@@ -174,9 +151,6 @@ def find_coverage_gaps(user_lat: float, user_lng: float) -> dict:
         bands_at_loc.setdefault(loc_key, set()).add(band)
 
     gaps = []
-    # Sort by the same priority the rest of the UI uses (5G first,
-    # then LTE, UMTS, GSM) so the response feels consistent with the
-    # popup / sidebar ordering.
     for band in sort_frequency_bands(list(nearest_per_band.keys())):
         info = nearest_per_band[band]
         dist = info["dist"]
@@ -209,7 +183,6 @@ def find_nearest_stations(user_lat, user_lng, limit=None, max_distance=None, ser
     adjacent_segments = [user_segment - 1, user_segment, user_segment + 1]
 
     try:
-        # GROUP BY in SQL with GROUP_CONCAT to aggregate frequency bands
         query = db.session.query(
             BaseStation.basestation_id,
             BaseStation.city,
@@ -261,10 +234,6 @@ def find_nearest_stations(user_lat, user_lng, limit=None, max_distance=None, ser
         return {"stations": [], "count": 0}
 
 def get_band_stats():
-    # Honeypot rows in BaseStation (audit fix L-NEW-4) carry the
-    # service_provider = '__HONEYPOT__' marker so legitimate
-    # statistics don't get polluted — and so a scraper can't tell
-    # how many honeypot rows we planted by diffing the totals.
     HONEYPOT_MARKER = '__HONEYPOT__'
 
     # Query for physical site counts per provider
@@ -289,12 +258,6 @@ def get_band_stats():
                   BaseStation.frequency_band).all()
     )
 
-    # 2026-04-28: distinct-site count per (provider, generation prefix).
-    # Crucial for the /stats UI because raw "entries" inflates LTE
-    # (1 site usually broadcasts 4-6 LTE bands; 5G typically 1-3),
-    # giving a misleading "LTE dominates" impression. Sites-per-
-    # generation is the closest single-query approximation of real
-    # coverage. Same honeypot filter.
     rat_prefix_case = case(
         (BaseStation.frequency_band.like('5G%'), '5G'),
         (BaseStation.frequency_band.like('LTE%'), 'LTE'),
@@ -344,10 +307,6 @@ def get_stats():
 
     sorted_bands = sorted(stats['bands_data'].keys(), key=band_sort_key)
 
-    # Derived aggregates for the upgraded /stats UI. Cheap (already
-    # have the per-(band,provider) counts in memory) — keeps the
-    # template free of arithmetic + makes the same numbers reusable
-    # for an API endpoint later if we add one.
     providers = stats['providers']
     bands_data = stats['bands_data']
 
@@ -366,9 +325,6 @@ def get_stats():
         p: sum(bands_data[band].get(p, 0) for band in sorted_bands)
         for p in providers
     }
-    # Per-(provider, generation) breakdown for the "5G vs LTE vs ..."
-    # bar chart at the top. {provider: {'5G': N, 'LTE': N, 'UMTS': N,
-    # 'GSM': N}}.
     generations = ['5G', 'LTE', 'UMTS', 'GSM']
     generation_breakdown: dict = {p: {g: 0 for g in generations} for p in providers}
     for band in sorted_bands:
@@ -377,26 +333,13 @@ def get_stats():
             continue
         for p in providers:
             generation_breakdown[p][gen] += bands_data[band].get(p, 0)
-    # Per-generation aggregate (across all providers) for the hero
-    # strip "5G coverage by generation" line.
     generation_totals = {
         g: sum(generation_breakdown[p][g] for p in providers)
         for g in generations
     }
 
-    # 2026-04-28: telco-grade KPIs — what real operators / equipment
-    # vendors track in their network monitoring dashboards.
     HONEYPOT_MARKER = '__HONEYPOT__'
 
-    # 2026-04-29: only the four major Polish MNOs make sense in the
-    # KPI panels. Tiny outfits like Tatrzańskie Ochotnicze Pogotowie
-    # Ratunkowe (mountain rescue, 3 sites) leak into the providers
-    # list and made the "5G race" / "legacy debt" panels look noisy.
-    # UKE also publishes both upper- and lower-case spellings of the
-    # same legal entity ("P4 sp. z o.o." vs "P4 Sp. z o.o.") across
-    # months — match on a normalized lower-cased prefix and pick the
-    # variant actually present in this snapshot, so we don't ship
-    # double rows.
     _MAJOR_PREFIXES = {
         'orange polska': 'Orange',
         'p4 ': 'Play',
@@ -412,9 +355,6 @@ def get_stats():
 
     major_providers = [p for p in providers if _is_major(p)]
 
-    # 1) 5G race tracker: % of operator's sites with at least one 5G
-    #    band. Same shape RAN vendors publish in quarterly investor
-    #    decks ("X of our customer's sites are 5G-enabled").
     five_g_sites_by_op = (
         db.session.query(
             BaseStation.service_provider,
@@ -434,26 +374,7 @@ def get_stats():
             'pct': round(100.0 * with_5g / total_sites, 1) if total_sites else 0.0,
         }
 
-    # 2026-04-29: dropped both legacy debt KPIs (was "GSM-only" — always
-    # 0 across all 4 PL MNOs because they've all overlay-upgraded; then
-    # "no-5G" — but with three of four operators already at <7%, the
-    # panel was just visual clutter and the broken Polkomtel data
-    # rendered as a nonsense 99% bar). 5G race tracker above already
-    # shows the inverse, formatted as the positive KPI users actually
-    # want to see.
 
-    # 2026-04-29: dropped the "Network sharing (co-located sites)" KPI.
-    # Grouped on EXACT BaseStation.location string, but real PL operators
-    # log shared towers under slightly different addresses (different
-    # building numbers, varying punctuation, language case), so the
-    # 3.2% number was an order of magnitude too low — Plus + Play do
-    # active RAN sharing in rural areas at ~50% of their fleet.
-    # Honest fix would be lat/lng-radius bucketing (e.g. round to 4dp,
-    # group within ~10m); deferred until we have time to validate
-    # against an external source (UKE doesn't publish a sharing field).
-
-    # 4) Top 10 cities by total physical sites — most-built-out
-    #    metro areas. Standard geographic-distribution panel.
     top_cities_query = (
         db.session.query(
             BaseStation.city,
@@ -472,10 +393,6 @@ def get_stats():
     ]
 
     sites_per_generation = stats.get('sites_per_generation', {})
-    # Average bands per site per (provider, generation) — derived
-    # context that explains why "LTE entries" inflates relative to
-    # "5G entries". A real site usually broadcasts 4-6 LTE bands but
-    # only 1-3 5G bands. avg = entries / sites; rounded to 2 dp.
     avg_bands_per_site: dict = {}
     for p in providers:
         gens = generation_breakdown.get(p, {})
@@ -498,9 +415,6 @@ def get_stats():
         'generations': generations,
         'sites_per_generation': sites_per_generation,
         'avg_bands_per_site': avg_bands_per_site,
-        # Telco KPIs (2026-04-28). KPI panels render only the four
-        # majors (Orange / Play / Plus / T-Mobile) — see major_providers
-        # filter. Full bands table below still shows everything.
         'major_providers': major_providers,
         'five_g_coverage': five_g_coverage,
         'top_cities': top_cities,

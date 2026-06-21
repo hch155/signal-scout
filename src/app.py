@@ -18,7 +18,6 @@ from observability import (
     band_filter_used_total,
     requests_by_user_agent_class_total,
     classify_user_agent,
-    # PR #44: industry-standard observability extensions
     in_flight_requests,
     http_requests_total,
     http_request_duration_seconds,
@@ -27,9 +26,6 @@ from observability import (
     public_requests_total,
     record_incident,
     compute_public_status,
-    # 2026-05-17: bot-score (ANALYTICS-PLAN.md PR-1). The anon-visitor
-    # analytics (sessions_seen_total / active_anon_sessions) were dropped
-    # 2026-06-13 so ss_sid stays a strictly-necessary anti-abuse cookie.
     bot_score_total,
     bot_score_label,
     compute_bot_score,
@@ -89,8 +85,6 @@ def _scrub_sentry_event(event, hint):
     return event
 
 
-# GlitchTip (self-hosted, Sentry protocol) — only when GLITCHTIP_DSN is set;
-# unset (dev/tests/CI) → no-op, sentry_sdk isn't even imported.
 if settings.glitchtip_dsn:
     import sentry_sdk  # noqa: E402
     from sentry_sdk.integrations.flask import FlaskIntegration  # noqa: E402
@@ -105,21 +99,10 @@ if settings.glitchtip_dsn:
     )
 
 app = Flask(__name__)
-# Cloud Run terminates TLS at the edge and forwards to the container over
-# HTTP. Without ProxyFix, request.scheme is "http" and url_for(_external=True)
-# emits http:// URLs — breaks OAuth redirect_uri matching against the
-# https:// URLs registered with Google/GitHub. x_proto=1 trusts the single
-# X-Forwarded-Proto hop Cloud Run sets; x_host=1 honors X-Forwarded-Host so
-# the canonical hostname (signal-scout.com once domain mapping lands) is
-# used in generated URLs.
 from werkzeug.middleware.proxy_fix import ProxyFix  # noqa: E402
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.config['SECRET_KEY'] = settings.secret_key
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = settings.static_max_age
-# Cap request body at 1 MiB. Every public endpoint takes small JSON
-# (lat/lng, email/password, short names) — without this Flask defaults
-# to unlimited and a few concurrent multi-hundred-MiB POSTs can OOM a
-# Cloud Run instance. Larger bodies → 413 Request Entity Too Large.
 app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
 bcrypt = Bcrypt(app)
 logging.basicConfig(level=logging.INFO)
@@ -130,9 +113,6 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 stations_db_path = settings.stations_db_path or os.path.join(basedir, 'instance', 'stations.db')
 users_db_path = settings.users_db_path or os.path.join(basedir, 'instance', 'users.db')
 
-# A fresh users.db mount needs its parent dir to exist before Alembic /
-# create_all open it. The schema itself is owned by Alembic
-# (upgrade_users_db) now — no image-baked DB is copied in.
 if settings.users_db_path:
     os.makedirs(os.path.dirname(settings.users_db_path), exist_ok=True)
 
@@ -141,16 +121,6 @@ app.config['SQLALCHEMY_BINDS'] = {
     'users': f'sqlite:///{users_db_path}'
 }
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-# Audit fix M-NEW-1 (2026-04-27, partial — short-term mitigation):
-# SQLite's default Python-side busy timeout is 5 s. Combined with
-# gcsfuse fsync latency on Cloud Run (50–200 ms per COMMIT) and up
-# to 4 concurrent gunicorn workers (max-instances=2 × workers=2)
-# writing the same file, bursts can serialise long enough to exceed
-# the default and surface as `OperationalError: database is locked`
-# 500s. Bumping to 30 s lets SQLite retry inside its busy window
-# instead of returning the error to the user. The Long-term fix
-# (M-NEW-1.b in critique doc) is migrating users.db to Cloud SQL
-# Postgres — separate roadmap item, multi-day project.
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'connect_args': {'timeout': 30},
 }
@@ -158,17 +128,10 @@ app.config['SQLALCHEMY_BINDS_ENGINE_OPTIONS'] = {
     'users': {'connect_args': {'timeout': 30}},
 }
 db.init_app(app)
-# Alembic (2026-06-11): schema changes to users.db are migrations now.
-# Runs before create_all so column adds land on existing prod DBs;
-# create_all stays for brand-new tables in dev/tests and no-ops otherwise.
 from db_migrations import upgrade_users_db  # noqa: E402
 upgrade_users_db(users_db_path)
 with app.app_context():
     db.create_all()
-    # One-time import of the historical stats snapshots from the legacy
-    # JSONL into the stats_snapshot table (migration 0003). No-op once the
-    # table has rows. Reads the image-baked file plus any live JSONL next
-    # to the prod users.db mount, deduped on snapshot_key.
     from stats_history import backfill_from_jsonl_if_empty  # noqa: E402
     _baked_stats_history = os.path.join(
         basedir, 'instance', 'stats_history.jsonl'
@@ -179,17 +142,8 @@ with app.app_context():
         logging.getLogger(__name__).exception(
             "stats snapshot backfill failed"
         )
-# Legacy pre-Alembic column backfill — kept for old DBs restored from
-# backup; new schema changes go in migrations/versions/.
 ensure_user_api_columns(app, db)
 
-# 2026-06-03: WAL on users.db. After the Cloud Run → home-LXC move users.db
-# lives on a local bind mount (not gcsfuse), so WAL's -shm/mmap coordination
-# works — readers no longer block the writer under multiple gunicorn workers.
-# journal_mode persists in the file header; synchronous=NORMAL is per-connection
-# and safe under WAL. Only the writable bind — stations.db is read-only.
-# NOTE: backups must use `sqlite3 .backup` / `VACUUM INTO`, never `cp`, since
-# committed data may still sit in the -wal file (see Ansible backup role).
 def _users_wal_pragma(dbapi_conn, _conn_record):
     cur = dbapi_conn.cursor()
     cur.execute("PRAGMA journal_mode=WAL")
@@ -205,9 +159,6 @@ with app.app_context():
             _users_engine.dispose()
     except Exception:
         app.logger.exception("users.db WAL pragma wiring failed")
-# Audit fix L-NEW-4 (2026-04-27): plant honeypot rows in BaseStation
-# so prefix-search scrapers surface them. No-op when HONEYPOT_BTS_IDS
-# env is unset.
 try:
     _seeded = seed_honeypot_rows(app, db)
     if _seeded:
@@ -218,45 +169,21 @@ except Exception:
 # HTTPS encryption for Flask
 
 
-# Session configuration — Flask's *default* signed-cookie session
-# (itsdangerous-backed). Stateless: session payload lives in the cookie
-# itself, no server-side store. Critical for Cloud Run multi-instance:
-# previous Flask-Session filesystem storage put session per-instance and
-# requests bouncing between instances broke CSRF (cookie X on instance A,
-# absent on instance B → 403). Signed cookies sidestep this entirely.
-# Session payload is tiny (~150 bytes: _csrf_token + user_id + user_location)
-# — well below the ~4KB cookie limit.
 app.permanent_session_lifetime = timedelta(days=7)
 app.config["SESSION_COOKIE_SAMESITE"] = 'Lax'
-# Secure cookie only over HTTPS in production. On http://localhost the
-# Secure flag drops the cookie entirely, which would block CSRF flow during
-# local dev / perf tests. Production env sets ENV=PRODUCTION (cd.yaml).
 app.config["SESSION_COOKIE_SECURE"] = settings.cookie_secure
 app.config["SESSION_COOKIE_HTTPONLY"] = True
-# Make every session permanent so PERMANENT_SESSION_LIFETIME applies (default
-# would expire on browser close). Done via before_request so it stays one place.
 @app.before_request
 def _make_session_permanent():
     session.permanent = True
 
-# Default global limit. Override via DEFAULT_RATE_LIMIT for perf harnesses
-# that hammer one endpoint from a single IP (perf.yaml in CI), since 16/min
-# turns 100 sequential GETs into 84 rate-limit errors and a meaningless p95.
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
     default_limits=[os.getenv("DEFAULT_RATE_LIMIT", "16 per minute")],
-    # Default memory:// is per-gunicorn-worker (each worker counts its own
-    # window, so effective limits are workers× the configured value and reset
-    # on redeploy). Point at redis://... to share counters across workers.
     storage_uri=os.getenv("RATELIMIT_STORAGE_URI", "memory://"),
 )
 
-# PL geographic bounds for input validation. Strict PL would be
-# 49.0–55.5°N / 14.0–24.2°E — but the dataset includes some maritime
-# stations in the Polish EEZ (latarnie, offshore wind), and a user
-# clicking just over the German / Czech / Belarussian / Lithuanian
-# border by 1-2 km shouldn't get a curt 400. ±0.05° (~5 km) buffer.
 PL_LAT_MIN, PL_LAT_MAX = 48.95, 55.55
 PL_LNG_MIN, PL_LNG_MAX = 13.95, 24.25
 
@@ -264,15 +191,8 @@ PL_LNG_MIN, PL_LNG_MAX = 13.95, 24.25
 def _coords_in_bounds(lat: float, lng: float) -> bool:
     return PL_LAT_MIN <= lat <= PL_LAT_MAX and PL_LNG_MIN <= lng <= PL_LNG_MAX
 
-# Wire Prometheus exporter (/metrics with bearer-token auth) and /healthz.
 init_observability(app)
 
-# 2026-04-29: dynamic gauges (recomputed on every /metrics scrape).
-# - app_version_info: pinned label = current deploy version, value = 1.
-# - stations_db_age_seconds: now - mtime(stations.db); alert >35d.
-# - active_users_24h: distinct user_ids in submit_location_event window.
-# - saved_locations_total: row count of UserLocation.
-# Wrapped in try so a missing table at boot (fresh DB) doesn't kill /metrics.
 try:
     from observability import (
         app_version_info, stations_db_age_seconds,
@@ -281,12 +201,6 @@ try:
     )
     app_version_info.labels(version=settings.app_version or 'dev').set(1)
 
-    # 2026-04-30: in PROMETHEUS_MULTIPROC_DIR mode, Gauge.set_function
-    # callbacks are NEVER fired (MultiProcessCollector reads files
-    # only). Register the same compute functions through observability's
-    # explicit refresher registry — _build_metrics_view calls each one
-    # on every scrape, so the worker handling /metrics writes the fresh
-    # value to its multiproc file before the collector reads it back.
     def _stations_db_age() -> float:
         try:
             return max(0.0, time.time() - os.path.getmtime(stations_db_path))
@@ -317,10 +231,6 @@ try:
             return 0.0
     register_gauge_refresher(saved_locations_total, _saved_locations_total)
 
-    # SQLAlchemy event listener for db_query_seconds. Captures every
-    # query crossing either bind (default = stations.db, 'users' = users.db).
-    # Best-effort — wrapped in try because the engine objects must
-    # exist by now (db.init_app already ran).
     from sqlalchemy import event as _sa_event
     import re as _re
 
@@ -341,9 +251,6 @@ try:
         except Exception:
             pass
 
-    # Flask-SQLAlchemy 3.x: db.engines is a dict {bind_key: Engine}
-    # but only accessible inside an app context. Push one explicitly
-    # since this whole block runs at module-import time.
     _engines = []
     with app.app_context():
         try:
@@ -361,25 +268,16 @@ try:
         except Exception:
             app.logger.exception("db_query_seconds listener wiring failed")
 
-    # 2026-05-17: live gauge for authed sessions. Sweeps the in-memory TTL
-    # set on each /metrics scrape so stale user_id entries are evicted
-    # before the count goes out the door. (The anon-session gauge was
-    # removed 2026-06-13 — see ss_sid scoping.)
     register_gauge_refresher(
         active_authed_sessions, lambda: float(active_authed_session_count())
     )
 except Exception:
     app.logger.exception("[observability] dynamic-gauge wiring failed")
 
-# OpenAPI / Swagger UI on /api/v1/docs/, spec on /api/v1/openapi.json.
 init_api_docs(app)
 init_oauth(app)
 
 
-# PR #48.7: OAuth sign-in routes. Each provider gates itself on
-# settings.<provider>_oauth_client_id — empty → 404 + button hidden
-# in /login. So flipping a provider on/off is a Cloud Run env update,
-# no code change.
 @app.route('/auth/google/login')
 @limiter.limit("10 per minute")
 def oauth_google_login():
@@ -526,8 +424,6 @@ PERMISSIONS_POLICY = (
     "usb=(), magnetometer=(self), gyroscope=(self), accelerometer=(self)"
 )
 
-# /embed/* widget needs geolocation permitted to ANY embedding origin so
-# cross-site iframes can prompt the user. Camera/mic/payment stay denied.
 EMBED_PERMISSIONS_POLICY = (
     "geolocation=*, camera=(), microphone=(), payment=(), "
     "usb=(), magnetometer=(self), gyroscope=(self), accelerometer=(self)"
@@ -536,8 +432,6 @@ EMBED_PERMISSIONS_POLICY = (
 
 @app.after_request
 def _record_user_agent_class(response):
-    # Skip /metrics + /healthz + /status so probes don't dominate the
-    # bucket counts.
     if request.path in ('/metrics', '/healthz', '/status'):
         return response
     requests_by_user_agent_class_total.labels(
@@ -547,16 +441,6 @@ def _record_user_agent_class(response):
 
 
 # ── 2026-05-17: bot-score + session-cookie hooks (ANALYTICS-PLAN PR-1) ─────
-#
-# Plants the opaque `ss_sid` anti-abuse cookie on first request, refreshes
-# the authed-session TTL set (keyed on the logged-in user_id), and emits
-# bot_score_total{score} from the composite signal table. ss_sid feeds the
-# bot-score "seen before?" signal only — no analytics (2026-06-13).
-#
-# Runs in two halves: a before_request reads the cookie (or mints one
-# into flask.g for the response to pick up) and bumps the request
-# counter inside the Flask session, and an after_request emits the
-# bot_score Counter using everything we know at response time.
 
 SS_SID_COOKIE = 'ss_sid'
 SS_SID_MAX_AGE = 30 * 24 * 3600  # 30 days
@@ -566,26 +450,16 @@ SS_SID_MAX_AGE = 30 * 24 * 3600  # 30 days
 def _ss_sid_and_session_probe():
     if request.path in _INFRA_PATHS:
         return
-    # Cookie present? Note it on flask.g for both the after_request
-    # bot-score hook and the response cookie-setter. ss_sid is a
-    # strictly-necessary anti-abuse cookie: its only consumer is the
-    # bot-score "have I seen this browser before" signal — it feeds no
-    # analytics (2026-06-13 scoping; see /privacy).
     g._ss_sid_present = bool(request.cookies.get(SS_SID_COOKIE))
     g._ss_sid_to_set = None
     if not g._ss_sid_present:
         g._ss_sid_to_set = secrets.token_hex(16)
 
-    # Per-Flask-session request counter — used for the no-cookie / no-pulse
-    # signals (we shouldn't penalise request #1 for not having state yet).
     try:
         session['_req_n'] = int(session.get('_req_n', 0)) + 1
     except Exception:
         pass
 
-    # Refresh the authed-sessions TTL set (keyed on the logged-in user_id
-    # from the strictly-necessary session cookie — not on ss_sid) so the
-    # saturation gauge is current at scrape time.
     try:
         uid = session.get('user_id')
         if uid is not None:
@@ -611,9 +485,6 @@ def _ss_sid_set_and_bot_score(response):
             secure=app.config.get('SESSION_COOKIE_SECURE', False),
         )
 
-    # Compute and emit the bot score. Honeypot-tripped is set by the
-    # /_trap view (and could be wired into other honeypot paths later);
-    # default to False so a non-trap response doesn't override the score.
     try:
         ua_class = classify_user_agent(request.headers.get('User-Agent'))
         req_n = int(session.get('_req_n', 1))
@@ -632,13 +503,6 @@ def _ss_sid_set_and_bot_score(response):
 
 
 # ── PR #44: USE-method saturation + RED-method per-tier hooks ───────────────
-#
-# `in_flight_requests` is a Gauge incremented on every request entry and
-# decremented on every request exit (including exceptions), giving a
-# saturation read at any instant. `public_requests_total` keeps a count
-# of every customer-visible request — surfaced unfiltered on the public
-# /status page. `record_incident()` stamps the wall-clock time of the
-# most-recent 5xx so /status can render "Last incident: …".
 
 _INFRA_PATHS = ('/metrics', '/healthz', '/status')
 
@@ -651,10 +515,6 @@ def _saturation_inc():
         in_flight_requests.inc()
     except Exception:
         pass
-    # Per-endpoint duration (added 2026-04-28). Stamp request start
-    # so the after_request hook can compute elapsed without needing
-    # its own clock reading. Stored on flask.g so concurrent requests
-    # don't trample each other.
     try:
         from flask import g as _g
         import time as _t
@@ -674,12 +534,6 @@ def _saturation_dec_and_count(response):
             record_incident()
     except Exception:
         pass
-    # Per-endpoint HTTP funnel + duration (added 2026-04-28).
-    # endpoint label uses request.endpoint (the Flask view-function
-    # name) rather than request.path so dynamic routes like
-    # /account/keys/<int:key_id>/revoke don't blow up cardinality
-    # with one series per key_id. Status bucketed to 2xx/3xx/4xx/5xx
-    # for the same reason — 410 vs 404 vs 403 etc. all roll into 4xx.
     try:
         endpoint = request.endpoint or 'unknown'
         status_bucket = f"{response.status_code // 100}xx"
@@ -753,12 +607,6 @@ def _csp_for_path(path: str) -> str:
 @app.after_request
 def set_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    # Audit fix (Low — headers): X-XSS-Protection is deprecated. Modern
-    # Chromium/Firefox/Safari ignore it; older browsers' implementation
-    # had documented XSS-amplifying corner cases. Removed in favor of
-    # the strict CSP set further down (which is the actual modern XSS
-    # defence). Kept HSTS extended preload-eligible (>=1 year, includes
-    # subdomains, preload directive).
     response.headers['Strict-Transport-Security'] = (
         'max-age=63072000; includeSubDomains; preload'
     )
@@ -771,17 +619,8 @@ def set_security_headers(response):
     response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
     response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
     response.headers['Content-Security-Policy'] = _csp_for_path(request.path)
-    # X-Frame-Options is the legacy sibling of frame-ancestors. For /embed/*
-    # we drop it entirely so allowed origins can frame; modern browsers
-    # honor frame-ancestors over XFO when both are present, but old browsers
-    # see XFO=DENY first and refuse — so it must go.
     if not request.path.startswith('/embed/') or not settings.embed_allowed_origins:
         response.headers['X-Frame-Options'] = 'DENY'
-    # Authenticated pages must not be cached: after logout the browser would
-    # otherwise serve the rendered HTML (with email + API key) from BFCache /
-    # disk cache on Back-button or direct URL re-entry, even though the
-    # server-side session is gone. no-store + Vary: Cookie kills both BFCache
-    # and intermediary caches for any response that depended on session state.
     if 'user_id' in session or request.path.startswith('/account'):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private'
         response.headers['Pragma'] = 'no-cache'
@@ -791,22 +630,9 @@ def set_security_headers(response):
             response.headers['Vary'] = (existing_vary + ', Cookie').lstrip(', ')
     return response
 
-# PR #48: positive caching for read-only public pages. /data and /tips
-# render markdown (mostly static — content edits ship via deploy); /stats
-# renders aggregated SQL counts that change at most once a month with the
-# UKE refresh. Without these headers every page-load eats a full Flask
-# render + DB hit; with ETag + 304 a CDN / browser short-circuits to a
-# 0-byte 304 on revisits.
 _PUBLIC_CACHE_PATHS = {'/data', '/stats', '/tips', '/tips/content', '/privacy'}
-# 5 min fresh + 10 min stale-while-revalidate. Long enough that a user
-# clicking around the site re-uses the cache; short enough that a content
-# edit (markdown push) reaches users within minutes after deploy.
 _PUBLIC_CACHE_MAX_AGE = 300
 _PUBLIC_CACHE_SWR     = 600
-# /tips serves different content for logged-in vs anonymous users
-# (tips_registered.md vs tips.md), and every public page renders nav /
-# title strings in the session-selected language. Without Vary:Cookie an
-# intermediary cache could serve the wrong variant.
 _COOKIE_VARYING_CACHE_PATHS = set(_PUBLIC_CACHE_PATHS)
 
 
@@ -847,8 +673,6 @@ def set_public_cache_headers(response):
         return response
     if response.headers.get('Cache-Control'):
         return response
-    # Only act when the view set an ETag — otherwise we have no
-    # stable cache key and can't honour conditional requests.
     if not response.headers.get('ETag'):
         return response
     response.make_conditional(request)
@@ -894,35 +718,20 @@ def generate_csrf_token():
 
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
 
-# Plausible Analytics — script + domain set via env. Both must be present
-# to render the tracker; either missing → tracker silently disabled.
 app.jinja_env.globals['plausible_script_url'] = settings.plausible_script_url
 app.jinja_env.globals['plausible_domain'] = settings.plausible_domain
 app.jinja_env.globals['canonical_origin'] = settings.canonical_origin
 app.jinja_env.globals['email_link_origin'] = settings.email_link_origin
 app.jinja_env.globals['marketing_enabled'] = settings.marketing_enabled
-# PR #46.5: footer-rendered build version. cd.yaml builds APP_VERSION as
-# 'YYYY.MM.DD-<sha7>' (CalVer + git SHA — Stripe-style date versioning,
-# no SemVer bookkeeping). Local dev → "dev". Owner clicks the footer link
-# to land on the deployed commit on GitHub — instant "what's actually
-# running right now" verification, was a recurring uncertainty during
-# the sprint.
 app.jinja_env.globals['app_version'] = settings.app_version
 app.jinja_env.globals['app_version_sha'] = settings.app_version_sha
 app.jinja_env.globals['repo_url'] = settings.repo_url
 app.jinja_env.globals['app_env'] = settings.env
-# PR #48.7: OAuth provider gating in base.html. Buttons hidden when
-# the corresponding client_id env var is empty.
 app.jinja_env.globals['google_oauth_enabled'] = bool(settings.google_oauth_client_id)
 app.jinja_env.globals['github_oauth_enabled'] = bool(settings.github_oauth_client_id)
 app.jinja_env.globals['facebook_oauth_enabled'] = bool(settings.facebook_oauth_client_id)
 
 def validate_csrf():
-    # Audit fix (High — timing leak): use hmac.compare_digest instead
-    # of `!=`. Plain string equality short-circuits on the first
-    # mismatched byte; an attacker measuring response time can
-    # progressively guess the token byte-by-byte. compare_digest is
-    # constant-time (and accepts both str and bytes).
     import hmac as _hmac
     token = request.form.get('_csrf_token') or request.headers.get('X-CSRF-Token')
     expected = session.get('_csrf_token')
@@ -942,13 +751,6 @@ SLOGANS = [
 @app.route('/')
 def home():
     slogan_title, slogan_text = random.choice(SLOGANS)
-    # PR #48.2: don't ship Leaflet + map JS to bots / CLIs. Crawlers
-    # were burning through the Stadia tile free tier (200k/mo) and
-    # contribute zero SEO value from the rendered map. Real browsers
-    # (browser_chrome / browser_firefox / browser_safari / browser_other
-    # / unknown) still get the full app. Headless renderers that lie
-    # about their UA slip through; that's fine — most spend isn't from
-    # them.
     ua_class = classify_user_agent(request.headers.get('User-Agent'))
     is_bot = ua_class.endswith('bot') or ua_class == 'cli'
     return render_template(
@@ -958,12 +760,6 @@ def home():
         is_bot=is_bot,
     )
 
-# PR #27: per-file (path, mtime) → rendered-html cache. /data, /tips,
-# /stats render markdown on every request — perf logs showed it
-# dominates p95 (~150ms). Markdown content lives in committed files that
-# only change at deploy time, so a process-local cache keyed by mtime
-# auto-invalidates without manual flush. Bounded implicitly by the small
-# number of .md files in src/content/.
 _MARKDOWN_HTML_CACHE: dict[str, tuple[float, str]] = {}
 
 
@@ -1014,21 +810,12 @@ def data_page():
 @app.route('/stats')
 def stats_page():
     stats = get_stats()
-    # Stations DB only changes with the monthly UKE refresh — its mtime
-    # is the right cache key for /stats. Falls back to app_version if
-    # the file is missing (test envs / first boot) so the ETag still
-    # invalidates per deploy.
     try:
         db_mtime = os.path.getmtime(stations_db_path)
     except OSError:
         db_mtime = 0.0
-    # The displayed refresh date is the real UKE data date from stations.db
-    # metadata, not the file's mtime (which resets on every image build).
     last_refresh_iso = get_data_date(stations_db_path)
 
-    # Stats history snapshots, one per UKE refresh (idempotent — keyed on
-    # the data date) so /stats can render MoM deltas + a multi-month trend
-    # chart. Stored in the users.db stats_snapshot table.
     previous = None
     history_count = 0
     monthly_history: list = []
@@ -1041,20 +828,11 @@ def stats_page():
             previous = previous_snapshot(users_db_path, last_refresh_iso)
             all_rows = read_history(users_db_path)
             history_count = len(all_rows)
-            # Dedupe to one row per (year, month) — keep the LAST one
-            # in each month (sorted by snapshot_key). Multiple commits in
-            # the same month happen during DB-update fix-ups; the last
-            # one is the durable shape.
             by_month: dict = {}
             for r in sorted(all_rows, key=lambda r: r.get('snapshot_key', '')):
                 month_key = (r.get('snapshot_key') or '')[:7]
                 if month_key:
                     by_month[month_key] = r
-            # 2026-04-29: also expose per-generation entries so the
-            # interactive chart in stats.html can let users compare
-            # 5G/LTE/UMTS/GSM growth side-by-side with grand totals.
-            # generation_totals shape varies snapshot-to-snapshot
-            # (older ones may miss a key), so default to 0.
             monthly_history = [
                 {
                     'month': m,
@@ -1069,17 +847,6 @@ def stats_page():
                 }
                 for m in sorted(by_month)
             ]
-            # 2026-04-29: peak-detection outlier filter. The historical
-            # replay script produced bogus rows (2026-01 landed at 223k
-            # entries — +70k from Dec '25, -39k into Feb '26; a UKE
-            # permit delta of 70k/month is physically impossible).
-            # A median-deviation filter missed it because neighbouring
-            # months were also inflated, pulling the median up.
-            # Peak-detection is structural: a value strictly higher
-            # than 1.18× BOTH its prev and next neighbours is an
-            # isolated spike no matter the absolute magnitude.
-            # Endpoints (no prev or no next) skipped — can't tell.
-            # Logged when fired so we can spot-check.
             if len(monthly_history) >= 3:
                 cleaned: list = []
                 for i, h in enumerate(monthly_history):
@@ -1100,9 +867,6 @@ def stats_page():
     except Exception:
         app.logger.exception("stats_history snapshot/read failed")
 
-    # Compute deltas vs previous snapshot for the hero tiles +
-    # generation bars + per-operator totals. None when there's no
-    # prior snapshot yet.
     deltas = None
     if previous:
         def _delta(curr_int, key, sub=None):
@@ -1240,18 +1004,6 @@ Art. 13 disclosure.</p>
     response.headers['Cache-Control'] = 'public, max-age=3600'
     return response
 
-# PR #48.3: signed-token email unsubscribe.
-#
-# GET  /unsubscribe/<token> renders a confirm page (do NOT flip on GET
-# because email clients prefetch links for malware scanning — Outlook,
-# Gmail "show images" etc. would silently opt the user out).
-#
-# POST /unsubscribe/<token> validates the token, flips
-# email_alerts_enabled = False on the user, redirects to a "you're
-# unsubscribed, change your mind anytime in /account" confirmation.
-#
-# Tokens have no expiry — the unsubscribe link in a 6-month-old email
-# should still work without forcing the user to log in.
 def _decode_unsubscribe_token(token: str):
     from itsdangerous import URLSafeSerializer, BadSignature
     serializer = URLSafeSerializer(settings.secret_key, salt='email-unsubscribe')
@@ -1323,11 +1075,6 @@ def update_email_preference():
                     "email_alerts_enabled": user.email_alerts_enabled})
 
 
-# PR #48.4: admin-only stats endpoint backed by SubmitLocationEvent.
-# Bare-bones JSON for now — surfaces aggregates so the owner can see
-# usage shape (top spots, browser breakdown, hourly distribution,
-# in-PL vs out-of-PL ratio, anon vs logged-in). UI on top of this is
-# a future iteration; for now the JSON is enough to make decisions.
 def _is_admin(user) -> bool:
     if not user or not user.email:
         return False
@@ -1417,10 +1164,6 @@ def admin_run_coverage_alerts():
             return jsonify({"error": "csrf_failed"}), 403
 
     dry_run = request.args.get('dry-run') in ('1', 'true', 'yes')
-    # 2026-04-29: optional `?user_email=foo@bar` to scope the sweep
-    # to a single user's saved locations. Useful for "send the next
-    # refresh's diff just to me first" before turning the firehose
-    # on for everybody.
     only_email = (request.args.get('user_email') or '').strip().lower()
     only_user_id = None
     if only_email:
@@ -1449,18 +1192,6 @@ def admin_run_coverage_alerts():
 
 
 # ── 2026-04-29: SendGrid Event Webhook receiver ──────────────────────
-# SendGrid posts a JSON array of events (deliveries / bounces / opens /
-# clicks / spamreports / unsubscribes) here. We:
-#   1. verify the ECDSA signature (Signed Event Webhook setting) so we
-#      can't be poisoned with fake bounce events
-#   2. dedupe by sg_event_id
-#   3. on hard-bounce / spamreport / dropped → insert EmailSuppression
-#      so emails._send won't try the address again
-#
-# Endpoint must be public (SendGrid initiates) — protected by the
-# signature check, NOT by bearer/admin session. Rate limit is generous
-# because SendGrid bursts events; we'd rather absorb the spike than
-# 429 them and have them retry.
 SUPPRESS_EVENT_TYPES = {'bounce', 'spamreport', 'dropped',
                          'group_unsubscribe', 'unsubscribe'}
 
@@ -1494,9 +1225,6 @@ def _verify_sendgrid_signature(public_key_b64: str,
 def sendgrid_event_webhook():
     pub = settings.sendgrid_webhook_public_key
     if not pub:
-        # Fail closed — without a configured key we can't tell forged
-        # bounce events from real ones; better to 503 than to start
-        # suppressing addresses based on attacker-chosen JSON.
         return jsonify({"error": "webhook_not_configured"}), 503
 
     sig = request.headers.get('X-Twilio-Email-Event-Webhook-Signature', '')
@@ -1505,11 +1233,6 @@ def sendgrid_event_webhook():
     if not sig or not ts or not _verify_sendgrid_signature(pub, payload, sig, ts):
         return jsonify({"error": "invalid_signature"}), 403
 
-    # 2026-04-30: handle gzip ('POST Compression' setting in SendGrid UI)
-    # + single-object payloads (their Test Integration sometimes sends a
-    # bare object instead of the documented array). Both surfaced as
-    # opaque HTTP 400 with no breadcrumb, so we log the failure shape on
-    # parse error to diagnose future weirdness.
     body = payload
     if request.headers.get('Content-Encoding', '').lower() == 'gzip':
         try:
@@ -1541,14 +1264,10 @@ def sendgrid_event_webhook():
         sg_id = ev.get('sg_event_id')
         if not sg_id:
             continue
-        # Dedupe — SendGrid retries with the same sg_event_id on
-        # non-2xx, so this row may already exist.
         if _EE.query.filter_by(sg_event_id=sg_id).first():
             continue
         email = (ev.get('email') or '').strip().lower()
         event_type = (ev.get('event') or '').strip().lower()
-        # Bump the deliverability counter — chartable in Grafana
-        # (delivered / open / click / bounce / spamreport rates).
         try:
             email_event_total.labels(event_type=event_type or 'unknown').inc()
         except Exception:
@@ -1647,7 +1366,6 @@ def admin_email_preview(template: str):
                         "templates": sorted(samples.keys())}), 404
 
     ctx = dict(samples[template])
-    # Mirror what _send adds so the templates render the same as in prod.
     from emails import _greeting_name, unsubscribe_url
     ctx.setdefault('user', user)
     ctx.setdefault('greeting_name', _greeting_name(user))
@@ -1689,7 +1407,6 @@ def admin_stats():
     logged_in_count = base_q.filter(_SLE.user_id.isnot(None)).count()
     anon_count = total - logged_in_count
 
-    # Top 10 (lat_bucket, lng_bucket) by hit count — coarse heatmap.
     top_spots = (
         db.session.query(
             _SLE.lat_bucket, _SLE.lng_bucket,
@@ -1711,9 +1428,6 @@ def admin_stats():
         .all()
     )
 
-    # 2026-04-28: unique sessions (count distinct session_hash) — gives
-    # a "how many real humans hit submit_location" floor regardless of
-    # whether they were logged in.
     unique_sessions = (
         db.session.query(_f.count(_f.distinct(_SLE.session_hash)))
         .filter(_SLE.created_at >= cutoff)
@@ -1721,9 +1435,6 @@ def admin_stats():
         .scalar()
     ) or 0
 
-    # 2026-04-28: per-day count for a 7-day mini-trend. SQLite uses
-    # date() to truncate the timestamp; the route caps `days` at 30
-    # so this is bounded.
     days_for_trend = min(days, 14)
     trend_cutoff = datetime.utcnow() - timedelta(days=days_for_trend)
     daily_rows = (
@@ -1740,8 +1451,6 @@ def admin_stats():
         {"day": str(day), "hits": int(hits)} for (day, hits) in daily_rows
     ]
 
-    # 2026-04-29: registered-user + saved-location KPIs. Lives in /admin/
-    # stats (NOT public /stats) — competitor intel + PII reasons.
     from models import User as _U2, UserLocation as _UL
     user_total = _U2.query.count()
     email_alerts_on = _U2.query.filter_by(email_alerts_enabled=True).count()
@@ -1751,8 +1460,6 @@ def admin_stats():
         db.session.query(_f.count(_f.distinct(_UL.user_id)))
         .scalar()
     ) or 0
-    # Top users by saved-location count (just count + email — no
-    # per-location coords here; that's a separate drill-down).
     from sqlalchemy import case as _case
     top_savers_rows = (
         db.session.query(
@@ -1796,9 +1503,6 @@ def admin_stats():
             "top_savers": top_savers,
         },
     }
-    # PR #48.6: HTML by default for browser visits, JSON on
-    # ?format=json. Browser visit hits the rendered page directly;
-    # programmatic clients (scripts, dashboards) opt-in to JSON.
     if request.args.get('format') == 'json':
         return jsonify(payload)
     return render_template('admin_stats.html', data=payload)
@@ -1853,21 +1557,6 @@ def favicon():
 
 
 # ── PR #44: Customer-facing public status page ──────────────────────────────
-#
-# Self-contained Plausible-style status page. Backed by the SAME in-process
-# Prometheus counters that Grafana pulls — no external Prom round-trip
-# (faster, and means the page works even if the NUC is offline).
-#
-# Privacy boundary (intentional):
-#   This route MUST NOT surface anything from the security counters. No
-#   CSRF / login-failure / honeypot / API-key / tier breakdown. The page is
-#   shown to prospective B2B customers; security signals stay private and
-#   live on the operator-only Grafana dashboard.
-#
-# `compute_public_status()` enforces the boundary in code — it only reads
-# availability, latency and the public_requests_total counter. Adding a
-# panel here in the future means extending that function (review checks
-# the diff against the privacy boundary).
 
 @app.route('/status')
 def public_status():
@@ -1903,12 +1592,6 @@ def submit_location():
         user_lng = float(data['lng'])
 
         if not _coords_in_bounds(user_lat, user_lng):
-            # Easter egg path. Returns 200 (not 400) so the frontend
-            # `globalFetch` doesn't bail into .catch — that was the bug
-            # behind the "loading spinner forever" / no easter-egg toast
-            # symptom in prod (frontend treated the 400 as a network
-            # error, never hit the success branch where the message box
-            # is unhidden).
             return jsonify({
                 'outside_pl': True,
                 'message': (
@@ -1927,9 +1610,6 @@ def submit_location():
             })
 
         session['user_location'] = {'lat': user_lat, 'lng': user_lng}
-        # PR #29: persist saved location to User row so the snapshot/diff
-        # feed in /account/changes has a centre point. Best-effort: a write
-        # failure here must NOT break the user-facing /submit_location flow.
         if 'user_id' in session:
             try:
                 user = db.session.get(User, session['user_id'])
@@ -1940,10 +1620,6 @@ def submit_location():
             except Exception:
                 db.session.rollback()
                 app.logger.exception("Could not persist user location")
-        # Audit fix (Medium — backend): mirror the bounds enforced on
-        # /stations so a body POST can't bypass the documented
-        # 0.1–10 km / 1–10 limit caps. find_nearest_stations is
-        # cheap-ish but unbounded radius would scan the whole table.
         limit = data.get('limit', 9)
         max_distance = data.get('max_distance', None)
         try:
@@ -1963,9 +1639,6 @@ def submit_location():
                             "message": "limit/max_distance must be numeric."}), 400
 
         station_search_total.labels(endpoint='submit_location').inc()
-        # 2026-04-28: business-action counter so Grafana can answer
-        # "how many submit_location calls are landing per minute,
-        # split between anon and logged-in browsers + API tiers?".
         try:
             user_action_total.labels(
                 action='submit_location',
@@ -1975,11 +1648,6 @@ def submit_location():
             pass
         nearest_stations = find_nearest_stations(user_lat, user_lng, limit=limit, max_distance=max_distance)
 
-        # PR #48.4: pseudonymized event log. Best-effort write — a DB
-        # failure here must not break the user-facing flow. GDPR-safe:
-        # session_hash is sha256 of session id (one-way), lat/lng
-        # bucketed to 0.01° (~1km), browser_class from existing
-        # observability bucketer, no IP, no full UA.
         try:
             from models import SubmitLocationEvent as _SLE
             from hashlib import sha256 as _sha256
@@ -2022,13 +1690,6 @@ def get_stations():
             user_lat = float(user_lat)
             user_lng = float(user_lng)
             if not _coords_in_bounds(user_lat, user_lng):
-                # PR #46.5 follow-up: match the /submit_location easter-egg
-                # contract — return 200 with outside_pl=true and an empty
-                # stations[] instead of 400. The frontend was hitting this
-                # endpoint after the user clicked outside PL (geolocation
-                # placed them in Belarus), and the 400 made globalFetch
-                # bail into .catch — sidebar / pin never cleared. Same
-                # marker as /submit_location so JS handles both uniformly.
                 return jsonify({
                     'outside_pl': True,
                     'stations': [],
@@ -2048,7 +1709,6 @@ def get_stations():
         if max_distance is not None:
             if max_distance < 0.1 or max_distance > 10:
                 return jsonify({"error": "Invalid parameter", "message": "Max distance must be between 0.1 and 10 km. Please respect it."}), 400
-            # Set limit to None when a valid max_distance is provided to focus on distance-based filtering
             limit = None
         elif limit is not None:
             # Validate limit if max_distance is not provided
@@ -2060,9 +1720,6 @@ def get_stations():
 
         cleaned_service_providers = [provider.rstrip("'") for provider in raw_service_providers]
 
-        # Track which providers / bands users actually filter on — answers
-        # "what's worth highlighting in the UI" once we have promotion-driven
-        # traffic. Bounded cardinality (≤4 providers, ≤14 bands).
         for provider in cleaned_service_providers:
             provider_filter_used_total.labels(provider=provider).inc()
         for band in frequency_bands:
@@ -2109,8 +1766,6 @@ def find_station():
     if not basestation_id or len(basestation_id) > 7 or not re.match("^[A-Za-z0-9]+$", basestation_id):
         return jsonify({"error": "Request cannot be processed"}), 400
 
-    # Honeypot: known fake IDs return 404 (looks like a normal miss to the
-    # caller) but increment a tripwire counter so we know we're being scraped.
     if is_honeypot(basestation_id):
         record_honeypot_hit(basestation_id, endpoint='find_station')
         return jsonify({"error": "Station not found"}), 404
@@ -2137,7 +1792,6 @@ def search_stations():
     station_search_total.labels(endpoint='search_stations').inc()
     query = request.args.get('q', type=str, default='')
 
-    # Honeypot: prefix-search for a known-fake ID also trips the wire.
     if query and is_honeypot(query):
         record_honeypot_hit(query, endpoint='search_stations')
         return jsonify({"stations": []})
@@ -2149,7 +1803,6 @@ def search_stations():
     if not re.match("^[A-Za-z0-9]+$", query):
         return jsonify({"stations": []})
 
-    # Search for stations with basestation_id starting with the query
     stations = BaseStation.query.filter(
         BaseStation.basestation_id.like(f'{query.upper()}%')
     ).limit(limit).all()
@@ -2165,13 +1818,6 @@ def search_stations():
     return jsonify({"stations": stations_data})
 
 
-# PR #47: per-band coverage-gap detection. For each frequency band in
-# the dataset, returns the distance to the nearest BTS of that band
-# and a boolean has_coverage based on band-specific thresholds (low
-# bands penetrate further so they get bigger thresholds; see
-# queries.COVERAGE_THRESHOLDS_KM). Surfaced in the sidebar after every
-# map click so users see "you're in a 5G dead zone here" without
-# having to interpret distance numbers.
 @app.route('/coverage_gaps', methods=['GET'])
 @limiter.limit("30 per minute")
 @require_api_access(endpoint_label='coverage_gaps')
@@ -2182,8 +1828,6 @@ def coverage_gaps():
     except (TypeError, ValueError):
         return jsonify({'error': 'Invalid lat/lng'}), 400
     if not _coords_in_bounds(user_lat, user_lng):
-        # Match the easter-egg contract — 200 with outside_pl flag and
-        # an empty result so the JS handles it uniformly with /stations.
         return jsonify({
             'outside_pl': True,
             'gaps': [],
@@ -2252,21 +1896,6 @@ def sitemap_xml():
 
 
 # ── 2026-05-17: bot-detection probes (ANALYTICS-PLAN.md PR-1) ────────────
-#
-# /_pulse — called once by common.js on DOMContentLoaded; sets a session
-# flag the bot-score after_request hook reads. Real browsers running JS
-# carry the flag; headless scrapers that skip JS don't. Returns 204 so
-# the network panel stays clean.
-#
-# /_trap — invisible honeypot link in base.html. Any hit is a scraper
-# tripwire; we bump the existing honeypot_hit_total counter under a
-# new endpoint label and force the bot score to 5+. Returns 404 so it
-# looks like a stale link from the outside; the server-side signal is
-# what matters.
-#
-# Neither endpoint appears in robots.txt or sitemap.xml — listing /_trap
-# in robots tells well-behaved crawlers to avoid it (defeats the trap),
-# and a sitemap entry would invite Googlebot to index a 404.
 
 @app.route('/api/v1/_pulse', methods=['GET'])
 @limiter.limit("60 per minute")
@@ -2322,9 +1951,6 @@ def embed_widget():
     if has_coords and not _coords_in_bounds(lat, lng):
         return jsonify({'error': 'Coordinates outside supported area'}), 400
 
-    # auto=1 → request browser geolocation immediately on page load.
-    # When no coords were provided, default to auto-prompt; otherwise
-    # only auto-prompt if explicitly requested by query.
     auto = request.args.get('auto', '0' if has_coords else '1') in ('1', 'true', 'yes')
 
     return render_template(
@@ -2336,10 +1962,6 @@ def embed_widget():
     )
 
 
-# Auth routes (register / login / logout / session_check / account /
-# regenerate_api_key) live in the auth_routes module as a Flask blueprint.
-# Wired here so dependency order (db, bcrypt, limiter, validate_csrf, etc.)
-# is unambiguous.
 from auth_routes import register_auth_routes  # noqa: E402
 register_auth_routes(
     app,
@@ -2354,10 +1976,6 @@ register_auth_routes(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# /api/v1/ — versioned aliases of the public endpoints. The legacy unprefixed
-# routes above stay for back-compat (browser JS still calls them); the
-# Swagger UI / OpenAPI spec only documents the /api/v1/ surface.
-# Each wrapper carries the YAML docstring flasgger reads from.
 # ─────────────────────────────────────────────────────────────────────────────
 
 def api_v1_get_stations():
@@ -2644,4 +2262,3 @@ if __name__ == '__main__':
     app.run(debug=settings.debug,
             host='0.0.0.0',
             port=settings.port)
-            #ssl_context=('/etc/ssl/localcerts/localhost+2.pem', '/etc/ssl/localcerts/localhost+2-key.pem'))

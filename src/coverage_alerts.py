@@ -54,8 +54,6 @@ def _coverage_to_dict(cov: dict) -> dict:
     }
 
 
-# Same shorthand used by stats.html — keeps emails consistent with the
-# UI. Falls back to the raw legal-entity name if there's no match.
 _PROVIDER_SHORT = {
     'P4 Sp. z o.o.': 'Play',
     'P4 sp. z o.o.': 'Play',
@@ -172,9 +170,6 @@ def _process(loc: UserLocation, *, dry_run: bool, verbose: bool) -> str:
             loc.id, loc.user_id,
         )
         return 'skipped'
-    # 2026-06-11: alert mail only to verified addresses — otherwise
-    # registering someone else's email + a saved location turns the
-    # sweep into a spam cannon aimed at the victim's inbox.
     if not user.email_verified:
         logger.info(
             "loc id=%s user_id=%s skipped (email unverified)",
@@ -191,10 +186,6 @@ def _process(loc: UserLocation, *, dry_run: bool, verbose: bool) -> str:
     if dry_run:
         return 'sent'  # would have sent
 
-    # 2026-04-29: also surface the *current* nearest tower so the email
-    # carries baseline context, not only the diff. Picks the smallest
-    # nearest_distance_km across all bands that still have coverage —
-    # gives the user a 'here's your main tower right now' anchor.
     current_nearest = None
     covered = [g for g in (after.get('gaps') or []) if g.get('has_coverage')]
     if covered:

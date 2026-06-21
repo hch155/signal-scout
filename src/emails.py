@@ -55,11 +55,6 @@ class EmailMessage:
     subject: str
     html_body: str
     text_body: str
-    # 2026-04-29: optional extra headers. Used for List-Unsubscribe +
-    # List-Unsubscribe-Post (RFC 8058) — Gmail/Yahoo bulk-sender rules
-    # since Feb 2024 require both for one-click unsubscribe in inbox UI,
-    # otherwise sender reputation degrades. Both backends pass these
-    # through to the underlying SMTP/SendGrid call.
     extra_headers: Optional[dict] = None
 
 
@@ -135,8 +130,6 @@ class SendGridBackend(EmailBackend):
                          _redact_email(msg.to))
             return False
         try:
-            # Lazy import — sendgrid pulls a few transitive deps; not loading
-            # them when the backend is something else keeps cold-start fast.
             from sendgrid import SendGridAPIClient
             from sendgrid.helpers.mail import Mail, From, To, Subject, PlainTextContent, HtmlContent
 
@@ -148,9 +141,6 @@ class SendGridBackend(EmailBackend):
                 html_content=HtmlContent(msg.html_body),
             )
             for hk, hv in (msg.extra_headers or {}).items():
-                # SendGrid SDK exposes Personalization-level headers AND
-                # message-level headers. Use message-level (applies to
-                # every recipient — we only have one anyway).
                 from sendgrid.helpers.mail import Header
                 mail.add_header(Header(hk, hv))
             sg = SendGridAPIClient(self.api_key)
@@ -206,16 +196,11 @@ def _render(template_name: str, **ctx) -> tuple[str, str]:
     try:
         text = render_template(f'emails/{template_name}.txt', **ctx)
     except Exception:
-        # Crude fallback: strip tags. Better than nothing for spam-folder
-        # heuristics that look at multipart shape.
         import re
         text = re.sub(r'<[^>]+>', '', html)
     return html, text
 
 
-# PR #48.3: signed unsubscribe URL. itsdangerous comes via Flask
-# already (Flask 3.x dependency); no new deps. Token format: signed
-# user_id, no expiry — unsubscribe links should keep working forever.
 def unsubscribe_url(user) -> str:
     """Build a signed `/unsubscribe/<token>` URL for `user`.
 
@@ -232,9 +217,6 @@ def unsubscribe_url(user) -> str:
     return url_for('unsubscribe_email', token=token, _external=True)
 
 
-# PR #48.3: greeting helper — friendlier than rendering the full email
-# in the body. `hcylwik@gmail.com` → `hcylwik`. Falls back to the
-# original string if there's no `@` (defensive against malformed data).
 def _greeting_name(user) -> str:
     e = (user.email or '').strip()
     if '@' in e:
@@ -260,11 +242,6 @@ def _send(user, subject: str, template: str, **ctx) -> bool:
     the suppression IS the success path for "we should not email
     this address".
     """
-    # 2026-04-29: every send goes through email_send_total{template,outcome}
-    # so Grafana / Zabbix can chart deliverability + suppression hit-rate
-    # without parsing logs. Outcome vocabulary mirrors the early-return
-    # cases below (no_user, alerts_disabled, suppressed, render_failed)
-    # plus the terminal sent / send_failed.
     def _bump(outcome: str):
         try:
             from observability import email_send_total
@@ -280,8 +257,6 @@ def _send(user, subject: str, template: str, **ctx) -> bool:
                     template, user.id)
         _bump('alerts_disabled')
         return True
-    # 2026-04-29: suppression-list short-circuit. Cheap (single indexed
-    # lookup); avoids paying SendGrid to reject mail to bounced addresses.
     try:
         from models import EmailSuppression as _ES
         sup = _ES.query.filter_by(email=user.email.lower()).first()
@@ -291,7 +266,6 @@ def _send(user, subject: str, template: str, **ctx) -> bool:
             _bump('suppressed')
             return True
     except Exception:
-        # Don't let a missing table / DB hiccup block transactional mail.
         logger.exception("[email] suppression-check failed (allowing send)")
 
     ctx.setdefault('user', user)
@@ -299,8 +273,6 @@ def _send(user, subject: str, template: str, **ctx) -> bool:
     try:
         ctx.setdefault('unsubscribe_url', unsubscribe_url(user))
     except Exception:
-        # url_for needs an app/request context — in tests / cron
-        # without one, omit the URL rather than crash.
         ctx.setdefault('unsubscribe_url', '')
     try:
         html, text = _render(template, **ctx)
@@ -309,9 +281,6 @@ def _send(user, subject: str, template: str, **ctx) -> bool:
         _bump('render_failed')
         return False
 
-    # RFC 8058 List-Unsubscribe + List-Unsubscribe-Post (Gmail / Yahoo
-    # bulk-sender requirement Feb 2024). The mailto: gives MUAs an
-    # immediate path; the https: lets Gmail show a one-click button.
     extra_headers: dict = {}
     unsub = ctx.get('unsubscribe_url') or ''
     if unsub:
@@ -400,8 +369,6 @@ def _coverage_alert_subject(location, gained, lost, distance_changes) -> tuple:
     headline = ' / '.join(parts) if parts else 'coverage updated'
     subject = f'{location.name}: {headline}'
 
-    # Preheader (≤90 chars — Gmail truncates around there). Keep it
-    # specific so the inbox preview pays for the open.
     pre_bits = []
     if gained:
         pre_bits.append(f"gained {len(gained)}")

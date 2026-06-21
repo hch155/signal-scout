@@ -29,79 +29,22 @@ class User(db.Model):
     role = db.Column(db.String(80), default='user')
     status = db.Column(db.String(80), default='active')
     last_password_change = db.Column(db.DateTime, default=datetime.utcnow)
-    # PR #5: API access. Indexed for the X-API-Key header lookup hot path.
-    # api_tier values: 'free' (default), 'pro', 'enterprise' — the latter
-    # two unlock higher per-tier rate limits and bypass the Referer check.
-    #
-    # PR #47 (hashed API keys, Stripe-style): `api_key` is the legacy
-    # plaintext column kept ONLY for the back-compat lookup window — new
-    # rows leave it NULL. The hot-path lookup hashes incoming X-API-Key
-    # values and matches against `api_key_hash` (sha256 hex digest).
-    # `api_key_prefix` is `first8…last4` of the original token, surfaced
-    # in /account so the user can recognise which key they're holding
-    # without our DB ever storing the secret. Plan: drop `api_key` in a
-    # follow-up PR once this hash column has covered all in-flight callers.
     api_key = db.Column(db.String(64), unique=True, index=True)
     api_key_hash = db.Column(db.String(64), unique=True, index=True)
     api_key_prefix = db.Column(db.String(40))
     api_tier = db.Column(db.String(32), default='free')
-    # PR #16: 2FA TOTP. totp_secret is the raw base32 secret (matches what
-    # pyotp emits); kept in plaintext for now, following the same trade-off
-    # as User.api_key. Encrypting at rest is a follow-up once we introduce
-    # a KMS key. totp_enabled gates the login flow: only True after the
-    # user has successfully verified a code during setup. recovery_codes is
-    # a JSON array of bcrypt hashes (one per single-use recovery code).
     totp_secret = db.Column(db.String(64))
-    # PR #39: KMS-wrapped totp_secret. Populated when GCP_KMS_KEY_NAME is set
-    # (NoopKms otherwise — passthrough, written as-is). Read path prefers
-    # this column; falls back to plaintext `totp_secret` for rows minted
-    # before activation. Stored as base64 text so SQLite TEXT column works
-    # — KMS ciphertext is binary.
     totp_secret_enc = db.Column(db.Text)
     totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
     recovery_codes_json = db.Column(db.Text)
-    # PR #19: company name. The simplified /account UI asks only for
-    # company; the legacy free-text profile columns (full_name, bio,
-    # profile_picture, date_of_birth) plus username and the never-wired
-    # last_password_reset_request were dropped in PR #36.
     company = db.Column(db.String(120))
-    # PR #29: per-user station diff feed.
-    # last_location_* is the centre of the snapshot radius. Persisted by
-    # /submit_location whenever a logged-in user clicks the map. Anonymous
-    # users + users who never clicked have NULL → no snapshots.
     last_location_lat = db.Column(db.Float)
     last_location_lng = db.Column(db.Float)
-    # PR #26: account lockout. Counter bumped on each failed /login;
-    # reset on success. Once it hits LOCKOUT_THRESHOLD, locked_until is
-    # stamped with now + LOCKOUT_DURATION; subsequent login attempts are
-    # refused with 403 until the timestamp passes. Two columns rather than
-    # one packed value so an ops-side manual reset only needs to clear
-    # locked_until without losing audit context.
     failed_login_attempts = db.Column(db.Integer, default=0, nullable=False)
     locked_until = db.Column(db.DateTime)
-    # Audit fix M-NEW-3 (2026-04-27): TOTP replay defence. Each
-    # successful TOTP code is stamped here; a re-presentation of the
-    # SAME code within the validity window (~90 s with valid_window=1)
-    # is refused. Closes the "shoulder-surf one TOTP, fire it twice"
-    # vector. Stored as the raw 6-digit string + UTC timestamp; small
-    # enough that the index isn't worth it.
     last_totp_code = db.Column(db.String(10))
     last_totp_code_at = db.Column(db.DateTime)
-    # PR #48.3: master toggle for transactional email delivery. Default
-    # True. Flipped to False either by clicking the unsubscribe link in
-    # an email footer (signed token → /unsubscribe/<token>) or via the
-    # /account preferences UI. emails._send() short-circuits when this
-    # is False — no email of any kind goes out (including security
-    # alerts). Trade-off documented in /privacy + the unsubscribe
-    # confirmation page.
     email_alerts_enabled = db.Column(db.Boolean, default=True, nullable=False)
-    # 2026-06-11: email verification. NULL = unverified (post-migration
-    # signups only — migration 0002 backfills legacy rows with their
-    # registration_date, since blocking long-standing accounts
-    # retroactively would be wrong). Stamped by /verify-email or
-    # immediately on OAuth signup (provider already verified the email).
-    # Coverage-alert sends are gated on this so an attacker can't
-    # register someone else's address and aim alert mail at it.
     email_verified_at = db.Column(db.DateTime)
 
     @property
@@ -135,35 +78,14 @@ class ApiKey(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'),
                         nullable=False, index=True)
     name = db.Column(db.String(80), nullable=False)
-    # Indexed because the X-API-Key middleware does a single-row lookup
-    # per request — must be O(log n).
-    #
-    # PR #47 (hashed API keys, Stripe-style): `key` is now nullable and
-    # only populated for legacy rows minted before this PR. The lookup
-    # hot path matches `key_hash` (sha256 hex digest of the original
-    # token); `key_prefix` (`first8…last4`) is rendered in /account so
-    # users can identify which key they're holding without us ever
-    # storing the plaintext. New rows: key=NULL, key_hash + key_prefix
-    # populated. Backfill on boot copies hash + prefix for any legacy
-    # row with a non-null `key`. Drop `key` column in a follow-up PR
-    # once we've verified no in-flight callers depend on it.
     key = db.Column(db.String(64), unique=True, index=True, nullable=True)
     key_hash = db.Column(db.String(64), unique=True, index=True, nullable=True)
     key_prefix = db.Column(db.String(40), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     last_used_at = db.Column(db.DateTime)
-    # PR #15: per-key call counter. Bumped in api_access middleware alongside
-    # last_used_at on every authenticated API hit (single-row UPDATE in the
-    # same txn — cheap on SQLite).
     total_calls = db.Column(db.Integer, default=0, nullable=False)
-    # Soft-delete: revoked keys can't authenticate but are kept around so the
-    # user can see what was active when (audit trail, rotation history).
     revoked_at = db.Column(db.DateTime)
 
-    # NOTE: lazy='dynamic' makes SQLAlchemy cascade='all, delete-orphan' a
-    # silent no-op on this relationship, so account deletion cleans up
-    # ApiKey rows EXPLICITLY in auth_routes.delete_account. If you ever
-    # switch this to lazy='select', remove that explicit step.
     user = db.relationship('User', backref=db.backref('api_keys', lazy='dynamic'))
 
     @property
@@ -190,22 +112,11 @@ class AuditEvent(db.Model):
                         db.ForeignKey('user.id', ondelete='CASCADE'),
                         nullable=False, index=True)
     event_type = db.Column(db.String(40), nullable=False, index=True)
-    # Snapshot of request metadata at the moment of the event. Truncated
-    # generously so a malicious UA header can't bloat a row.
     ip_address = db.Column(db.String(64))
     user_agent = db.Column(db.String(256))
-    # JSON-encoded extra context (e.g. login.fail → {"reason":"bad_password"};
-    # apikey.created → {"name":"iOS app","key_id":42}).
     meta_json = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow,
                            nullable=False, index=True)
-    # Audit fix M-NEW-7 (2026-04-27): tamper-evident chain. Each
-    # row's `row_hash` includes the previous event's row_hash for the
-    # same user, so an attacker who deletes / modifies a row
-    # invalidates the chain at every subsequent row. Verification is
-    # the verify_audit_chain_for_user() helper in auth_routes.
-    # Per-user (not global) chain so /account/delete cascade still
-    # cleanly drops the trail.
     prev_hash = db.Column(db.String(64))
     row_hash = db.Column(db.String(64))
 
@@ -250,12 +161,6 @@ class UserLocation(db.Model):
     lng = db.Column(db.Float, nullable=False)
     radius_km = db.Column(db.Float, default=15.0, nullable=False)
     alerting_enabled = db.Column(db.Boolean, default=True, nullable=False)
-    # PR #48.10: snapshot of last find_coverage_gaps() output for this
-    # spot — JSON-encoded, written by scripts/coverage_alert_run.py
-    # after each monthly UKE refresh. NULL means "first run, nothing
-    # to compare against yet". The send-loop compares this to the
-    # freshly-computed result and emails only when meaningful diff
-    # (gained/lost a band, or nearest-BTS distance change > 1 km).
     last_coverage_state = db.Column(db.Text, nullable=True)
     last_alert_sent_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow,
@@ -299,9 +204,6 @@ class UserStationSnapshot(db.Model):
                                  nullable=True, index=True)
     taken_at = db.Column(db.DateTime, default=datetime.utcnow,
                          nullable=False, index=True)
-    # Centre of the snapshot — copied from User.last_location_* (or the
-    # parent UserLocation) at the moment the snapshot was taken so we can
-    # render diffs even after the user moves the saved location.
     centre_lat = db.Column(db.Float, nullable=False)
     centre_lng = db.Column(db.Float, nullable=False)
     radius_km = db.Column(db.Float, default=5.0, nullable=False)

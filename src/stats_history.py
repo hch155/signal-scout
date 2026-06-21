@@ -108,8 +108,6 @@ def maybe_write_snapshot(users_db_path: Optional[str], data_date: str,
         db.session.commit()
     except Exception:
         db.session.rollback()
-        # Lost a race to another worker writing the same key — that's fine,
-        # the row exists now, so treat as "not inserted by us".
         logger.info("snapshot for %s already written by a concurrent worker",
                     data_date)
         return False
