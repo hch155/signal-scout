@@ -17,8 +17,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // One-shot fire-and-forget GET to /api/v1/_pulse. The server uses the
 // presence of this hit as a "this client executes JS" signal in the
-// composite bot score (see docs/observability/ANALYTICS-PLAN.md). No
-// payload, no response handling — 204 by design. Wrapped in try so a
+// composite bot score. No payload, no response handling — 204 by
+// design. Wrapped in try so a
 // network failure here never breaks page boot.
 function fireAnalyticsPulse() {
   try {

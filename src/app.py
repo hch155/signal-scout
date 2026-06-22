@@ -1879,7 +1879,7 @@ def sitemap_xml():
     return Response('\n'.join(body), mimetype='application/xml')
 
 
-# ── 2026-05-17: bot-detection probes (ANALYTICS-PLAN.md PR-1) ────────────
+# ── Bot-detection probes ──
 
 @app.route('/api/v1/_pulse', methods=['GET'])
 @limiter.limit("60 per minute")

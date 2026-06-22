@@ -309,14 +309,8 @@
 
 {% block code %}{% endblock %}
 
-{# 2026-05-17: invisible honeypot link for the multi-signal bot detector
-   (see docs/observability/ANALYTICS-PLAN.md §2.4). Humans can't see it
-   (sr-only off-screen positioning), can't tab to it (tabindex=-1), and
-   screen readers skip it (aria-hidden). Anything that GETs it is a
-   link-follower scraper — the server bumps bot_score_total{score="5+"}
-   and signal_scout_honeypot_hit_total{endpoint="_trap"}. NEVER referenced
-   in robots.txt or sitemap.xml — that would warn well-behaved crawlers
-   off the trap. #}
+{# Invisible honeypot link: hidden from humans + assistive tech; only
+   link-following scrapers GET it, which the bot detector scores as abuse. #}
 <a href="/api/v1/_trap" class="sr-only" aria-hidden="true" tabindex="-1"
    style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;">honeypot</a>
 

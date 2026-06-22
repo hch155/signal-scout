@@ -452,7 +452,7 @@ app_version_info = Gauge(
 )
 
 
-# ── 2026-05-17: bot-score + session analytics (ANALYTICS-PLAN.md PR-1) ─────
+# ── Bot-score + session analytics ──
 
 bot_score_total = Counter(
     "signal_scout_bot_score_total",
@@ -475,7 +475,7 @@ active_authed_sessions = Gauge(
 )
 
 
-# Bot-score weight table (see ANALYTICS-PLAN.md §2.3).
+# Bot-score weight table.
 _BOT_WEIGHT_UA_BOT = 2
 _BOT_WEIGHT_NO_COOKIE = 1
 _BOT_WEIGHT_NO_PULSE = 1
