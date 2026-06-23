@@ -15,7 +15,6 @@ import json, os, re, sys, urllib.request, urllib.error
 
 URL = os.environ["PORTAINER_URL"].rstrip("/")
 TOKEN = os.environ["PORTAINER_API_TOKEN"]
-STACK_ID, GROUP_ID, NEW_TAG = sys.argv[1], int(sys.argv[2]), sys.argv[3]
 
 
 def call(method, path, body=None):
@@ -32,6 +31,14 @@ def call(method, path, body=None):
         sys.exit(1)
 
 
+# `gettag <stack_id>` prints the current image tag (for capturing a rollback target).
+if sys.argv[1] == "gettag":
+    _, filed = call("GET", f"/api/edge_stacks/{sys.argv[2]}/file")
+    m = re.search(r"signal-scout/app:([^\"'\s]+)", filed["StackFileContent"])
+    print(m.group(1) if m else "")
+    sys.exit(0)
+
+STACK_ID, GROUP_ID, NEW_TAG = sys.argv[1], int(sys.argv[2]), sys.argv[3]
 _, filed = call("GET", f"/api/edge_stacks/{STACK_ID}/file")
 content = filed["StackFileContent"]
 new_content = re.sub(r"(signal-scout/app:)[^\"'\s]+", r"\g<1>" + NEW_TAG, content)

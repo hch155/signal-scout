@@ -259,28 +259,21 @@ jobs:
       name: production
       url: https://signal-scout.com
     steps:
-      - name: ssh -> LXC prod stack
+      - uses: actions/checkout@v4
+      - name: capture current prod tag (rollback target)
+        id: prev
         env:
-          SSH_KEY:  ${{ secrets.LXC_DEPLOY_SSH_KEY }}
-          PROD_TAG: ${{ needs.build.outputs.prod_tag }}
+          PORTAINER_URL:       http://INFRA_VM_IP:9000
+          PORTAINER_API_TOKEN: ${{ secrets.PORTAINER_API_TOKEN }}
         run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${SSH_KEY}" > ~/.ssh/lxc_deploy
-          chmod 600 ~/.ssh/lxc_deploy
-          ssh-keyscan -H "${{ env.LXC_IP }}" >> ~/.ssh/known_hosts 2>/dev/null
-          ssh -i ~/.ssh/lxc_deploy -o StrictHostKeyChecking=accept-new \
-              deploy@"${{ env.LXC_IP }}" bash -s "$PROD_TAG" <<'REMOTE'
-            set -euo pipefail
-            IMAGE_TAG_NEW="$1"
-            STACK=/opt/stacks/signal-scout-prod
-            cd "${STACK}"
-            cp .env .env.bak
-            sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG_NEW}|" .env
-            sed -i "s|^APP_VERSION=.*|APP_VERSION=${IMAGE_TAG_NEW}|" .env
-            grep -q "^ENV=" .env || echo "ENV=production" >> .env
-            docker compose pull app
-            docker compose up -d --no-deps --wait app
-          REMOTE
+          echo "tag=$(python3 scripts/portainer_deploy.py gettag 2)" >> "$GITHUB_OUTPUT"
+      - name: deploy prod via Portainer edge stack
+        env:
+          PORTAINER_URL:       http://INFRA_VM_IP:9000
+          PORTAINER_API_TOKEN: ${{ secrets.PORTAINER_API_TOKEN }}
+          PROD_TAG:            ${{ needs.build.outputs.prod_tag }}
+        run: |
+          python3 scripts/portainer_deploy.py 2 1 "$PROD_TAG"
       - name: smoke prod (4-minute /healthz window)
         id: smoke_prod
         run: |
@@ -292,19 +285,13 @@ jobs:
           done
           exit 1
       - name: auto-rollback on prod smoke failure
-        if: failure() && steps.smoke_prod.outcome == 'failure'
+        if: failure() && steps.smoke_prod.outcome == 'failure' && steps.prev.outputs.tag != ''
         env:
-          SSH_KEY: ${{ secrets.LXC_DEPLOY_SSH_KEY }}
+          PORTAINER_URL:       http://INFRA_VM_IP:9000
+          PORTAINER_API_TOKEN: ${{ secrets.PORTAINER_API_TOKEN }}
         run: |
-          ssh -i ~/.ssh/lxc_deploy -o StrictHostKeyChecking=accept-new \
-              deploy@"${{ env.LXC_IP }}" bash -s <<'REMOTE'
-            set -euo pipefail
-            STACK=/opt/stacks/signal-scout-prod
-            cd "${STACK}"
-            cp .env.bak .env
-            docker compose pull app
-            docker compose up -d --no-deps --wait app
-          REMOTE
+          echo "rolling back prod to ${{ steps.prev.outputs.tag }}"
+          python3 scripts/portainer_deploy.py 2 1 "${{ steps.prev.outputs.tag }}"
 
   coverage-sweep:
     name: coverage alert sweep (post-deploy)
