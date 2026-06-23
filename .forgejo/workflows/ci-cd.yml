@@ -228,28 +228,14 @@ jobs:
       name: staging
       url: https://staging.signal-scout.com
     steps:
-      - name: ssh -> LXC staging stack
+      - uses: actions/checkout@v4
+      - name: deploy staging via Portainer edge stack
         env:
-          SSH_KEY:     ${{ secrets.LXC_DEPLOY_SSH_KEY }}
-          STAGING_TAG: ${{ needs.build.outputs.staging_tag }}
+          PORTAINER_URL:       http://INFRA_VM_IP:9000
+          PORTAINER_API_TOKEN: ${{ secrets.PORTAINER_API_TOKEN }}
+          STAGING_TAG:         ${{ needs.build.outputs.staging_tag }}
         run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${SSH_KEY}" > ~/.ssh/lxc_deploy
-          chmod 600 ~/.ssh/lxc_deploy
-          ssh-keyscan -H "${{ env.LXC_IP }}" >> ~/.ssh/known_hosts 2>/dev/null
-          ssh -i ~/.ssh/lxc_deploy -o StrictHostKeyChecking=accept-new \
-              deploy@"${{ env.LXC_IP }}" bash -s "$STAGING_TAG" <<'REMOTE'
-            set -euo pipefail
-            IMAGE_TAG_NEW="$1"
-            STACK=/opt/stacks/signal-scout-staging
-            cd "${STACK}"
-            cp .env .env.bak
-            sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG_NEW}|" .env
-            sed -i "s|^APP_VERSION=.*|APP_VERSION=${IMAGE_TAG_NEW}|" .env
-            grep -q "^ENV=" .env || echo "ENV=staging" >> .env
-            docker compose pull app
-            docker compose up -d --no-deps --wait app
-          REMOTE
+          python3 scripts/portainer_deploy.py 1 1 "$STAGING_TAG"
       - name: smoke staging (2-minute /healthz window)
         run: |
           for i in $(seq 1 24); do
