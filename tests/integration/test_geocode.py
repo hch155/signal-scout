@@ -43,6 +43,19 @@ def test_geocode_filters_non_pl(client):
     assert r.get_json()["results"] == []
 
 
+def test_geocode_dedupes_identical_display(client):
+    # Photon returns one feature per street segment -> same display, diff coords.
+    feats = [{
+        "geometry": {"coordinates": [23.171 + i * 0.001, 53.138 + i * 0.001]},
+        "properties": {"name": "Łąkowa", "city": "Białystok",
+                       "state": "podlaskie", "countrycode": "PL"},
+    } for i in range(4)]
+    with patch("requests.get", return_value=_photon(feats)):
+        r = client.get("/geocode?q=Lakowa Bialystok")
+    results = r.get_json()["results"]
+    assert len(results) == 1
+
+
 def test_geocode_geocoder_down_is_safe(client):
     with patch("requests.get", side_effect=Exception("boom")):
         r = client.get("/geocode?q=Krakow")

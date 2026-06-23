@@ -1819,7 +1819,7 @@ def geocode():
         feats = r.json().get('features', [])
     except Exception:
         return jsonify({"results": []}), 502
-    results = []
+    results, seen = [], set()
     for f in feats:
         coords = (f.get('geometry') or {}).get('coordinates') or []
         props = f.get('properties') or {}
@@ -1831,7 +1831,11 @@ def geocode():
         if not (49.0 <= lat <= 55.5 and 14.0 <= lng <= 24.2):
             continue
         display = ', '.join(p for p in (props.get('name'), props.get('city'), props.get('state')) if p)
-        results.append({'display': display or props.get('name', ''), 'lat': lat, 'lng': lng})
+        display = display or props.get('name', '')
+        if display in seen:
+            continue
+        seen.add(display)
+        results.append({'display': display, 'lat': lat, 'lng': lng})
     return jsonify({"results": results})
 
 

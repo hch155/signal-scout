@@ -221,14 +221,37 @@ gpsButton.onAdd = function(map) {
 };
 gpsButton.addTo(mymap);
 
+if (!document.getElementById('ss-search-styles')) {
+    const st = document.createElement('style');
+    st.id = 'ss-search-styles';
+    st.textContent = `
+    .ss-search-box{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #e2e8f0;border-radius:9px;box-shadow:0 1px 5px rgba(0,0,0,.14);padding:0 11px;transition:box-shadow .15s,border-color .15s;}
+    .ss-search-box:focus-within{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.25);}
+    .ss-search-box svg{width:16px;height:16px;color:#64748b;flex:none;}
+    #addressSearchInput{width:14rem;border:none;outline:none;background:transparent;padding:9px 0;font-size:14px;color:#1f2937;}
+    #addressSearchInput::placeholder{color:#94a3b8;}
+    .ss-suggestions{margin-top:5px;background:#fff;border-radius:9px;box-shadow:0 6px 20px rgba(0,0,0,.2);overflow:hidden;max-height:260px;overflow-y:auto;}
+    .ss-suggestion{padding:9px 12px;cursor:pointer;font-size:13px;color:#334155;border-bottom:1px solid #f1f5f9;}
+    .ss-suggestion:last-child{border-bottom:none;}
+    .ss-suggestion:hover{background:#eff6ff;}
+    .dark .ss-search-box{background:#1f2937;border-color:#374151;}
+    .dark #addressSearchInput{color:#f1f5f9;}
+    .dark .ss-search-box svg{color:#94a3b8;}
+    .dark .ss-suggestions{background:#1f2937;box-shadow:0 6px 20px rgba(0,0,0,.5);}
+    .dark .ss-suggestion{color:#e2e8f0;border-bottom-color:#374151;}
+    .dark .ss-suggestion:hover{background:#374151;}`;
+    document.head.appendChild(st);
+}
+
 let addressSearch = L.control({position: 'topleft'});
 addressSearch.onAdd = function(map) {
     const div = L.DomUtil.create('div', 'address-search-control');
     div.innerHTML = `
-        <input type="text" id="addressSearchInput" autocomplete="off"
-               placeholder="${t('Search address or place')}"
-               style="width:13rem;padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:14px;">
-        <div id="address-suggestions" style="display:none;margin-top:2px;background:#fff;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.2);max-height:240px;overflow:auto;"></div>
+        <div class="ss-search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="addressSearchInput" autocomplete="off" placeholder="${t('Search address or place')}">
+        </div>
+        <div id="address-suggestions" class="ss-suggestions" style="display:none;"></div>
     `;
     L.DomEvent.disableClickPropagation(div);
     L.DomEvent.disableScrollPropagation(div);
@@ -254,10 +277,8 @@ addressSearch.addTo(mymap);
                     box.innerHTML = '';
                     results.forEach(r => {
                         const item = document.createElement('div');
+                        item.className = 'ss-suggestion';
                         item.textContent = r.display;
-                        item.style.cssText = 'padding:8px 10px;cursor:pointer;font-size:13px;color:#1f2937;border-bottom:1px solid #f1f5f9;';
-                        item.addEventListener('mouseover', () => item.style.background = '#eff6ff');
-                        item.addEventListener('mouseout', () => item.style.background = '');
                         item.addEventListener('click', () => {
                             input.value = r.display;
                             hide();
