@@ -1386,10 +1386,7 @@ function createStatsPanel(stations) {
     const totalStations = stations.length;
     const avgDistance = (stations.reduce((sum, s) => sum + s.distance, 0) / totalStations).toFixed(2);
     const nearestStation = stations.reduce((min, s) => s.distance < min.distance ? s : min, stations[0]);
-    const nearestIndex = stations.findIndex(s => s === nearestStation);
     const nearestSignal = getSignalStrength(nearestStation.distance);
-    const providerShort = providerShortNames[nearestStation.service_provider] || nearestStation.service_provider;
-    const providerClass = providerClasses[nearestStation.service_provider] || '';
 
     // Count providers
     const providerCounts = {};
@@ -1427,28 +1424,7 @@ function createStatsPanel(stations) {
         <div class="provider-summary">
             ${providerBadges}
         </div>
-        <div class="nearest-quick-card" data-index="${Number(nearestIndex)}">
-            <div class="quick-card-header">
-                <span class="quick-card-badge">📍 ${t('Nearest')}</span>
-                <span class="quick-card-arrow">→</span>
-            </div>
-            <div class="quick-card-content">
-                <span class="provider-dot ${escapeHtml(providerClass)}"></span>
-                <span class="font-medium">${escapeHtml(nearestStation.basestation_id)}</span>
-                <span class="text-gray-500 dark:text-gray-400">•</span>
-                <span>${escapeHtml(providerShort)}</span>
-                <span class="text-gray-500 dark:text-gray-400">•</span>
-                <span>${nearestStation.distance.toFixed(2)} km</span>
-            </div>
-        </div>
     `;
-
-    // Add click handler for nearest station quick card
-    const quickCard = panel.querySelector('.nearest-quick-card');
-    quickCard.addEventListener('click', function() {
-        const index = parseInt(this.dataset.index);
-        navigateToStation(index);
-    });
 
     return panel;
 }
