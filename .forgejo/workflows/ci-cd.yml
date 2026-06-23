@@ -229,13 +229,13 @@ jobs:
       url: https://staging.signal-scout.com
     steps:
       - uses: actions/checkout@v4
-      - name: deploy staging via Portainer edge stack
+      - name: deploy staging via Portainer standard stack
         env:
           PORTAINER_URL:       http://INFRA_VM_IP:9000
           PORTAINER_API_TOKEN: ${{ secrets.PORTAINER_API_TOKEN }}
           STAGING_TAG:         ${{ needs.build.outputs.staging_tag }}
         run: |
-          python3 scripts/portainer_deploy.py 1 1 "$STAGING_TAG"
+          python3 scripts/portainer_deploy.py 29 21 "$STAGING_TAG"
       - name: smoke staging (2-minute /healthz window)
         run: |
           for i in $(seq 1 24); do
@@ -266,14 +266,14 @@ jobs:
           PORTAINER_URL:       http://INFRA_VM_IP:9000
           PORTAINER_API_TOKEN: ${{ secrets.PORTAINER_API_TOKEN }}
         run: |
-          echo "tag=$(python3 scripts/portainer_deploy.py gettag 2)" >> "$GITHUB_OUTPUT"
-      - name: deploy prod via Portainer edge stack
+          echo "tag=$(python3 scripts/portainer_deploy.py gettag 28)" >> "$GITHUB_OUTPUT"
+      - name: deploy prod via Portainer standard stack
         env:
           PORTAINER_URL:       http://INFRA_VM_IP:9000
           PORTAINER_API_TOKEN: ${{ secrets.PORTAINER_API_TOKEN }}
           PROD_TAG:            ${{ needs.build.outputs.prod_tag }}
         run: |
-          python3 scripts/portainer_deploy.py 2 1 "$PROD_TAG"
+          python3 scripts/portainer_deploy.py 28 21 "$PROD_TAG"
       - name: smoke prod (4-minute /healthz window)
         id: smoke_prod
         run: |
@@ -291,7 +291,7 @@ jobs:
           PORTAINER_API_TOKEN: ${{ secrets.PORTAINER_API_TOKEN }}
         run: |
           echo "rolling back prod to ${{ steps.prev.outputs.tag }}"
-          python3 scripts/portainer_deploy.py 2 1 "${{ steps.prev.outputs.tag }}"
+          python3 scripts/portainer_deploy.py 28 21 "${{ steps.prev.outputs.tag }}"
 
   coverage-sweep:
     name: coverage alert sweep (post-deploy)
