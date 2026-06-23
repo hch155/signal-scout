@@ -1802,6 +1802,39 @@ def search_stations():
     return jsonify({"stations": stations_data})
 
 
+@app.route('/geocode', methods=['GET'])
+@limiter.limit("30 per minute")
+@require_api_access(endpoint_label='geocode')
+def geocode():
+    import requests
+    query = request.args.get('q', type=str, default='').strip()
+    if not query or len(query) < 3 or len(query) > 120:
+        return jsonify({"results": []})
+    params = {'q': query, 'limit': 5, 'lang': 'default',
+              'bbox': '14.07,49.0,24.15,54.9'}
+    try:
+        r = requests.get(settings.geocoder_url, params=params, timeout=6,
+                         headers={'User-Agent': 'signal-scout/1.0 (+https://signal-scout.com)'})
+        r.raise_for_status()
+        feats = r.json().get('features', [])
+    except Exception:
+        return jsonify({"results": []}), 502
+    results = []
+    for f in feats:
+        coords = (f.get('geometry') or {}).get('coordinates') or []
+        props = f.get('properties') or {}
+        if len(coords) != 2:
+            continue
+        lng, lat = coords[0], coords[1]
+        if props.get('countrycode') and props['countrycode'] != 'PL':
+            continue
+        if not (49.0 <= lat <= 55.5 and 14.0 <= lng <= 24.2):
+            continue
+        display = ', '.join(p for p in (props.get('name'), props.get('city'), props.get('state')) if p)
+        results.append({'display': display or props.get('name', ''), 'lat': lat, 'lng': lng})
+    return jsonify({"results": results})
+
+
 @app.route('/coverage_gaps', methods=['GET'])
 @limiter.limit("30 per minute")
 @require_api_access(endpoint_label='coverage_gaps')

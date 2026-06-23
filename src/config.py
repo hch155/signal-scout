@@ -59,6 +59,11 @@ class Config:
     # ── Honeypot ──
     honeypot_bts_ids_raw: str = field(default_factory=lambda: _str("HONEYPOT_BTS_IDS"))
 
+    # ── Geocoder (address search) ──
+    # Photon-compatible geocoder. Public default; point at a self-hosted
+    # Photon via GEOCODER_URL to drop the third-party dependency.
+    geocoder_url: str = field(default_factory=lambda: _str("GEOCODER_URL", "https://photon.komoot.io/api"))
+
     # ── Transactional email ──
     email_backend: str = field(default_factory=lambda: _str("EMAIL_BACKEND", "noop").lower())
     email_from: str = field(default_factory=lambda: _str("EMAIL_FROM", "noreply@signal-scout.com"))

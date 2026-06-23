@@ -221,6 +221,67 @@ gpsButton.onAdd = function(map) {
 };
 gpsButton.addTo(mymap);
 
+let addressSearch = L.control({position: 'topleft'});
+addressSearch.onAdd = function(map) {
+    const div = L.DomUtil.create('div', 'address-search-control');
+    div.innerHTML = `
+        <input type="text" id="addressSearchInput" autocomplete="off"
+               placeholder="${t('Search address or place')}"
+               style="width:13rem;padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:14px;">
+        <div id="address-suggestions" style="display:none;margin-top:2px;background:#fff;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.2);max-height:240px;overflow:auto;"></div>
+    `;
+    L.DomEvent.disableClickPropagation(div);
+    L.DomEvent.disableScrollPropagation(div);
+    return div;
+};
+addressSearch.addTo(mymap);
+
+(function setupAddressSearch() {
+    const input = document.getElementById('addressSearchInput');
+    const box = document.getElementById('address-suggestions');
+    if (!input || !box) return;
+    let timer = null;
+    const hide = () => { box.style.display = 'none'; box.innerHTML = ''; };
+    input.addEventListener('input', function() {
+        const q = this.value.trim();
+        clearTimeout(timer);
+        if (q.length < 3) { hide(); return; }
+        timer = setTimeout(() => {
+            globalFetch(`/geocode?q=${encodeURIComponent(q)}`)
+                .then(data => {
+                    const results = (data && data.results) || [];
+                    if (!results.length) { hide(); return; }
+                    box.innerHTML = '';
+                    results.forEach(r => {
+                        const item = document.createElement('div');
+                        item.textContent = r.display;
+                        item.style.cssText = 'padding:8px 10px;cursor:pointer;font-size:13px;color:#1f2937;border-bottom:1px solid #f1f5f9;';
+                        item.addEventListener('mouseover', () => item.style.background = '#eff6ff');
+                        item.addEventListener('mouseout', () => item.style.background = '');
+                        item.addEventListener('click', () => {
+                            input.value = r.display;
+                            hide();
+                            if (marker) { try { mymap.removeLayer(marker); } catch (e) {} }
+                            marker = L.marker([r.lat, r.lng], { icon: greenIcon }).addTo(mymap);
+                            mymap.setView([r.lat, r.lng], 14);
+                            currentFilters.lat = r.lat;
+                            currentFilters.lng = r.lng;
+                            isFirstClick = false;
+                            sendLocation(r.lat, r.lng);
+                        });
+                        box.appendChild(item);
+                    });
+                    box.style.display = 'block';
+                })
+                .catch(() => hide());
+        }, 350);
+    });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+    document.addEventListener('click', (e) => {
+        if (!input.parentElement.contains(e.target)) hide();
+    });
+})();
+
 let frequencyRangeLegend = L.control({position: 'topleft'});
 
     frequencyRangeLegend.onAdd = function(map) {
