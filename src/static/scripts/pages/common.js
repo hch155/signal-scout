@@ -695,8 +695,6 @@ function initializeSloganRotate() {
   const el = document.querySelector('.tagline-text');
   if (!el) return;
 
-  // Lead with the server-picked marketing slogan (title -> text), then the
-  // factual lines. Slogan comes from the backend SLOGANS via data attributes.
   const lines = [];
   if (el.dataset.sloganTitle) lines.push(el.dataset.sloganTitle);
   if (el.dataset.sloganText) lines.push(el.dataset.sloganText);
@@ -733,7 +731,6 @@ function initializeSloganRotate() {
       });
   }
 
-  // Respect reduced motion: hold the action line, no rotation.
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   let idx = 0;
@@ -751,7 +748,6 @@ function initializeSloganRotate() {
   function stop() { if (timer) { clearInterval(timer); timer = null; } }
 
   start();
-  // Pause rotation while the tab is hidden.
   document.addEventListener('visibilitychange', function() {
       if (document.hidden) stop(); else start();
   });

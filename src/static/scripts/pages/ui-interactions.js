@@ -145,7 +145,7 @@ let _locationReqSeq = 0;
 const frequencyRanges = {
     high: [200, 500, 1000, 1500], // high band frequency distance radius
     mid: [300, 750, 1500, 2000], //  mid band frequency
-    low: [1000, 2000, 3500, 5000] // low band (coverage) — reaches ~5km, so 'excellent' extends to ~1km
+    low: [1000, 2000, 3500, 5000] // low band frequency
 };
 
 // Favicon-matched signal tiers (same palette as the verdict card, legend
@@ -570,9 +570,6 @@ setTimeout(() => {
 }, 0);
 
 function requestAndSendGPSLocation() {
-    // Leaflet's locate to find the user's position. Handlers are bound once
-    // below — re-binding here stacked a new locationerror listener per click,
-    // so every denied tap fired one extra toast.
     mymap.locate({ setView: true, maxZoom: 13, enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
 }
 

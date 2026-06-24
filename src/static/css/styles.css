@@ -591,8 +591,7 @@ th[onclick]:hover {
   @apply inline-flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs font-medium whitespace-nowrap text-gray-600 dark:text-gray-300;
 }
 
-/* Frequency bands: neutral generation tag + chips. The chip text colour is
-   set inline per band (getFrequencyColorForDistance) — colour means signal. */
+/* Frequency bands: generation tag + chips */
 .bands-block {
   @apply flex flex-col gap-1 mb-2;
 }
@@ -647,8 +646,7 @@ th[onclick]:hover {
   @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 md:p-4 mb-4 border border-gray-200 dark:border-gray-700;
 }
 
-/* Merged result summary: verdict + subline on the left, stat row on the
-   right; a divider, then the operator legend + estimate disclaimer. */
+/* Merged result summary */
 .result-summary {
   @apply flex items-start justify-between gap-3 flex-wrap;
 }
