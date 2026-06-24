@@ -1092,7 +1092,7 @@ function addBandHighlightSidebarCard(station, gap, userLat, userLng) {
 
     const navBtn = document.createElement('button');
     navBtn.type = 'button';
-    navBtn.className = 'mt-2 w-full inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 text-sm font-medium py-2 px-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
+    navBtn.className = 'mt-2 w-full inline-flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700/50 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200 border border-gray-200 dark:border-gray-600 text-sm font-medium py-2 px-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
     navBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg> ${t('Navigate to station')}`;
     navBtn.addEventListener('click', () => {
         const bounds = L.latLngBounds(
@@ -1284,10 +1284,10 @@ function getSignalStrength(distance) {
     const thresholds = frequencyRanges[currentBand];
     const distanceMeters = distance * 1000;
 
-    if (distanceMeters <= thresholds[0]) return { level: 'excellent', bars: 4, label: t('Excellent') };
-    if (distanceMeters <= thresholds[1]) return { level: 'good', bars: 3, label: t('Good') };
-    if (distanceMeters <= thresholds[2]) return { level: 'fair', bars: 2, label: t('Fair') };
-    return { level: 'poor', bars: 1, label: t('Poor') };
+    if (distanceMeters <= thresholds[0]) return { level: 'excellent', bars: 4, label: t('Excellent'), meterPct: 92, dbm: -70 };
+    if (distanceMeters <= thresholds[1]) return { level: 'good', bars: 3, label: t('Good'), meterPct: 75, dbm: -85 };
+    if (distanceMeters <= thresholds[2]) return { level: 'fair', bars: 2, label: t('Fair'), meterPct: 55, dbm: -95 };
+    return { level: 'poor', bars: 1, label: t('Poor'), meterPct: 28, dbm: -110 };
 }
 
 // Calculate bearing from user location to station
@@ -1614,7 +1614,7 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
 
     // Add links container
     const linksDiv = document.createElement('div');
-    linksDiv.className = 'flex flex-wrap gap-2 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700';
+    linksDiv.className = 'mt-2 pt-2 border-t border-gray-200 dark:border-gray-700';
 
     let googleMapsLink = document.createElement('a');
     googleMapsLink.href = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;
@@ -1624,8 +1624,8 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
     // Without it, the popup window inherits window.opener and could
     // navigate this tab via opener.location = '...'.
     googleMapsLink.rel = 'noopener noreferrer';
-    googleMapsLink.textContent = 'Google Maps';
-    googleMapsLink.className = 'text-xs no-underline hover:underline text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold';
+    googleMapsLink.textContent = `${t('Open in Google Maps')} ↗`;
+    googleMapsLink.className = 'inline-block mb-2 text-xs no-underline hover:underline text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-400 font-semibold';
     linksDiv.appendChild(googleMapsLink);
 
     // Add compass button if supported and user location is available
@@ -1637,7 +1637,6 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
             currentFilters.lat,
             currentFilters.lng
         );
-        compassBtn.className += ' text-xs';
         linksDiv.appendChild(compassBtn);
     }
 
@@ -1700,22 +1699,22 @@ function createSidebarContent(station, index) {
     const bandsUMTS = bandsArr.filter(b => b.startsWith('UMTS'));
     const bandsGSM = bandsArr.filter(b => b.startsWith('GSM'));
 
-    function bandGroup(label, bands) {
+    function bandGroup(gen, bands) {
         if (bands.length === 0) return '';
         // Per-band colour by THIS band's reach at the station distance — the
         // actual signal: a far low-band can be "good" while a high-band at the
         // same spot is "poor". This is data, not decoration.
-        const values = bands.map(b =>
-            `<span style="color:${getFrequencyColorForDistance(b, station.distance)}">${escapeHtml(b)}</span>`
-        ).join(', ');
-        return `<b>${label}</b> ${values} `;
+        const chips = bands.map(b =>
+            `<span class="band-chip" style="color:${getFrequencyColorForDistance(b, station.distance)}">${escapeHtml(b)}</span>`
+        ).join('');
+        return `<div class="band-row"><span class="gen-tag">${gen}</span><span class="band-chips">${chips}</span></div>`;
     }
 
     const bandsHtml =
-        bandGroup('5G:', bands5G) +
-        bandGroup('LTE:', bandsLTE) +
-        bandGroup('3G:', bandsUMTS) +
-        bandGroup('GSM:', bandsGSM);
+        bandGroup('5G', bands5G) +
+        bandGroup('LTE', bandsLTE) +
+        bandGroup('3G', bandsUMTS) +
+        bandGroup('GSM', bandsGSM);
 
     const cityLocation = station.location
         ? `${escapeHtml(station.city)} • ${escapeHtml(station.location)}`
@@ -1725,10 +1724,13 @@ function createSidebarContent(station, index) {
         <div class="dark:text-white">
             <div class="card-header">
                 <h4>${Number(index) + 1}. ${escapeHtml(station.basestation_id)}</h4>
-                <span class="signal-label">
+                <span class="signal-label" title="${escapeHtml(signal.label)} · ≈ ${signal.dbm} dBm">
                     ${createSignalBars(signal)}
-                    <span class="hidden sm:inline">${escapeHtml(signal.label)}</span>
+                    <span class="signal-${signal.level} font-semibold hidden sm:inline">${escapeHtml(signal.label)}</span>
                 </span>
+            </div>
+            <div class="strength-meter" role="img" aria-label="${escapeHtml(signal.label)} · ≈ ${signal.dbm} dBm">
+                <div class="strength-meter-fill signal-${signal.level}" style="width:${signal.meterPct}%"></div>
             </div>
             <div class="card-meta">
                 <span class="provider-dot ${escapeHtml(providerClass)}"></span>
@@ -1737,7 +1739,7 @@ function createSidebarContent(station, index) {
                 <span>${formattedDistance} km</span>
                 ${bearingHtml}
             </div>
-            <p class="text-xs md:text-sm mb-1"><b>${t('Bands:')}</b> ${bandsHtml}</p>
+            <div class="bands-block">${bandsHtml}</div>
             <p class="text-xs md:text-sm mb-1 text-gray-600 dark:text-gray-300">${cityLocation}</p>
             <p class="text-xs md:text-sm mb-0 text-gray-500 dark:text-gray-400">
                 ${coordsText}

@@ -62,27 +62,27 @@ def test_marker_popup_shows_basestation_id(page, base_url):
 
 
 def test_sidebar_bands_colored_by_distance(page, base_url):
-    """De-vibe removed the card's colored accent-border + signal pill (chrome)
-    but KEEPS per-band colouring — it's data: each band is tinted by its own
-    reach at the station distance (a far low-band can be 'good' while a
-    high-band at the same spot is 'poor'). Favicon tier palette. The bold
-    group labels (5G:/LTE:/3G:/GSM:) stay; the .band-chip class is gone."""
+    """Redesign: bands render as chips grouped under a charcoal generation tag
+    (5G/LTE/3G/GSM via .gen-tag). KEEPS per-band colouring — it's data: each
+    chip is tinted by its own reach at the station distance (a far low-band can
+    be 'good' while a high-band at the same spot is 'poor'). Header carries the
+    signal bars + tier label; a thin strength meter sits under the header."""
     page.goto(base_url + "/")
     _wait_for_app_ready(page)
     page.evaluate("sendLocation(52.2297, 21.0122, 3, null)")
     page.wait_for_selector(".sidebar-item", timeout=5000)
     item = page.locator(".sidebar-item").first
 
-    # The old colored-chip class is gone (that was the vibe-y version).
-    assert item.locator(".band-chip").count() == 0
+    # Bands are chips grouped under charcoal generation tags.
+    assert item.locator(".bands-block .gen-tag").count() >= 1
+    chips = item.locator(".band-chip")
+    assert chips.count() >= 1
+    # Each chip is per-band colour-coded via inline style (the feature).
+    assert item.locator(".band-chip[style*='color']").count() >= 1
 
-    # Band values are per-band colour-coded via inline style (the feature).
-    bands_p = item.locator("p", has_text="Bands:").first
-    assert any(p in bands_p.inner_text() for p in ("5G", "LTE", "UMTS", "GSM"))
-    assert bands_p.locator("span[style*='color']").count() >= 1
-
-    # Signal tier indicator (the restrained bar glyph) is present in the header.
+    # Signal tier indicator + thin strength meter are present.
     assert item.locator(".signal-label .signal-bar").count() >= 1
+    assert item.locator(".strength-meter .strength-meter-fill").count() == 1
 
 
 _COUNT_RINGS = (
