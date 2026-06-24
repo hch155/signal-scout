@@ -70,24 +70,41 @@ const baseMaps = {
 // Street/Dark/Satellite radios don't eat ~140px of map width. Desktop
 // keeps the always-expanded form for instant switching.
 let activeBaseLayer = lightTileLayer;
+let baseLayerUserPicked = false;
 const layerSwitcher = L.control({position: 'topright'});
 layerSwitcher.onAdd = function() {
     const div = L.DomUtil.create('div', 'ss-segmented');
     const order = ['Street', 'Dark', 'Satellite'];
-    div.innerHTML = order.map((name, i) =>
-        `<button type="button" class="ss-seg-btn${i === 0 ? ' active' : ''}" data-layer="${name}">${t(name)}</button>`
+    div.innerHTML = order.map(name =>
+        `<button type="button" class="ss-seg-btn" data-layer="${name}">${t(name)}</button>`
     ).join('');
     L.DomEvent.disableClickPropagation(div);
-    div.querySelectorAll('.ss-seg-btn').forEach(btn => {
-        L.DomEvent.on(btn, 'click', function(e) {
-            L.DomEvent.stop(e);
-            const layer = baseMaps[btn.getAttribute('data-layer')];
-            if (!layer || layer === activeBaseLayer) return;
+
+    function setLayer(name, fromUser) {
+        const layer = baseMaps[name];
+        if (!layer) return;
+        if (fromUser) baseLayerUserPicked = true;
+        if (layer !== activeBaseLayer) {
             mymap.removeLayer(activeBaseLayer);
             mymap.addLayer(layer);
             activeBaseLayer = layer;
-            div.querySelectorAll('.ss-seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+        }
+        div.querySelectorAll('.ss-seg-btn').forEach(b =>
+            b.classList.toggle('active', b.getAttribute('data-layer') === name));
+    }
+
+    div.querySelectorAll('.ss-seg-btn').forEach(btn => {
+        L.DomEvent.on(btn, 'click', function(e) {
+            L.DomEvent.stop(e);
+            setLayer(btn.getAttribute('data-layer'), true);
         });
+    });
+
+    // Default the map style to the page theme; follow theme toggles until the
+    // user picks a style by hand.
+    setLayer(document.documentElement.classList.contains('dark') ? 'Dark' : 'Street', false);
+    window.addEventListener('themeChanged', function(e) {
+        if (!baseLayerUserPicked) setLayer(e.detail.isDarkMode ? 'Dark' : 'Street', false);
     });
     return div;
 };
@@ -300,8 +317,9 @@ addressSearch.addTo(mymap);
                             input.value = r.display;
                             hide();
                             if (marker) { try { mymap.removeLayer(marker); } catch (e) {} }
-                            marker = L.marker([r.lat, r.lng], { icon: greenIcon }).addTo(mymap);
-                            mymap.setView([r.lat, r.lng], 14);
+                            marker = L.marker([r.lat, r.lng], { icon: greenIcon }).addTo(mymap)
+                                .bindPopup(`<div class="dark:text-white">${escapeHtml(r.display)}</div>`).openPopup();
+                            mymap.setView([r.lat, r.lng], 15);
                             currentFilters.lat = r.lat;
                             currentFilters.lng = r.lng;
                             isFirstClick = false;
