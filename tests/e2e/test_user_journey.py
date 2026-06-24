@@ -66,7 +66,7 @@ def test_sidebar_bands_colored_by_distance(page, base_url):
     (5G/LTE/3G/GSM via .gen-tag). KEEPS per-band colouring — it's data: each
     chip is tinted by its own reach at the station distance (a far low-band can
     be 'good' while a high-band at the same spot is 'poor'). Header carries the
-    signal bars + tier label; a thin strength meter sits under the header."""
+    signal bars + tier label."""
     page.goto(base_url + "/")
     _wait_for_app_ready(page)
     page.evaluate("sendLocation(52.2297, 21.0122, 3, null)")
@@ -80,9 +80,8 @@ def test_sidebar_bands_colored_by_distance(page, base_url):
     # Each chip is per-band colour-coded via inline style (the feature).
     assert item.locator(".band-chip[style*='color']").count() >= 1
 
-    # Signal tier indicator + thin strength meter are present.
+    # Signal tier indicator is present in the header.
     assert item.locator(".signal-label .signal-bar").count() >= 1
-    assert item.locator(".strength-meter .strength-meter-fill").count() == 1
 
 
 _COUNT_RINGS = (

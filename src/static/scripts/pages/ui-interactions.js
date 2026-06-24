@@ -1284,10 +1284,10 @@ function getSignalStrength(distance) {
     const thresholds = frequencyRanges[currentBand];
     const distanceMeters = distance * 1000;
 
-    if (distanceMeters <= thresholds[0]) return { level: 'excellent', bars: 4, label: t('Excellent'), meterPct: 92, dbm: -70 };
-    if (distanceMeters <= thresholds[1]) return { level: 'good', bars: 3, label: t('Good'), meterPct: 75, dbm: -85 };
-    if (distanceMeters <= thresholds[2]) return { level: 'fair', bars: 2, label: t('Fair'), meterPct: 55, dbm: -95 };
-    return { level: 'poor', bars: 1, label: t('Poor'), meterPct: 28, dbm: -110 };
+    if (distanceMeters <= thresholds[0]) return { level: 'excellent', bars: 4, label: t('Excellent'), dbm: -70 };
+    if (distanceMeters <= thresholds[1]) return { level: 'good', bars: 3, label: t('Good'), dbm: -85 };
+    if (distanceMeters <= thresholds[2]) return { level: 'fair', bars: 2, label: t('Fair'), dbm: -95 };
+    return { level: 'poor', bars: 1, label: t('Poor'), dbm: -110 };
 }
 
 // Calculate bearing from user location to station
@@ -1728,9 +1728,6 @@ function createSidebarContent(station, index) {
                     ${createSignalBars(signal)}
                     <span class="signal-${signal.level} font-semibold hidden sm:inline">${escapeHtml(signal.label)}</span>
                 </span>
-            </div>
-            <div class="strength-meter" role="img" aria-label="${escapeHtml(signal.label)} · ≈ ${signal.dbm} dBm">
-                <div class="strength-meter-fill signal-${signal.level}" style="width:${signal.meterPct}%"></div>
             </div>
             <div class="card-meta">
                 <span class="provider-dot ${escapeHtml(providerClass)}"></span>

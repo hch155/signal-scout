@@ -534,18 +534,7 @@ th[onclick]:hover {
   @apply inline-flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs font-medium whitespace-nowrap text-gray-600 dark:text-gray-300;
 }
 
-/* Per-station strength meter: thin full-width bar under the card header.
-   Fill width = signal.meterPct, colour = currentColor via .signal-{level}. */
-.strength-meter {
-  @apply w-full h-1 rounded-full bg-gray-200 dark:bg-gray-700 mb-2 overflow-hidden;
-}
-
-.strength-meter-fill {
-  @apply h-full rounded-full transition-all;
-  background-color: currentColor;
-}
-
-/* Frequency bands: charcoal generation tag + chips. The chip text colour is
+/* Frequency bands: neutral generation tag + chips. The chip text colour is
    set inline per band (getFrequencyColorForDistance) — colour means signal. */
 .bands-block {
   @apply flex flex-col gap-1 mb-2;
@@ -556,8 +545,8 @@ th[onclick]:hover {
 }
 
 .gen-tag {
-  @apply inline-flex items-center justify-center text-[10px] font-bold text-white rounded px-1.5 leading-none flex-shrink-0;
-  background-color: #2c3542;
+  @apply inline-flex items-center justify-center text-[10px] font-semibold text-white rounded px-1.5 leading-none flex-shrink-0;
+  background-color: #64748b;
   min-width: 30px;
   height: 18px;
 }
