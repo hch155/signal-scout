@@ -1492,41 +1492,58 @@ function createStatsPanel(stations) {
     const nearestStation = stations.reduce((min, s) => s.distance < min.distance ? s : min, stations[0]);
     const nearestSignal = getSignalStrength(nearestStation.distance);
 
-    // Count providers
-    const providerCounts = {};
-    stations.forEach(s => {
-        const shortName = providerShortNames[s.service_provider] || s.service_provider;
-        providerCounts[shortName] = (providerCounts[shortName] || 0) + 1;
-    });
+    const nearestProvider = providerShortNames[nearestStation.service_provider] || nearestStation.service_provider;
 
-    const providerBadges = Object.entries(providerCounts).map(([name, count]) => {
+    // Headline verdict from the nearest station's signal tier.
+    const verdictByLevel = {
+        excellent: t('Strong signal'),
+        good: t('Good signal'),
+        fair: t('Patchy signal'),
+        poor: t('Weak signal'),
+    };
+    const verdict = verdictByLevel[nearestSignal.level] || t('Patchy signal');
+
+    // Best generation available across the nearby stations.
+    const allBands = stations.flatMap(s => Array.isArray(s.frequency_bands) ? s.frequency_bands : []);
+    let topGen = '';
+    if (allBands.some(b => b.startsWith('5G'))) topGen = '5G';
+    else if (allBands.some(b => b.startsWith('LTE'))) topGen = 'LTE';
+    else if (allBands.some(b => b.startsWith('UMTS'))) topGen = '3G';
+    else if (allBands.some(b => b.startsWith('GSM'))) topGen = 'GSM';
+    const genHtml = topGen ? ` · ${topGen} ${escapeHtml(t('in range'))}` : '';
+    const subline = `${escapeHtml(t('Nearest mast'))} ${nearestStation.distance.toFixed(1)} km (${escapeHtml(nearestProvider)})${genHtml}`;
+
+    // Operator legend: each provider's nearest mast distance.
+    const opNearest = {};
+    stations.forEach(s => {
+        const name = providerShortNames[s.service_provider] || s.service_provider;
+        if (!(name in opNearest) || s.distance < opNearest[name]) opNearest[name] = s.distance;
+    });
+    const operatorChips = Object.entries(opNearest).map(([name, dist]) => {
         const cssClass = escapeHtml(name.toLowerCase().replace('-', ''));
-        return `<span class="inline-flex items-center"><span class="provider-dot ${cssClass}"></span>${escapeHtml(name)}: ${Number(count)}</span>`;
+        return `<span class="op-chip"><span class="provider-dot ${cssClass}"></span>${escapeHtml(name)} · ${dist.toFixed(1)} km</span>`;
     }).join('');
 
     const panel = document.createElement('div');
     panel.className = 'stats-panel col-span-full';
     panel.innerHTML = `
-        <div class="stats-grid">
-            <div class="stat-item">
-                <div class="stat-value">${Number(totalStations)}</div>
-                <div class="stat-label">${t('Stations')}</div>
+        <div class="result-summary">
+            <div class="result-verdict">
+                <span class="verdict-glyph">${createSignalBars(nearestSignal)}</span>
+                <div class="result-verdict-text">
+                    <div class="verdict-headline">${escapeHtml(verdict)}</div>
+                    <div class="verdict-subline">${subline}</div>
+                </div>
             </div>
-            <div class="stat-item">
-                <div class="stat-value">${escapeHtml(avgDistance)}</div>
-                <div class="stat-label">${t('Avg Dist')}</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value">${nearestStation.distance.toFixed(2)}</div>
-                <div class="stat-label">${t('Nearest')}</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value flex justify-center">${createSignalBars(nearestSignal)}</div>
-                <div class="stat-label">${t('Best Signal')}</div>
+            <div class="result-stats">
+                <div class="rstat"><span class="rstat-value">${Number(totalStations)}</span><span class="rstat-label">${t('Stations')}</span></div>
+                <div class="rstat"><span class="rstat-value">${escapeHtml(avgDistance)}</span><span class="rstat-label">${t('Avg Dist')}</span></div>
+                <div class="rstat"><span class="rstat-value">${nearestStation.distance.toFixed(2)}</span><span class="rstat-label">${t('Nearest')}</span></div>
             </div>
         </div>
-        <div class="provider-summary">
-            ${providerBadges}
+        <div class="result-legend">
+            <div class="result-operators">${operatorChips}</div>
+            <div class="result-disclaimer">${escapeHtml(t('Estimated from mast distance and UKE data. Not a measured signal.'))}</div>
         </div>
     `;
 
