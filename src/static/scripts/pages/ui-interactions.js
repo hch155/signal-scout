@@ -1394,6 +1394,9 @@ function formatVerdictDistance(km) {
 }
 
 function createVerdictCard(stations) {
+    currentStations = stations;
+    const total = stations.length;
+    const avgDistance = (stations.reduce((sum, st) => sum + st.distance, 0) / total).toFixed(2);
     const nearest = stations.reduce((min, st) => st.distance < min.distance ? st : min, stations[0]);
     const signal = getSignalStrength(nearest.distance);
     const has5G = stations.some(st => (st.frequency_bands || []).some(b => String(b).toUpperCase().includes('5G')));
@@ -1406,27 +1409,34 @@ function createVerdictCard(stations) {
     });
     const providerSummary = VERDICT_PROVIDERS.map(([name, cls]) => {
         if (name in byProvider) {
-            return `<span class="inline-flex items-center"><span class="provider-dot ${cls}"></span>${escapeHtml(name)} · ${formatVerdictDistance(byProvider[name])}</span>`;
+            return `<span class="op-chip"><span class="provider-dot ${cls}"></span>${escapeHtml(name)} · ${formatVerdictDistance(byProvider[name])}</span>`;
         }
-        return `<span class="inline-flex items-center text-gray-400 dark:text-gray-500">${escapeHtml(name)} · ${t('none in range')}</span>`;
+        return `<span class="op-chip text-gray-400 dark:text-gray-500">${escapeHtml(name)} · ${t('none in range')}</span>`;
     }).join('');
+
+    const subline = `${t('Nearest mast:')} ${formatVerdictDistance(nearest.distance)} (${escapeHtml(provider)})${has5G ? ' · ' + escapeHtml(t('5G in range')) : ''}`;
 
     const card = document.createElement('div');
     card.id = 'verdict-card';
     card.className = 'stats-panel col-span-full';
     card.innerHTML = `
-        <div class="flex items-center gap-2">
-            ${createSignalBars(signal)}
-            <span class="font-medium text-gray-900 dark:text-white">${t(VERDICT_HEADLINES[signal.level])}</span>
+        <div class="result-summary">
+            <div class="result-verdict">
+                <span class="verdict-glyph">${createSignalBars(signal)}</span>
+                <div class="result-verdict-text">
+                    <div class="verdict-headline">${t(VERDICT_HEADLINES[signal.level])}</div>
+                    <div class="verdict-subline">${subline}</div>
+                </div>
+            </div>
+            <div class="result-stats">
+                <div class="rstat"><span class="rstat-value">${Number(total)}</span><span class="rstat-label">${t('Stations')}</span></div>
+                <div class="rstat"><span class="rstat-value">${escapeHtml(avgDistance)}</span><span class="rstat-label">${t('Avg Dist')}</span></div>
+                <div class="rstat"><span class="rstat-value">${nearest.distance.toFixed(2)}</span><span class="rstat-label">${t('Nearest')}</span></div>
+            </div>
         </div>
-        <div class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-            ${t('Nearest mast:')} ${formatVerdictDistance(nearest.distance)} (${escapeHtml(provider)})${has5G ? ' · ' + t('5G in range') : ''}
-        </div>
-        <div class="provider-summary">
-            ${providerSummary}
-        </div>
-        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-            ${t('Estimated from mast distance and UKE data. Not a measured signal.')}
+        <div class="result-legend">
+            <div class="result-operators">${providerSummary}</div>
+            <div class="result-disclaimer">${t('Estimated from mast distance and UKE data. Not a measured signal.')}</div>
         </div>
     `;
     return card;
@@ -1455,10 +1465,6 @@ function displayStations(data) {
 
     sidebarContent.appendChild(createVerdictCard(stations));
 
-    // Add stats panel
-    const statsPanel = createStatsPanel(stations);
-    sidebarContent.appendChild(statsPanel);
-
     stations.forEach((station, index) => {
         addStationMarker(station, index);
         addStationInfoToSidebar(station, index, sidebarContent);
@@ -1481,70 +1487,8 @@ function displayStations(data) {
     updateBTSView(bounds);
 }
 
-// Store stations for quick access
+// Store stations for quick access (set by createVerdictCard on each render)
 let currentStations = [];
-
-// Create stats panel showing summary of stations
-function createStatsPanel(stations) {
-    currentStations = stations;
-    const totalStations = stations.length;
-    const avgDistance = (stations.reduce((sum, s) => sum + s.distance, 0) / totalStations).toFixed(2);
-    const nearestStation = stations.reduce((min, s) => s.distance < min.distance ? s : min, stations[0]);
-    const nearestSignal = getSignalStrength(nearestStation.distance);
-
-    const nearestProvider = providerShortNames[nearestStation.service_provider] || nearestStation.service_provider;
-
-    // Headline verdict from the nearest station's signal tier.
-    const verdictByLevel = {
-        excellent: t('Strong signal'),
-        good: t('Good signal'),
-        fair: t('Patchy signal'),
-        poor: t('Weak signal'),
-    };
-    const verdict = verdictByLevel[nearestSignal.level] || t('Patchy signal');
-
-    // 5G availability across the nearby stations (matches prepared i18n).
-    const allBands = stations.flatMap(s => Array.isArray(s.frequency_bands) ? s.frequency_bands : []);
-    const has5G = allBands.some(b => b.startsWith('5G'));
-    const genHtml = ` · ${escapeHtml(has5G ? t('5G in range') : t('none in range'))}`;
-    const subline = `${escapeHtml(t('Nearest mast:'))} ${nearestStation.distance.toFixed(1)} km (${escapeHtml(nearestProvider)})${genHtml}`;
-
-    // Operator legend: each provider's nearest mast distance.
-    const opNearest = {};
-    stations.forEach(s => {
-        const name = providerShortNames[s.service_provider] || s.service_provider;
-        if (!(name in opNearest) || s.distance < opNearest[name]) opNearest[name] = s.distance;
-    });
-    const operatorChips = Object.entries(opNearest).map(([name, dist]) => {
-        const cssClass = escapeHtml(name.toLowerCase().replace('-', ''));
-        return `<span class="op-chip"><span class="provider-dot ${cssClass}"></span>${escapeHtml(name)} · ${dist.toFixed(1)} km</span>`;
-    }).join('');
-
-    const panel = document.createElement('div');
-    panel.className = 'stats-panel col-span-full';
-    panel.innerHTML = `
-        <div class="result-summary">
-            <div class="result-verdict">
-                <span class="verdict-glyph">${createSignalBars(nearestSignal)}</span>
-                <div class="result-verdict-text">
-                    <div class="verdict-headline">${escapeHtml(verdict)}</div>
-                    <div class="verdict-subline">${subline}</div>
-                </div>
-            </div>
-            <div class="result-stats">
-                <div class="rstat"><span class="rstat-value">${Number(totalStations)}</span><span class="rstat-label">${t('Stations')}</span></div>
-                <div class="rstat"><span class="rstat-value">${escapeHtml(avgDistance)}</span><span class="rstat-label">${t('Avg Dist')}</span></div>
-                <div class="rstat"><span class="rstat-value">${nearestStation.distance.toFixed(2)}</span><span class="rstat-label">${t('Nearest')}</span></div>
-            </div>
-        </div>
-        <div class="result-legend">
-            <div class="result-operators">${operatorChips}</div>
-            <div class="result-disclaimer">${escapeHtml(t('Estimated from mast distance and UKE data. Not a measured signal.'))}</div>
-        </div>
-    `;
-
-    return panel;
-}
 
 // Navigate to a station by index
 function navigateToStation(index) {
