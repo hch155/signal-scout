@@ -1819,7 +1819,11 @@ def geocode():
         feats = r.json().get('features', [])
     except Exception:
         return jsonify({"results": []}), 502
-    results, seen = [], set()
+    # Photon returns one feature per street segment. Group by display name and
+    # use the centroid of all segments so the marker lands mid-street, not on
+    # an arbitrary end node.
+    grouped = {}
+    order = []
     for f in feats:
         coords = (f.get('geometry') or {}).get('coordinates') or []
         props = f.get('properties') or {}
@@ -1832,10 +1836,15 @@ def geocode():
             continue
         display = ', '.join(p for p in (props.get('name'), props.get('city'), props.get('state')) if p)
         display = display or props.get('name', '')
-        if display in seen:
-            continue
-        seen.add(display)
-        results.append({'display': display, 'lat': lat, 'lng': lng})
+        if display not in grouped:
+            grouped[display] = {'lat': 0.0, 'lng': 0.0, 'n': 0}
+            order.append(display)
+        g = grouped[display]
+        g['lat'] += lat
+        g['lng'] += lng
+        g['n'] += 1
+    results = [{'display': d, 'lat': round(grouped[d]['lat'] / grouped[d]['n'], 6),
+                'lng': round(grouped[d]['lng'] / grouped[d]['n'], 6)} for d in order]
     return jsonify({"results": results})
 
 

@@ -54,6 +54,9 @@ def test_geocode_dedupes_identical_display(client):
         r = client.get("/geocode?q=Lakowa Bialystok")
     results = r.get_json()["results"]
     assert len(results) == 1
+    # centroid of the 4 segments (mid-street), not the first node
+    assert results[0]["lat"] == pytest.approx(53.1395, abs=1e-3)
+    assert results[0]["lng"] == pytest.approx(23.1725, abs=1e-3)
 
 
 def test_geocode_geocoder_down_is_safe(client):
