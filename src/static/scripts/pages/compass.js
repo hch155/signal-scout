@@ -534,7 +534,7 @@ function hideCompassUI() {
 // Add compass button to station info (called from main code)
 function addCompassButton(stationLat, stationLng, stationName, userLat, userLng) {
     const btn = document.createElement('button');
-    btn.className = 'compass-btn mt-2 w-full inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 text-sm font-medium py-2 px-3 rounded-md transition-colors';
+    btn.className = 'compass-btn mt-2 w-full inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 text-sm font-medium py-2 px-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
     btn.innerHTML = `
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
