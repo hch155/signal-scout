@@ -134,6 +134,7 @@ let locationSetInitially = false;
 let currentFilters = initialFilters();
 let stationMarkers = [];
 let marker;
+let gpsMarker;
 let userSubmittedLocation = null;
 let countryBoundaries;
 let isFirstClick = true;
@@ -225,16 +226,17 @@ if (!document.getElementById('ss-search-styles')) {
     const st = document.createElement('style');
     st.id = 'ss-search-styles';
     st.textContent = `
-    .ss-search-box{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #e2e8f0;border-radius:9px;box-shadow:0 1px 5px rgba(0,0,0,.14);padding:0 0 0 11px;transition:box-shadow .15s,border-color .15s;}
+    .ss-search-box{display:flex;align-items:stretch;height:40px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 5px rgba(0,0,0,.14);overflow:hidden;box-sizing:border-box;transition:box-shadow .15s,border-color .15s;}
     .ss-search-box:focus-within{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.25);}
-    .ss-search-icon{width:16px;height:16px;color:#64748b;flex:none;}
-    #addressSearchInput{width:13rem;border:none;outline:none;background:transparent;padding:9px 0;font-size:14px;color:#1f2937;}
+    .ss-search-icon{width:16px;height:16px;color:#64748b;flex:none;align-self:center;margin-left:11px;}
+    #addressSearchInput{flex:1;min-width:0;width:12rem;border:none;outline:none;background:transparent;padding:0 8px;font-size:14px;color:#1f2937;}
     #addressSearchInput::placeholder{color:#94a3b8;}
-    .ss-locate-btn{display:flex;align-items:center;justify-content:center;width:34px;align-self:stretch;border:none;border-left:1px solid #e2e8f0;background:transparent;color:#475569;cursor:pointer;border-radius:0 8px 8px 0;flex:none;transition:background .15s,color .15s;}
+    .ss-locate-btn{display:flex;align-items:center;justify-content:center;width:38px;flex:none;border:none;border-left:1px solid #e2e8f0;background:transparent;color:#475569;cursor:pointer;transition:background .15s,color .15s;}
     .ss-locate-btn:hover{background:#f0f3f7;color:#2563eb;}
     .ss-locate-btn svg{width:17px;height:17px;}
     .dark .ss-locate-btn{color:#cbd5e1;border-left-color:#374151;}
     .dark .ss-locate-btn:hover{background:#374151;color:#93c5fd;}
+    @media (max-width:640px){#addressSearchInput{width:9rem;}}
     .ss-suggestions{margin-top:5px;background:#fff;border-radius:9px;box-shadow:0 6px 20px rgba(0,0,0,.2);overflow:hidden;max-height:260px;overflow-y:auto;}
     .ss-suggestion{padding:9px 12px;cursor:pointer;font-size:13px;color:#334155;border-bottom:1px solid #f1f5f9;}
     .ss-suggestion:last-child{border-bottom:none;}
@@ -360,6 +362,7 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
                     <tr style="background-color:#DC2626;color:#ffffff"><td>${t('Poor')}</td><td>1.5</td><td>2.0</td><td>5.0</td></tr>
                 </tbody>
             </table>
+            <p class="freq-legend-hint">${t('Tap a band column to change the ring range on the map')}</p>
         `;
         legendDiv.querySelectorAll('th[data-band]').forEach(th => {
             L.DomEvent.on(th, 'click', function(e) {
@@ -567,28 +570,31 @@ setTimeout(() => {
 }, 0);
 
 function requestAndSendGPSLocation() {
-    // Leaflet's locate to find the user's position
+    // Leaflet's locate to find the user's position. Handlers are bound once
+    // below — re-binding here stacked a new locationerror listener per click,
+    // so every denied tap fired one extra toast.
     mymap.locate({ setView: true, maxZoom: 13, enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
-    mymap.on('locationfound', function(e) {
-        let userLat = e.latlng.lat;
-        let userLng = e.latlng.lng;
-        gpsMarker = L.marker([userLat, userLng], {icon: greenIcon}).addTo(mymap).bindPopup(`<div class=" dark:text-white">${t('Your Location')}</div>`).openPopup();
-        sendLocation(userLat, userLng);
-    });
-
-    mymap.on('locationerror', function(e) {
-
-        if (e.message.includes("denied")) {
-            showToast(t('Location permission was denied. Please enable it to use this feature.'), 'error');
-        } else if (e.message.includes("unavailable")) {
-            showToast(t('Location information is currently unavailable.'), 'error');
-        } else if (e.message.includes("timeout")) {
-            showToast(t('The request to get your location timed out. Please try again.'), 'error');
-        } else {
-            showToast(t('An unknown location error occurred.') + ' ' + e.message, 'error');
-        }
-    });
 }
+
+mymap.on('locationfound', function(e) {
+    let userLat = e.latlng.lat;
+    let userLng = e.latlng.lng;
+    if (gpsMarker) { try { mymap.removeLayer(gpsMarker); } catch (err) {} }
+    gpsMarker = L.marker([userLat, userLng], {icon: greenIcon}).addTo(mymap).bindPopup(`<div class=" dark:text-white">${t('Your Location')}</div>`).openPopup();
+    sendLocation(userLat, userLng);
+});
+
+mymap.on('locationerror', function(e) {
+    if (e.message.includes("denied")) {
+        showToast(t('Location permission was denied. Please enable it to use this feature.'), 'error');
+    } else if (e.message.includes("unavailable")) {
+        showToast(t('Location information is currently unavailable.'), 'error');
+    } else if (e.message.includes("timeout")) {
+        showToast(t('The request to get your location timed out. Please try again.'), 'error');
+    } else {
+        showToast(t('An unknown location error occurred.') + ' ' + e.message, 'error');
+    }
+});
 
 function checkAndSetInitialLocation() {
     if (!locationSetInitially) {
