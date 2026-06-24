@@ -695,13 +695,17 @@ function initializeSloganRotate() {
   const el = document.querySelector('.tagline-text');
   if (!el) return;
 
-  // First line is action-oriented; the rest are factual.
-  const lines = [
+  // Lead with the server-picked marketing slogan (title -> text), then the
+  // factual lines. Slogan comes from the backend SLOGANS via data attributes.
+  const lines = [];
+  if (el.dataset.sloganTitle) lines.push(el.dataset.sloganTitle);
+  if (el.dataset.sloganText) lines.push(el.dataset.sloganText);
+  lines.push(
       t('Click anywhere on the map to find the nearest masts'),
       t('~22,000 base stations across Poland'),
       t('5G to GSM — Orange, Play, Plus & T-Mobile'),
       t('Live data from UKE, refreshed continuously'),
-  ];
+  );
   const dotsWrap = document.querySelector('.tagline-dots');
 
   // Measure tallest line and lock height so layout never shifts.
