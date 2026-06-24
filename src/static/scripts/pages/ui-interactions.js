@@ -69,10 +69,29 @@ const baseMaps = {
 // 2026-04-28: collapse the layer control on small viewports so the
 // Street/Dark/Satellite radios don't eat ~140px of map width. Desktop
 // keeps the always-expanded form for instant switching.
-L.control.layers(baseMaps, null, {
-    position: 'topright',
-    collapsed: window.matchMedia('(max-width: 767px)').matches,
-}).addTo(mymap);
+let activeBaseLayer = lightTileLayer;
+const layerSwitcher = L.control({position: 'topright'});
+layerSwitcher.onAdd = function() {
+    const div = L.DomUtil.create('div', 'ss-segmented');
+    const order = ['Street', 'Dark', 'Satellite'];
+    div.innerHTML = order.map((name, i) =>
+        `<button type="button" class="ss-seg-btn${i === 0 ? ' active' : ''}" data-layer="${name}">${t(name)}</button>`
+    ).join('');
+    L.DomEvent.disableClickPropagation(div);
+    div.querySelectorAll('.ss-seg-btn').forEach(btn => {
+        L.DomEvent.on(btn, 'click', function(e) {
+            L.DomEvent.stop(e);
+            const layer = baseMaps[btn.getAttribute('data-layer')];
+            if (!layer || layer === activeBaseLayer) return;
+            mymap.removeLayer(activeBaseLayer);
+            mymap.addLayer(layer);
+            activeBaseLayer = layer;
+            div.querySelectorAll('.ss-seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+        });
+    });
+    return div;
+};
+layerSwitcher.addTo(mymap);
 
 const greenIcon = new L.Icon({ 
 iconUrl: 'static/css/images/marker-icon-green.png', shadowUrl: 'static/css/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
@@ -202,34 +221,20 @@ function setupTouchInteraction(mymap) {
 }
 setupTouchInteraction(mymap);
 
-let gpsButton = L.control({position: 'topleft'});
-gpsButton.onAdd = function(map) {
-    let div = L.DomUtil.create('div', 'gps-location-control');
-    div.innerHTML = `
-        <button id="useMyLocationBtn" title="Use My Location" class="map-control-btn">
-            <span class="control-icon">📍</span>
-            <span class="control-label">GPS</span>
-        </button>
-    `;
-    L.DomEvent.on(div, 'click', function(e) {
-        L.DomEvent.stop(e);
-        const btn = document.getElementById('useMyLocationBtn');
-        btn.classList.add('collapsed');
-        requestAndSendGPSLocation();
-    });
-    return div;
-};
-gpsButton.addTo(mymap);
-
 if (!document.getElementById('ss-search-styles')) {
     const st = document.createElement('style');
     st.id = 'ss-search-styles';
     st.textContent = `
-    .ss-search-box{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #e2e8f0;border-radius:9px;box-shadow:0 1px 5px rgba(0,0,0,.14);padding:0 11px;transition:box-shadow .15s,border-color .15s;}
+    .ss-search-box{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #e2e8f0;border-radius:9px;box-shadow:0 1px 5px rgba(0,0,0,.14);padding:0 0 0 11px;transition:box-shadow .15s,border-color .15s;}
     .ss-search-box:focus-within{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.25);}
-    .ss-search-box svg{width:16px;height:16px;color:#64748b;flex:none;}
-    #addressSearchInput{width:14rem;border:none;outline:none;background:transparent;padding:9px 0;font-size:14px;color:#1f2937;}
+    .ss-search-icon{width:16px;height:16px;color:#64748b;flex:none;}
+    #addressSearchInput{width:13rem;border:none;outline:none;background:transparent;padding:9px 0;font-size:14px;color:#1f2937;}
     #addressSearchInput::placeholder{color:#94a3b8;}
+    .ss-locate-btn{display:flex;align-items:center;justify-content:center;width:34px;align-self:stretch;border:none;border-left:1px solid #e2e8f0;background:transparent;color:#475569;cursor:pointer;border-radius:0 8px 8px 0;flex:none;transition:background .15s,color .15s;}
+    .ss-locate-btn:hover{background:#f0f3f7;color:#2563eb;}
+    .ss-locate-btn svg{width:17px;height:17px;}
+    .dark .ss-locate-btn{color:#cbd5e1;border-left-color:#374151;}
+    .dark .ss-locate-btn:hover{background:#374151;color:#93c5fd;}
     .ss-suggestions{margin-top:5px;background:#fff;border-radius:9px;box-shadow:0 6px 20px rgba(0,0,0,.2);overflow:hidden;max-height:260px;overflow-y:auto;}
     .ss-suggestion{padding:9px 12px;cursor:pointer;font-size:13px;color:#334155;border-bottom:1px solid #f1f5f9;}
     .ss-suggestion:last-child{border-bottom:none;}
@@ -248,13 +253,23 @@ addressSearch.onAdd = function(map) {
     const div = L.DomUtil.create('div', 'address-search-control');
     div.innerHTML = `
         <div class="ss-search-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <svg class="ss-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             <input type="text" id="addressSearchInput" autocomplete="off" placeholder="${t('Search address or place')}">
+            <button id="useMyLocationBtn" type="button" class="ss-locate-btn" title="${t('Use My Location')}" aria-label="${t('Use My Location')}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="2" x2="12" y2="5"></line><line x1="12" y1="19" x2="12" y2="22"></line><line x1="2" y1="12" x2="5" y2="12"></line><line x1="19" y1="12" x2="22" y2="12"></line></svg>
+            </button>
         </div>
         <div id="address-suggestions" class="ss-suggestions" style="display:none;"></div>
     `;
     L.DomEvent.disableClickPropagation(div);
     L.DomEvent.disableScrollPropagation(div);
+    const locateBtn = div.querySelector('#useMyLocationBtn');
+    if (locateBtn) {
+        L.DomEvent.on(locateBtn, 'click', function(e) {
+            L.DomEvent.stop(e);
+            requestAndSendGPSLocation();
+        });
+    }
     return div;
 };
 addressSearch.addTo(mymap);
@@ -314,7 +329,7 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
         toggleBtn.id = 'toggleFrequencyRangeLegendBtn';
         toggleBtn.title = 'Signal Range Legend';
         toggleBtn.innerHTML = `
-            <span class="control-icon text-lg">ⓘ</span>
+            <svg class="control-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4.5"></circle><circle cx="12" cy="12" r="1" fill="currentColor"></circle></svg>
             <span class="control-label">${t('Range')}</span>
         `;
 
@@ -419,8 +434,9 @@ let filterControl = L.control({position: 'topright'});
 filterControl.onAdd = function(map) {
     let div = L.DomUtil.create('div', 'filter-control-container');
     div.innerHTML = `
-        <button id="toggle-filters-btn" class="block bg-blue-500 hover:bg-blue-700 dark:bg-gray-800 dark:hover:bg-gray-500 text-white dark:text-white font-bold py-1 px-2 rounded w-76">
-        ${t('Toggle Filters')}
+        <button id="toggle-filters-btn" class="inline-flex items-center gap-1.5 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 text-xs font-medium py-1.5 px-3 rounded-lg shadow-sm">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+        ${t('Filters')}
         </button>
 
         <div id="filterContainer" class="bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400 hidden">

@@ -247,15 +247,16 @@
 .gps-location-control button {
     z-index: 1000;
     background-color: #fff;
-    border: none;
-    border-radius: 3px;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
     cursor: pointer;
-    padding: 5px 9px;
-    box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+    padding: 6px 11px;
+    color: #334155;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.14);
 }
 
 .gps-location-control button:hover {
-    background-color: #f0f0f0;
+    background-color: #f0f3f7;
 }
 
 /* Keep the top-right filter panel above the bottom-right Leaflet
@@ -280,20 +281,19 @@
 .map-control-btn {
     display: flex !important;
     align-items: center;
-    gap: 4px;
-    padding: 4px 8px !important;
-    transition: all 0.3s ease;
+    gap: 6px;
+    padding: 6px 11px !important;
+    transition: background-color 0.15s ease, color 0.15s ease;
     overflow: hidden;
-    animation: control-pulse 2s ease-in-out infinite;
 }
 
 .map-control-btn .control-icon {
     flex-shrink: 0;
-    font-size: 14px;
+    color: #475569;
 }
 
 .map-control-btn .control-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
     transition: width 0.3s ease, opacity 0.3s ease;
@@ -310,20 +310,55 @@
     overflow: hidden;
 }
 
-@keyframes control-pulse {
-    0%, 100% { box-shadow: 0 1px 5px rgba(0,0,0,0.2); }
-    50% { box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); }
+/* Dark mode */
+.dark .gps-location-control button {
+    border-color: #374151;
+    color: #e5e7eb;
 }
 
-/* Dark mode */
 .dark .map-control-btn {
     background-color: #1f2937 !important;
     color: #e5e7eb;
 }
 
+.dark .map-control-btn .control-icon {
+    color: #cbd5e1;
+}
+
 .dark .map-control-btn:hover {
     background-color: #374151 !important;
 }
+
+/* Segmented base-layer switcher (Street / Dark / Satellite) */
+.ss-segmented {
+    display: inline-flex;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.14);
+    padding: 2px;
+    gap: 2px;
+}
+
+.ss-seg-btn {
+    border: none;
+    background: transparent;
+    color: #56606e;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 11px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background-color .15s, color .15s;
+}
+
+.ss-seg-btn:hover { background: #f0f3f7; }
+.ss-seg-btn.active, .ss-seg-btn.active:hover { background: #2f6bff; color: #fff; }
+
+.dark .ss-segmented { background: #1f2937; border-color: #374151; }
+.dark .ss-seg-btn { color: #cbd5e1; }
+.dark .ss-seg-btn:hover { background: #374151; }
+.dark .ss-seg-btn.active, .dark .ss-seg-btn.active:hover { background: #3b82f6; color: #fff; }
 
 .label-container > label {
   @apply inline-flex items-center mr-1; 

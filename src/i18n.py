@@ -118,6 +118,11 @@ TRANSLATIONS = {
 
     # JS — map filters / legend / sidebar
     'Toggle Filters': 'Pokaż/ukryj filtry',
+    'Filters': 'Filtry',
+    'Use My Location': 'Użyj mojej lokalizacji',
+    'Street': 'Ulice',
+    'Dark': 'Ciemna',
+    'Satellite': 'Satelita',
     'Service Provider:': 'Operator:',
     'Frequency:': 'Częstotliwość:',
     'Apply Filters': 'Zastosuj filtry',
@@ -336,6 +341,11 @@ TRANSLATIONS = {
 
 JS_STRING_KEYS = (
     'Toggle Filters',
+    'Filters',
+    'Use My Location',
+    'Street',
+    'Dark',
+    'Satellite',
     'Service Provider:',
     'Frequency:',
     'Apply Filters',
