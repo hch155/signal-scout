@@ -17,6 +17,7 @@ from __future__ import annotations
 import os
 import shutil
 import secrets
+import sqlite3
 import tempfile
 from typing import Iterator
 
@@ -44,7 +45,38 @@ def _stations_db_path(_session_tmpdir: str) -> str:
 
 
 @pytest.fixture(scope="session")
-def app(_session_tmpdir, _stations_db_path):
+def _addresses_db_path(_session_tmpdir: str) -> str:
+    """Build a tiny FTS5 address DB matching scripts/addresses_database_setup.py."""
+    fold = str.maketrans('ąćęłńóśźż', 'acelnoszz')
+    rows = [
+        ("Łąkowa, Białystok", 53.1395, 23.1725),
+        ("Marszałkowska, Warszawa", 52.2297, 21.0122),
+        ("Ogrodnicza, Białystok", 53.1600, 23.1800),
+    ]
+    dst = os.path.join(_session_tmpdir, "addresses.db")
+    conn = sqlite3.connect(dst)
+    try:
+        conn.execute(
+            "CREATE TABLE addresses (id INTEGER PRIMARY KEY, display TEXT NOT NULL, "
+            "norm TEXT NOT NULL, lat REAL NOT NULL, lng REAL NOT NULL)"
+        )
+        conn.execute(
+            "CREATE VIRTUAL TABLE addresses_fts "
+            "USING fts5(norm, content='addresses', content_rowid='id')"
+        )
+        conn.executemany(
+            "INSERT INTO addresses (display, norm, lat, lng) VALUES (?, ?, ?, ?)",
+            [(d, d.lower().translate(fold), lat, lng) for d, lat, lng in rows],
+        )
+        conn.execute("INSERT INTO addresses_fts(addresses_fts) VALUES('rebuild')")
+        conn.commit()
+    finally:
+        conn.close()
+    return dst
+
+
+@pytest.fixture(scope="session")
+def app(_session_tmpdir, _stations_db_path, _addresses_db_path):
     """Flask app bound to isolated DBs.
 
     app.py reads STATIONS_DB_PATH / USERS_DB_PATH from the environment at
@@ -58,6 +90,7 @@ def app(_session_tmpdir, _stations_db_path):
     os.environ["SECRET_KEY"] = secrets.token_hex(32)
     os.environ["STATIONS_DB_PATH"] = _stations_db_path
     os.environ["USERS_DB_PATH"] = users_db
+    os.environ["ADDRESSES_DB_PATH"] = _addresses_db_path
 
     import sys
     sys.path.insert(0, os.path.join(ROOT, "src"))

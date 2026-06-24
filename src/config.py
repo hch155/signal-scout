@@ -45,6 +45,7 @@ class Config:
     # ── Storage paths ──
     stations_db_path: Optional[str] = field(default_factory=lambda: _str("STATIONS_DB_PATH") or None)
     users_db_path: Optional[str] = field(default_factory=lambda: _str("USERS_DB_PATH") or None)
+    addresses_db_path: Optional[str] = field(default_factory=lambda: _str("ADDRESSES_DB_PATH") or None)
     session_file_dir: Optional[str] = field(default_factory=lambda: _str("SESSION_FILE_DIR") or None)
 
     # ── Session policy ──
@@ -58,11 +59,6 @@ class Config:
 
     # ── Honeypot ──
     honeypot_bts_ids_raw: str = field(default_factory=lambda: _str("HONEYPOT_BTS_IDS"))
-
-    # ── Geocoder (address search) ──
-    # Photon-compatible geocoder. Public default; point at a self-hosted
-    # Photon via GEOCODER_URL to drop the third-party dependency.
-    geocoder_url: str = field(default_factory=lambda: _str("GEOCODER_URL", "https://photon.komoot.io/api"))
 
     # ── Transactional email ──
     email_backend: str = field(default_factory=lambda: _str("EMAIL_BACKEND", "noop").lower())

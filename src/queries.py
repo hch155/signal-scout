@@ -1,12 +1,42 @@
 import math
 import logging
 import os
+import re
 import sqlite3
 from datetime import datetime
 from models import BaseStation, db
 from sqlalchemy import func, distinct, case
 
 logger = logging.getLogger(__name__)
+
+_PL_FOLD = str.maketrans('ąćęłńóśźż', 'acelnoszz')
+
+
+def normalize_pl(text):
+    return (text or '').lower().translate(_PL_FOLD)
+
+
+def search_addresses(query, db_path, limit=8):
+    tokens = re.findall(r'[a-z0-9]+', normalize_pl(query))
+    if not tokens or sum(len(t) for t in tokens) < 3:
+        return []
+    match = ' '.join(t + '*' for t in tokens)
+    try:
+        con = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True)
+    except sqlite3.OperationalError:
+        return []
+    try:
+        rows = con.execute(
+            "SELECT a.display, a.lat, a.lng FROM addresses_fts f "
+            "JOIN addresses a ON a.id = f.rowid "
+            "WHERE addresses_fts MATCH ? ORDER BY rank LIMIT ?",
+            (match, limit),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        con.close()
+    return [{'display': d, 'lat': lat, 'lng': lng} for d, lat, lng in rows]
 
 
 def get_data_date(stations_db_path):

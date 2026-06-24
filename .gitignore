@@ -19,6 +19,9 @@ src/instance/users.db-wal
 src/instance/stations.db.bak
 .perf_users.db
 
+# PRG address-point source for the geocoder ETL (~20GB unpacked, never commit)
+address_data/
+
 # Runtime / build artifacts
 flask_session/
 tools/

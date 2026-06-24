@@ -222,22 +222,103 @@ function setupTouchInteraction(mymap) {
 }
 setupTouchInteraction(mymap);
 
-let gpsButton = L.control({position: 'topleft'});
-gpsButton.onAdd = function(map) {
-    const div = L.DomUtil.create('div', 'gps-location-control');
+if (!document.getElementById('ss-search-styles')) {
+    const st = document.createElement('style');
+    st.id = 'ss-search-styles';
+    st.textContent = `
+    .ss-search-box{display:flex;align-items:stretch;height:40px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 5px rgba(0,0,0,.14);overflow:hidden;box-sizing:border-box;transition:box-shadow .15s,border-color .15s;}
+    .ss-search-box:focus-within{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.25);}
+    .ss-search-icon{width:16px;height:16px;color:#64748b;flex:none;align-self:center;margin-left:11px;}
+    #addressSearchInput{flex:1;min-width:0;width:12rem;border:none;outline:none;background:transparent;padding:0 8px;font-size:14px;color:#1f2937;}
+    #addressSearchInput::placeholder{color:#94a3b8;}
+    .ss-locate-btn{display:flex;align-items:center;justify-content:center;width:38px;flex:none;border:none;border-left:1px solid #e2e8f0;background:transparent;color:#475569;cursor:pointer;transition:background .15s,color .15s;}
+    .ss-locate-btn:hover{background:#f0f3f7;color:#2563eb;}
+    .ss-locate-btn svg{width:17px;height:17px;}
+    .dark .ss-locate-btn{color:#cbd5e1;border-left-color:#374151;}
+    .dark .ss-locate-btn:hover{background:#374151;color:#93c5fd;}
+    @media (max-width:640px){#addressSearchInput{width:9rem;}}
+    .ss-suggestions{margin-top:5px;background:#fff;border-radius:9px;box-shadow:0 6px 20px rgba(0,0,0,.2);overflow:hidden;max-height:260px;overflow-y:auto;}
+    .ss-suggestion{padding:9px 12px;cursor:pointer;font-size:13px;color:#334155;border-bottom:1px solid #f1f5f9;}
+    .ss-suggestion:last-child{border-bottom:none;}
+    .ss-suggestion:hover{background:#eff6ff;}
+    .dark .ss-search-box{background:#1f2937;border-color:#374151;}
+    .dark #addressSearchInput{color:#f1f5f9;}
+    .dark .ss-search-box svg{color:#94a3b8;}
+    .dark .ss-suggestions{background:#1f2937;box-shadow:0 6px 20px rgba(0,0,0,.5);}
+    .dark .ss-suggestion{color:#e2e8f0;border-bottom-color:#374151;}
+    .dark .ss-suggestion:hover{background:#374151;}`;
+    document.head.appendChild(st);
+}
+
+let addressSearch = L.control({position: 'topleft'});
+addressSearch.onAdd = function(map) {
+    const div = L.DomUtil.create('div', 'address-search-control');
     div.innerHTML = `
-        <button id="useMyLocationBtn" type="button" title="${t('Use My Location')}" aria-label="${t('Use My Location')}" class="map-control-btn">
-            <svg class="control-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="2" x2="12" y2="5"></line><line x1="12" y1="19" x2="12" y2="22"></line><line x1="2" y1="12" x2="5" y2="12"></line><line x1="19" y1="12" x2="22" y2="12"></line></svg>
-            <span class="control-label">GPS</span>
-        </button>
+        <div class="ss-search-box">
+            <svg class="ss-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="addressSearchInput" autocomplete="off" placeholder="${t('Search address or place')}">
+            <button id="useMyLocationBtn" type="button" class="ss-locate-btn" title="${t('Use My Location')}" aria-label="${t('Use My Location')}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="2" x2="12" y2="5"></line><line x1="12" y1="19" x2="12" y2="22"></line><line x1="2" y1="12" x2="5" y2="12"></line><line x1="19" y1="12" x2="22" y2="12"></line></svg>
+            </button>
+        </div>
+        <div id="address-suggestions" class="ss-suggestions" style="display:none;"></div>
     `;
-    L.DomEvent.on(div, 'click', function(e) {
-        L.DomEvent.stop(e);
-        requestAndSendGPSLocation();
-    });
+    L.DomEvent.disableClickPropagation(div);
+    L.DomEvent.disableScrollPropagation(div);
+    const locateBtn = div.querySelector('#useMyLocationBtn');
+    if (locateBtn) {
+        L.DomEvent.on(locateBtn, 'click', function(e) {
+            L.DomEvent.stop(e);
+            requestAndSendGPSLocation();
+        });
+    }
     return div;
 };
-gpsButton.addTo(mymap);
+addressSearch.addTo(mymap);
+
+(function setupAddressSearch() {
+    const input = document.getElementById('addressSearchInput');
+    const box = document.getElementById('address-suggestions');
+    if (!input || !box) return;
+    let timer = null;
+    const hide = () => { box.style.display = 'none'; box.innerHTML = ''; };
+    input.addEventListener('input', function() {
+        const q = this.value.trim();
+        clearTimeout(timer);
+        if (q.length < 3) { hide(); return; }
+        timer = setTimeout(() => {
+            globalFetch(`/geocode?q=${encodeURIComponent(q)}`)
+                .then(data => {
+                    const results = (data && data.results) || [];
+                    if (!results.length) { hide(); return; }
+                    box.innerHTML = '';
+                    results.forEach(r => {
+                        const item = document.createElement('div');
+                        item.className = 'ss-suggestion';
+                        item.textContent = r.display;
+                        item.addEventListener('click', () => {
+                            input.value = r.display;
+                            hide();
+                            if (marker) { try { mymap.removeLayer(marker); } catch (e) {} }
+                            marker = L.marker([r.lat, r.lng], { icon: greenIcon }).addTo(mymap);
+                            mymap.setView([r.lat, r.lng], 14);
+                            currentFilters.lat = r.lat;
+                            currentFilters.lng = r.lng;
+                            isFirstClick = false;
+                            sendLocation(r.lat, r.lng);
+                        });
+                        box.appendChild(item);
+                    });
+                    box.style.display = 'block';
+                })
+                .catch(() => hide());
+        }, 350);
+    });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+    document.addEventListener('click', (e) => {
+        if (!input.parentElement.contains(e.target)) hide();
+    });
+})();
 
 let frequencyRangeLegend = L.control({position: 'topleft'});
 

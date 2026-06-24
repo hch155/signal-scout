@@ -5,7 +5,7 @@ from flask_limiter.util import get_remote_address
 from sqlalchemy import event
 from database import db
 from models import BaseStation, User
-from queries import find_nearest_stations, get_stats, find_coverage_gaps, get_data_date
+from queries import find_nearest_stations, get_stats, find_coverage_gaps, get_data_date, search_addresses
 from config import settings
 from observability import (
     init_observability,
@@ -113,6 +113,7 @@ logging.basicConfig(level=logging.INFO)
 basedir = os.path.abspath(os.path.dirname(__file__))
 stations_db_path = settings.stations_db_path or os.path.join(basedir, 'instance', 'stations.db')
 users_db_path = settings.users_db_path or os.path.join(basedir, 'instance', 'users.db')
+addresses_db_path = settings.addresses_db_path or os.path.join(basedir, 'instance', 'addresses.db')
 
 if settings.users_db_path:
     os.makedirs(os.path.dirname(settings.users_db_path), exist_ok=True)
@@ -1806,46 +1807,10 @@ def search_stations():
 @limiter.limit("30 per minute")
 @require_api_access(endpoint_label='geocode')
 def geocode():
-    import requests
     query = request.args.get('q', type=str, default='').strip()
     if not query or len(query) < 3 or len(query) > 120:
         return jsonify({"results": []})
-    params = {'q': query, 'limit': 5, 'lang': 'default',
-              'bbox': '14.07,49.0,24.15,54.9'}
-    try:
-        r = requests.get(settings.geocoder_url, params=params, timeout=6,
-                         headers={'User-Agent': 'signal-scout/1.0 (+https://signal-scout.com)'})
-        r.raise_for_status()
-        feats = r.json().get('features', [])
-    except Exception:
-        return jsonify({"results": []}), 502
-    # Photon returns one feature per street segment. Group by display name and
-    # use the centroid of all segments so the marker lands mid-street, not on
-    # an arbitrary end node.
-    grouped = {}
-    order = []
-    for f in feats:
-        coords = (f.get('geometry') or {}).get('coordinates') or []
-        props = f.get('properties') or {}
-        if len(coords) != 2:
-            continue
-        lng, lat = coords[0], coords[1]
-        if props.get('countrycode') and props['countrycode'] != 'PL':
-            continue
-        if not (49.0 <= lat <= 55.5 and 14.0 <= lng <= 24.2):
-            continue
-        display = ', '.join(p for p in (props.get('name'), props.get('city'), props.get('state')) if p)
-        display = display or props.get('name', '')
-        if display not in grouped:
-            grouped[display] = {'lat': 0.0, 'lng': 0.0, 'n': 0}
-            order.append(display)
-        g = grouped[display]
-        g['lat'] += lat
-        g['lng'] += lng
-        g['n'] += 1
-    results = [{'display': d, 'lat': round(grouped[d]['lat'] / grouped[d]['n'], 6),
-                'lng': round(grouped[d]['lng'] / grouped[d]['n'], 6)} for d in order]
-    return jsonify({"results": results})
+    return jsonify({"results": search_addresses(query, addresses_db_path)})
 
 
 @app.route('/coverage_gaps', methods=['GET'])
