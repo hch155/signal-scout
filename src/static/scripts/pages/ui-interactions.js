@@ -145,7 +145,7 @@ let _locationReqSeq = 0;
 const frequencyRanges = {
     high: [200, 500, 1000, 1500], // high band frequency distance radius
     mid: [300, 750, 1500, 2000], //  mid band frequency
-    low: [500, 1500, 3000, 5000] // low band frequency
+    low: [1000, 2000, 3500, 5000] // low band (coverage) — reaches ~5km, so 'excellent' extends to ~1km
 };
 
 // Favicon-matched signal tiers (same palette as the verdict card, legend
@@ -356,9 +356,9 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
                     </tr>
                 </thead>
                 <tbody class="text-gray-700 font-bold dark:text-white divide-y divide-gray-200">
-                    <tr style="background-color:#16A34A;color:#ffffff"><td>${t('Excellent')}</td><td>0.2</td><td>0.3</td><td>0.5</td></tr>
-                    <tr style="background-color:#FACC15;color:#1f2937"><td>${t('Good')}</td><td>0.5</td><td>0.75</td><td>1.5</td></tr>
-                    <tr style="background-color:#F97316;color:#1f2937"><td>${t('Fair')}</td><td>1.0</td><td>1.5</td><td>3.0</td></tr>
+                    <tr style="background-color:#16A34A;color:#ffffff"><td>${t('Excellent')}</td><td>0.2</td><td>0.3</td><td>1.0</td></tr>
+                    <tr style="background-color:#FACC15;color:#1f2937"><td>${t('Good')}</td><td>0.5</td><td>0.75</td><td>2.0</td></tr>
+                    <tr style="background-color:#F97316;color:#1f2937"><td>${t('Fair')}</td><td>1.0</td><td>1.5</td><td>3.5</td></tr>
                     <tr style="background-color:#DC2626;color:#ffffff"><td>${t('Poor')}</td><td>1.5</td><td>2.0</td><td>5.0</td></tr>
                 </tbody>
             </table>
