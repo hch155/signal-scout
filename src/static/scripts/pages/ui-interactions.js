@@ -1503,15 +1503,11 @@ function createStatsPanel(stations) {
     };
     const verdict = verdictByLevel[nearestSignal.level] || t('Patchy signal');
 
-    // Best generation available across the nearby stations.
+    // 5G availability across the nearby stations (matches prepared i18n).
     const allBands = stations.flatMap(s => Array.isArray(s.frequency_bands) ? s.frequency_bands : []);
-    let topGen = '';
-    if (allBands.some(b => b.startsWith('5G'))) topGen = '5G';
-    else if (allBands.some(b => b.startsWith('LTE'))) topGen = 'LTE';
-    else if (allBands.some(b => b.startsWith('UMTS'))) topGen = '3G';
-    else if (allBands.some(b => b.startsWith('GSM'))) topGen = 'GSM';
-    const genHtml = topGen ? ` · ${topGen} ${escapeHtml(t('in range'))}` : '';
-    const subline = `${escapeHtml(t('Nearest mast'))} ${nearestStation.distance.toFixed(1)} km (${escapeHtml(nearestProvider)})${genHtml}`;
+    const has5G = allBands.some(b => b.startsWith('5G'));
+    const genHtml = ` · ${escapeHtml(has5G ? t('5G in range') : t('none in range'))}`;
+    const subline = `${escapeHtml(t('Nearest mast:'))} ${nearestStation.distance.toFixed(1)} km (${escapeHtml(nearestProvider)})${genHtml}`;
 
     // Operator legend: each provider's nearest mast distance.
     const opNearest = {};

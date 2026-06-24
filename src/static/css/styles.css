@@ -707,6 +707,39 @@ th[onclick]:hover {
   @apply text-[11px] md:text-xs text-gray-400 dark:text-gray-500;
 }
 
+/* Rotating tagline above the map (4 lines, fade + dot indicators) */
+.tagline-rotator {
+  @apply flex flex-col items-center;
+}
+
+.tagline-text {
+  transition: opacity 0.35s ease;
+}
+
+.tagline-text.fade-out {
+  opacity: 0;
+}
+
+.tagline-dots {
+  @apply flex justify-center items-center gap-1.5 mt-1.5;
+}
+
+.tagline-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #cbd5e1;
+  transition: background-color 0.3s ease, width 0.3s ease;
+}
+
+.tagline-dot.active {
+  width: 16px;
+  background: #2f6bff;
+}
+
+.dark .tagline-dot { background: #475569; }
+.dark .tagline-dot.active { background: #3b82f6; }
+
 /* Base station search suggestions */
 .bts-suggestions {
   @apply absolute left-0 right-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto;

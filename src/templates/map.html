@@ -29,7 +29,10 @@
        + ~60px of vertical space on iPhone 16 Pro for zero functional
        value — search engines + desktop still see it. #}
     <section class="slogan-section hidden md:block text-center text-[#333] dark:text-white py-1 md:py-3 px-4">
-        <p class="text-base font-semibold slogan-rotate" data-lines="{{ slogan_title }}|{{ slogan_text }}">{{ slogan_title }}</p>
+        <div class="tagline-rotator">
+            <p class="text-base font-semibold tagline-text" aria-live="polite">{{ slogan_title }}</p>
+            <div class="tagline-dots" aria-hidden="true"></div>
+        </div>
     </section>
 
     {# 2026-04-29: back to w-9/12 on mobile (~12.5% per side, ~49px

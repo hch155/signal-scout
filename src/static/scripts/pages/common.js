@@ -692,31 +692,64 @@ function executeCurrentPageAction() {
 
 
 function initializeSloganRotate() {
-  const el = document.querySelector('.slogan-rotate');
+  const el = document.querySelector('.tagline-text');
   if (!el) return;
 
-  const lines = el.dataset.lines.split('|');
-  if (lines.length < 2) return;
+  // First line is action-oriented; the rest are factual.
+  const lines = [
+      t('Click anywhere on the map to find the nearest masts'),
+      t('~22,000 base stations across Poland'),
+      t('5G to GSM — Orange, Play, Plus & T-Mobile'),
+      t('Live data from UKE, refreshed continuously'),
+  ];
+  const dotsWrap = document.querySelector('.tagline-dots');
 
-  // Measure tallest line and lock height so layout never shifts
+  // Measure tallest line and lock height so layout never shifts.
   let maxH = 0;
-  const original = el.textContent;
   lines.forEach(function(line) {
       el.textContent = line;
       maxH = Math.max(maxH, el.offsetHeight);
   });
-  el.textContent = original;
+  el.textContent = lines[0];
   el.style.minHeight = maxH + 'px';
 
-  let idx = 0;
+  if (dotsWrap) {
+      dotsWrap.innerHTML = '';
+      lines.forEach(function(_, i) {
+          const dot = document.createElement('span');
+          dot.className = 'tagline-dot' + (i === 0 ? ' active' : '');
+          dotsWrap.appendChild(dot);
+      });
+  }
 
-  setInterval(function() {
+  function setDot(i) {
+      if (!dotsWrap) return;
+      dotsWrap.querySelectorAll('.tagline-dot').forEach(function(d, j) {
+          d.classList.toggle('active', j === i);
+      });
+  }
+
+  // Respect reduced motion: hold the action line, no rotation.
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  let idx = 0;
+  let timer = null;
+  function tick() {
       el.classList.add('fade-out');
       setTimeout(function() {
           idx = (idx + 1) % lines.length;
           el.textContent = lines[idx];
+          setDot(idx);
           el.classList.remove('fade-out');
-      }, 500);
-  }, 3500);
+      }, 350);
+  }
+  function start() { if (!timer) timer = setInterval(tick, 3800); }
+  function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+  start();
+  // Pause rotation while the tab is hidden.
+  document.addEventListener('visibilitychange', function() {
+      if (document.hidden) stop(); else start();
+  });
 }
 
