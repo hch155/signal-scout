@@ -46,12 +46,16 @@ def _stations_db_path(_session_tmpdir: str) -> str:
 
 @pytest.fixture(scope="session")
 def _addresses_db_path(_session_tmpdir: str) -> str:
-    """Build a tiny FTS5 address DB matching scripts/addresses_database_setup.py."""
-    fold = str.maketrans('ąćęłńóśźż', 'acelnoszz')
+    """Build a tiny FTS5 address DB matching scripts/addresses_database_setup.py.
+    norm carries the voivodeship so it can narrow searches; duplicate displays
+    are voivodeship-suffixed (as the ETL bakes them)."""
+    # display, norm, lat, lng
     rows = [
-        ("Łąkowa, Białystok", 53.1395, 23.1725),
-        ("Marszałkowska, Warszawa", 52.2297, 21.0122),
-        ("Ogrodnicza, Białystok", 53.1600, 23.1800),
+        ("Łąkowa, Białystok", "lakowa bialystok podlaskie", 53.1395, 23.1725),
+        ("Marszałkowska, Warszawa", "marszalkowska warszawa mazowieckie", 52.2297, 21.0122),
+        ("Ogrodnicza, Białystok", "ogrodnicza bialystok podlaskie", 53.1600, 23.1800),
+        ("Słoneczna, Nowa Wieś (mazowieckie)", "sloneczna nowa wies mazowieckie", 52.1000, 21.1000),
+        ("Słoneczna, Nowa Wieś (wielkopolskie)", "sloneczna nowa wies wielkopolskie", 52.4000, 16.9000),
     ]
     dst = os.path.join(_session_tmpdir, "addresses.db")
     conn = sqlite3.connect(dst)
@@ -65,9 +69,7 @@ def _addresses_db_path(_session_tmpdir: str) -> str:
             "USING fts5(norm, content='addresses', content_rowid='id')"
         )
         conn.executemany(
-            "INSERT INTO addresses (display, norm, lat, lng) VALUES (?, ?, ?, ?)",
-            [(d, d.lower().translate(fold), lat, lng) for d, lat, lng in rows],
-        )
+            "INSERT INTO addresses (display, norm, lat, lng) VALUES (?, ?, ?, ?)", rows)
         conn.execute("INSERT INTO addresses_fts(addresses_fts) VALUES('rebuild')")
         conn.commit()
     finally:

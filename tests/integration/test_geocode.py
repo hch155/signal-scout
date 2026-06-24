@@ -41,6 +41,19 @@ def test_geocode_disambiguates_streets_in_same_city(client):
     assert "Ogrodnicza, Białystok" not in displays
 
 
+def test_geocode_voivodeship_disambiguates_duplicates(client):
+    r = client.get("/geocode?q=słoneczna nowa wieś")
+    displays = [x["display"] for x in r.get_json()["results"]]
+    assert "Słoneczna, Nowa Wieś (mazowieckie)" in displays
+    assert "Słoneczna, Nowa Wieś (wielkopolskie)" in displays
+
+
+def test_geocode_voivodeship_narrows(client):
+    r = client.get("/geocode?q=słoneczna nowa wieś wielkopolskie")
+    displays = [x["display"] for x in r.get_json()["results"]]
+    assert displays == ["Słoneczna, Nowa Wieś (wielkopolskie)"]
+
+
 def test_search_addresses_missing_db_is_safe(app):
     from queries import search_addresses
     assert search_addresses("łąkowa białystok", "/no/such/addresses.db") == []
