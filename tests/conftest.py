@@ -56,6 +56,7 @@ def _addresses_db_path(_session_tmpdir: str) -> str:
         ("Ogrodnicza, Białystok", "ogrodnicza bialystok podlaskie", 53.1600, 23.1800),
         ("Słoneczna, Nowa Wieś (mazowieckie)", "sloneczna nowa wies mazowieckie", 52.1000, 21.1000),
         ("Słoneczna, Nowa Wieś (wielkopolskie)", "sloneczna nowa wies wielkopolskie", 52.4000, 16.9000),
+        ("3 Maja, Hajnówka", "3 maja hajnowka podlaskie", 52.7447, 23.5816),
     ]
     dst = os.path.join(_session_tmpdir, "addresses.db")
     conn = sqlite3.connect(dst)

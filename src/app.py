@@ -5,7 +5,8 @@ from flask_limiter.util import get_remote_address
 from sqlalchemy import event
 from database import db
 from models import BaseStation, User
-from queries import find_nearest_stations, get_stats, find_coverage_gaps, get_data_date, search_addresses
+from queries import find_nearest_stations, get_stats, find_coverage_gaps, get_data_date, search_addresses, normalize_pl, _fts_addresses
+from coverage_verdict import signal_verdict
 from config import settings
 from observability import (
     init_observability,
@@ -107,10 +108,12 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = settings.static_max_age
 app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
 from flask.sessions import SecureCookieSessionInterface  # noqa: E402
 
+_EDGE_CACHEABLE_API_PATHS = ('/api/v1/coverage_by_address', '/coverage_by_address')
+
 
 class _StaticSkipSessionInterface(SecureCookieSessionInterface):
     def save_session(self, app, session, response):
-        if request.path.startswith('/static/'):
+        if request.path.startswith('/static/') or request.path in _EDGE_CACHEABLE_API_PATHS:
             return
         return super().save_session(app, session, response)
 
@@ -195,7 +198,7 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 def _make_session_permanent():
     # Skip /static/: touching the session makes Flask add Set-Cookie + Vary:Cookie,
     # which makes the (versioned, immutable) assets uncacheable at the edge.
-    if request.path.startswith('/static/'):
+    if request.path.startswith('/static/') or request.path in _EDGE_CACHEABLE_API_PATHS:
         return
     session.permanent = True
 
@@ -455,7 +458,8 @@ SS_SID_MAX_AGE = 30 * 24 * 3600  # 30 days
 
 @app.before_request
 def _ss_sid_and_session_probe():
-    if request.path in _INFRA_PATHS or request.path.startswith('/static/'):
+    if (request.path in _INFRA_PATHS or request.path.startswith('/static/')
+            or request.path in _EDGE_CACHEABLE_API_PATHS):
         return
     g._ss_sid_present = bool(request.cookies.get(SS_SID_COOKIE))
     g._ss_sid_to_set = None
@@ -477,7 +481,8 @@ def _ss_sid_and_session_probe():
 
 @app.after_request
 def _ss_sid_set_and_bot_score(response):
-    if request.path in _INFRA_PATHS or request.path.startswith('/static/'):
+    if (request.path in _INFRA_PATHS or request.path.startswith('/static/')
+            or request.path in _EDGE_CACHEABLE_API_PATHS):
         return response
 
     # Set the cookie if we minted one during before_request.
@@ -628,7 +633,7 @@ def set_security_headers(response):
     response.headers['Content-Security-Policy'] = _csp_for_path(request.path)
     if not request.path.startswith('/embed/') or not settings.embed_allowed_origins:
         response.headers['X-Frame-Options'] = 'DENY'
-    if not request.path.startswith('/static/') and ('user_id' in session or request.path.startswith('/account')):
+    if not request.path.startswith('/static/') and request.path not in _EDGE_CACHEABLE_API_PATHS and ('user_id' in session or request.path.startswith('/account')):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
@@ -1851,6 +1856,185 @@ def coverage_gaps():
     return jsonify(find_coverage_gaps(user_lat, user_lng))
 
 
+_COVERAGE_RADIUS_KM = 5.0
+
+_STRUCTURED_ADDRESS_FIELDS = ('street', 'house_number', 'postal_code', 'city', 'voivodeship')
+
+_COVERAGE_DISCLAIMER = {
+    'pl': 'Szacowane na podstawie lokalizacji nadajników UKE i modelu odległościowego — nie pomiar rzeczywistego sygnału; nie uwzględnia terenu, budynków ani obciążenia sieci.',
+    'en': 'Estimated from UKE transmitter locations and a distance model — not a real-signal measurement; does not account for terrain, buildings or network load.',
+}
+
+_COVERAGE_QUERY_MAX_LEN = 120
+_COVERAGE_CACHE_MAX_AGE = 86400
+_COVERAGE_CACHE_SWR = 604800
+
+
+def _coverage_cache_headers(resp):
+    resp.headers['Cache-Control'] = (
+        f'public, max-age={_COVERAGE_CACHE_MAX_AGE}, '
+        f'stale-while-revalidate={_COVERAGE_CACHE_SWR}'
+    )
+    return resp
+
+
+def _assemble_address_query(fields):
+    parts = [(fields.get(f) or '').strip() for f in _STRUCTURED_ADDRESS_FIELDS]
+    return ' '.join(p for p in parts if p)
+
+
+def _resolve_address_coverage(query):
+    results = search_addresses(query, addresses_db_path)
+    if not results:
+        return {'status': 'no_match'}
+    best = results[0]
+    lat, lng = best['lat'], best['lng']
+    tokens = re.findall(r'[a-z0-9]+', normalize_pl(query))
+    first_street_token = next((i for i, t in enumerate(tokens) if t.isalpha()), len(tokens))
+    has_house_number = any(t.isdigit() for t in tokens[first_street_token + 1:])
+    building = bool(has_house_number and _fts_addresses(addresses_db_path, tokens, 1))
+    match = {
+        'display': best['display'],
+        'latitude': lat,
+        'longitude': lng,
+        'confidence': 'exact' if building else ('low' if has_house_number else 'medium'),
+        'geocode_precision': 'building' if building else 'street_centroid',
+    }
+    if not _coords_in_bounds(lat, lng):
+        return {'status': 'outside_pl', 'match': match}
+    verdict = signal_verdict(
+        find_nearest_stations(lat, lng, max_distance=_COVERAGE_RADIUS_KM)['stations']
+    )
+    return {
+        'status': 'ok',
+        'match': match,
+        'is_estimate': not building,
+        'coverage': {
+            'signal_tier': verdict['signal_tier'],
+            'signal_score': verdict['signal_score'],
+            'real_5g': verdict['real_5g'],
+            'operators': verdict['operators'],
+        },
+        'labels': {
+            'tier_pl': verdict['labels']['pl']['signal_tier'],
+            'headline_pl': verdict['labels']['pl']['headline'],
+            'real_5g_pl': verdict['labels']['pl']['real_5g'],
+            'tier_en': verdict['labels']['en']['signal_tier'],
+            'headline_en': verdict['labels']['en']['headline'],
+            'real_5g_en': verdict['labels']['en']['real_5g'],
+        },
+    }
+
+
+@app.route('/coverage_by_address', methods=['GET'])
+@limiter.limit("30 per minute")
+@require_api_access(endpoint_label='coverage_by_address')
+def coverage_by_address():
+    q = request.args.get('q', type=str, default='').strip()
+    structured = {f: (request.args.get(f, type=str, default='') or '').strip()
+                  for f in _STRUCTURED_ADDRESS_FIELDS}
+    if q and any(structured.values()):
+        return jsonify({
+            'error': 'conflicting_input',
+            'message': 'Provide either q or the structured address fields, not both.',
+        }), 400
+    query = q or _assemble_address_query(structured)
+    if len(query) > _COVERAGE_QUERY_MAX_LEN:
+        return jsonify({
+            'error': 'invalid_input',
+            'message': f'Address query must be {_COVERAGE_QUERY_MAX_LEN} characters or fewer.',
+        }), 400
+    if sum(ch.isalpha() for ch in query) < 3:
+        return jsonify({
+            'error': 'invalid_input',
+            'message': 'Provide an address with at least 3 letters via q or the structured fields.',
+        }), 400
+    try:
+        outcome = _resolve_address_coverage(query)
+    except Exception:
+        app.logger.exception("coverage_by_address failed")
+        return jsonify({'error': 'internal_error'}), 500
+    if outcome['status'] == 'no_match':
+        return jsonify({
+            'error': 'no_match',
+            'message': 'No matching address found.',
+        }), 404
+    if outcome['status'] == 'outside_pl':
+        return _coverage_cache_headers(jsonify({
+            'query': query,
+            'match': outcome['match'],
+            'outside_pl': True,
+            'coverage': None,
+        }))
+    return _coverage_cache_headers(jsonify({
+        'query': query,
+        'match': outcome['match'],
+        'coverage': outcome['coverage'],
+        'labels': outcome['labels'],
+        'is_estimate': outcome['is_estimate'],
+        'disclaimer': _COVERAGE_DISCLAIMER,
+        'data_date': get_data_date(stations_db_path),
+    }))
+
+
+@app.route('/coverage_by_address/batch', methods=['POST'])
+@limiter.limit("10 per minute")
+@require_api_access(endpoint_label='coverage_by_address_batch')
+def coverage_by_address_batch():
+    body = request.get_json(silent=True) or {}
+    addresses = body.get('addresses')
+    if not isinstance(addresses, list):
+        return jsonify({
+            'error': 'invalid_input',
+            'message': "Body must be an object with an 'addresses' array.",
+        }), 400
+    if len(addresses) > 100:
+        return jsonify({
+            'error': 'batch_too_large',
+            'message': 'Maximum 100 addresses per batch.',
+        }), 400
+    results = []
+    for item in addresses:
+        item = item if isinstance(item, dict) else {}
+        raw_id = item.get('id')
+        row = {'id': str(raw_id)[:128] if raw_id is not None else None}
+        q = (item.get('q') or '').strip()
+        structured = {f: (item.get(f) or '').strip() for f in _STRUCTURED_ADDRESS_FIELDS}
+        query = q or _assemble_address_query(structured)
+        if (q and any(structured.values())) or sum(ch.isalpha() for ch in query) < 3:
+            row['status'] = 'ambiguous'
+            results.append(row)
+            continue
+        try:
+            outcome = _resolve_address_coverage(query)
+        except Exception:
+            app.logger.exception("coverage_by_address batch item failed")
+            row['status'] = 'error'
+            results.append(row)
+            continue
+        status = outcome['status']
+        if status == 'no_match':
+            row['status'] = 'no_match'
+        elif status == 'outside_pl':
+            row['status'] = 'outside_pl'
+            row['query'] = query
+            row['match'] = outcome['match']
+        else:
+            row['status'] = 'ok'
+            row['query'] = query
+            row['match'] = outcome['match']
+            row['coverage'] = outcome['coverage']
+            row['labels'] = outcome['labels']
+            row['is_estimate'] = outcome['is_estimate']
+            row['disclaimer'] = _COVERAGE_DISCLAIMER
+        results.append(row)
+    return jsonify({
+        'count': len(results),
+        'results': results,
+        'data_date': get_data_date(stations_db_path),
+    })
+
+
 @app.route('/robots.txt')
 def robots_txt():
     """Search-engine crawler directives. Allows public pages, blocks API
@@ -2259,6 +2443,124 @@ def api_v1_coverage_gaps():
     return coverage_gaps()
 
 
+def api_v1_coverage_by_address():
+    """
+    Estimate mobile coverage at a Polish address.
+    ---
+    tags: [Address]
+    description: |
+      Geocode a Polish address — freeform `q` OR the structured fields,
+      never both — and return an estimated mobile-coverage verdict derived
+      from nearby UKE base-station locations: overall signal tier/score,
+      real (C-band, >= 3400 MHz) vs coverage-only 5G, a per-operator
+      breakdown, and a Polish human-readable label layer for a real-estate
+      report. Coverage is modelled from transmitter proximity — it is not
+      a measured signal.
+    parameters:
+      - in: query
+        name: q
+        schema: {type: string, minLength: 3, maxLength: 120}
+        description: Freeform address. Mutually exclusive with the structured fields.
+        example: "Złota 44, Warszawa"
+      - in: query
+        name: street
+        schema: {type: string}
+        example: "Złota"
+      - in: query
+        name: house_number
+        schema: {type: string}
+        example: "44"
+      - in: query
+        name: city
+        schema: {type: string}
+        example: "Warszawa"
+      - in: query
+        name: voivodeship
+        schema: {type: string}
+        example: "mazowieckie"
+      - in: query
+        name: postal_code
+        schema: {type: string}
+        example: "00-120"
+    responses:
+      200:
+        description: |
+          Coverage estimate. When the matched point falls outside PL
+          bounds, returns `{outside_pl: true, coverage: null}` (200, not
+          400) so callers handle it uniformly.
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CoverageByAddressResponse'}
+      400:
+        description: Both `q` and structured fields supplied (`conflicting_input`), or fewer than 3 letters / more than 120 characters (`invalid_input`).
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Error'}
+      403:
+        description: No API key and no same-origin Referer.
+      404:
+        description: No address matched the query (`no_match`).
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Error'}
+      429:
+        description: Tier rate limit exceeded (30 per minute).
+    """
+    return coverage_by_address()
+
+
+def api_v1_coverage_by_address_batch():
+    """
+    Batch address → mobile coverage (max 100 per call).
+    ---
+    tags: [Address]
+    description: |
+      Resolve up to 100 Polish addresses in one call. Each row is processed
+      independently — one bad row never fails the batch. Per-row `status` is
+      `ok`, `no_match`, `ambiguous` (conflicting or too-short input),
+      `outside_pl`, or `error` (server-side failure resolving that row);
+      successful rows carry the same coverage/labels payload as the single
+      endpoint. The address stays in the POST body and is never logged.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [addresses]
+            properties:
+              addresses:
+                type: array
+                maxItems: 100
+                items:
+                  type: object
+                  properties:
+                    id: {type: string, example: "row-1"}
+                    q: {type: string, example: "Złota 44, Warszawa"}
+                    street: {type: string, example: "Złota"}
+                    house_number: {type: string, example: "44"}
+                    city: {type: string, example: "Warszawa"}
+                    voivodeship: {type: string, example: "mazowieckie"}
+                    postal_code: {type: string, example: "00-120"}
+    responses:
+      200:
+        description: Per-row results (one entry per submitted address).
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CoverageByAddressBatchResponse'}
+      400:
+        description: Malformed body (`invalid_input`) or more than 100 rows (`batch_too_large`).
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Error'}
+      403:
+        description: No API key and no same-origin Referer.
+      429:
+        description: Tier rate limit exceeded (10 per minute).
+    """
+    return coverage_by_address_batch()
+
+
 app.add_url_rule('/api/v1/stations', endpoint='api_v1_stations',
                  view_func=api_v1_get_stations, methods=['GET'])
 app.add_url_rule('/api/v1/find_station', endpoint='api_v1_find_station',
@@ -2269,6 +2571,10 @@ app.add_url_rule('/api/v1/submit_location', endpoint='api_v1_submit_location',
                  view_func=api_v1_submit_location, methods=['POST'])
 app.add_url_rule('/api/v1/coverage_gaps', endpoint='api_v1_coverage_gaps',
                  view_func=api_v1_coverage_gaps, methods=['GET'])
+app.add_url_rule('/api/v1/coverage_by_address', endpoint='api_v1_coverage_by_address',
+                 view_func=api_v1_coverage_by_address, methods=['GET'])
+app.add_url_rule('/api/v1/coverage_by_address/batch', endpoint='api_v1_coverage_by_address_batch',
+                 view_func=api_v1_coverage_by_address_batch, methods=['POST'])
 app.add_url_rule('/api/v1/healthz', endpoint='api_v1_healthz',
                  view_func=api_v1_healthz, methods=['GET'])
 

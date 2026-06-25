@@ -23,6 +23,9 @@ import os
 import sys
 
 
+access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(m)s %(U)s %(H)s" %(s)s %(b)s "%(f)s" "%(a)s"'
+
+
 # 2026-04-29: TOP-LEVEL init. With gunicorn --preload, the app is
 # imported in master BEFORE any lifecycle hook (on_starting/when_ready)
 # fires — so a hook-based mkdir runs too late and the first Counter
