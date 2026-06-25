@@ -1657,6 +1657,13 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
             currentFilters.lat,
             currentFilters.lng
         );
+        compassBtn.addEventListener('click', function() {
+            drawConnectionLine(station.latitude, station.longitude);
+            mymap.fitBounds([
+                [currentFilters.lat, currentFilters.lng],
+                [station.latitude, station.longitude]
+            ], { padding: [60, 60], maxZoom: 15 });
+        });
         linksDiv.appendChild(compassBtn);
     }
 
