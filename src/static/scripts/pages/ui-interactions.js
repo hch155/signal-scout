@@ -158,6 +158,7 @@ let isFirstClick = true;
 let currentBand = 'low';
 let connectionLine = null;
 let _locationReqSeq = 0;
+let _keepSearchView = false;
 
 const frequencyRanges = {
     high: [200, 500, 1000, 1500], // high band frequency distance radius
@@ -323,6 +324,7 @@ addressSearch.addTo(mymap);
                             currentFilters.lat = r.lat;
                             currentFilters.lng = r.lng;
                             isFirstClick = false;
+                            _keepSearchView = true;
                             sendLocation(r.lat, r.lng);
                         });
                         box.appendChild(item);
@@ -1489,6 +1491,7 @@ function displayStations(data) {
     });
 
     function updateBTSView(bounds) {
+        if (_keepSearchView) { _keepSearchView = false; return; }
         if (bounds.length > 0) {
             let boundsLatLng = L.latLngBounds(bounds);
             mymap.fitBounds(boundsLatLng, { padding: [50, 50] });
