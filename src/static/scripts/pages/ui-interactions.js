@@ -300,7 +300,25 @@ addressSearch.addTo(mymap);
     const box = document.getElementById('address-suggestions');
     if (!input || !box) return;
     let timer = null;
-    const hide = () => { box.style.display = 'none'; box.innerHTML = ''; };
+    let current = [];
+    const hide = () => { box.style.display = 'none'; box.innerHTML = ''; current = []; };
+
+    function select(r) {
+        if (!r) return;
+        input.value = r.display;
+        hide();
+        if (marker) { try { mymap.removeLayer(marker); } catch (e) {} }
+        marker = L.marker([r.lat, r.lng], { icon: greenIcon }).addTo(mymap)
+            .bindTooltip(r.display, { permanent: true, direction: 'top', offset: [0, -36], className: 'ss-found-label' })
+            .openTooltip();
+        mymap.setView([r.lat, r.lng], 15);
+        currentFilters.lat = r.lat;
+        currentFilters.lng = r.lng;
+        isFirstClick = false;
+        _keepSearchView = true;
+        sendLocation(r.lat, r.lng);
+    }
+
     input.addEventListener('input', function() {
         const q = this.value.trim();
         clearTimeout(timer);
@@ -308,26 +326,19 @@ addressSearch.addTo(mymap);
         timer = setTimeout(() => {
             globalFetch(`/geocode?q=${encodeURIComponent(q)}`)
                 .then(data => {
-                    const results = (data && data.results) || [];
-                    if (!results.length) { hide(); return; }
+                    current = (data && data.results) || [];
+                    if (!current.length) { hide(); return; }
                     box.innerHTML = '';
-                    results.forEach(r => {
+                    current.forEach(r => {
                         const item = document.createElement('div');
                         item.className = 'ss-suggestion';
                         item.textContent = r.display;
-                        item.addEventListener('click', () => {
-                            input.value = r.display;
-                            hide();
-                            if (marker) { try { mymap.removeLayer(marker); } catch (e) {} }
-                            marker = L.marker([r.lat, r.lng], { icon: greenIcon }).addTo(mymap)
-                                .bindTooltip(r.display, { permanent: true, direction: 'top', offset: [0, -36], className: 'ss-found-label' })
-                                .openTooltip();
-                            mymap.setView([r.lat, r.lng], 15);
-                            currentFilters.lat = r.lat;
-                            currentFilters.lng = r.lng;
-                            isFirstClick = false;
-                            _keepSearchView = true;
-                            sendLocation(r.lat, r.lng);
+                        // mousedown, not click: fires before the input blurs and
+                        // stops the mouseup from reaching the map as a click.
+                        item.addEventListener('mousedown', (e) => {
+                            e.preventDefault();
+                            L.DomEvent.stop(e);
+                            select(r);
                         });
                         box.appendChild(item);
                     });
@@ -336,7 +347,21 @@ addressSearch.addTo(mymap);
                 .catch(() => hide());
         }, 350);
     });
-    input.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { hide(); return; }
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(timer);
+            if (current.length) { select(current[0]); return; }
+            const q = input.value.trim();
+            if (q.length >= 3) {
+                globalFetch(`/geocode?q=${encodeURIComponent(q)}`)
+                    .then(data => { const res = (data && data.results) || []; if (res.length) select(res[0]); })
+                    .catch(() => {});
+            }
+        }
+    });
     document.addEventListener('click', (e) => {
         if (!input.parentElement.contains(e.target)) hide();
     });
