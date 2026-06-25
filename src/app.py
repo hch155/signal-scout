@@ -182,6 +182,10 @@ app.config["SESSION_COOKIE_SECURE"] = settings.cookie_secure
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 @app.before_request
 def _make_session_permanent():
+    # Skip /static/: touching the session makes Flask add Set-Cookie + Vary:Cookie,
+    # which makes the (versioned, immutable) assets uncacheable at the edge.
+    if request.path.startswith('/static/'):
+        return
     session.permanent = True
 
 limiter = Limiter(
@@ -440,7 +444,7 @@ SS_SID_MAX_AGE = 30 * 24 * 3600  # 30 days
 
 @app.before_request
 def _ss_sid_and_session_probe():
-    if request.path in _INFRA_PATHS:
+    if request.path in _INFRA_PATHS or request.path.startswith('/static/'):
         return
     g._ss_sid_present = bool(request.cookies.get(SS_SID_COOKIE))
     g._ss_sid_to_set = None
@@ -462,7 +466,7 @@ def _ss_sid_and_session_probe():
 
 @app.after_request
 def _ss_sid_set_and_bot_score(response):
-    if request.path in _INFRA_PATHS:
+    if request.path in _INFRA_PATHS or request.path.startswith('/static/'):
         return response
 
     # Set the cookie if we minted one during before_request.
@@ -613,7 +617,7 @@ def set_security_headers(response):
     response.headers['Content-Security-Policy'] = _csp_for_path(request.path)
     if not request.path.startswith('/embed/') or not settings.embed_allowed_origins:
         response.headers['X-Frame-Options'] = 'DENY'
-    if 'user_id' in session or request.path.startswith('/account'):
+    if not request.path.startswith('/static/') and ('user_id' in session or request.path.startswith('/account')):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
