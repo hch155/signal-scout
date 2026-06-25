@@ -2,6 +2,7 @@
 updateDynamicContent()
 
 let mymap = L.map('mapid').setView([52.231, 21.004], 7); //  default location and zoom level
+mymap.zoomControl.setPosition('bottomleft');
 
 // PR #48.9: switched off OSM standard tiles (tile.openstreetmap.org) —
 // missing white tiles started appearing for users in PL/border regions.
