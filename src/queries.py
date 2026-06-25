@@ -17,7 +17,8 @@ def normalize_pl(text):
 
 
 def _fts_addresses(db_path, tokens, limit):
-    match = ' '.join(t + '*' for t in tokens)
+    # House numbers match exactly; street/city words match as a prefix.
+    match = ' '.join((t if t.isdigit() else t + '*') for t in tokens)
     try:
         con = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True)
     except sqlite3.OperationalError:
