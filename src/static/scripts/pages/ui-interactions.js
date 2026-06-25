@@ -1063,7 +1063,6 @@ function toggleBandHighlight(btnEl, gap, userLat, userLng) {
     if (!isFar) {
         const bounds = L.latLngBounds([userLat, userLng], [tLat, tLng]).pad(0.25);
         mymap.fitBounds(bounds, { maxZoom: 14, animate: true });
-        marker.openPopup();
     } else {
         // Far case: don't auto-pan — that'd tear the map away from the
         // user's clicked spot. Show a small banner telling the user the
