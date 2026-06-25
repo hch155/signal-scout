@@ -44,9 +44,13 @@ content = filed["StackFileContent"]
 content = re.sub(r"(signal-scout/app:)[^\"'\s]+", r"\g<1>" + NEW_TAG, content)
 content = re.sub(r'(APP_VERSION:\s*")[^"]*(")', r"\g<1>" + NEW_TAG + r"\g<2>", content)
 
+# Preserve the stack's env (OAuth secrets, ADDRESSES_DB_PATH, …); sending [] wipes it.
+_, stack = call("GET", f"/api/stacks/{STACK_ID}")
+current_env = stack.get("Env", [])
+
 status, res = call("PUT", f"/api/stacks/{STACK_ID}?endpointId={ENDPOINT_ID}", body={
     "stackFileContent": content,
-    "env": [],
+    "env": current_env,
     "pullImage": True,
     "prune": False,
 })
