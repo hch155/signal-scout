@@ -113,7 +113,12 @@ logging.basicConfig(level=logging.INFO)
 basedir = os.path.abspath(os.path.dirname(__file__))
 stations_db_path = settings.stations_db_path or os.path.join(basedir, 'instance', 'stations.db')
 users_db_path = settings.users_db_path or os.path.join(basedir, 'instance', 'users.db')
-addresses_db_path = settings.addresses_db_path or os.path.join(basedir, 'instance', 'addresses.db')
+# Prefer the bind-mounted DB (e.g. the building-level v2) when it's present;
+# otherwise fall back to the street-level v1 baked into the image.
+_baked_addresses_db = os.path.join(basedir, 'instance', 'addresses.db')
+addresses_db_path = (settings.addresses_db_path
+                     if settings.addresses_db_path and os.path.exists(settings.addresses_db_path)
+                     else _baked_addresses_db)
 
 if settings.users_db_path:
     os.makedirs(os.path.dirname(settings.users_db_path), exist_ok=True)
