@@ -251,8 +251,8 @@ if (!document.getElementById('ss-search-styles')) {
     #addressSearchInput::placeholder{color:#94a3b8;}
     .ss-locate-btn{display:flex;align-items:center;justify-content:center;width:38px;flex:none;border:none;border-left:1px solid #e2e8f0;background:transparent;color:#475569;cursor:pointer;transition:background .15s,color .15s;}
     .ss-locate-btn:hover{background:#f0f3f7;color:#2563eb;}
-    .ss-locate-btn svg{width:17px;height:17px;}
-    .dark .ss-locate-btn{color:#cbd5e1;border-left-color:#374151;}
+    .ss-locate-btn svg{width:19px;height:19px;}
+    .dark .ss-locate-btn{color:#e2e8f0;border-left-color:#374151;}
     .dark .ss-locate-btn:hover{background:#374151;color:#93c5fd;}
     @media (max-width:640px){#addressSearchInput{width:9rem;}}
     .ss-suggestions{margin-top:5px;background:#fff;border-radius:9px;box-shadow:0 6px 20px rgba(0,0,0,.2);overflow:hidden;max-height:260px;overflow-y:auto;}
@@ -276,7 +276,7 @@ addressSearch.onAdd = function(map) {
             <svg class="ss-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             <input type="text" id="addressSearchInput" autocomplete="off" placeholder="${t('Search address or place')}">
             <button id="useMyLocationBtn" type="button" class="ss-locate-btn" title="${t('Use My Location')}" aria-label="${t('Use My Location')}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="2" x2="12" y2="5"></line><line x1="12" y1="19" x2="12" y2="22"></line><line x1="2" y1="12" x2="5" y2="12"></line><line x1="19" y1="12" x2="22" y2="12"></line></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"></path></svg>
             </button>
         </div>
         <div id="address-suggestions" class="ss-suggestions" style="display:none;"></div>
