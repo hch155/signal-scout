@@ -28,6 +28,13 @@ def test_geocode_short_query_returns_empty(client):
     assert r.get_json()["results"] == []
 
 
+def test_geocode_ignores_house_number(client):
+    # Street-level data has no numbers; a numbered address still finds the street.
+    r = client.get("/geocode?q=Łąkowa 5 Białystok")
+    displays = [x["display"] for x in r.get_json()["results"]]
+    assert "Łąkowa, Białystok" in displays
+
+
 def test_geocode_no_match_returns_empty(client):
     r = client.get("/geocode?q=Nieistniejąca Ulica Xyz")
     assert r.status_code == 200

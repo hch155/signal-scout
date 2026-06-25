@@ -16,10 +16,7 @@ def normalize_pl(text):
     return (text or '').lower().translate(_PL_FOLD)
 
 
-def search_addresses(query, db_path, limit=8):
-    tokens = re.findall(r'[a-z0-9]+', normalize_pl(query))
-    if not tokens or sum(len(t) for t in tokens) < 3:
-        return []
+def _fts_addresses(db_path, tokens, limit):
     match = ' '.join(t + '*' for t in tokens)
     try:
         con = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True)
@@ -37,6 +34,20 @@ def search_addresses(query, db_path, limit=8):
     finally:
         con.close()
     return [{'display': d, 'lat': lat, 'lng': lng} for d, lat, lng in rows]
+
+
+def search_addresses(query, db_path, limit=8):
+    tokens = re.findall(r'[a-z0-9]+', normalize_pl(query))
+    if not tokens or sum(len(t) for t in tokens) < 3:
+        return []
+    rows = _fts_addresses(db_path, tokens, limit)
+    if not rows:
+        # Street-level data has no house numbers — retry without the number so
+        # "Łąkowa 5 Białystok" still finds the street. (v2 matches it directly.)
+        alpha = [t for t in tokens if not t.isdigit()]
+        if alpha and len(alpha) != len(tokens) and sum(len(t) for t in alpha) >= 3:
+            rows = _fts_addresses(db_path, alpha, limit)
+    return rows
 
 
 def get_data_date(stations_db_path):
