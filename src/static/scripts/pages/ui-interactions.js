@@ -319,7 +319,8 @@ addressSearch.addTo(mymap);
                             hide();
                             if (marker) { try { mymap.removeLayer(marker); } catch (e) {} }
                             marker = L.marker([r.lat, r.lng], { icon: greenIcon }).addTo(mymap)
-                                .bindPopup(`<div class="dark:text-white">${escapeHtml(r.display)}</div>`).openPopup();
+                                .bindTooltip(r.display, { permanent: true, direction: 'top', offset: [0, -36], className: 'ss-found-label' })
+                                .openTooltip();
                             mymap.setView([r.lat, r.lng], 15);
                             currentFilters.lat = r.lat;
                             currentFilters.lng = r.lng;

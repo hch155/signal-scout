@@ -705,6 +705,22 @@ th[onclick]:hover {
   @apply text-[11px] md:text-xs text-gray-400 dark:text-gray-500;
 }
 
+/* Address-search result label pinned to the green marker */
+.leaflet-tooltip.ss-found-label {
+    background: #16a34a;
+    color: #fff;
+    font-weight: 600;
+    font-size: 12px;
+    padding: 4px 8px;
+    border: none;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.leaflet-tooltip.ss-found-label.leaflet-tooltip-top::before {
+    border-top-color: #16a34a;
+}
+
 /* Rotating tagline above the map (4 lines, fade + dot indicators) */
 .tagline-rotator {
   @apply flex flex-col items-center;
