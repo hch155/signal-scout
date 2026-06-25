@@ -105,6 +105,17 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.config['SECRET_KEY'] = settings.secret_key
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = settings.static_max_age
 app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
+from flask.sessions import SecureCookieSessionInterface  # noqa: E402
+
+
+class _StaticSkipSessionInterface(SecureCookieSessionInterface):
+    def save_session(self, app, session, response):
+        if request.path.startswith('/static/'):
+            return
+        return super().save_session(app, session, response)
+
+
+app.session_interface = _StaticSkipSessionInterface()
 bcrypt = Bcrypt(app)
 logging.basicConfig(level=logging.INFO)
 
