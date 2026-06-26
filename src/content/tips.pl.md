@@ -62,7 +62,7 @@ Konfiguracja sieci każdego operatora składa się z podobnych nośnych składow
 
 | Pasmo | Pasmo 3GPP | Szerokość |
 |-------|------------|-----------|
-| LTE800 | B20 | 5 MHz |
+| LTE800 | B20 | 5–10 MHz |
 | LTE900 | B8 | 5 MHz |
 | LTE1800 | B3 | 15 MHz |
 | LTE2100 | B1 | 20 MHz |
@@ -70,10 +70,12 @@ Konfiguracja sieci każdego operatora składa się z podobnych nośnych składow
 | NR2100 (DSS) | n1 | 20 MHz |
 | NR3600 (C-band) | n78 | 100 MHz |
 
+> Szerokość to typowa nośna per operator i bywa różna; np. LTE800 to 10 MHz w Orange/T-Mobile, 5 MHz w Play/Plus.
+
 **Przykładowe osiągalne przepływności:**
 
 - Przy 10 MHz pasma i modulacji 256QAM: ~100–150 Mb/s w optymalnych warunkach
-- **Samo LTE** (4CA: LTE800 + LTE1800 + LTE2100 + LTE2600 = 60 MHz): DL ~500–600 Mb/s, UL ~80 Mb/s
+- **Samo LTE** (4CA: LTE800 + LTE1800 + LTE2100 + LTE2600 = 60–65 MHz): DL ~500–600 Mb/s, UL ~80 Mb/s
 - **5G NSA** (LTE2600 + NR3600 = 120 MHz): DL ~1000–1200 Mb/s (szczytowo 1500–1600 Mb/s), UL ~150 Mb/s
 
 Większość urządzeń agreguje tyle nośnych, ile się da, aby zapewnić najlepsze doświadczenie.

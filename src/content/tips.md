@@ -62,7 +62,7 @@ Each operator's network configuration consists of similar component carriers:
 
 | Band | 3GPP Band | Bandwidth |
 |------|-----------|-----------|
-| LTE800 | B20 | 5 MHz |
+| LTE800 | B20 | 5–10 MHz |
 | LTE900 | B8 | 5 MHz |
 | LTE1800 | B3 | 15 MHz |
 | LTE2100 | B1 | 20 MHz |
@@ -70,10 +70,12 @@ Each operator's network configuration consists of similar component carriers:
 | NR2100 (DSS) | n1 | 20 MHz |
 | NR3600 (C-band) | n78 | 100 MHz |
 
+> Width is the typical per-operator carrier and varies; e.g. LTE800 is 10 MHz on Orange/T-Mobile, 5 MHz on Play/Plus.
+
 **Achievable throughput examples:**
 
 - With 10 MHz bandwidth and 256QAM modulation: ~100-150 Mbps in optimal conditions
-- **LTE-only** (4CA: LTE800 + LTE1800 + LTE2100 + LTE2600 = 60 MHz): DL ~500-600 Mbps, UL ~80 Mbps
+- **LTE-only** (4CA: LTE800 + LTE1800 + LTE2100 + LTE2600 = 60–65 MHz): DL ~500-600 Mbps, UL ~80 Mbps
 - **5G NSA** (LTE2600 + NR3600 = 120 MHz): DL ~1000-1200 Mbps (peak 1500-1600 Mbps), UL ~150 Mbps
 
 Most user equipment will aggregate as many carriers as possible for the best experience.
