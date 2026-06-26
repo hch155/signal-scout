@@ -61,8 +61,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: install python (node base needs python via apt)
         run: |
-          apt-get update -qq
-          apt-get install -y --no-install-recommends python3 python3-pip git
+          for i in 1 2 3; do
+            apt-get -o Acquire::Retries=5 update -qq \
+              && apt-get -o Acquire::Retries=5 install -y --no-install-recommends python3 python3-pip git \
+              && break
+            echo "apt attempt $i failed (DNS/WiFi?), retry in $((i*10))s"; sleep $((i*10)); [ "$i" = 3 ] && exit 1
+          done
       - name: install lint tools
         run: python3 -m pip install --break-system-packages --no-cache-dir ruff bandit pip-audit
       - name: ruff
@@ -83,8 +87,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: install python (node base needs python via apt)
         run: |
-          apt-get update -qq
-          apt-get install -y --no-install-recommends python3 python3-pip git curl build-essential libsqlite3-dev
+          for i in 1 2 3 4; do
+            apt-get -o Acquire::Retries=5 update -qq \
+              && apt-get -o Acquire::Retries=5 install -y --no-install-recommends python3 python3-pip git curl build-essential libsqlite3-dev \
+              && break
+            echo "apt attempt $i failed (DNS/WiFi?), retry in $((i*15))s"; sleep $((i*15)); [ "$i" = 4 ] && exit 1
+          done
       - name: install deps
         run: |
           for i in 1 2 3 4; do
