@@ -26,6 +26,10 @@ services:
       # Override per-environment values
       FLASK_ENV: 'staging'
       CANONICAL_ORIGIN: 'https://staging.signal-scout.com'
+      RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-redis://redis:6379/0}
+    depends_on:
+      redis:
+        condition: service_healthy
     volumes:
       - ./instance:/app/instance
       - ./flask_session:/app/flask_session
@@ -45,5 +49,26 @@ services:
       # Staging auto-pulls latest:staging tag for continuous deploys
       com.centurylinklabs.watchtower.enable: 'true'
 
+  redis:
+    image: redis:7-alpine
+    container_name: signal-scout-staging-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data-staging:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '2'
+    labels:
+      com.centurylinklabs.watchtower.enable: 'false'
+
 volumes:
   prometheus_multiproc_staging:
+  redis-data-staging:

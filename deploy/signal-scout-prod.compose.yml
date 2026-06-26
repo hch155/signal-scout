@@ -19,6 +19,7 @@
 #   GITHUB_OAUTH_CLIENT_SECRET=...
 #   METRICS_BEARER_TOKEN=...
 #   DEFAULT_RATE_LIMIT=16 per minute
+#   RATELIMIT_STORAGE_URI=redis://redis:6379/0
 
 services:
   app:
@@ -29,6 +30,11 @@ services:
       - '8080:8080'
     env_file:
       - .env
+    environment:
+      RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-redis://redis:6379/0}
+    depends_on:
+      redis:
+        condition: service_healthy
     volumes:
       # SQLite + monthly UKE refresh
       - ./instance:/app/instance
@@ -49,5 +55,26 @@ services:
       # Watchtower auto-update opt-in (rozważ na staging only)
       com.centurylinklabs.watchtower.enable: 'false'
 
+  redis:
+    image: redis:7-alpine
+    container_name: signal-scout-prod-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '2'
+    labels:
+      com.centurylinklabs.watchtower.enable: 'false'
+
 volumes:
   prometheus_multiproc:
+  redis-data:

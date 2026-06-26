@@ -7,6 +7,7 @@ from database import db
 from models import BaseStation, User
 from queries import find_nearest_stations, get_stats, find_coverage_gaps, get_data_date, search_addresses, normalize_pl, _fts_addresses
 from coverage_verdict import signal_verdict
+from coverage_card import render_coverage_card, render_message
 from config import settings
 from observability import (
     init_observability,
@@ -108,7 +109,8 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = settings.static_max_age
 app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
 from flask.sessions import SecureCookieSessionInterface  # noqa: E402
 
-_EDGE_CACHEABLE_API_PATHS = ('/api/v1/coverage_by_address', '/coverage_by_address')
+_EDGE_CACHEABLE_API_PATHS = ('/api/v1/coverage_by_address', '/coverage_by_address',
+                             '/api/v1/coverage_card', '/coverage_card')
 
 
 class _StaticSkipSessionInterface(SecureCookieSessionInterface):
@@ -708,6 +710,8 @@ def get_active_lang() -> str:
 
 @app.before_request
 def _set_language():
+    if request.path.startswith('/static/') or request.path in _EDGE_CACHEABLE_API_PATHS:
+        return
     lang = request.args.get('lang')
     if lang in SUPPORTED_LANGS:
         session['lang'] = lang
@@ -2035,6 +2039,48 @@ def coverage_by_address_batch():
     })
 
 
+def _coverage_card_message(title, message):
+    resp = make_response(render_message(title, message))
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    return resp
+
+
+@app.route('/coverage_card', methods=['GET'])
+@limiter.limit("30 per minute")
+@require_api_access(endpoint_label='coverage_card')
+def coverage_card():
+    q = request.args.get('q', type=str, default='').strip()
+    structured = {f: (request.args.get(f, type=str, default='') or '').strip()
+                  for f in _STRUCTURED_ADDRESS_FIELDS}
+    if q and any(structured.values()):
+        return _coverage_card_message('Nieprawidłowy adres',
+                                      'Podaj q albo pola adresu, nie oba.'), 400
+    query = q or _assemble_address_query(structured)
+    if len(query) > _COVERAGE_QUERY_MAX_LEN or sum(ch.isalpha() for ch in query) < 3:
+        return _coverage_card_message('Nieprawidłowy adres',
+                                      'Podaj adres (min. 3 litery).'), 400
+    try:
+        outcome = _resolve_address_coverage(query)
+    except Exception:
+        app.logger.exception("coverage_card failed")
+        return _coverage_card_message('Błąd', 'Spróbuj ponownie później.'), 500
+    payload = {
+        'status': outcome['status'],
+        'query': query,
+        'match': outcome.get('match'),
+        'coverage': outcome.get('coverage'),
+        'labels': outcome.get('labels'),
+        'is_estimate': outcome.get('is_estimate'),
+        'disclaimer': _COVERAGE_DISCLAIMER,
+        'data_date': get_data_date(stations_db_path),
+    }
+    resp = make_response(render_coverage_card(payload))
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    if outcome['status'] == 'no_match':
+        return resp, 404
+    return _coverage_cache_headers(resp)
+
+
 @app.route('/robots.txt')
 def robots_txt():
     """Search-engine crawler directives. Allows public pages, blocks API
@@ -2561,6 +2607,74 @@ def api_v1_coverage_by_address_batch():
     return coverage_by_address_batch()
 
 
+def api_v1_coverage_card():
+    """
+    Render a Polish address's coverage as a self-contained HTML card.
+    ---
+    tags: [Address]
+    description: |
+      Same resolution as `/api/v1/coverage_by_address`, but returns a
+      standalone, inline-CSS HTML coverage card (`text/html`) — a plain
+      explanation of the estimated coverage suitable for a real-estate
+      listing report to proxy or screenshot server-side. Every dynamic
+      value is HTML-escaped. The card carries no cookies and is edge
+      cacheable (`Cache-Control: public`). `no_match` and `outside_pl`
+      render a small styled message card instead of the full card.
+      Coverage is modelled from transmitter proximity — not a measurement.
+    produces:
+      - text/html
+    parameters:
+      - in: query
+        name: q
+        schema: {type: string, minLength: 3, maxLength: 120}
+        description: Freeform address. Mutually exclusive with the structured fields.
+        example: "Złota 44, Warszawa"
+      - in: query
+        name: street
+        schema: {type: string}
+        example: "Złota"
+      - in: query
+        name: house_number
+        schema: {type: string}
+        example: "44"
+      - in: query
+        name: city
+        schema: {type: string}
+        example: "Warszawa"
+      - in: query
+        name: voivodeship
+        schema: {type: string}
+        example: "mazowieckie"
+      - in: query
+        name: postal_code
+        schema: {type: string}
+        example: "00-120"
+    responses:
+      200:
+        description: |
+          HTML coverage card. Points outside PL bounds render a
+          styled "outside Poland" message card (still 200, cacheable).
+        content:
+          text/html:
+            schema: {type: string}
+      400:
+        description: Both `q` and structured fields supplied, or fewer than 3 letters / more than 120 characters. Returns a styled HTML message card.
+        content:
+          text/html:
+            schema: {type: string}
+      403:
+        description: No API key and no same-origin Referer.
+      404:
+        description: No address matched the query — styled HTML message card.
+        content:
+          text/html:
+            schema: {type: string}
+      429:
+        description: Tier rate limit exceeded (30 per minute).
+    """
+    return coverage_card()
+
+
 app.add_url_rule('/api/v1/stations', endpoint='api_v1_stations',
                  view_func=api_v1_get_stations, methods=['GET'])
 app.add_url_rule('/api/v1/find_station', endpoint='api_v1_find_station',
@@ -2575,6 +2689,8 @@ app.add_url_rule('/api/v1/coverage_by_address', endpoint='api_v1_coverage_by_add
                  view_func=api_v1_coverage_by_address, methods=['GET'])
 app.add_url_rule('/api/v1/coverage_by_address/batch', endpoint='api_v1_coverage_by_address_batch',
                  view_func=api_v1_coverage_by_address_batch, methods=['POST'])
+app.add_url_rule('/api/v1/coverage_card', endpoint='api_v1_coverage_card',
+                 view_func=api_v1_coverage_card, methods=['GET'])
 app.add_url_rule('/api/v1/healthz', endpoint='api_v1_healthz',
                  view_func=api_v1_healthz, methods=['GET'])
 
