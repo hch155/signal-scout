@@ -1434,6 +1434,17 @@ function formatVerdictDistance(km) {
     return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
+function stationsNoun(n) {
+    const lang = (window.SS_I18N && window.SS_I18N.lang) || 'en';
+    if (lang === 'pl') {
+        const u = n % 10, d = n % 100;
+        if (n === 1) return 'Stacja';
+        if (u >= 2 && u <= 4 && (d < 12 || d > 14)) return 'Stacje';
+        return 'Stacji';
+    }
+    return n === 1 ? 'Station' : 'Stations';
+}
+
 function createVerdictCard(stations) {
     currentStations = stations;
     const total = stations.length;
@@ -1470,7 +1481,7 @@ function createVerdictCard(stations) {
                 </div>
             </div>
             <div class="result-stats">
-                <div class="rstat"><span class="rstat-value">${Number(total)}</span><span class="rstat-label">${t('Stations')}</span></div>
+                <div class="rstat"><span class="rstat-value">${Number(total)}</span><span class="rstat-label">${stationsNoun(total)}</span></div>
                 <div class="rstat"><span class="rstat-value">${escapeHtml(avgDistance)}</span><span class="rstat-label">${t('Avg Dist')}</span></div>
                 <div class="rstat"><span class="rstat-value">${nearest.distance.toFixed(2)}</span><span class="rstat-label">${t('Nearest')}</span></div>
             </div>
