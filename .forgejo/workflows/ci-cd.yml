@@ -46,6 +46,10 @@ env:
   HARBOR_REGISTRY: harbor.example.local
   IMAGE_BASE:      harbor.example.local/signal-scout/app
   LXC_IP:          LXC_LAN_IP
+  # pip's default 15s socket timeout is too short for the runner's WiFi backhaul;
+  # give downloads room + let pip retry internally.
+  PIP_DEFAULT_TIMEOUT: "120"
+  PIP_RETRIES:         "5"
 
 jobs:
   lint:
