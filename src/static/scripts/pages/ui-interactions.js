@@ -74,12 +74,18 @@ let activeBaseLayer = lightTileLayer;
 let baseLayerUserPicked = false;
 const layerSwitcher = L.control({position: 'topright'});
 layerSwitcher.onAdd = function() {
-    const div = L.DomUtil.create('div', 'ss-segmented');
+    const wrap = L.DomUtil.create('div', 'ss-layer-control');
     const order = ['Street', 'Dark', 'Satellite'];
-    div.innerHTML = order.map(name =>
-        `<button type="button" class="ss-seg-btn" data-layer="${name}">${t(name)}</button>`
-    ).join('');
-    L.DomEvent.disableClickPropagation(div);
+    wrap.innerHTML = `
+        <button type="button" class="ss-layer-toggle" aria-haspopup="true" aria-expanded="false" aria-label="${t('Map style')}">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+        </button>
+        <div class="ss-segmented">${order.map(name =>
+            `<button type="button" class="ss-seg-btn" data-layer="${name}">${t(name)}</button>`
+        ).join('')}</div>`;
+    const seg = wrap.querySelector('.ss-segmented');
+    const toggle = wrap.querySelector('.ss-layer-toggle');
+    L.DomEvent.disableClickPropagation(wrap);
 
     function setLayer(name, fromUser) {
         const layer = baseMaps[name];
@@ -90,15 +96,34 @@ layerSwitcher.onAdd = function() {
             mymap.addLayer(layer);
             activeBaseLayer = layer;
         }
-        div.querySelectorAll('.ss-seg-btn').forEach(b =>
+        seg.querySelectorAll('.ss-seg-btn').forEach(b =>
             b.classList.toggle('active', b.getAttribute('data-layer') === name));
     }
 
-    div.querySelectorAll('.ss-seg-btn').forEach(btn => {
+    function closeSheet() {
+        wrap.classList.remove('open');
+        toggle.setAttribute('aria-expanded', 'false');
+    }
+
+    seg.querySelectorAll('.ss-seg-btn').forEach(btn => {
         L.DomEvent.on(btn, 'click', function(e) {
             L.DomEvent.stop(e);
             setLayer(btn.getAttribute('data-layer'), true);
+            closeSheet();
         });
+    });
+
+    L.DomEvent.on(toggle, 'click', function(e) {
+        L.DomEvent.stop(e);
+        const isOpen = wrap.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!wrap.contains(e.target)) closeSheet();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeSheet();
     });
 
     // Default the map style to the page theme; follow theme toggles until the
@@ -107,7 +132,7 @@ layerSwitcher.onAdd = function() {
     window.addEventListener('themeChanged', function(e) {
         if (!baseLayerUserPicked) setLayer(e.detail.isDarkMode ? 'Dark' : 'Street', false);
     });
-    return div;
+    return wrap;
 };
 layerSwitcher.addTo(mymap);
 
@@ -254,7 +279,7 @@ if (!document.getElementById('ss-search-styles')) {
     .ss-locate-btn svg{width:19px;height:19px;}
     .dark .ss-locate-btn{color:#e2e8f0;border-left-color:#374151;}
     .dark .ss-locate-btn:hover{background:#374151;color:#93c5fd;}
-    @media (max-width:640px){#addressSearchInput{width:9rem;}}
+    @media (max-width:640px){.ss-search-box{width:100%;}#addressSearchInput{width:auto;}}
     .ss-suggestions{margin-top:5px;background:#fff;border-radius:9px;box-shadow:0 6px 20px rgba(0,0,0,.2);overflow:hidden;max-height:260px;overflow-y:auto;}
     .ss-suggestion{padding:9px 12px;cursor:pointer;font-size:13px;color:#334155;border-bottom:1px solid #f1f5f9;}
     .ss-suggestion:last-child{border-bottom:none;}
@@ -264,7 +289,11 @@ if (!document.getElementById('ss-search-styles')) {
     .dark .ss-search-box svg{color:#94a3b8;}
     .dark .ss-suggestions{background:#1f2937;box-shadow:0 6px 20px rgba(0,0,0,.5);}
     .dark .ss-suggestion{color:#e2e8f0;border-bottom-color:#374151;}
-    .dark .ss-suggestion:hover{background:#374151;}`;
+    .dark .ss-suggestion:hover{background:#374151;}
+    .ss-layer-control{position:relative;}
+    .ss-layer-toggle{display:none;align-items:center;justify-content:center;width:40px;height:40px;background:#fff;border:1px solid #e2e8f0;border-radius:9px;box-shadow:0 1px 5px rgba(0,0,0,.14);color:#334155;cursor:pointer;}
+    .dark .ss-layer-toggle{background:#1f2937;border-color:#374151;color:#e5e7eb;}
+    @media (max-width:640px){.leaflet-top.leaflet-left{right:0;}.leaflet-top.leaflet-left .address-search-control{float:none;width:auto;margin-right:58px;}.ss-layer-control{z-index:1200;}.ss-layer-toggle{display:inline-flex;}.ss-layer-control .ss-segmented{display:none;position:absolute;top:calc(100% + 6px);right:0;flex-direction:column;align-items:stretch;min-width:148px;}.ss-layer-control.open .ss-segmented{display:flex;}.ss-layer-control .ss-seg-btn{display:flex;align-items:center;min-height:40px;text-align:left;padding:9px 12px;}#toggle-filters-btn{width:40px;height:40px;padding:0;gap:0;justify-content:center;}.filter-btn-label{display:none;}.leaflet-bottom.leaflet-left{bottom:34px;}.leaflet-control-attribution{font-size:10px;line-height:1.4;}}`;
     document.head.appendChild(st);
 }
 
@@ -482,9 +511,9 @@ let filterControl = L.control({position: 'topright'});
 filterControl.onAdd = function(map) {
     let div = L.DomUtil.create('div', 'filter-control-container');
     div.innerHTML = `
-        <button id="toggle-filters-btn" class="inline-flex items-center gap-1.5 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 text-xs font-medium py-1.5 px-3 rounded-lg shadow-sm">
+        <button id="toggle-filters-btn" aria-label="${t('Filters')}" class="inline-flex items-center gap-1.5 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 text-xs font-medium py-1.5 px-3 rounded-lg shadow-sm">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-        ${t('Filters')}
+        <span class="filter-btn-label">${t('Filters')}</span>
         </button>
 
         <div id="filterContainer" class="bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400 hidden">
@@ -2271,17 +2300,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Language switch is a ?lang= reload; carry the active spot so it isn't lost.
 document.addEventListener('DOMContentLoaded', function () {
-    var toggle = document.getElementById('langToggle');
-    if (!toggle) return;
-    toggle.addEventListener('click', function (e) {
-        if (currentFilters.lat == null || currentFilters.lng == null) return;
-        try {
-            var url = new URL(toggle.href, window.location.origin);
-            url.searchParams.set('lat', currentFilters.lat);
-            url.searchParams.set('lng', currentFilters.lng);
-            e.preventDefault();
-            window.location.href = url.toString();
-        } catch (err) { /* keep default href */ }
+    document.querySelectorAll('.js-lang-toggle').forEach(function (toggle) {
+        toggle.addEventListener('click', function (e) {
+            if (currentFilters.lat == null || currentFilters.lng == null) return;
+            try {
+                var url = new URL(toggle.href, window.location.origin);
+                url.searchParams.set('lat', currentFilters.lat);
+                url.searchParams.set('lng', currentFilters.lng);
+                e.preventDefault();
+                window.location.href = url.toString();
+            } catch (err) { /* keep default href */ }
+        });
     });
 });
 

@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initializeFormSubmissions();
   adjustFooterPosition();
   initializeThemeToggle();
+  initializeNavMenu();
   conditionalCheckLoginState();
   initializeScrollToTop();
   initializePasswordValidation();
@@ -132,8 +133,9 @@ function escapeHtml(value) {
 window.escapeHtml = escapeHtml;
 
 function initializeLogoutButton() {
-  const btn = document.getElementById('logoutButton');
-  if (btn) btn.addEventListener('click', logoutUser);
+  document.querySelectorAll('#logoutButton, #logoutButtonMobile').forEach(btn => {
+    btn.addEventListener('click', logoutUser);
+  });
 }
 
 function initializePasswordToggles() {
@@ -248,6 +250,39 @@ function initializeThemeToggle() {
     });
 }
 
+function initializeNavMenu() {
+    const toggle = document.getElementById('navMenuToggle');
+    const menu = document.getElementById('mobileNav');
+    if (!toggle || !menu) return;
+
+    const closeMenu = () => {
+        menu.classList.add('hidden');
+        toggle.setAttribute('aria-expanded', 'false');
+    };
+
+    toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = !menu.classList.toggle('hidden');
+        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+
+    menu.querySelectorAll('a, button').forEach((el) => {
+        el.addEventListener('click', closeMenu);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (menu.classList.contains('hidden')) return;
+        if (!menu.contains(e.target) && !toggle.contains(e.target)) closeMenu();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !menu.classList.contains('hidden')) {
+            closeMenu();
+            toggle.focus();
+        }
+    });
+}
+
 // Scroll up
 function initializeScrollToTop() {
   const backToTopBtn = document.getElementById('backToTopBtn');
@@ -337,6 +372,9 @@ function initializeModalToggle() {
 
   if (registerBtn) registerBtn.addEventListener('click', () => _openAuthModal('register'));
   if (signInBtn) signInBtn.addEventListener('click', () => _openAuthModal('signin'));
+
+  const signInBtnMobile = document.getElementById('signInBtnMobile');
+  if (signInBtnMobile) signInBtnMobile.addEventListener('click', () => _openAuthModal('signin'));
 
   // Tab switcher inside the modal.
   document.querySelectorAll('.auth-tab').forEach(btn => {
@@ -595,11 +633,17 @@ function checkLoginStateAndUpdateUI() {
         safelyUpdateDisplay('registerBtn', 'none');
         safelyUpdateDisplay('accountLink', 'inline-flex');
         safelyUpdateDisplay('logoutButton', 'block');
+        safelyUpdateDisplay('signInBtnMobile', 'none');
+        safelyUpdateDisplay('accountLinkMobile', 'block');
+        safelyUpdateDisplay('logoutButtonMobile', 'block');
       } else {
         safelyUpdateDisplay('signInBtn', 'block');
         safelyUpdateDisplay('registerBtn', 'block');
         safelyUpdateDisplay('accountLink', 'none');
         safelyUpdateDisplay('logoutButton', 'none');
+        safelyUpdateDisplay('signInBtnMobile', 'block');
+        safelyUpdateDisplay('accountLinkMobile', 'none');
+        safelyUpdateDisplay('logoutButtonMobile', 'none');
       }
     })
     .catch(error => console.error('Error checking login state:', error));
@@ -633,6 +677,9 @@ function adjustUIForLoggedOutState() {
   safelyUpdateDisplay('registerBtn', 'block');
   safelyUpdateDisplay('accountLink', 'none');
   safelyUpdateDisplay('logoutButton', 'none');
+  safelyUpdateDisplay('signInBtnMobile', 'block');
+  safelyUpdateDisplay('accountLinkMobile', 'none');
+  safelyUpdateDisplay('logoutButtonMobile', 'none');
 }
 
 function resetUIAndListeners() {
