@@ -130,9 +130,10 @@ jobs:
 
       - name: harbor login
         run: |
-          echo "${{ secrets.HARBOR_PASSWORD }}" \
-            | docker login ${{ env.HARBOR_REGISTRY }} \
-                -u "${{ secrets.HARBOR_USER }}" --password-stdin
+          for i in 1 2 3; do
+            echo "${{ secrets.HARBOR_PASSWORD }}" | docker login ${{ env.HARBOR_REGISTRY }} -u "${{ secrets.HARBOR_USER }}" --password-stdin && break
+            echo "harbor login attempt $i failed (WiFi?), retry in $((i*10))s"; sleep $((i*10)); [ "$i" = 3 ] && exit 1
+          done
 
       - name: compute version tags
         id: ver
@@ -155,17 +156,24 @@ jobs:
 
       - name: docker build (staging tag)
         run: |
-          docker build \
-            -t "${{ env.IMAGE_BASE }}:${STAGING_TAG}" \
-            --build-arg APP_VERSION="${STAGING_TAG}" \
-            --build-arg GIT_SHA="${GITHUB_SHA}" \
-            --build-arg BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
-            --label "org.opencontainers.image.version=${STAGING_TAG}" \
-            .
+          for i in 1 2 3; do
+            docker build \
+              -t "${{ env.IMAGE_BASE }}:${STAGING_TAG}" \
+              --build-arg APP_VERSION="${STAGING_TAG}" \
+              --build-arg GIT_SHA="${GITHUB_SHA}" \
+              --build-arg BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+              --label "org.opencontainers.image.version=${STAGING_TAG}" \
+              . && break
+            echo "build attempt $i failed (WiFi?), retry in $((i*20))s"; sleep $((i*20)); [ "$i" = 3 ] && exit 1
+          done
 
       - name: push staging image
-        run: docker push "${{ env.IMAGE_BASE }}:${STAGING_TAG}"
+        run: |
+          for i in 1 2 3 4 5; do
+            docker push "${{ env.IMAGE_BASE }}:${STAGING_TAG}" && break
+            echo "push attempt $i failed (WiFi?), retry in $((i*15))s"; sleep $((i*15)); [ "$i" = 5 ] && exit 1
+          done
 
       - name: cleanup runner disk
         if: always()
@@ -200,9 +208,10 @@ jobs:
     steps:
       - name: harbor login
         run: |
-          echo "${{ secrets.HARBOR_PASSWORD }}" \
-            | docker login ${{ env.HARBOR_REGISTRY }} \
-                -u "${{ secrets.HARBOR_USER }}" --password-stdin
+          for i in 1 2 3; do
+            echo "${{ secrets.HARBOR_PASSWORD }}" | docker login ${{ env.HARBOR_REGISTRY }} -u "${{ secrets.HARBOR_USER }}" --password-stdin && break
+            echo "harbor login attempt $i failed (WiFi?), retry in $((i*10))s"; sleep $((i*10)); [ "$i" = 3 ] && exit 1
+          done
       - name: re-tag staging -> prod (same digest)
         env:
           STAGING_REF: ${{ needs.build.outputs.image_ref }}
