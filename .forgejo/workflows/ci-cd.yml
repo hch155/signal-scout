@@ -233,9 +233,13 @@ jobs:
           STAGING_REF: ${{ needs.build.outputs.image_ref }}
           PROD_TAG:    ${{ needs.build.outputs.prod_tag }}
         run: |
-          docker pull "${STAGING_REF}"
-          docker tag  "${STAGING_REF}" "${{ env.IMAGE_BASE }}:${PROD_TAG}"
-          docker push "${{ env.IMAGE_BASE }}:${PROD_TAG}"
+          for i in 1 2 3 4 5; do
+            docker pull "${STAGING_REF}" \
+              && docker tag "${STAGING_REF}" "${{ env.IMAGE_BASE }}:${PROD_TAG}" \
+              && docker push "${{ env.IMAGE_BASE }}:${PROD_TAG}" \
+              && break
+            echo "promote attempt $i failed (WiFi/DNS?), retry in $((i*15))s"; sleep $((i*15)); [ "$i" = 5 ] && exit 1
+          done
           docker image rm "${STAGING_REF}" "${{ env.IMAGE_BASE }}:${PROD_TAG}" || true
 
   deploy-staging:
