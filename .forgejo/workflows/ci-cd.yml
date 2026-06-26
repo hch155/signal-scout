@@ -83,8 +83,12 @@ jobs:
           apt-get install -y --no-install-recommends python3 python3-pip git curl build-essential libsqlite3-dev
       - name: install deps
         run: |
-          python3 -m pip install --break-system-packages --no-cache-dir -r requirements.txt
-          python3 -m pip install --break-system-packages --no-cache-dir -r tests/requirements-test.txt
+          for i in 1 2 3 4; do
+            python3 -m pip install --break-system-packages --no-cache-dir -r requirements.txt \
+              && python3 -m pip install --break-system-packages --no-cache-dir -r tests/requirements-test.txt \
+              && break
+            echo "pip install attempt $i failed (WiFi?), retry in $((i*15))s"; sleep $((i*15)); [ "$i" = 4 ] && exit 1
+          done
       - name: pytest + coverage gate
         run: |
           PYTHONPATH=src python3 -m pytest tests/unit tests/integration \

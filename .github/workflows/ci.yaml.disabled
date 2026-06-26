@@ -78,7 +78,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt -r tests/requirements-test.txt
+          pip install -r requirements.txt -r tests/requirements-test.txt -r tests/requirements-e2e.txt
 
       - name: Install Playwright Chromium
         run: playwright install --with-deps chromium

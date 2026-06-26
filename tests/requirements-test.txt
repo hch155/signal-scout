@@ -1,9 +1,7 @@
-# Test-only dependencies. Install with: pip install -r tests/requirements-test.txt
-# pytest pinned <9 because pytest-playwright 0.7.1 still caps at <9.0.0.
-# Bump both together when pytest-playwright cuts a 9-compatible release.
+# Unit/integration test deps. Browser/e2e deps (playwright, ~45 MB) live in
+# tests/requirements-e2e.txt — the Flask-test-client suite doesn't use them.
+# pytest kept <9 to stay aligned with pytest-playwright in requirements-e2e.txt.
 pytest>=8.4,<9
 pytest-cov==7.0.0
 pytest-flask==1.3.0
-pytest-playwright==0.7.1
-playwright==1.55.0
 freezegun==1.5.5

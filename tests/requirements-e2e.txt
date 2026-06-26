@@ -1,0 +1,6 @@
+# Browser/e2e-only deps (tests/e2e). Install ON TOP OF requirements-test.txt.
+# Split out of requirements-test.txt: playwright pulls a ~45 MB wheel that the
+# unit/integration suite never uses, and downloading it per CI run was timing
+# out over the runner's WiFi backhaul.
+pytest-playwright==0.7.1
+playwright==1.55.0
