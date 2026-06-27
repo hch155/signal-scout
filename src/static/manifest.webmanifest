@@ -1,0 +1,20 @@
+{
+  "name": "Signal-Scout",
+  "short_name": "Signal-Scout",
+  "description": "Find the nearest cellular base stations across Poland and check coverage by frequency band.",
+  "lang": "en",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eff6ff",
+  "theme_color": "#bfdbfe",
+  "icons": [
+    {
+      "src": "/static/images/app-icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

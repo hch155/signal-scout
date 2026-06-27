@@ -500,6 +500,24 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
 
 frequencyRangeLegend.addTo(mymap);
 
+let findTowersControl = L.control({position: 'topleft'});
+findTowersControl.onAdd = function(map) {
+    let div = L.DomUtil.create('div', 'gps-location-control find-towers-control');
+    div.innerHTML = `
+        <button id="findTowersNearMeBtn" title="${t('Find towers near me')}" class="map-control-btn">
+            <span class="control-icon">🗼</span>
+            <span class="control-label">${t('Find towers near me')}</span>
+        </button>
+    `;
+    L.DomEvent.disableClickPropagation(div);
+    L.DomEvent.on(div, 'click', function(e) {
+        L.DomEvent.stop(e);
+        requestAndSendGPSLocation();
+    });
+    return div;
+};
+findTowersControl.addTo(mymap);
+
 let btsCountControl = L.control({position: 'bottomleft'});
 btsCountControl.onAdd = function(map) {
     let div = L.DomUtil.create('div', '');
@@ -791,6 +809,7 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
             // from the core station list, so it's now an extra feature
             // rather than a default sidebar widget.
             renderCoverageGapsCTA(lat, lng);
+            renderShareSpotCTA();
             scrollToSidebar();
         } else {
             // Got a 200 with no stations payload — clear skeleton so the
@@ -1234,6 +1253,42 @@ function addBandHighlightSidebarCard(station, gap, userLat, userLng) {
 // later from /account). The default name uses the current date so
 // users get something sensible without typing — they can rename from
 // /account whenever.
+function renderShareSpotCTA() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    if (currentFilters.lat == null || currentFilters.lng == null) return;
+    const existing = sidebar.querySelector('#share-spot-cta');
+    if (existing) existing.remove();
+
+    const cta = document.createElement('div');
+    cta.id = 'share-spot-cta';
+    cta.className = 'col-span-full mb-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 flex items-center gap-2';
+
+    const confirm = document.createElement('span');
+    confirm.className = 'text-xs text-green-600 dark:text-green-400 font-medium';
+    confirm.setAttribute('aria-live', 'polite');
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'shrink-0 inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-1.5 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
+    btn.textContent = t('Share this spot');
+
+    btn.addEventListener('click', () => {
+        const url = location.origin + '/?lat=' + currentFilters.lat + '&lng=' + currentFilters.lng;
+        if (navigator.share) {
+            navigator.share({ title: t('Signal coverage at this spot'), url: url }).catch(() => {});
+        } else {
+            copyToClipboard(url, btn);
+            confirm.textContent = t('Link copied');
+            setTimeout(() => { confirm.textContent = ''; }, 1500);
+        }
+    });
+
+    cta.appendChild(btn);
+    cta.appendChild(confirm);
+    sidebar.insertBefore(cta, sidebar.firstChild);
+}
+
 function renderSaveSpotShortcut(lat, lng, nearestCity) {
     if (!window._isLoggedIn) return;
     const sidebar = document.getElementById('sidebar');

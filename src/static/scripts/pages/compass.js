@@ -14,8 +14,13 @@ let compassState = {
     watchId: null,
     isMobileDevice: false,
     hasOrientationData: false,
-    orientationCheckTimeout: null
+    orientationCheckTimeout: null,
+    usingAbsoluteEvent: false,
+    wakeLock: null,
+    isArrived: false
 };
+
+const PL_MAGNETIC_DECLINATION = 6.5;
 
 // Detect if device is mobile/tablet
 function detectMobileDevice() {
@@ -65,14 +70,14 @@ function handleOrientation(event) {
         heading = event.webkitCompassHeading;
     }
     // Android/others: use absolute orientation if available
-    else if (event.absolute === true && event.alpha !== null) {
+    else if ((event.absolute === true || event.type === 'deviceorientationabsolute') && event.alpha !== null) {
         // When absolute is true, alpha is relative to north
         // alpha = 0 means device top points north, increases counter-clockwise
         // We need clockwise heading, so: heading = (360 - alpha) % 360
         heading = (360 - event.alpha) % 360;
     }
     // Fallback for non-absolute orientation (less accurate)
-    else if (event.alpha !== null) {
+    else if (event.alpha !== null && !compassState.usingAbsoluteEvent) {
         heading = (360 - event.alpha) % 360;
     }
 
@@ -134,6 +139,21 @@ function updateCompassDisplay() {
 
     if (!compassRing) return;
 
+    if (compassState.userLat && compassState.targetLat) {
+        const dist = calculateDistance(
+            compassState.userLat, compassState.userLng,
+            compassState.targetLat, compassState.targetLng
+        );
+        if (distanceText) {
+            distanceText.textContent = `${dist.toFixed(2)} km`;
+        }
+        if (!compassState.isArrived && dist < ARRIVAL_THRESHOLD_KM) {
+            compassState.isArrived = true;
+        } else if (compassState.isArrived && dist > ARRIVAL_EXIT_KM) {
+            compassState.isArrived = false;
+        }
+    }
+
     if (compassState.deviceHeading !== null) {
         // Rotate the entire compass (including the station arrow) so N always points to actual north
         compassRing.style.transform = `rotate(${-compassState.deviceHeading}deg)`;
@@ -144,22 +164,43 @@ function updateCompassDisplay() {
     }
 
     if (compassState.bearingToTarget !== null) {
+        const bearingMagnetic = (compassState.bearingToTarget - PL_MAGNETIC_DECLINATION + 360) % 360;
+
         // Update the arrow rotation within the compass ring
-        if (arrow) {
-            arrow.style.transform = `rotate(${compassState.bearingToTarget}deg)`;
+        if (arrow && !compassState.isArrived) {
+            arrow.style.transform = `rotate(${bearingMagnetic}deg)`;
         }
 
         if (bearingText) {
-            bearingText.textContent = `${t('Station:')} ${Math.round(compassState.bearingToTarget)}° ${getBearingDirection(compassState.bearingToTarget)}`;
+            bearingText.textContent = `${t('Station:')} ${Math.round(bearingMagnetic)}° ${getBearingDirection(bearingMagnetic)}`;
         }
 
+        if (compassState.isArrived) {
+            if (directionText) {
+                directionText.textContent = t('Arrived — you\'re at the station');
+                directionText.className = 'mt-3 text-lg font-bold text-green-500';
+            }
+            if (arrowPolygon && arrowCenter) {
+                arrowPolygon.setAttribute('fill', '#22c55e');
+                arrowPolygon.setAttribute('stroke', '#16a34a');
+                arrowCenter.setAttribute('fill', '#16a34a');
+            }
+            if (alignmentIndicator) {
+                alignmentIndicator.classList.add('hidden');
+                alignmentIndicator.classList.remove('animate-pulse');
+            }
+            if (compassContainer) {
+                compassContainer.classList.remove('ring-4', 'ring-green-400', 'ring-opacity-75');
+            }
+            lastAlignedState = false;
+        }
         // Check alignment and update visuals
-        if (compassState.deviceHeading !== null) {
-            const aligned = isAligned(compassState.bearingToTarget, compassState.deviceHeading);
+        else if (compassState.deviceHeading !== null) {
+            const aligned = isAligned(bearingMagnetic, compassState.deviceHeading);
 
             // Update direction text
             if (directionText) {
-                const relative = getRelativeDirection(compassState.bearingToTarget, compassState.deviceHeading);
+                const relative = getRelativeDirection(bearingMagnetic, compassState.deviceHeading);
                 directionText.textContent = relative;
 
                 if (aligned) {
@@ -209,14 +250,6 @@ function updateCompassDisplay() {
             lastAlignedState = aligned;
         }
     }
-
-    if (distanceText && compassState.userLat && compassState.targetLat) {
-        const dist = calculateDistance(
-            compassState.userLat, compassState.userLng,
-            compassState.targetLat, compassState.targetLng
-        );
-        distanceText.textContent = `${dist.toFixed(2)} km`;
-    }
 }
 
 // Get cardinal direction from bearing
@@ -229,6 +262,8 @@ function getBearingDirection(bearing) {
 // Alignment state tracking
 let lastAlignedState = false;
 const ALIGNMENT_THRESHOLD = 10; // degrees
+const ARRIVAL_THRESHOLD_KM = 0.03;
+const ARRIVAL_EXIT_KM = 0.04;
 
 // Check if device is aligned with station
 function isAligned(bearing, heading) {
@@ -320,6 +355,31 @@ async function requestOrientationPermission() {
     return true;
 }
 
+async function acquireWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+        compassState.wakeLock = await navigator.wakeLock.request('screen');
+    } catch (err) {
+        compassState.wakeLock = null;
+    }
+}
+
+function releaseWakeLock() {
+    if (!compassState.wakeLock) return;
+    try {
+        compassState.wakeLock.release();
+    } catch (err) {
+        // ignore
+    }
+    compassState.wakeLock = null;
+}
+
+function handleVisibilityChange() {
+    if (document.visibilityState === 'visible' && compassState.isActive) {
+        acquireWakeLock();
+    }
+}
+
 // Start compass tracking for a target station
 async function startCompass(stationLat, stationLng, stationName, userLat, userLng) {
     // Update state
@@ -330,6 +390,7 @@ async function startCompass(stationLat, stationLng, stationName, userLat, userLn
     compassState.userLng = userLng;
     compassState.isMobileDevice = detectMobileDevice();
     compassState.hasOrientationData = false;
+    compassState.isArrived = false;
 
     // Calculate bearing to target
     compassState.bearingToTarget = calculateBearing(userLat, userLng, stationLat, stationLng);
@@ -347,7 +408,15 @@ async function startCompass(stationLat, stationLng, stationName, userLat, userLn
 
     // Start listening to orientation events
     window.addEventListener('deviceorientation', handleOrientation, true);
+    compassState.usingAbsoluteEvent = false;
+    if ('ondeviceorientationabsolute' in window) {
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+        compassState.usingAbsoluteEvent = true;
+    }
     compassState.isActive = true;
+
+    acquireWakeLock();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Set timeout to check if we receive orientation data
     // If not after 1.5 seconds, switch to desktop/static mode
@@ -380,6 +449,13 @@ async function startCompass(stationLat, stationLng, stationName, userLat, userLn
 // Stop compass tracking
 function stopCompass() {
     window.removeEventListener('deviceorientation', handleOrientation, true);
+    if (compassState.usingAbsoluteEvent) {
+        window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
+        compassState.usingAbsoluteEvent = false;
+    }
+
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    releaseWakeLock();
 
     if (compassState.watchId !== null) {
         navigator.geolocation.clearWatch(compassState.watchId);
@@ -393,6 +469,7 @@ function stopCompass() {
 
     compassState.isActive = false;
     compassState.hasOrientationData = false;
+    compassState.isArrived = false;
     lastAlignedState = false;
     hideCompassUI();
 }
