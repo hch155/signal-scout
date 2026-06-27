@@ -213,9 +213,13 @@ limiter = Limiter(
     storage_uri=os.getenv("RATELIMIT_STORAGE_URI", "memory://"),
 )
 
+# strict=False: the prod stack has no redis service yet, so warn instead of
+# crash-looping on memory://. Re-enable strict once RATELIMIT_STORAGE_URI=redis
+# is wired into the prod stack (redis service + env).
 assert_production_storage(
     os.getenv("RATELIMIT_STORAGE_URI", "memory://"),
     settings.is_production,
+    strict=False,
 )
 
 PL_LAT_MIN, PL_LAT_MAX = 48.95, 55.55
