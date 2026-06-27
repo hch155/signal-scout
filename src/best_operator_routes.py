@@ -4,8 +4,8 @@ Mirrors auth_routes.register_auth_routes: view functions are defined at
 module scope, then register_best_operator_routes(app, limiter=...) wraps
 them with rate limits and registers the blueprint. Dependencies that live
 in app.py (_resolve_address_coverage, get_data_date, stations_db_path,
-the coverage disclaimer, active-language lookup) are imported lazily inside
-the view to avoid the app <-> blueprint import cycle.
+the coverage disclaimer, active-language lookup) are reached through the
+app module captured at registration, avoiding a request-time re-import.
 
 Routes:
 - GET /best-operator?q=<address> — HTML page (and ?format=json for the JS
@@ -17,6 +17,7 @@ Routes:
 from __future__ import annotations
 
 import logging
+import sys
 
 from flask import Blueprint, abort, jsonify, redirect, render_template, request
 
@@ -28,6 +29,8 @@ from best_operator import build_referral_url, has_referral, rank_operators
 logger = logging.getLogger(__name__)
 
 best_operator_bp = Blueprint("best_operator", __name__)
+
+_app_module = None
 
 referral_clicks_total = Counter(
     "signal_scout_best_operator_referral_clicks_total",
@@ -80,7 +83,7 @@ def best_operator_page():
         return render_template("best_operator.html", query=query, state="invalid",
                                operators=[]), 400
 
-    import app as app_module
+    app_module = _app_module
 
     try:
         outcome = app_module._resolve_address_coverage(query)
@@ -154,6 +157,8 @@ def go_operator(slug):
 def register_best_operator_routes(app, *, limiter=None):
     """Wire the blueprint onto the app. limiter is optional so the routes
     can also be registered onto a bare app in tests."""
+    global _app_module
+    _app_module = sys.modules.get(app.import_name)
     if limiter is not None:
         page_view = limiter.limit("30 per minute")(best_operator_page)
         go_view = limiter.limit("60 per minute")(go_operator)
