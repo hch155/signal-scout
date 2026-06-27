@@ -26,6 +26,7 @@ def _repo_root() -> str:
 def upgrade_users_db(users_db_path: str) -> None:
     from alembic import command
     from alembic.config import Config
+    from alembic.util.exc import CommandError
     from sqlalchemy import create_engine, inspect
 
     root = _repo_root()
@@ -44,4 +45,15 @@ def upgrade_users_db(users_db_path: str) -> None:
                     BASELINE_REVISION)
         command.stamp(cfg, BASELINE_REVISION)
 
-    command.upgrade(cfg, "head")
+    try:
+        command.upgrade(cfg, "head")
+    except CommandError as exc:
+        # users.db is ahead of this build (e.g. a rollback to an older image
+        # after a forward, additive migration). Additive migrations are
+        # forward-compatible, so continue on the existing schema instead of
+        # crash-looping the way the 6260a5e rollback did on revision 0004.
+        if "Can't locate revision" not in str(exc):
+            raise
+        logger.warning(
+            "users.db revision is ahead of this build's migrations — "
+            "continuing on the existing schema (%s)", exc)

@@ -53,14 +53,15 @@ if sys.argv[1] == "gettag":
 STACK_ID, ENDPOINT_ID, NEW_TAG = sys.argv[1], sys.argv[2], sys.argv[3]
 FALLBACK = sys.argv[4] if len(sys.argv) > 4 else None
 
-content = stack_file(STACK_ID)
-if content is None:
-    if not FALLBACK:
-        print(f"stack {STACK_ID} compose unavailable and no fallback given", file=sys.stderr)
-        sys.exit(1)
-    print(f"stack {STACK_ID} compose missing in Portainer; restoring from {FALLBACK}", file=sys.stderr)
+if FALLBACK:
+    print(f"deploying stack {STACK_ID} from repo compose {FALLBACK} (source of truth)", file=sys.stderr)
     with open(FALLBACK) as f:
         content = f.read()
+else:
+    content = stack_file(STACK_ID)
+    if content is None:
+        print(f"stack {STACK_ID} compose unavailable and no fallback given", file=sys.stderr)
+        sys.exit(1)
 
 content = re.sub(r"(signal-scout/app:)[^\"'\s]+", r"\g<1>" + NEW_TAG, content)
 content = re.sub(r'(APP_VERSION:\s*")[^"]*(")', r"\g<1>" + NEW_TAG + r"\g<2>", content)

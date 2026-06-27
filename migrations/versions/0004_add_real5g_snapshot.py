@@ -17,6 +17,8 @@ depends_on = None
 
 
 def upgrade() -> None:
+    if sa.inspect(op.get_bind()).has_table('real_five_g_snapshot'):
+        return
     op.create_table(
         'real_five_g_snapshot',
         sa.Column('id', sa.Integer(), nullable=False),
