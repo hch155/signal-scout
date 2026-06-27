@@ -50,6 +50,7 @@
                 </div>
                 <div id="sidebar" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-5 pb-10">
                 </div>
+                {% include '_subscribe_cta.html' %}
             </div>
         </div>
     </div>
@@ -101,6 +102,7 @@
     <script defer src="{{ url_for('static', filename='dist/pages/ui-interactions.min.js') }}?v={{ app_version }}"></script>
     <script defer src="{{ url_for('static', filename='dist/pages/compass.min.js') }}?v={{ app_version }}"></script>
     <script defer src="{{ url_for('static', filename='dist/pages/map-initialization.min.js') }}?v={{ app_version }}"></script>
+    <script defer src="{{ url_for('static', filename='dist/pages/coverage-subscribe.min.js') }}?v={{ app_version }}"></script>
     {% endif %}
 
 {% endblock %}

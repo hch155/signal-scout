@@ -12,6 +12,11 @@
   {% endif %}
 
   <h1 style="font-size: 20px; color: #1f2937;">Coverage at "{{ location.name }}" changed</h1>
+  {% if real_5g and real_5g.gained %}
+  <p style="margin:12px 0;padding:10px 12px;background:#dcfce7;border-left:4px solid #16a34a;border-radius:4px;font-size:15px;color:#166534;font-weight:600;">
+    Real 5G now available at this spot{% if real_5g.gained_bands %} ({{ real_5g.gained_bands|join(', ') }}){% endif %}.
+  </p>
+  {% endif %}
   <p>Hi {{ greeting_name }},</p>
   <p>
     Our latest UKE data refresh shows new cellular coverage information at this saved spot{% if before_recorded_at %} <span style="color:#6b7280;">— compared to data from {{ before_recorded_at[:10] }}</span>{% endif %}:

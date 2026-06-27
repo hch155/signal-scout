@@ -7,6 +7,9 @@ this saved spot ({{ "%.4f"|format(location.lat) }}, {{ "%.4f"|format(location.ln
 compared to data from {{ before_recorded_at[:10] }}{% endif %}:
   Google Maps:      https://www.google.com/maps?q={{ location.lat }},{{ location.lng }}
   Signal-Scout:     {{ email_link_origin }}/?lat={{ location.lat }}&lng={{ location.lng }}
+{% if real_5g and real_5g.gained %}
+** Real 5G now available at this spot{% if real_5g.gained_bands %} ({{ real_5g.gained_bands|join(', ') }}){% endif %}. **
+{% endif %}
 {% if current_nearest and current_nearest.bts_id %}
 Best signal at this spot today: BTS {{ current_nearest.bts_id }}{% if current_nearest.provider %} ({{ current_nearest.provider }}{% if current_nearest.city %}, {{ current_nearest.city }}{% endif %}){% endif %} — {{ "%.1f"|format(current_nearest.distance_km) }} km on {{ current_nearest.band }} (across all bands; per-band detail below).
 {% endif %}

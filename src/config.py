@@ -62,7 +62,7 @@ class Config:
 
     # ── Transactional email ──
     email_backend: str = field(default_factory=lambda: _str("EMAIL_BACKEND", "noop").lower())
-    email_from: str = field(default_factory=lambda: _str("EMAIL_FROM", "noreply@signal-scout.com"))
+    email_from: str = field(default_factory=lambda: _str("EMAIL_FROM", "hello@signal-scout.com"))
     email_from_name: str = field(default_factory=lambda: _str("EMAIL_FROM_NAME", "Signal-Scout"))
     sendgrid_api_key: str = field(default_factory=lambda: _str("SENDGRID_API_KEY"))
     glitchtip_dsn: str = field(default_factory=lambda: _str("GLITCHTIP_DSN"))

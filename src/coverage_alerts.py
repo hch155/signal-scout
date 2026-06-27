@@ -26,6 +26,7 @@ from database import db
 from models import UserLocation, User
 from queries import find_coverage_gaps
 import emails
+from coverage_subscribe import real5g_delta
 
 
 MIN_DISTANCE_DELTA_KM = 1.0  # ignore wobble below this — tile changes etc
@@ -151,6 +152,7 @@ def _process(loc: UserLocation, *, dry_run: bool, verbose: bool) -> str:
         return 'first-run'
 
     gained, lost, distance_changes = _diff(before, after)
+    real_5g = real5g_delta(before, after)
 
     if not gained and not lost and not distance_changes:
         if not dry_run:
@@ -200,6 +202,7 @@ def _process(loc: UserLocation, *, dry_run: bool, verbose: bool) -> str:
         user, loc, gained, lost, distance_changes,
         before_recorded_at=before.get('recorded_at'),
         current_nearest=current_nearest,
+        real_5g=real_5g,
     )
     if ok:
         loc.last_alert_sent_at = datetime.utcnow()

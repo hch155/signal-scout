@@ -44,6 +44,7 @@ from api_access import (
     record_honeypot_hit,
     seed_honeypot_rows,
 )
+from ratelimit import tier_limit_string, tier_key_func, assert_production_storage
 from api_docs import init_api_docs
 from oauth import init_oauth, login_with_provider, callback_for_provider
 from i18n import translate, js_translations, SUPPORTED_LANGS, DEFAULT_LANG
@@ -153,6 +154,7 @@ app.config['SQLALCHEMY_BINDS_ENGINE_OPTIONS'] = {
 db.init_app(app)
 from db_migrations import upgrade_users_db  # noqa: E402
 upgrade_users_db(users_db_path)
+from real5g_rollout import RealFiveGSnapshot  # noqa: E402,F401
 with app.app_context():
     db.create_all()
     from stats_history import backfill_from_jsonl_if_empty  # noqa: E402
@@ -209,6 +211,11 @@ limiter = Limiter(
     key_func=get_remote_address,
     default_limits=[os.getenv("DEFAULT_RATE_LIMIT", "16 per minute")],
     storage_uri=os.getenv("RATELIMIT_STORAGE_URI", "memory://"),
+)
+
+assert_production_storage(
+    os.getenv("RATELIMIT_STORAGE_URI", "memory://"),
+    settings.is_production,
 )
 
 PL_LAT_MIN, PL_LAT_MAX = 48.95, 55.55
@@ -839,6 +846,10 @@ def stats_page():
         )
         if last_refresh_iso != 'unknown':
             maybe_write_snapshot(users_db_path, last_refresh_iso, stats)
+            from real5g_rollout import real_5g_rollout, maybe_write_real5g_snapshot
+            maybe_write_real5g_snapshot(
+                users_db_path, last_refresh_iso, real_5g_rollout(stations_db_path)
+            )
             previous = previous_snapshot(users_db_path, last_refresh_iso)
             all_rows = read_history(users_db_path)
             history_count = len(all_rows)
@@ -1931,8 +1942,8 @@ def _resolve_address_coverage(query):
 
 
 @app.route('/coverage_by_address', methods=['GET'])
-@limiter.limit("30 per minute")
 @require_api_access(endpoint_label='coverage_by_address')
+@limiter.limit(tier_limit_string, key_func=tier_key_func)
 def coverage_by_address():
     q = request.args.get('q', type=str, default='').strip()
     structured = {f: (request.args.get(f, type=str, default='') or '').strip()
@@ -1982,8 +1993,8 @@ def coverage_by_address():
 
 
 @app.route('/coverage_by_address/batch', methods=['POST'])
-@limiter.limit("10 per minute")
 @require_api_access(endpoint_label='coverage_by_address_batch')
+@limiter.limit(tier_limit_string, key_func=tier_key_func)
 def coverage_by_address_batch():
     body = request.get_json(silent=True) or {}
     addresses = body.get('addresses')
@@ -2046,8 +2057,8 @@ def _coverage_card_message(title, message):
 
 
 @app.route('/coverage_card', methods=['GET'])
-@limiter.limit("30 per minute")
 @require_api_access(endpoint_label='coverage_card')
+@limiter.limit(tier_limit_string, key_func=tier_key_func)
 def coverage_card():
     q = request.args.get('q', type=str, default='').strip()
     structured = {f: (request.args.get(f, type=str, default='') or '').strip()
@@ -2091,10 +2102,13 @@ def robots_txt():
         "Allow: /\n"
         "Allow: /data\n"
         "Allow: /stats\n"
+        "Allow: /rollout\n"
         "Allow: /tips\n"
+        "Allow: /best-operator\n"
         "Allow: /privacy\n"
         "Disallow: /api/\n"
         "Disallow: /embed/\n"
+        "Disallow: /go/\n"
         "Disallow: /account\n"
         "Disallow: /unsubscribe/\n"
         "Disallow: /login\n"
@@ -2124,9 +2138,17 @@ def sitemap_xml():
         ('/',     '1.0', 'daily'),
         ('/data', '0.8', 'monthly'),
         ('/stats', '0.8', 'monthly'),
+        ('/rollout', '0.8', 'monthly'),
         ('/tips', '0.7', 'monthly'),
+        ('/best-operator', '0.7', 'weekly'),
         ('/privacy', '0.3', 'yearly'),
     ]
+    if settings.marketing_enabled:
+        pages += [
+            ('/demo', '0.9', 'monthly'),
+            ('/pricing', '0.9', 'monthly'),
+            ('/use-cases', '0.7', 'monthly'),
+        ]
     origin = settings.canonical_origin
     body = ['<?xml version="1.0" encoding="UTF-8"?>',
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
@@ -2218,6 +2240,21 @@ register_auth_routes(
     csrf_failures_total=csrf_failures_total,
     login_failures_total=login_failures_total,
 )
+
+from best_operator_routes import register_best_operator_routes  # noqa: E402
+register_best_operator_routes(app, limiter=limiter)
+
+from real5g_routes import register_real5g_routes  # noqa: E402
+register_real5g_routes(app)
+
+from coverage_subscribe_routes import register_coverage_subscribe_routes  # noqa: E402
+register_coverage_subscribe_routes(app, limiter)
+
+from embed_coverage_routes import register_embed_coverage_routes  # noqa: E402
+register_embed_coverage_routes(app, limiter)
+
+from marketing_routes import register_marketing_routes  # noqa: E402
+register_marketing_routes(app)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

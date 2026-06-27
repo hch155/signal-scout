@@ -299,57 +299,7 @@ def _send(user, subject: str, template: str, **ctx) -> bool:
 
 # ── Public per-event helpers ──────────────────────────────────────────────
 
-def send_welcome(user, verification_url: str) -> bool:
-    return _send(
-        user,
-        subject="Welcome to Signal-Scout — please verify your email",
-        template='welcome',
-        verification_url=verification_url,
-    )
-
-
-def send_password_changed(user) -> bool:
-    return _send(
-        user,
-        subject="Your Signal-Scout password was changed",
-        template='password_changed',
-    )
-
-
-def send_password_reset(user, reset_url: str) -> bool:
-    return _send(
-        user,
-        subject="Reset your Signal-Scout password",
-        template='password_reset',
-        reset_url=reset_url,
-    )
-
-
-def send_2fa_enabled(user) -> bool:
-    return _send(
-        user,
-        subject="Two-factor authentication enabled on your Signal-Scout account",
-        template='2fa_enabled',
-    )
-
-
-def send_2fa_disabled(user) -> bool:
-    return _send(
-        user,
-        subject="Two-factor authentication disabled on your Signal-Scout account",
-        template='2fa_disabled',
-    )
-
-
-def send_recovery_code_used(user) -> bool:
-    return _send(
-        user,
-        subject="A Signal-Scout 2FA recovery code was just used",
-        template='recovery_used',
-    )
-
-
-def _coverage_alert_subject(location, gained, lost, distance_changes) -> tuple:
+def _coverage_alert_subject(location, gained, lost, distance_changes, real_5g=None) -> tuple:
     """Build an action-led subject + a one-line preheader from the diff.
 
     Industry pattern: put the *headline fact* in the subject so users
@@ -367,6 +317,8 @@ def _coverage_alert_subject(location, gained, lost, distance_changes) -> tuple:
         parts.append(f"{c['band']} { '%+.1f' % c['delta_km']} km")
 
     headline = ' / '.join(parts) if parts else 'coverage updated'
+    if real_5g and real_5g.get('gained'):
+        headline = f'Real 5G now available — {headline}'
     subject = f'{location.name}: {headline}'
 
     pre_bits = []
@@ -382,7 +334,8 @@ def _coverage_alert_subject(location, gained, lost, distance_changes) -> tuple:
 
 def send_coverage_alert(user, location, gained, lost, distance_changes,
                          before_recorded_at: Optional[str] = None,
-                         current_nearest: Optional[dict] = None) -> bool:
+                         current_nearest: Optional[dict] = None,
+                         real_5g: Optional[dict] = None) -> bool:
     """Sent by the coverage-alert sweep after a UKE refresh when a
     SavedLocation's coverage materially changed.
 
@@ -396,7 +349,7 @@ def send_coverage_alert(user, location, gained, lost, distance_changes,
     Caller is expected to only fire this when at least one input is
     non-empty."""
     subject, preheader = _coverage_alert_subject(
-        location, gained, lost, distance_changes,
+        location, gained, lost, distance_changes, real_5g,
     )
     return _send(
         user,
@@ -409,4 +362,15 @@ def send_coverage_alert(user, location, gained, lost, distance_changes,
         preheader=preheader,
         before_recorded_at=before_recorded_at,
         current_nearest=current_nearest,
+        real_5g=real_5g,
     )
+
+
+from transactional_email import (  # noqa: E402,F401
+    send_2fa_disabled,
+    send_2fa_enabled,
+    send_password_changed,
+    send_password_reset,
+    send_recovery_code_used,
+    send_welcome,
+)

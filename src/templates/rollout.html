@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Real-5G Rollout Tracker — 3.5 GHz Sites per Operator | Signal-Scout') }}{% endblock %}
+{% block description %}Distinct 3.5 GHz (n78 / C-band) physical site counts per Polish mobile operator and voivodeship, tracked month over month from UKE data.{% endblock %}
+
+{% set operator_color = {
+    'Orange': 'bg-orange-500',
+    'Play': 'bg-violet-500',
+    'Plus': 'bg-green-600',
+    'T-Mobile': 'bg-pink-500'
+} %}
+
+{% block content %}
+    <section class="text-center text-[#333] dark:text-white p-3 md:p-5 mb-2">
+        <h2 class="text-xl font-bold">{{ _('Real-5G Rollout') }}</h2>
+        <p class="hidden md:block text-lg text-gray-600 dark:text-gray-300">{{ _('Distinct 3.5 GHz (n78 / C-band) physical sites per operator and region, updated monthly from UKE data') }}</p>
+    </section>
+
+    {% macro delta_badge(delta) %}
+      {% if delta is not none and delta != 0 %}
+        {% if delta > 0 %}
+          <span class="inline-flex items-center gap-0.5 text-xs font-medium text-green-600 dark:text-green-400" title="{{ _('Change since previous snapshot') }}">
+            ▲ +{{ "{:,}".format(delta) }}
+          </span>
+        {% else %}
+          <span class="inline-flex items-center gap-0.5 text-xs font-medium text-red-600 dark:text-red-400" title="{{ _('Change since previous snapshot') }}">
+            ▼ {{ "{:,}".format(delta) }}
+          </span>
+        {% endif %}
+      {% endif %}
+    {% endmacro %}
+
+    {# ── Hero strip ──────────────────────────────────────────────── #}
+    <div class="px-2 md:px-4 mb-4 max-w-5xl mx-auto">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="bg-white dark:bg-gray-800 rounded-lg border-l-4 border-emerald-500 p-3 shadow-sm">
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ _('3.5 GHz sites') }}</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ "{:,}".format(rollout.total_sites) }}</p>
+                {{ delta_badge(total_delta) }}
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-lg border-l-4 border-violet-500 p-3 shadow-sm">
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ _('Operators with 3.5 GHz') }}</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ operators|length }}</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-lg border-l-4 border-blue-500 p-3 shadow-sm">
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ _('Voivodeships') }}</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ voivodeships|length }}</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-lg border-l-4 border-amber-500 p-3 shadow-sm">
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ _('Last refresh') }}</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ last_refresh }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    {% if history_count > 1 %}{{ history_count }} {{ _('snapshots in history') }}{% else %}monthly UKE{% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    {# ── Sites by operator (rollout race) ────────────────────────── #}
+    <div class="px-2 md:px-4 mb-4 max-w-5xl mx-auto">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">{{ _('Sites by operator') }}</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                {{ _('Operators ranked by absolute count of physical sites broadcasting a 3.5 GHz (n78) 5G band') }}
+            </p>
+            {% set leader = operators[0].count if operators else 1 %}
+            <div class="space-y-3">
+                {% for op in operators %}
+                {% set width = (100.0 * op.count / leader) if leader else 0 %}
+                <div>
+                    <div class="flex items-baseline justify-between mb-1">
+                        <span class="font-medium text-gray-900 dark:text-white">
+                            <span class="text-xs text-gray-400 dark:text-gray-500 mr-1">{{ loop.index }}.</span>{{ op.label }}
+                        </span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">
+                            {{ "{:,}".format(op.count) }} {{ _('3.5 GHz sites') }} {{ delta_badge(op.delta) }}
+                        </span>
+                    </div>
+                    <div class="w-full h-3 bg-gray-100 dark:bg-gray-700 rounded">
+                        <div class="h-3 rounded {{ operator_color.get(op.label, 'bg-emerald-500') }}" style="width: {{ '%.1f'|format(width) }}%;" title="{{ op.label }}: {{ '{:,}'.format(op.count) }}"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {# ── Trend over time (interactive) ──────────────────────────── #}
+    {% if monthly_history and monthly_history|length >= 2 %}
+    <div class="px-2 md:px-4 mb-4 max-w-5xl mx-auto">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
+            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ _('Trend over time') }}</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ monthly_history|length }} {{ _('months tracked (one snapshot per UKE refresh)') }}</p>
+            </div>
+
+            <div id="rollout-chart-controls" class="flex flex-wrap gap-1.5 mb-3 text-xs" role="tablist" aria-label="{{ _('Trend chart view') }}">
+                <button type="button" data-view="total" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-blue-600 text-white" aria-pressed="true">{{ _('Total') }}</button>
+                <button type="button" data-view="stacked" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">{{ _('Stacked by operator') }}</button>
+                {% for op in chart_operators %}
+                <button type="button" data-view="{{ op }}" class="px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white text-gray-700 dark:bg-gray-700 dark:text-gray-100" aria-pressed="false">{{ op }}</button>
+                {% endfor %}
+            </div>
+
+            <div id="rollout-chart-host"
+                 class="relative w-full h-56 md:h-64"
+                 data-history='{{ monthly_history|tojson }}'
+                 data-operators='{{ chart_operators|tojson }}'>
+                {% set max_total = monthly_history | map(attribute='total') | max %}
+                <noscript>
+                    <div class="flex items-end gap-px h-40 border-b border-gray-200 dark:border-gray-700 pb-1">
+                        {% for h in monthly_history %}
+                            {% set pct = (100 * h.total / max_total) if max_total > 0 else 0 %}
+                            <div class="flex-1 bg-emerald-400 dark:bg-emerald-600 rounded-t"
+                                 style="height: {{ pct }}%; min-height: 1px;"
+                                 title="{{ h.month }}: {{ '{:,}'.format(h.total) }} {{ _('3.5 GHz sites') }}"></div>
+                        {% endfor %}
+                    </div>
+                </noscript>
+            </div>
+
+            <div id="rollout-chart-legend" aria-hidden="true"></div>
+
+            <div id="rollout-chart-readout" class="mt-3 text-xs text-gray-600 dark:text-gray-300 min-h-[1.5rem]">
+                {{ "{:,}".format(monthly_history[0].total) }} → {{ "{:,}".format(monthly_history[-1].total) }} {{ _('3.5 GHz sites') }}
+                ({{ '%+d'|format(monthly_history[-1].total - monthly_history[0].total) }} {{ _('from') }} {{ monthly_history[0].month }} {{ _('to') }} {{ monthly_history[-1].month }})
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Sites by voivodeship ───────────────────────────────────── #}
+    <div class="flex justify-center px-2 md:px-4 pb-10">
+        <div class="w-full max-w-5xl">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">{{ _('Sites by voivodeship') }}</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                    {{ _('Where the 3.5 GHz network is densest across the 16 voivodeships') }}
+                </p>
+                <ol class="space-y-1.5">
+                    {% set max_voiv = voivodeships[0].count if voivodeships else 1 %}
+                    {% for v in voivodeships %}
+                    <li class="flex items-baseline gap-2 text-sm">
+                        <span class="text-xs text-gray-400 dark:text-gray-500 w-4">{{ loop.index }}.</span>
+                        <span class="font-medium text-gray-900 dark:text-white truncate flex-shrink-0 w-36 capitalize">{{ v.name }}</span>
+                        <div class="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded">
+                            <div class="h-2 bg-emerald-500 dark:bg-emerald-600 rounded" style="width: {{ (100.0 * v.count / max_voiv) | round(0) }}%;"></div>
+                        </div>
+                        <span class="text-xs font-mono text-gray-700 dark:text-gray-200 w-14 text-right">{{ "{:,}".format(v.count) }}</span>
+                    </li>
+                    {% endfor %}
+                </ol>
+                <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                    {{ _('Distinct physical locations broadcasting a 3.5 GHz (n78) 5G band. Region is derived from site coordinates (nearest-centroid), so voivodeship splits are approximate. Source: monthly UKE permit data.') }}
+                </p>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {% if monthly_history and monthly_history|length >= 2 %}
+    <script defer src="{{ url_for('static', filename='dist/pages/rollout.min.js') }}?v={{ app_version }}"></script>
+    {% endif %}
+{% endblock %}
+
+{% block code %}{% endblock %}

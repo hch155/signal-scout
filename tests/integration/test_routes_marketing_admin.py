@@ -205,9 +205,10 @@ def _promote_session_user_to_admin(client):
     from database import db
     with client.session_transaction() as sess:
         uid = sess["user_id"]
-    user = User.query.get(uid)
-    user.role = "admin"
-    db.session.commit()
+    with client.application.app_context():
+        user = User.query.get(uid)
+        user.role = "admin"
+        db.session.commit()
 
 
 def test_admin_stats_admin_user_returns_json_payload(authed_client):
@@ -332,19 +333,20 @@ def test_unsubscribe_full_flow_disables_alerts(authed_client):
     from models import User
     from database import db
 
-    user = User.query.filter_by(email_alerts_enabled=True).first()
-    assert user is not None, "authed_client fixture should give us one user"
+    with authed_client.application.app_context():
+        user = User.query.filter_by(email_alerts_enabled=True).first()
+        assert user is not None, "authed_client fixture should give us one user"
 
-    serializer = URLSafeSerializer(settings.secret_key, salt="email-unsubscribe")
-    token = serializer.dumps(user.id)
+        serializer = URLSafeSerializer(settings.secret_key, salt="email-unsubscribe")
+        token = serializer.dumps(user.id)
 
-    # GET — preview page with the user's email visible.
-    r = authed_client.get(f"/unsubscribe/{token}")
-    assert r.status_code == 200
+        # GET — preview page with the user's email visible.
+        r = authed_client.get(f"/unsubscribe/{token}")
+        assert r.status_code == 200
 
-    # POST — actually flips the bit.
-    r = authed_client.post(f"/unsubscribe/{token}")
-    assert r.status_code == 200
+        # POST — actually flips the bit.
+        r = authed_client.post(f"/unsubscribe/{token}")
+        assert r.status_code == 200
 
-    db.session.refresh(user)
-    assert user.email_alerts_enabled is False
+        db.session.refresh(user)
+        assert user.email_alerts_enabled is False

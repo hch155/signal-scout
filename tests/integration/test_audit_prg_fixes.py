@@ -137,12 +137,6 @@ def test_admin_stats_has_dedicated_rate_limit(client):
     introspection of the limiter rules instead of hammering the
     endpoint, so the test is fast and doesn't rely on time-based
     state across the test suite."""
-    import app as app_module
-    _ = app_module.limiter.current_limits  # noqa: F841 (side-effect read)
-    # Easier: the decorator wraps the view, so the limit registry
-    # holds an entry keyed by the view function name. We just check
-    # that admin_stats is not relying on default_limits alone.
-    _ = app_module.limiter.limit_manager.application_limits  # noqa: F841
     # Best practical assertion: invoke the endpoint many times in
     # quick succession and verify a 429 lands inside the per-hour
     # window. Cheaper than rate-limiter introspection across versions.

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% set default_q = 'Marszałkowska, Warszawa' %}
+
+{% block title %}Live API demo — Signal-Scout coverage by address{% endblock %}
+{% block description %}Try the Signal-Scout coverage API live: type a Polish address, see the raw JSON from /coverage_by_address, a rendered coverage card, and the exact curl to reproduce it. Polish UKE data, monthly refresh.{% endblock %}
+
+{% block content %}
+<section class="text-center text-[#333] dark:text-white px-4 pt-6 pb-3">
+    <h2 class="text-2xl md:text-3xl font-bold">{{ _('Try the coverage API live') }}</h2>
+    <p class="mt-2 text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+        {{ _('Type a Polish address. Your browser calls the live coverage API and we show you the raw JSON, a rendered coverage card, and the exact curl to reproduce it.') }}
+    </p>
+</section>
+
+<div id="api-demo"
+     data-curl-base="{{ canonical_origin }}"
+     data-default-q="{{ default_q }}"
+     class="px-3 md:px-6 pb-10 max-w-4xl mx-auto">
+
+    <form id="api-demo-form" class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 md:p-6">
+        <label for="api-demo-input" class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ _('Address') }}</label>
+        <div class="mt-2 flex flex-col sm:flex-row gap-3">
+            <input id="api-demo-input" name="q" type="text" autocomplete="off"
+                   value="{{ default_q }}"
+                   class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button id="api-demo-run" type="submit"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition-colors whitespace-nowrap">
+                {{ _('Run live request') }}
+            </button>
+        </div>
+        <p id="api-demo-status" role="status" aria-live="polite" class="mt-2 text-sm text-gray-500 dark:text-gray-400"></p>
+    </form>
+
+    <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex flex-col">
+            <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-2">{{ _('Response JSON') }}</h3>
+            <pre id="api-demo-json" class="flex-1 text-xs font-mono text-gray-900 dark:text-gray-100 bg-gray-100 dark:bg-slate-900 rounded p-3 overflow-auto max-h-80 border border-gray-200 dark:border-gray-700">{{ _('Run a request to see the JSON response.') }}</pre>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex flex-col">
+            <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-2">{{ _('Coverage card') }}</h3>
+            <iframe id="api-demo-card" title="{{ _('Coverage card') }}" sandbox
+                    class="w-full h-80 rounded border border-gray-200 dark:border-gray-700 bg-white"></iframe>
+        </div>
+    </div>
+
+    <div class="mt-5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 md:p-5">
+        <div class="flex items-center justify-between gap-3">
+            <h3 class="text-sm font-bold text-gray-900 dark:text-white">{{ _('Reproduce with curl') }}</h3>
+            <button id="api-demo-copy" type="button"
+                    class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap">
+                {{ _('Copy') }}
+            </button>
+        </div>
+        <pre id="api-demo-curl" class="mt-2 text-xs font-mono text-gray-900 dark:text-gray-100 bg-gray-100 dark:bg-slate-900 rounded p-3 overflow-x-auto border border-gray-200 dark:border-gray-700">curl -H "X-API-Key: YOUR_API_KEY" \
+  "{{ canonical_origin }}/api/v1/coverage_by_address?q={{ default_q|urlencode }}"</pre>
+        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            {{ _('Pass your own X-API-Key for higher rate limits and server-side calls.') }}
+        </p>
+    </div>
+
+    <div class="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+        <a href="/api/v1/docs/" class="text-blue-600 dark:text-blue-400 underline hover:no-underline">{{ _('API reference (Swagger)') }}</a>
+        <a href="/pricing" class="text-blue-600 dark:text-blue-400 underline hover:no-underline">{{ _('See pricing') }}</a>
+    </div>
+
+    <div class="mt-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-6 md:p-8 text-center">
+        <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{ _('Ready to integrate?') }}</h3>
+        <p class="mt-2 text-sm text-gray-700 dark:text-gray-200 max-w-2xl mx-auto">
+            {{ _('Tell us your expected volume and we will match you to a plan.') }}
+        </p>
+        <a href="/contact?plan=pro" class="mt-4 inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded transition-colors">
+            {{ _('Contact sales') }}
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    <script defer src="{{ url_for('static', filename='dist/pages/api-demo.min.js') }}?v={{ app_version }}"></script>
+{% endblock %}
+{% block code %}{% endblock %}

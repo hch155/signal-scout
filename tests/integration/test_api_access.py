@@ -74,14 +74,17 @@ def _register_user_and_get_key(client, csrf_token, email):
     body = r.get_json() or {}
     api_key = body.get("api_key") or body.get("key")
     from models import User
-    user = User.query.filter_by(email=email).first()
+    with client.application.app_context():
+        user = User.query.filter_by(email=email).first()
+        user_id = user.id
+        user_api_tier = user.api_tier
     if not api_key:
         # /register may not return the plaintext (privacy preference) —
         # if so, mint a fresh one via the authenticated /account/keys
         # endpoint instead. We need a working key for the
         # bypasses_referer test.
         with client.session_transaction() as sess:
-            sess["user_id"] = user.id
+            sess["user_id"] = user_id
             sess["_csrf_token"] = csrf_token
         import json as _json
         rk = client.post("/account/keys",
@@ -92,7 +95,7 @@ def _register_user_and_get_key(client, csrf_token, email):
         assert rk.status_code == 200, rk.data
         api_key = rk.get_json()["key"]
     assert api_key
-    assert user.api_tier == "free"
+    assert user_api_tier == "free"
     return api_key
 
 

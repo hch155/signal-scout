@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Best operator at this address | Signal-Scout') }}{% endblock %}
+{% block description %}{{ _('Compare operators at any Polish address — ranked by signal, real 5G and technology depth.') }}{% endblock %}
+
+{% set dot_colors = {'play': '#a78bfa', 'orange': '#fb923c', 'plus': '#22c55e', 'tmobile': '#f87171'} %}
+
+{% macro operator_card(op) %}
+  {% set km = op.nearest_distance_km %}
+  <li class="bo-card relative rounded-xl border p-4 transition-colors {{ 'border-blue-500 ring-2 ring-blue-500/40 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400' if op.recommended else 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800' }}"
+      data-slug="{{ op.slug }}">
+    {% if op.recommended %}
+    <span class="absolute -top-2 left-4 inline-flex items-center rounded-full bg-blue-600 text-white text-[11px] font-semibold px-2 py-0.5">{{ _('Recommended') }}</span>
+    {% endif %}
+    <div class="flex items-center gap-3">
+      <span class="inline-block w-3 h-3 rounded-full flex-none" style="background-color: {{ dot_colors.get(op.slug, '#94a3b8') }}"></span>
+      <span class="font-semibold text-gray-900 dark:text-white">{{ op.operator }}</span>
+      <span class="ml-auto text-xs font-medium text-gray-500 dark:text-gray-400">{{ _('Score') }} {{ op.rank_score }}</span>
+    </div>
+    <p class="mt-2 text-sm text-gray-700 dark:text-gray-200">{{ op.rationale.get(active_lang) or op.rationale['en'] }}</p>
+    <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+      {% if km is not none %}
+      <span class="text-gray-500 dark:text-gray-400">{{ _('Nearest mast:') }}
+        {% if km < 1 %}{{ (km * 1000) | round | int }} m{% else %}{{ '%.1f' | format(km) }} km{% endif %}
+      </span>
+      {% endif %}
+      {% if op.real_5g %}
+      <span class="inline-flex items-center rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 font-semibold px-2 py-0.5">{{ _('Real 5G') }}</span>
+      {% endif %}
+      {% for tech in ['5G', 'LTE', '3G', 'GSM'] %}
+        {% if (op.technologies or {}).get(tech) %}
+        <span class="inline-flex items-center rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 px-1.5 py-0.5">{{ tech }}</span>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% if op.referral_path %}
+    <a href="{{ op.referral_path }}" rel="nofollow sponsored noopener"
+       class="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+      {{ _('See offer') }} <span aria-hidden="true">&rarr;</span>
+    </a>
+    {% endif %}
+  </li>
+{% endmacro %}
+
+{% block content %}
+<section class="max-w-2xl mx-auto px-4 py-6 w-full">
+  <header class="text-center mb-5">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ _('Best operator for this address') }}</h1>
+    <p class="mt-1 text-gray-600 dark:text-gray-300">{{ _('Compare operators at any Polish address — ranked by signal, real 5G and technology depth.') }}</p>
+  </header>
+
+  <form id="bo-form" method="GET" action="/best-operator" class="flex gap-2" role="search">
+    <input id="bo-q" type="search" name="q" value="{{ query | default('', true) }}"
+           placeholder="{{ _('Search address or place') }}" autocomplete="off"
+           maxlength="120" minlength="3" required
+           class="flex-grow p-2.5 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+    <button type="submit"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 transition-colors">{{ _('Check') }}</button>
+  </form>
+
+  <p id="bo-status" class="mt-3 text-sm text-gray-500 dark:text-gray-400" aria-live="polite">
+    {% if state == 'invalid' %}{{ _('Enter an address to compare operators.') }}
+    {% elif state == 'no_match' %}{{ _('No matching address found.') }}
+    {% elif state == 'outside_pl' %}{{ _('This address is outside Poland.') }}
+    {% elif state == 'no_coverage' %}{{ _('No coverage near this address.') }}
+    {% elif state == 'error' %}{{ _('An error occurred. Please try again.') }}
+    {% elif state == 'empty' %}{{ _('Enter an address to compare operators.') }}
+    {% elif state == 'ok' and match %}{{ match.display }}{% endif %}
+  </p>
+
+  <ul id="bo-results" class="mt-4 space-y-3 list-none p-0">
+    {% if state == 'ok' %}
+      {% for op in operators %}{{ operator_card(op) }}{% endfor %}
+    {% endif %}
+  </ul>
+
+  {% if state == 'ok' %}
+  <p class="mt-4 text-xs text-gray-400 dark:text-gray-500">
+    {{ disclaimer_text or _('Estimated from mast distance and UKE data. Not a measured signal.') }}
+    {% if data_date %} · UKE: {{ data_date }}{% endif %}
+  </p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+  <script defer src="{{ url_for('static', filename='dist/pages/best-operator.min.js') }}?v={{ app_version }}"></script>
+{% endblock %}
+
+{% block code %}{% endblock %}
