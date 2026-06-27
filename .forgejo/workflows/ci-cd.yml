@@ -264,7 +264,10 @@ jobs:
           PORTAINER_API_TOKEN: ${{ secrets.PORTAINER_API_TOKEN }}
           STAGING_TAG:         ${{ needs.build.outputs.staging_tag }}
         run: |
-          python3 scripts/portainer_deploy.py 29 21 "$STAGING_TAG" deploy/signal-scout-staging.compose.yml
+          for i in 1 2 3 4 5; do
+            python3 scripts/portainer_deploy.py 29 21 "$STAGING_TAG" deploy/signal-scout-staging.compose.yml && break
+            echo "deploy attempt $i failed (WiFi/timeout?), retry in $((i*15))s"; sleep $((i*15)); [ "$i" = 5 ] && exit 1
+          done
       - name: smoke staging (2-minute /healthz window)
         run: |
           for i in $(seq 1 24); do
@@ -302,7 +305,10 @@ jobs:
           PORTAINER_API_TOKEN: ${{ secrets.PORTAINER_API_TOKEN }}
           PROD_TAG:            ${{ needs.build.outputs.prod_tag }}
         run: |
-          python3 scripts/portainer_deploy.py 28 21 "$PROD_TAG" deploy/signal-scout-prod.compose.yml
+          for i in 1 2 3 4 5; do
+            python3 scripts/portainer_deploy.py 28 21 "$PROD_TAG" deploy/signal-scout-prod.compose.yml && break
+            echo "deploy attempt $i failed (WiFi/timeout?), retry in $((i*15))s"; sleep $((i*15)); [ "$i" = 5 ] && exit 1
+          done
       - name: smoke prod (4-minute /healthz window)
         id: smoke_prod
         run: |
@@ -320,7 +326,10 @@ jobs:
           PORTAINER_API_TOKEN: ${{ secrets.PORTAINER_API_TOKEN }}
         run: |
           echo "rolling back prod to ${{ steps.prev.outputs.tag }}"
-          python3 scripts/portainer_deploy.py 28 21 "${{ steps.prev.outputs.tag }}" deploy/signal-scout-prod.compose.yml
+          for i in 1 2 3; do
+            python3 scripts/portainer_deploy.py 28 21 "${{ steps.prev.outputs.tag }}" deploy/signal-scout-prod.compose.yml && break
+            echo "rollback attempt $i failed, retry in $((i*10))s"; sleep $((i*10)); [ "$i" = 3 ] && exit 1
+          done
 
   coverage-sweep:
     name: coverage alert sweep (post-deploy)
