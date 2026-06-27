@@ -4,14 +4,14 @@ import sqlite3
 
 import pytest
 
-pytestmark = pytest.mark.unit
-
 from real5g_rollout import (
     _is_n78,
     operator_label,
     real_5g_rollout,
     voivodeship_for,
 )
+
+pytestmark = pytest.mark.unit
 
 ORANGE = "Orange Polska S.A."
 PLAY = "P4 sp. z o.o."
