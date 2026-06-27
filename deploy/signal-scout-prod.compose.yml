@@ -32,6 +32,7 @@ services:
       - .env
     environment:
       RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-redis://redis:6379/0}
+      APP_VERSION: "dev"
     depends_on:
       redis:
         condition: service_healthy

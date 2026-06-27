@@ -3,14 +3,16 @@
 
 Standard stacks (unlike CE edge stacks) support pullImage + registry auth by
 hostname, so this is a clean: GET stack file -> swap image tag + APP_VERSION
--> PUT with pullImage=true.
+-> PUT with pullImage=true. If Portainer has lost the stack's compose file on
+disk (HTTP 500 on GET .../file), fall back to the in-repo compose passed as the
+last argument, so a lost file self-heals on the next deploy instead of wedging.
 
 Env:
   PORTAINER_URL        e.g. http://INFRA_VM_IP:9000
   PORTAINER_API_TOKEN  X-API-KEY token
 Usage:
   portainer_deploy.py gettag <stack_id>
-  portainer_deploy.py <stack_id> <endpoint_id> <new_image_tag>
+  portainer_deploy.py <stack_id> <endpoint_id> <new_image_tag> [fallback_compose]
 """
 import json, os, re, sys, urllib.request, urllib.error
 
@@ -18,7 +20,7 @@ URL = os.environ["PORTAINER_URL"].rstrip("/")
 TOKEN = os.environ["PORTAINER_API_TOKEN"]
 
 
-def call(method, path, body=None):
+def call(method, path, body=None, allow_fail=False):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(URL + path, data=data, method=method)
     req.add_header("Content-Type", "application/json")
@@ -28,19 +30,38 @@ def call(method, path, body=None):
             raw = r.read().decode()
             return r.status, (json.loads(raw) if raw.strip() else {})
     except urllib.error.HTTPError as e:
-        print(f"HTTP {e.code}: {e.read().decode()[:300]}", file=sys.stderr)
+        msg = e.read().decode()[:300]
+        if allow_fail:
+            return e.code, {"_error": msg}
+        print(f"HTTP {e.code}: {msg}", file=sys.stderr)
         sys.exit(1)
 
 
+def stack_file(stack_id):
+    status, filed = call("GET", f"/api/stacks/{stack_id}/file", allow_fail=True)
+    if status == 200 and filed.get("StackFileContent"):
+        return filed["StackFileContent"]
+    return None
+
+
 if sys.argv[1] == "gettag":
-    _, filed = call("GET", f"/api/stacks/{sys.argv[2]}/file")
-    m = re.search(r"signal-scout/app:([^\"'\s]+)", filed["StackFileContent"])
+    content = stack_file(sys.argv[2]) or ""
+    m = re.search(r"signal-scout/app:([^\"'\s]+)", content)
     print(m.group(1) if m else "")
     sys.exit(0)
 
 STACK_ID, ENDPOINT_ID, NEW_TAG = sys.argv[1], sys.argv[2], sys.argv[3]
-_, filed = call("GET", f"/api/stacks/{STACK_ID}/file")
-content = filed["StackFileContent"]
+FALLBACK = sys.argv[4] if len(sys.argv) > 4 else None
+
+content = stack_file(STACK_ID)
+if content is None:
+    if not FALLBACK:
+        print(f"stack {STACK_ID} compose unavailable and no fallback given", file=sys.stderr)
+        sys.exit(1)
+    print(f"stack {STACK_ID} compose missing in Portainer; restoring from {FALLBACK}", file=sys.stderr)
+    with open(FALLBACK) as f:
+        content = f.read()
+
 content = re.sub(r"(signal-scout/app:)[^\"'\s]+", r"\g<1>" + NEW_TAG, content)
 content = re.sub(r'(APP_VERSION:\s*")[^"]*(")', r"\g<1>" + NEW_TAG + r"\g<2>", content)
 
