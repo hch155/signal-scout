@@ -275,6 +275,13 @@
 
 .leaflet-control-attribution {
     z-index: 900;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.leaflet-attribution-flag {
+    width: 9px;
+    height: 6px;
 }
 
 /* Map control buttons with labels */

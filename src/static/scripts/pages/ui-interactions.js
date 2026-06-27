@@ -420,13 +420,15 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
             div,
         );
         legendDiv.innerHTML = `
+            <p class="text-xs font-semibold text-gray-600 dark:text-gray-300 px-1">${t('Signal strength by band')}</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-1 px-1">📍 ${t('distance from the mast (km)')}</p>
             <table class="frequency-table min-w-full divide-y divide-gray-200">
                 <thead class="text-gray-700 font-bold dark:text-white">
                     <tr>
                         <th>${t('Signal Strength')}</th>
-                        <th class="column-high" data-band="high">${t('High Band Frequency')}<br>(5G3600, L2600) (km)</th>
-                        <th class="column-mid" data-band="mid">${t('Mid Band Frequency')} <br>(5G/L2100, L1800) (km)</th>
-                        <th class="column-low" data-band="low">${t('Low Band Frequency')}<br>(L900, L800, G900) (km)</th>
+                        <th class="column-high" data-band="high">${t('High Band Frequency')}<br>(5G3600, L2600)</th>
+                        <th class="column-mid" data-band="mid">${t('Mid Band Frequency')} <br>(5G/L2100, L1800)</th>
+                        <th class="column-low" data-band="low">${t('Low Band Frequency')}<br>(L900, L800, G900)</th>
                     </tr>
                 </thead>
                 <tbody class="text-gray-700 font-bold dark:text-white divide-y divide-gray-200">
