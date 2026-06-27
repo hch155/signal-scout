@@ -61,6 +61,48 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
     return R * c;
 }
 
+// Sun & moon position (condensed SunCalc). Returns azimuth in degrees from
+// North clockwise (0=N, 90=E) and altitude in degrees (>0 = above horizon).
+const CEL_RAD = Math.PI / 180;
+const CEL_OBLIQUITY = CEL_RAD * 23.4397;
+
+function celToDays(date) {
+    return date.valueOf() / 86400000 - 0.5 + 2440588 - 2451545;
+}
+function celRightAscension(l, b) {
+    return Math.atan2(Math.sin(l) * Math.cos(CEL_OBLIQUITY) - Math.tan(b) * Math.sin(CEL_OBLIQUITY), Math.cos(l));
+}
+function celDeclination(l, b) {
+    return Math.asin(Math.sin(b) * Math.cos(CEL_OBLIQUITY) + Math.cos(b) * Math.sin(CEL_OBLIQUITY) * Math.sin(l));
+}
+function celSiderealTime(d, lw) {
+    return CEL_RAD * (280.16 + 360.9856235 * d) - lw;
+}
+function celHorizontal(H, phi, dec) {
+    const az = Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(phi) - Math.tan(dec) * Math.cos(phi));
+    const alt = Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H));
+    return {
+        azimuth: ((az / CEL_RAD + 180) % 360 + 360) % 360,
+        altitude: alt / CEL_RAD
+    };
+}
+function sunPosition(date, lat, lng) {
+    const lw = CEL_RAD * -lng, phi = CEL_RAD * lat, d = celToDays(date);
+    const M = CEL_RAD * (357.5291 + 0.98560028 * d);
+    const C = CEL_RAD * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M));
+    const L = M + C + CEL_RAD * 102.9372 + Math.PI;
+    return celHorizontal(celSiderealTime(d, lw) - celRightAscension(L, 0), phi, celDeclination(L, 0));
+}
+function moonPosition(date, lat, lng) {
+    const lw = CEL_RAD * -lng, phi = CEL_RAD * lat, d = celToDays(date);
+    const L = CEL_RAD * (218.316 + 13.176396 * d);
+    const M = CEL_RAD * (134.963 + 13.064993 * d);
+    const F = CEL_RAD * (93.272 + 13.229350 * d);
+    const l = L + CEL_RAD * 6.289 * Math.sin(M);
+    const b = CEL_RAD * 5.128 * Math.sin(F);
+    return celHorizontal(celSiderealTime(d, lw) - celRightAscension(l, b), phi, celDeclination(l, b));
+}
+
 // Handle device orientation event
 function handleOrientation(event) {
     let heading = null;
@@ -381,6 +423,30 @@ function handleVisibilityChange() {
 }
 
 // Start compass tracking for a target station
+// Place sun & moon markers at their real azimuths + update the readout
+function updateCelestial() {
+    const sunEl = document.getElementById('compass-sun');
+    const moonEl = document.getElementById('compass-moon');
+    const readout = document.getElementById('compass-celestial');
+    if (!sunEl || !moonEl) return;
+    if (compassState.userLat == null || compassState.userLng == null) return;
+
+    const now = new Date();
+    const sun = sunPosition(now, compassState.userLat, compassState.userLng);
+    const moon = moonPosition(now, compassState.userLat, compassState.userLng);
+
+    sunEl.style.transform = `rotate(${sun.azimuth}deg)`;
+    moonEl.style.transform = `rotate(${moon.azimuth}deg)`;
+    sunEl.style.opacity = sun.altitude > 0 ? '1' : '0.3';
+    moonEl.style.opacity = moon.altitude > 0 ? '1' : '0.35';
+    sunEl.classList.remove('hidden');
+    moonEl.classList.remove('hidden');
+
+    if (readout) {
+        readout.innerHTML = `☀️ ${getBearingDirection(sun.azimuth)} · 🌙 ${getBearingDirection(moon.azimuth)}`;
+    }
+}
+
 async function startCompass(stationLat, stationLng, stationName, userLat, userLng) {
     // Update state
     compassState.targetLat = stationLat;
@@ -405,6 +471,9 @@ async function startCompass(stationLat, stationLng, stationName, userLat, userLn
 
     // Show compass UI
     showCompassUI();
+
+    updateCelestial();
+    compassState.celestialInterval = setInterval(updateCelestial, 60000);
 
     // Start listening to orientation events
     window.addEventListener('deviceorientation', handleOrientation, true);
@@ -465,6 +534,11 @@ function stopCompass() {
     if (compassState.orientationCheckTimeout) {
         clearTimeout(compassState.orientationCheckTimeout);
         compassState.orientationCheckTimeout = null;
+    }
+
+    if (compassState.celestialInterval) {
+        clearInterval(compassState.celestialInterval);
+        compassState.celestialInterval = null;
     }
 
     compassState.isActive = false;
@@ -555,6 +629,14 @@ function showCompassUI() {
                             <circle id="compass-arrow-center" cx="50" cy="50" r="6" fill="#1d4ed8" stroke="white" stroke-width="2"/>
                         </svg>
                     </div>
+
+                    <!-- Celestial markers (sun & moon) at their real azimuths -->
+                    <div id="compass-sun" class="hidden absolute inset-0 flex items-start justify-center transition-opacity duration-500 pointer-events-none">
+                        <span class="text-sm leading-none mt-0.5" style="filter: drop-shadow(0 0 1.5px rgba(0,0,0,.5))">☀️</span>
+                    </div>
+                    <div id="compass-moon" class="hidden absolute inset-0 flex items-start justify-center transition-opacity duration-500 pointer-events-none">
+                        <span class="text-sm leading-none mt-0.5" style="filter: drop-shadow(0 0 1.5px rgba(0,0,0,.5))">🌙</span>
+                    </div>
                 </div>
 
                 <!-- Alignment success indicator (hidden by default) -->
@@ -579,13 +661,16 @@ function showCompassUI() {
             <div class="text-xs text-gray-500 dark:text-gray-400 mt-2 space-y-0.5 text-center">
                 <div id="compass-heading" class="compass-mobile-only">${t('You face:')} --°</div>
                 <div id="compass-bearing">${t('Station:')} --°</div>
+                <div id="compass-celestial" class="compass-mobile-only">☀️ -- · 🌙 --</div>
             </div>
 
             <!-- Help text (mobile only) -->
             <div class="compass-mobile-only text-xs text-gray-400 dark:text-gray-500 mt-3 text-center leading-relaxed">
                 <span class="text-blue-500 font-medium">${t('Blue')}</span> → ${t('Station')}<br>
-                <span class="text-orange-500 font-medium">${t('Orange')}</span> → ${t('You')}
+                <span class="text-orange-500 font-medium">${t('Orange')}</span> → ${t('You')}<br>
+                ☀️ 🌙 → ${t('Match the real sky to trust the arrow')}
             </div>
+            <div class="compass-mobile-only text-[11px] text-gray-400 dark:text-gray-500 mt-2 text-center">${t('Hold your phone flat')}</div>
         `;
         document.body.appendChild(compassContainer);
 
