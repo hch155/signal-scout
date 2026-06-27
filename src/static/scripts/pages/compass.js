@@ -280,21 +280,21 @@ function getRelativeDirection(bearing, heading) {
     while (diff > 180) diff -= 360;
     while (diff < -180) diff += 360;
 
-    if (Math.abs(diff) <= ALIGNMENT_THRESHOLD) return "ALIGNED";
-    if (Math.abs(diff) < 30) return "Almost there...";
-    if (diff > 0 && diff < 60) return "Station is to your right";
-    if (diff >= 60 && diff < 120) return "Station is on your right";
-    if (diff >= 120) return "Station is behind you";
-    if (diff < 0 && diff > -60) return "Station is to your left";
-    if (diff <= -60 && diff > -120) return "Station is on your left";
-    return "Station is behind you";
+    if (Math.abs(diff) <= ALIGNMENT_THRESHOLD) return t('ALIGNED');
+    if (Math.abs(diff) < 30) return t('Almost there...');
+    if (diff > 0 && diff < 60) return t('Station is to your right');
+    if (diff >= 60 && diff < 120) return t('Station is on your right');
+    if (diff >= 120) return t('Station is behind you');
+    if (diff < 0 && diff > -60) return t('Station is to your left');
+    if (diff <= -60 && diff > -120) return t('Station is on your left');
+    return t('Station is behind you');
 }
 
 // Request permission for device orientation (required on iOS 13+)
 async function requestOrientationPermission() {
     // Check if DeviceOrientationEvent is available
     if (typeof DeviceOrientationEvent === 'undefined') {
-        showToast('Device orientation not supported on this device', 'error');
+        showToast(t('Device orientation not supported on this device'), 'error');
         return false;
     }
 
@@ -306,11 +306,11 @@ async function requestOrientationPermission() {
                 compassState.hasPermission = true;
                 return true;
             } else {
-                showToast('Compass permission denied', 'error');
+                showToast(t('Compass permission denied'), 'error');
                 return false;
             }
         } catch (err) {
-            showToast('Error requesting compass permission: ' + err.message, 'error');
+            showToast(t('Error requesting compass permission: ') + err.message, 'error');
             return false;
         }
     }
@@ -491,8 +491,8 @@ function showCompassUI() {
 
             <!-- Desktop notice (shown when no orientation data) -->
             <div id="compass-desktop-notice" class="hidden mt-3 text-center">
-                <div class="text-sm font-semibold text-amber-600 dark:text-amber-400 mb-1">Desktop Mode</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">Compass sensors not available.<br>Use on mobile for live tracking.</div>
+                <div class="text-sm font-semibold text-amber-600 dark:text-amber-400 mb-1">${t('Desktop Mode')}</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">${t('Compass sensors not available.')}<br>${t('Use on mobile for live tracking.')}</div>
             </div>
 
             <!-- Distance -->
@@ -506,8 +506,8 @@ function showCompassUI() {
 
             <!-- Help text (mobile only) -->
             <div class="compass-mobile-only text-xs text-gray-400 dark:text-gray-500 mt-3 text-center leading-relaxed">
-                <span class="text-blue-500 font-medium">Blue</span> → Station<br>
-                <span class="text-orange-500 font-medium">Orange</span> → You
+                <span class="text-blue-500 font-medium">${t('Blue')}</span> → ${t('Station')}<br>
+                <span class="text-orange-500 font-medium">${t('Orange')}</span> → ${t('You')}
             </div>
         `;
         document.body.appendChild(compassContainer);

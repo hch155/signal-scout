@@ -40,7 +40,7 @@
       <div class="flex flex-col lg:flex-row gap-6 w-full max-w-6xl">
 
         {# Mobile: horizontal scrollable tabs (visible <lg) #}
-        <nav class="lg:hidden -mx-2 px-2 overflow-x-auto whitespace-nowrap pb-2" aria-label="Account sections">
+        <nav class="lg:hidden -mx-2 px-2 overflow-x-auto whitespace-nowrap pb-2" aria-label="{{ _('Account sections') }}">
             <a href="#locations" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">{{ _('Locations') }}</a>
             <a href="#api-access" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">API</a>
             <a href="#api-keys" class="account-nav-link inline-block px-3 py-2 mr-2 text-sm font-medium rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">{{ _('Named keys') }}</a>
@@ -54,7 +54,7 @@
 
         {# Desktop: sticky sidebar (hidden <lg) #}
         <aside class="hidden lg:block w-56 shrink-0">
-            <nav class="sticky top-20 space-y-0.5" aria-label="Account sections">
+            <nav class="sticky top-20 space-y-0.5" aria-label="{{ _('Account sections') }}">
                 <a href="#locations" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">{{ _('Saved locations') }}</a>
                 <a href="#api-access" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">{{ _('API access') }}</a>
                 <a href="#api-keys" class="account-nav-link block px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-l-2 border-transparent">{{ _('Named API keys') }}</a>
@@ -88,17 +88,17 @@
                     {{ _('API access') }}
                 </h3>
                 <div>
-                    <p class="text-sm text-gray-600 dark:text-gray-300">Email</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300">{{ _('Email') }}</p>
                     <p class="font-medium dark:text-white">{{ user.email }}</p>
                 </div>
 
                 <div>
-                    <p class="text-sm text-gray-600 dark:text-gray-300">Tier</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300">{{ _('Tier') }}</p>
                     <p class="font-medium dark:text-white">{{ user.api_tier }}</p>
                 </div>
 
                 <div>
-                    <p class="text-sm text-gray-600 dark:text-gray-300">API key</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300">{{ _('API key') }}</p>
                     {# PR #47: hashed-at-rest. We never store (and so
                        never render) the plaintext key after creation —
                        only `first8…last4` for recognition. The
@@ -113,10 +113,7 @@
                               class="font-mono text-sm break-all p-2 bg-gray-100 dark:bg-gray-700 dark:text-white rounded flex-1">{% if user.api_key_prefix %}{{ user.api_key_prefix }}{% elif user.api_key %}{{ user.api_key[:8] }}…{{ user.api_key[-4:] }}{% else %}—{% endif %}</code>
                     </div>
                     <p class="text-xs text-gray-600 dark:text-gray-300 mt-2">
-                        Send as <code>X-API-Key: &lt;value&gt;</code> on requests to
-                        <code>/stations</code>, <code>/find_station</code>,
-                        <code>/search_stations</code>. Higher rate limit + bypasses Referer check.
-                        Keys are stored hashed (SHA-256); the full value is shown only at creation.
+                        {{ _('Send as X-API-Key: <value> on requests to /stations, /find_station, /search_stations. Higher rate limit + bypasses Referer check. Keys are stored hashed (SHA-256); the full value is shown only at creation.') }}
                     </p>
                     <p class="text-xs text-gray-600 dark:text-gray-300 mt-2">
                         Full reference:
@@ -130,10 +127,10 @@
 
                 <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
                     <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                        Lost your key, or rotating it after a leak?
+                        {{ _('Lost your key, or rotating it after a leak?') }}
                     </p>
                     <button id="regen-api-key"
-                            aria-label="Regenerate API key"
+                            aria-label="{{ _('Regenerate API key') }}"
                             class="bg-red-500 hover:bg-red-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
                         {{ _('Regenerate API key') }}
                     </button>
@@ -147,8 +144,7 @@
                        this NOW, you won't see it again". #}
                     <div id="regen-key-display" class="hidden mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded">
                         <p class="text-xs text-yellow-800 dark:text-yellow-200 mb-1">
-                            <strong>Copy now — this is the only time the full key will be shown.</strong>
-                            We store only a SHA-256 hash; we cannot recover this value if you lose it.
+                            {{ _('Copy now — this is the only time the full key will be shown. We store only a SHA-256 hash; we cannot recover this value if you lose it.') }}
                         </p>
                         <div class="flex items-center gap-2 mt-2">
                             <code id="regen-key-value" class="font-mono text-xs break-all p-2 bg-white dark:bg-gray-900 dark:text-white rounded flex-1"></code>
@@ -171,9 +167,7 @@
                     </button>
                 </div>
                 <p class="text-xs text-gray-600 dark:text-gray-300">
-                    Save up to 20 named places (home, work, parents, cabin…). Each one gets
-                    its own station-change feed; toggle alerts off to silence email digests
-                    for that location without losing its history.
+                    {{ _('Save up to 20 named places (home, work, parents, cabin…). Each one gets its own station-change feed; toggle alerts off to silence email digests for that location without losing its history.') }}
                 </p>
 
                 {# 2026-04-28: overflow-x wrapper so the 5-col table
@@ -182,10 +176,10 @@
                 <table class="w-full text-sm min-w-[480px]">
                     <thead class="text-left text-gray-600 dark:text-gray-300">
                         <tr>
-                            <th class="py-1 pr-2">Name</th>
-                            <th class="py-1 pr-2">Coords</th>
-                            <th class="py-1 pr-2">Radius</th>
-                            <th class="py-1 pr-2">Alerts</th>
+                            <th class="py-1 pr-2">{{ _('Name') }}</th>
+                            <th class="py-1 pr-2">{{ _('Coords') }}</th>
+                            <th class="py-1 pr-2">{{ _('Radius') }}</th>
+                            <th class="py-1 pr-2">{{ _('Alerts') }}</th>
                             <th class="py-1 pr-2"></th>
                         </tr>
                     </thead>
@@ -202,20 +196,20 @@
                             <td class="py-2 pr-2">{{ "%.0f" % loc.radius_km }} km</td>
                             <td class="py-2 pr-2">
                                 {% if loc.alerting_enabled %}
-                                    <span class="inline-block px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs font-semibold">on</span>
+                                    <span class="inline-block px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs font-semibold">{{ _('on') }}</span>
                                 {% else %}
-                                    <span class="inline-block px-2 py-0.5 rounded bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200 text-xs font-semibold">off</span>
+                                    <span class="inline-block px-2 py-0.5 rounded bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200 text-xs font-semibold">{{ _('off') }}</span>
                                 {% endif %}
                             </td>
                             <td class="py-2 pr-2 text-right space-x-2 whitespace-nowrap">
                                 <a href="/account/locations/{{ loc.id }}/changes"
-                                   class="text-blue-600 dark:text-blue-400 hover:underline text-xs font-medium">Details</a>
+                                   class="text-blue-600 dark:text-blue-400 hover:underline text-xs font-medium">{{ _('Details') }}</a>
                                 <button data-loc-toggle-id="{{ loc.id }}" data-current="{{ '1' if loc.alerting_enabled else '0' }}"
                                         class="text-gray-600 dark:text-gray-300 hover:underline text-xs font-medium">
-                                    {{ 'Mute' if loc.alerting_enabled else 'Unmute' }}
+                                    {{ _('Mute') if loc.alerting_enabled else _('Unmute') }}
                                 </button>
                                 <button data-loc-delete-id="{{ loc.id }}"
-                                        class="text-red-600 dark:text-red-400 hover:underline text-xs font-medium">Delete</button>
+                                        class="text-red-600 dark:text-red-400 hover:underline text-xs font-medium">{{ _('Delete') }}</button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -226,13 +220,13 @@
                 <form id="create-location-form" class="hidden space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <label class="block">
-                        <span class="text-sm text-gray-600 dark:text-gray-300">Name</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Name') }}</span>
                         <input type="text" name="name" id="loc-name-input" required maxlength="80"
-                               placeholder="Home, Office, Cabin…"
+                               placeholder="{{ _('Home, Office, Cabin…') }}"
                                class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </label>
                     <label class="block">
-                        <span class="text-sm text-gray-600 dark:text-gray-300">Description (optional)</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Description (optional)') }}</span>
                         <input type="text" name="description" maxlength="255"
                                class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </label>
@@ -251,29 +245,29 @@
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <label class="block">
-                            <span class="text-sm text-gray-600 dark:text-gray-300">Latitude</span>
+                            <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Latitude') }}</span>
                             <input type="number" id="loc-lat-input" name="lat" required step="any" min="48.95" max="55.55"
                                    class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </label>
                         <label class="block">
-                            <span class="text-sm text-gray-600 dark:text-gray-300">Longitude</span>
+                            <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Longitude') }}</span>
                             <input type="number" id="loc-lng-input" name="lng" required step="any" min="13.95" max="24.25"
                                    class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </label>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <label class="block">
-                            <span class="text-sm text-gray-600 dark:text-gray-300">Radius (km)</span>
+                            <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Radius (km)') }}</span>
                             <input type="number" name="radius_km" min="0" max="50" step="1" value="0"
                                    class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <span class="block mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                0 = exact spot · 5 = neighbourhood · 15 = whole city
+                                {{ _('0 = exact spot · 5 = neighbourhood · 15 = whole city') }}
                             </span>
                         </label>
                         <label class="flex items-center gap-2 mt-6">
                             <input type="checkbox" name="alerting_enabled" checked
                                    class="rounded border-gray-300 dark:border-gray-600">
-                            <span class="text-sm text-gray-700 dark:text-gray-200">Email me when stations change here</span>
+                            <span class="text-sm text-gray-700 dark:text-gray-200">{{ _('Email me when stations change here') }}</span>
                         </label>
                     </div>
                     <div class="flex gap-2">
@@ -296,9 +290,7 @@
                     {{ _('API keys') }}
                 </h3>
                 <p class="text-xs text-gray-600 dark:text-gray-300">
-                    Create one key per integration so you can revoke them
-                    individually if leaked. Keys are shown in full only at
-                    creation — copy then.
+                    {{ _('Create one key per integration so you can revoke them individually if leaked. Keys are shown in full only at creation — copy then.') }}
                 </p>
 
                 {# 2026-04-28: 7-col API-keys table needs horizontal
@@ -307,12 +299,12 @@
                 <table class="w-full text-sm text-center min-w-[640px]">
                     <thead class="text-center text-gray-600 dark:text-gray-300">
                         <tr>
-                            <th class="py-1 px-2">Name</th>
-                            <th class="py-1 px-2">Key</th>
-                            <th class="py-1 px-2">Created</th>
-                            <th class="py-1 px-2">Last used</th>
-                            <th class="py-1 px-2">Calls</th>
-                            <th class="py-1 px-2">Status</th>
+                            <th class="py-1 px-2">{{ _('Name') }}</th>
+                            <th class="py-1 px-2">{{ _('Key') }}</th>
+                            <th class="py-1 px-2">{{ _('Created') }}</th>
+                            <th class="py-1 px-2">{{ _('Last used') }}</th>
+                            <th class="py-1 px-2">{{ _('Calls') }}</th>
+                            <th class="py-1 px-2">{{ _('Status') }}</th>
                             <th class="py-1 px-2"></th>
                         </tr>
                     </thead>
@@ -329,19 +321,19 @@
                             <td class="py-2 px-2 font-mono text-xs">{% if k.key_prefix %}{{ k.key_prefix }}{% elif k.key %}{{ k.key[:8] }}…{{ k.key[-4:] }}{% else %}—{% endif %}</td>
                             <td class="py-2 px-2 text-gray-600 dark:text-gray-300">{{ k.created_at.strftime('%Y-%m-%d') }}</td>
                             <td class="py-2 px-2 text-gray-600 dark:text-gray-300">
-                                {% if k.last_used_at %}{{ k.last_used_at.strftime('%Y-%m-%d %H:%M') }}{% else %}never{% endif %}
+                                {% if k.last_used_at %}{{ k.last_used_at.strftime('%Y-%m-%d %H:%M') }}{% else %}{{ _('never') }}{% endif %}
                             </td>
                             <td class="py-2 px-2 text-gray-600 dark:text-gray-300">{{ k.total_calls or 0 }}</td>
                             <td class="py-2 px-2">
                                 {% if k.revoked_at %}
-                                    <span class="inline-block px-2 py-0.5 rounded bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200 text-xs font-semibold">revoked</span>
+                                    <span class="inline-block px-2 py-0.5 rounded bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200 text-xs font-semibold">{{ _('revoked') }}</span>
                                 {% else %}
-                                    <span class="inline-block px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs font-semibold">active</span>
+                                    <span class="inline-block px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs font-semibold">{{ _('active') }}</span>
                                 {% endif %}
                             </td>
                             <td class="py-2 px-2">
                                 {% if not k.revoked_at %}
-                                <button data-revoke-id="{{ k.id }}" class="text-red-600 dark:text-red-400 hover:underline text-xs font-medium">Revoke</button>
+                                <button data-revoke-id="{{ k.id }}" class="text-red-600 dark:text-red-400 hover:underline text-xs font-medium">{{ _('Revoke') }}</button>
                                 {% endif %}
                             </td>
                         </tr>
@@ -353,7 +345,7 @@
                 <form id="create-key-form" class="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <label class="block">
-                        <span class="text-sm text-gray-600 dark:text-gray-300">Name (e.g. "iOS app", "monitoring script")</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Name (e.g. "iOS app", "monitoring script")') }}</span>
                         <input type="text" name="name" required maxlength="80"
                                class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </label>
@@ -364,7 +356,7 @@
                     <p id="create-key-status" class="text-sm mt-2"></p>
                     <div id="new-key-display" class="hidden mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded">
                         <p class="text-xs text-yellow-800 dark:text-yellow-200 mb-1">
-                            Copy now — this is the only time the full value will be shown.
+                            {{ _('Copy now — this is the only time the full value will be shown.') }}
                         </p>
                         <code id="new-key-value" class="font-mono text-xs break-all dark:text-white"></code>
                     </div>
@@ -377,9 +369,7 @@
                     {{ _('Recent activity') }}
                 </h3>
                 <p class="text-xs text-gray-600 dark:text-gray-300">
-                    Logins, password changes, key creations and revokes — last 20.
-                    Spot a login from an IP you don't recognize?
-                    Change your password and revoke any leaked keys.
+                    {{ _("Logins, password changes, key creations and revokes — last 20. Spot a login from an IP you don't recognize? Change your password and revoke any leaked keys.") }}
                 </p>
                 {% if audit_events %}
                 {# 2026-04-28: 4-col activity table — UA can be long,
@@ -388,7 +378,7 @@
                 <table class="w-full text-sm text-center min-w-[560px]">
                     <thead class="text-center text-gray-600 dark:text-gray-300">
                         <tr>
-                            <th class="py-1 px-2">When</th>
+                            <th class="py-1 px-2">{{ _('When') }}</th>
                             <th class="py-1 px-2">Event</th>
                             <th class="py-1 px-2">IP</th>
                             <th class="py-1 px-2">Agent</th>
@@ -407,7 +397,7 @@
                 </table>
                 </div>
                 {% else %}
-                <p class="text-sm text-gray-600 dark:text-gray-300 italic">No activity logged yet.</p>
+                <p class="text-sm text-gray-600 dark:text-gray-300 italic">{{ _('No activity logged yet.') }}</p>
                 {% endif %}
             </div>
 
@@ -419,9 +409,7 @@
 
                 {% if user.totp_enabled %}
                     <p class="text-sm text-gray-700 dark:text-gray-200">
-                        Status:
-                        <span class="inline-block px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs font-semibold align-middle">enabled</span>
-                        — every login asks for a 6-digit code from your authenticator app.
+                        {{ _('Status: enabled — every login asks for a 6-digit code from your authenticator app.') }}
                     </p>
 
                     <div class="flex gap-2">
@@ -442,7 +430,7 @@
                         </p>
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <label class="block">
-                            <span class="text-sm text-gray-700 dark:text-gray-200">Current password</span>
+                            <span class="text-sm text-gray-700 dark:text-gray-200">{{ _('Current password') }}</span>
                             <input type="password" name="current_password" required
                                    class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
                         </label>
@@ -468,7 +456,7 @@
                         </p>
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <label class="block">
-                            <span class="text-sm text-gray-700 dark:text-gray-200">Current password</span>
+                            <span class="text-sm text-gray-700 dark:text-gray-200">{{ _('Current password') }}</span>
                             <input type="password" name="current_password" required
                                    class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
                         </label>
@@ -480,7 +468,7 @@
                     </form>
                 {% else %}
                     <p class="text-sm text-gray-700 dark:text-gray-100">
-                        Add a 6-digit code from a TOTP authenticator (Google Authenticator, Authy, 1Password, Bitwarden) to every login.
+                        {{ _('Add a 6-digit code from a TOTP authenticator (Google Authenticator, Authy, 1Password, Bitwarden) to every login.') }}
                     </p>
                     <button id="totp-setup-btn"
                             class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
@@ -496,7 +484,7 @@
                    blended into the panel and the labels disappeared. #}
                 <div id="totp-setup-box" class="hidden mt-3 space-y-3 p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">
                     <p class="text-sm text-gray-700 dark:text-gray-100">
-                        Scan this QR code with your authenticator (or paste the secret manually):
+                        {{ _('Scan this QR code with your authenticator (or paste the secret manually):') }}
                     </p>
                     <div id="totp-qr" class="flex justify-center bg-white p-3 rounded"></div>
                     <div>
@@ -504,13 +492,13 @@
                         <code id="totp-secret" class="font-mono text-xs break-all text-gray-900 dark:text-gray-100"></code>
                     </div>
                     <details class="text-xs">
-                        <summary class="cursor-pointer text-gray-600 dark:text-gray-300">Show provisioning URI</summary>
+                        <summary class="cursor-pointer text-gray-600 dark:text-gray-300">{{ _('Show provisioning URI') }}</summary>
                         <code id="totp-uri" class="font-mono text-xs break-all text-gray-700 dark:text-gray-100 mt-1 block"></code>
                     </details>
                     <form id="totp-verify-form" class="space-y-2 pt-2 border-t border-gray-300 dark:border-gray-600">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <label class="block">
-                            <span class="text-sm text-gray-700 dark:text-gray-100">Enter the 6-digit code shown in your app</span>
+                            <span class="text-sm text-gray-700 dark:text-gray-100">{{ _('Enter the 6-digit code shown in your app') }}</span>
                             <input type="text" name="code" required pattern="[0-9 ]{6,7}" maxlength="7"
                                    inputmode="numeric"
                                    class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
@@ -525,7 +513,7 @@
 
                 <div id="totp-recovery-box" class="hidden mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded">
                     <p class="text-xs text-yellow-800 dark:text-yellow-200 mb-2">
-                        <strong>Save these recovery codes somewhere safe.</strong> Each works once, in case you lose access to your authenticator app. They will not be shown again.
+                        {{ _('Save these recovery codes somewhere safe. Each works once, in case you lose access to your authenticator app. They will not be shown again.') }}
                     </p>
                     <ul id="totp-recovery-list" class="font-mono text-sm text-gray-900 dark:text-white space-y-1"></ul>
                 </div>
@@ -540,12 +528,12 @@
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
                     <div>
-                        <p class="text-sm text-gray-600 dark:text-gray-300">Email</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-300">{{ _('Email') }}</p>
                         <p class="font-medium text-gray-900 dark:text-white">{{ user.email }}</p>
                     </div>
 
                     <label class="block">
-                        <span class="text-sm text-gray-600 dark:text-gray-300">Company</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Company') }}</span>
                         <input type="text" name="company" maxlength="120"
                                value="{{ user.company or '' }}"
                                placeholder="Acme Corp."
@@ -564,10 +552,7 @@
             <div id="notifications" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ _('Email notifications') }}</h3>
                 <p class="text-sm text-gray-700 dark:text-gray-300">
-                    Signal-Scout sends transactional + security email
-                    (password change, 2FA changes, recovery code use,
-                    saved-location alerts when configured). Turn off
-                    here or via the unsubscribe link in any email.
+                    {{ _('Signal-Scout sends transactional + security email (password change, 2FA changes, recovery code use, saved-location alerts when configured). Turn off here or via the unsubscribe link in any email.') }}
                 </p>
                 <label class="inline-flex items-center gap-2 mt-2 cursor-pointer">
                     <input type="checkbox" id="email-alerts-toggle"
@@ -580,8 +565,7 @@
                 <p id="email-pref-status" class="text-xs mt-1"></p>
                 <p class="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
                     <svg aria-hidden="true" class="w-4 h-4 shrink-0 mt-px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                    <span>Turning off silences <strong>all</strong> email — including
-                    security alerts. We recommend keeping this on.</span>
+                    <span>{{ _('Turning off silences all email — including security alerts. We recommend keeping this on.') }}</span>
                 </p>
             </div>
 
@@ -594,25 +578,25 @@
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
                     <label class="block">
-                        <span class="text-sm text-gray-600 dark:text-gray-300">Current password</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Current password') }}</span>
                         <input type="password" name="current_password" required autocomplete="current-password"
                                class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </label>
 
                     <label class="block">
-                        <span class="text-sm text-gray-600 dark:text-gray-300">New password</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('New password') }}</span>
                         <input type="password" id="changePasswordNew" name="new_password" required autocomplete="new-password"
                                class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </label>
 
                     <label class="block">
-                        <span class="text-sm text-gray-600 dark:text-gray-300">Confirm new password</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Confirm new password') }}</span>
                         <input type="password" id="changePasswordConfirm" name="confirm_password" required autocomplete="new-password"
                                class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </label>
 
                     <div id="changePasswordRequirements" class="text-xs space-y-0.5">
-                        <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="minLength"><span class="indicator">✗</span> At least 8 characters</p>
+                        <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="minLength"><span class="indicator">✗</span> {{ _('At least 8 characters') }}</p>
                         <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="number"><span class="indicator">✗</span> Contains a number</p>
                         <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="uppercase"><span class="indicator">✗</span> Contains an uppercase letter</p>
                         <p class="password-requirement text-red-500 dark:text-red-400" data-criteria="lowercase"><span class="indicator">✗</span> Contains a lowercase letter</p>
@@ -634,19 +618,19 @@
                     {{ _('Danger zone') }}
                 </h3>
                 <p class="text-sm text-gray-600 dark:text-gray-300">
-                    Permanently delete your account and API key. This cannot be undone.
+                    {{ _('Permanently delete your account and API key. This cannot be undone.') }}
                 </p>
                 <form id="delete-form" class="space-y-3">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
                     <label class="block">
-                        <span class="text-sm text-gray-600 dark:text-gray-300">Confirm with your password</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Confirm with your password') }}</span>
                         <input type="password" name="current_password" required autocomplete="current-password"
                                class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-red-500">
                     </label>
 
                     <label class="block">
-                        <span class="text-sm text-gray-600 dark:text-gray-300">Type <code>DELETE</code> to confirm</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Type DELETE to confirm') }}</span>
                         <input type="text" name="confirm_phrase" required autocomplete="off"
                                class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-red-500">
                     </label>

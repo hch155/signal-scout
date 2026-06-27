@@ -49,24 +49,24 @@ function showOAuthErrorIfPresent() {
 
   const messages = {
     no_email:
-      'Your sign-in provider didn\'t share an email address with us. Please use a different sign-in method.',
+      t('Your sign-in provider didn\'t share an email address with us. Please use a different sign-in method.'),
     no_pending_2fa:
-      'Your two-factor session expired. Please sign in again.',
+      t('Your two-factor session expired. Please sign in again.'),
     state_mismatch:
-      'Sign-in could not be verified. Please try again from the home page.',
+      t('Sign-in could not be verified. Please try again from the home page.'),
     provider_rejected:
-      'The sign-in provider rejected the request (most likely a missing permission on the app side). Please try a different method, or let the operator know.',
+      t('The sign-in provider rejected the request (most likely a missing permission on the app side). Please try a different method, or let the operator know.'),
     token_exchange:
-      'Sign-in could not be completed (token exchange failed). Please try again — if it keeps failing, use a different provider.',
+      t('Sign-in could not be completed (token exchange failed). Please try again — if it keeps failing, use a different provider.'),
     db:
-      'Sign-in completed but we couldn\'t save your session. Please try again.',
+      t('Sign-in completed but we couldn\'t save your session. Please try again.'),
     provider_not_configured:
-      'This sign-in method isn\'t enabled. Please use a different one.',
+      t('This sign-in method isn\'t enabled. Please use a different one.'),
     provider_error:
-      'Sign-in failed at the provider. Please try again or use another method.',
+      t('Sign-in failed at the provider. Please try again or use another method.'),
   };
   const msg = messages[code]
-    || 'Sign-in failed. Please try again or use another method.';
+    || t('Sign-in failed. Please try again or use another method.');
   if (typeof showToast === 'function') {
     showToast(msg, 'error');
   } else {
@@ -426,10 +426,10 @@ function handleRegistrationSubmit(e) {
   resetErrorMessages();
 
   // validations
-  const isEmailValid = validateField(email, 'emailError', 'Please enter a valid email address.', validateEmail);
-  const isPasswordValid = validateField(password, 'passwordError', 
-      'Password must be at least 8 characters long, include at least one number, one uppercase letter, and one special character.', validatePassword);
-  const doPasswordsMatch = validateFieldMatch(password, confirmPassword, 'confirmPasswordError', 'Passwords do not match.');
+  const isEmailValid = validateField(email, 'emailError', t('Please enter a valid email address.'), validateEmail);
+  const isPasswordValid = validateField(password, 'passwordError',
+      t('Password must be at least 8 characters long, include at least one number, one uppercase letter, and one special character.'), validatePassword);
+  const doPasswordsMatch = validateFieldMatch(password, confirmPassword, 'confirmPasswordError', t('Passwords do not match.'));
 
   if (isEmailValid && isPasswordValid && doPasswordsMatch) {
       submitForm('/register', formData); 
@@ -533,7 +533,7 @@ function passwordVisibilityToggle(passwordInputId, confirmPasswordInputId, toggl
 
   toggleButton.setAttribute('type', 'button');
   toggleButton.textContent = t('Hold to show');
-  toggleButton.setAttribute('title', 'Press and hold to reveal the password');
+  toggleButton.setAttribute('title', t('Press and hold to reveal the password'));
 
   function togglePassword(show) {
       const type = show ? 'text' : 'password';
@@ -584,7 +584,7 @@ function submitForm(url, formData) {
   })
   .catch(error => {
       console.error('Error:', error);
-      showToast('An error occurred. Please try again.', 'error');
+      showToast(t('An error occurred. Please try again.'), 'error');
   });
 }
 

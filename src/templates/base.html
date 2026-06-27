@@ -76,7 +76,7 @@
       {# ── Header ──────────────────────────────────────────────────────── #}
       <header class="relative flex items-center justify-between gap-x-6 px-6 py-3 md:py-6">
 
-          <nav class="flex items-center gap-x-4 md:gap-x-6 text-black dark:text-white" aria-label="Primary">
+          <nav class="flex items-center gap-x-4 md:gap-x-6 text-black dark:text-white" aria-label="{{ _('Primary') }}">
               <a href="/" class="inline-flex items-center text-lg font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">
                 <img src="{{ url_for('static', filename='favicon.ico') }}" alt="" aria-hidden="true" class="w-6 h-6 mb-1 mr-2">
                 Signal-Scout
@@ -244,7 +244,7 @@
                   </div>
                   <label class="block">
                     <span class="text-xs text-gray-600 dark:text-gray-300">{{ _('Email') }}</span>
-                    <input type="email" id="email" name="email" required autocomplete="email" pattern="[^@ \t\r\n]+@[^@ \t\r\n]+\.[^@ \t\r\n]+" title="Please enter a valid email address." placeholder="you@example.com" class="w-full mt-1 p-2.5 bg-gray-50 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400">
+                    <input type="email" id="email" name="email" required autocomplete="email" pattern="[^@ \t\r\n]+@[^@ \t\r\n]+\.[^@ \t\r\n]+" title="{{ _('Please enter a valid email address.') }}" placeholder="you@example.com" class="w-full mt-1 p-2.5 bg-gray-50 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400">
                     <div class="error-message text-red-500 dark:text-red-400 text-xs mt-1 hidden" id="emailError"></div>
                   </label>
                   <label class="block">
@@ -287,10 +287,10 @@
 
     <div id="rateLimitModal" class="hidden fixed inset-0 flex items-center text-center justify-center" style="z-index: 5010;">
       <div class="m-auto p-4 bg-blue-200 bg-opacity-90 rounded-lg shadow-lg">
-          <h1 class="text-md font-bold text-red-500">Rate Limit Exceeded</h1>
-          <p>Please wait a minute before making new requests.</p>
-          <div>Retry in <span id="countdown">60</span> seconds.</div>
-          <img src="/static/limitexceededfresh.png" alt="Rate Limit Exceeded"
+          <h1 class="text-md font-bold text-red-500">{{ _('Rate Limit Exceeded') }}</h1>
+          <p>{{ _('Please wait a minute before making new requests.') }}</p>
+          <div>{{ _('Retry in {n} seconds.').split('{n}')[0] }}<span id="countdown">60</span>{{ _('Retry in {n} seconds.').split('{n}')[1] }}</div>
+          <img src="/static/limitexceededfresh.png" alt="{{ _('Rate Limit Exceeded') }}"
                loading="lazy" decoding="async" width="320" height="240">
       </div>
     </div>
@@ -298,7 +298,7 @@
     <div id="toast-container" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center space-y-2" style="z-index: 5000;"></div>
 
     <button id="backToTopBtn" class="hidden fixed bottom-20 md:bottom-5 right-5 bg-blue-500 dark:bg-gray-500 text-white px-3 py-2 rounded transition duration-1000 ease-in-out text-sm" style="z-index: 1000;">
-      ↑ Top
+      {{ _('↑ Top') }}
     </button>
 
     <div class="flex-grow">
@@ -316,7 +316,7 @@
             {% if app_version_sha %}
             | <a href="{{ repo_url }}/commit/{{ app_version_sha }}"
                  class="text-xs text-gray-500 dark:text-gray-400 ml-1 hover:underline"
-                 title="Build {{ app_version }} — click to view this commit on GitHub"
+                 title="{{ _('Build {version} — click to view this commit on GitHub').replace('{version}', app_version) }}"
                  target="_blank" rel="noopener">v{{ app_version }}</a>
             {% else %}
             | <span class="text-xs text-gray-500 dark:text-gray-400 ml-1"

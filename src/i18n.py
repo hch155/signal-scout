@@ -356,6 +356,199 @@ TRANSLATIONS = {
     'Regenerate failed.': 'Generowanie ponowne nie powiodło się.',
     'Verify failed.': 'Weryfikacja nie powiodła się.',
     'New secret ready. Verify below.': 'Nowy sekret gotowy. Zweryfikuj poniżej.',
+
+    # compass.js — relative direction / legend / desktop notice / toasts (JS)
+    'ALIGNED': 'NA CELU',
+    'Almost there...': 'Już prawie...',
+    'Station is to your right': 'Stacja jest lekko po prawej',
+    'Station is on your right': 'Stacja jest po Twojej prawej',
+    'Station is behind you': 'Stacja jest za Tobą',
+    'Station is to your left': 'Stacja jest lekko po lewej',
+    'Station is on your left': 'Stacja jest po Twojej lewej',
+    'Blue': 'Niebieski',
+    'Orange': 'Pomarańczowy',
+    'You': 'Ty',
+    'Desktop Mode': 'Tryb komputerowy',
+    'Compass sensors not available.': 'Czujniki kompasu są niedostępne.',
+    'Use on mobile for live tracking.': 'Użyj na telefonie, aby śledzić na żywo.',
+    'Device orientation not supported on this device':
+        'To urządzenie nie obsługuje czujnika orientacji',
+    'Compass permission denied': 'Odmowa dostępu do kompasu',
+    'Error requesting compass permission: ': 'Błąd podczas żądania dostępu do kompasu: ',
+
+    # ui-interactions.js — legend / coverage gaps / band highlight / save spot (JS)
+    'Signal Range Legend': 'Legenda zasięgu sygnału',
+    'Full coverage at this spot — all {n} bands within reach.':
+        'Pełny zasięg w tym miejscu — wszystkie {n} pasm w zasięgu.',
+    '{dead} of {total} band(s) dead at this spot. {covered} covered.':
+        '{dead} z {total} pasm bez zasięgu w tym miejscu. {covered} z zasięgiem.',
+    'nearest {dist} km (within {thresh} km)': 'najbliższy {dist} km (w zasięgu {thresh} km)',
+    'nearest {dist} km (gap — threshold {thresh} km)':
+        'najbliższy {dist} km (luka — próg {thresh} km)',
+    'Nearest {band} is {dist} km {dir} — click "Navigate" in the sidebar to jump there.':
+        'Najbliższy {band} jest {dist} km {dir} — kliknij „Nawiguj” w panelu, aby tam przejść.',
+    'Clear band highlight': 'Wyczyść podświetlenie pasma',
+    'Provider': 'Operator',
+    'BTS ID': 'ID stacji',
+    'City': 'Miasto',
+    'Bands': 'Pasma',
+    'Name for this saved spot': 'Nazwa zapisywanego miejsca',
+    'Near {city}': 'W pobliżu: {city}',
+    'Pin {lat}, {lng}': 'Pinezka {lat}, {lng}',
+    'Unknown': 'Nieznane',
+
+    # common.js — validation / password toggle / generic error (JS)
+    'An error occurred. Please try again.': 'Wystąpił błąd. Spróbuj ponownie.',
+    'Press and hold to reveal the password': 'Naciśnij i przytrzymaj, aby pokazać hasło',
+    'Please enter a valid email address.': 'Wpisz poprawny adres e-mail.',
+    'Password must be at least 8 characters long, include at least one number, one uppercase letter, and one special character.':
+        'Hasło musi mieć co najmniej 8 znaków oraz zawierać cyfrę, wielką literę i znak specjalny.',
+    'Passwords do not match.': 'Hasła nie są zgodne.',
+
+    # common.js — OAuth error toasts (JS)
+    "Your sign-in provider didn't share an email address with us. Please use a different sign-in method.":
+        'Dostawca logowania nie udostępnił nam adresu e-mail. Użyj innej metody logowania.',
+    'Your two-factor session expired. Please sign in again.':
+        'Twoja sesja dwuetapowa wygasła. Zaloguj się ponownie.',
+    'Sign-in could not be verified. Please try again from the home page.':
+        'Nie udało się zweryfikować logowania. Spróbuj ponownie ze strony głównej.',
+    'The sign-in provider rejected the request (most likely a missing permission on the app side). Please try a different method, or let the operator know.':
+        'Dostawca logowania odrzucił żądanie (najpewniej brak uprawnienia po stronie aplikacji). Spróbuj innej metody lub poinformuj operatora.',
+    'Sign-in could not be completed (token exchange failed). Please try again — if it keeps failing, use a different provider.':
+        'Nie udało się dokończyć logowania (błąd wymiany tokenu). Spróbuj ponownie — jeśli błąd się powtarza, użyj innego dostawcy.',
+    "Sign-in completed but we couldn't save your session. Please try again.":
+        'Logowanie się powiodło, ale nie udało się zapisać sesji. Spróbuj ponownie.',
+    "This sign-in method isn't enabled. Please use a different one.":
+        'Ta metoda logowania nie jest włączona. Użyj innej.',
+    'Sign-in failed at the provider. Please try again or use another method.':
+        'Logowanie u dostawcy nie powiodło się. Spróbuj ponownie lub użyj innej metody.',
+    'Sign-in failed. Please try again or use another method.':
+        'Logowanie nie powiodło się. Spróbuj ponownie lub użyj innej metody.',
+
+    # account.js — status / geolocation / dynamic rows (JS)
+    '✓ Email enabled.': '✓ E-mail włączony.',
+    '✓ Email disabled.': '✓ E-mail wyłączony.',
+    '2FA enabled.': '2FA włączone.',
+    'Got it — {lat}, {lng}.': 'Gotowe — {lat}, {lng}.',
+    'Permission denied — type coordinates manually below.':
+        'Odmowa dostępu — wpisz współrzędne ręcznie poniżej.',
+    'Timed out — try again or type coordinates manually.':
+        'Przekroczono limit czasu — spróbuj ponownie lub wpisz współrzędne ręcznie.',
+    'Could not determine location — type coordinates manually.':
+        'Nie udało się ustalić lokalizacji — wpisz współrzędne ręcznie.',
+    'Location {n}': 'Lokalizacja {n}',
+    'Update failed.': 'Aktualizacja nie powiodła się.',
+    'Revoke failed.': 'Unieważnienie nie powiodło się.',
+    'revoked': 'unieważniony',
+    'never': 'nigdy',
+    'active': 'aktywny',
+    'Revoke': 'Unieważnij',
+    'Error: {message}': 'Błąd: {message}',
+
+    # base.html — rate-limit modal / nav / footer (Jinja)
+    'Primary': 'Nawigacja główna',
+    'Rate Limit Exceeded': 'Przekroczono limit zapytań',
+    'Please wait a minute before making new requests.':
+        'Odczekaj minutę przed wysłaniem kolejnych zapytań.',
+    'Retry in {n} seconds.': 'Ponów próbę za {n} s.',
+    '↑ Top': '↑ Góra',
+    'Build {version} — click to view this commit on GitHub':
+        'Kompilacja {version} — kliknij, aby zobaczyć ten commit na GitHubie',
+
+    # verify_email.html (Jinja)
+    'Email verified': 'E-mail zweryfikowany',
+    'Your email address is confirmed. Coverage alerts and account emails are now active.':
+        'Twój adres e-mail został potwierdzony. Alerty zasięgu i e-maile konta są teraz aktywne.',
+    'Link invalid or expired': 'Link nieprawidłowy lub wygasł',
+    'This verification link is no longer valid — it may have expired (links last 48 hours). Sign in and use "Resend verification email" on your account page to get a fresh one.':
+        'Ten link weryfikacyjny nie jest już ważny — mógł wygasnąć (linki działają 48 godzin). Zaloguj się i użyj „Wyślij ponownie e-mail weryfikacyjny” na stronie konta, aby otrzymać nowy.',
+    'Something went wrong': 'Coś poszło nie tak',
+    "We couldn't save the verification. Please try the link again in a moment.":
+        'Nie udało się zapisać weryfikacji. Spróbuj użyć linku ponownie za chwilę.',
+    'Go to your account': 'Przejdź do konta',
+    'Back to the map': 'Wróć do mapy',
+
+    # reset_password.html (Jinja)
+    'Password updated — you can now sign in.':
+        'Hasło zaktualizowane — możesz się teraz zalogować.',
+    "Pick a strong password you don't use anywhere else.":
+        'Wybierz silne hasło, którego nie używasz nigdzie indziej.',
+    'This reset link is invalid or has expired.':
+        'Ten link resetujący jest nieprawidłowy lub wygasł.',
+
+    # account.html — labels / table headers / help text (Jinja)
+    'Account sections': 'Sekcje konta',
+    'Tier': 'Poziom',
+    'API key': 'Klucz API',
+    'Send as X-API-Key: <value> on requests to /stations, /find_station, /search_stations. Higher rate limit + bypasses Referer check. Keys are stored hashed (SHA-256); the full value is shown only at creation.':
+        'Wysyłaj jako X-API-Key: <wartość> w zapytaniach do /stations, /find_station, /search_stations. Wyższy limit zapytań + pomija sprawdzanie Referer. Klucze są przechowywane jako skrót (SHA-256); pełna wartość jest pokazywana tylko przy tworzeniu.',
+    'Lost your key, or rotating it after a leak?':
+        'Zgubiłeś klucz lub wymieniasz go po wycieku?',
+    'Copy now — this is the only time the full key will be shown. We store only a SHA-256 hash; we cannot recover this value if you lose it.':
+        'Skopiuj teraz — to jedyny moment, w którym zobaczysz pełny klucz. Przechowujemy tylko skrót SHA-256; nie odzyskamy tej wartości, jeśli ją zgubisz.',
+    'Save up to 20 named places (home, work, parents, cabin…). Each one gets its own station-change feed; toggle alerts off to silence email digests for that location without losing its history.':
+        'Zapisz do 20 nazwanych miejsc (dom, praca, rodzice, działka…). Każde ma własny kanał zmian stacji; wyłącz alerty, aby wyciszyć e-maile dla danej lokalizacji bez utraty jej historii.',
+    'Name': 'Nazwa',
+    'Coords': 'Współrzędne',
+    'Radius': 'Promień',
+    'on': 'wł.',
+    'off': 'wył.',
+    'Details': 'Szczegóły',
+    'Mute': 'Wycisz',
+    'Unmute': 'Włącz',
+    'Delete': 'Usuń',
+    'Description (optional)': 'Opis (opcjonalnie)',
+    'Home, Office, Cabin…': 'Dom, biuro, działka…',
+    'Latitude': 'Szerokość geogr.',
+    'Longitude': 'Długość geogr.',
+    'Radius (km)': 'Promień (km)',
+    '0 = exact spot · 5 = neighbourhood · 15 = whole city':
+        '0 = dokładny punkt · 5 = okolica · 15 = całe miasto',
+    'Email me when stations change here': 'Wyślij mi e-mail, gdy zmienią się tu stacje',
+    'Create one key per integration so you can revoke them individually if leaked. Keys are shown in full only at creation — copy then.':
+        'Twórz jeden klucz na integrację, aby móc je unieważniać pojedynczo w razie wycieku. Klucze są pokazywane w całości tylko przy tworzeniu — skopiuj je wtedy.',
+    'Key': 'Klucz',
+    'Created': 'Utworzono',
+    'Last used': 'Ostatnio użyto',
+    'Calls': 'Wywołania',
+    'Status': 'Status',
+    'Name (e.g. "iOS app", "monitoring script")':
+        'Nazwa (np. „aplikacja iOS”, „skrypt monitorujący”)',
+    'Copy now — this is the only time the full value will be shown.':
+        'Skopiuj teraz — to jedyny moment, w którym zobaczysz pełną wartość.',
+    "Logins, password changes, key creations and revokes — last 20. Spot a login from an IP you don't recognize? Change your password and revoke any leaked keys.":
+        'Logowania, zmiany hasła, tworzenie i unieważnianie kluczy — ostatnie 20. Widzisz logowanie z nieznanego IP? Zmień hasło i unieważnij wszystkie wyciekłe klucze.',
+    'When': 'Kiedy',
+    'No activity logged yet.': 'Brak zarejestrowanej aktywności.',
+    'Status: enabled — every login asks for a 6-digit code from your authenticator app.':
+        'Status: włączone — przy każdym logowaniu wymagany jest 6-cyfrowy kod z aplikacji uwierzytelniającej.',
+    'Add a 6-digit code from a TOTP authenticator (Google Authenticator, Authy, 1Password, Bitwarden) to every login.':
+        'Dodaj do każdego logowania 6-cyfrowy kod z aplikacji TOTP (Google Authenticator, Authy, 1Password, Bitwarden).',
+    'Scan this QR code with your authenticator (or paste the secret manually):':
+        'Zeskanuj ten kod QR aplikacją uwierzytelniającą (lub wklej sekret ręcznie):',
+    'Current password': 'Bieżące hasło',
+    'Show provisioning URI': 'Pokaż URI konfiguracyjny',
+    'Enter the 6-digit code shown in your app': 'Wpisz 6-cyfrowy kod z aplikacji',
+    'Save these recovery codes somewhere safe. Each works once, in case you lose access to your authenticator app. They will not be shown again.':
+        'Zapisz te kody odzyskiwania w bezpiecznym miejscu. Każdy działa raz, na wypadek utraty dostępu do aplikacji uwierzytelniającej. Nie zostaną pokazane ponownie.',
+    'Company': 'Firma',
+    'Signal-Scout sends transactional + security email (password change, 2FA changes, recovery code use, saved-location alerts when configured). Turn off here or via the unsubscribe link in any email.':
+        'Signal-Scout wysyła e-maile transakcyjne i dotyczące bezpieczeństwa (zmiana hasła, zmiany 2FA, użycie kodu odzyskiwania, alerty zapisanych lokalizacji, jeśli skonfigurowane). Wyłącz tutaj lub linkiem rezygnacji w dowolnym e-mailu.',
+    'Turning off silences all email — including security alerts. We recommend keeping this on.':
+        'Wyłączenie wycisza wszystkie e-maile — w tym alerty bezpieczeństwa. Zalecamy pozostawienie włączone.',
+    'Confirm new password': 'Potwierdź nowe hasło',
+    'At least 8 characters': 'Co najmniej 8 znaków',
+    'Permanently delete your account and API key. This cannot be undone.':
+        'Trwale usuń konto i klucz API. Tej operacji nie można cofnąć.',
+    'Confirm with your password': 'Potwierdź hasłem',
+    'Type DELETE to confirm': 'Wpisz DELETE, aby potwierdzić',
+
+    # account_changes / account_location_changes / unsubscribe / embed / contact (Jinja)
+    'Station changes near you': 'Zmiany stacji w Twojej okolicy',
+    'Location details': 'Szczegóły lokalizacji',
+    'Email preferences': 'Preferencje e-mail',
+    'Show stations near you?': 'Pokazać stacje w pobliżu?',
+    "Let's talk": 'Porozmawiajmy',
 }
 
 JS_STRING_KEYS = (
@@ -491,6 +684,68 @@ JS_STRING_KEYS = (
     'Regenerate failed.',
     'Verify failed.',
     'New secret ready. Verify below.',
+    'ALIGNED',
+    'Almost there...',
+    'Station is to your right',
+    'Station is on your right',
+    'Station is behind you',
+    'Station is to your left',
+    'Station is on your left',
+    'Blue',
+    'Orange',
+    'You',
+    'Desktop Mode',
+    'Compass sensors not available.',
+    'Use on mobile for live tracking.',
+    'Device orientation not supported on this device',
+    'Compass permission denied',
+    'Error requesting compass permission: ',
+    'Signal Range Legend',
+    'Full coverage at this spot — all {n} bands within reach.',
+    '{dead} of {total} band(s) dead at this spot. {covered} covered.',
+    'nearest {dist} km (within {thresh} km)',
+    'nearest {dist} km (gap — threshold {thresh} km)',
+    'Nearest {band} is {dist} km {dir} — click "Navigate" in the sidebar to jump there.',
+    'Clear band highlight',
+    'Provider',
+    'BTS ID',
+    'City',
+    'Bands',
+    'Name for this saved spot',
+    'Near {city}',
+    'Pin {lat}, {lng}',
+    'Unknown',
+    'An error occurred. Please try again.',
+    'Press and hold to reveal the password',
+    'Please enter a valid email address.',
+    'Password must be at least 8 characters long, include at least one number, one uppercase letter, and one special character.',
+    'Passwords do not match.',
+    "Your sign-in provider didn't share an email address with us. Please use a different sign-in method.",
+    'Your two-factor session expired. Please sign in again.',
+    'Sign-in could not be verified. Please try again from the home page.',
+    'The sign-in provider rejected the request (most likely a missing permission on the app side). Please try a different method, or let the operator know.',
+    'Sign-in could not be completed (token exchange failed). Please try again — if it keeps failing, use a different provider.',
+    "Sign-in completed but we couldn't save your session. Please try again.",
+    "This sign-in method isn't enabled. Please use a different one.",
+    'Sign-in failed at the provider. Please try again or use another method.',
+    'Sign-in failed. Please try again or use another method.',
+    'from',
+    'to',
+    '✓ Email enabled.',
+    '✓ Email disabled.',
+    '2FA enabled.',
+    'Got it — {lat}, {lng}.',
+    'Permission denied — type coordinates manually below.',
+    'Timed out — try again or type coordinates manually.',
+    'Could not determine location — type coordinates manually.',
+    'Location {n}',
+    'Update failed.',
+    'Revoke failed.',
+    'revoked',
+    'never',
+    'active',
+    'Revoke',
+    'Error: {message}',
 )
 
 

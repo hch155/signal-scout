@@ -27,8 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data && data.success) {
           if (emailPrefStatus) {
             emailPrefStatus.textContent = data.email_alerts_enabled
-              ? '✓ Email enabled.'
-              : '✓ Email disabled.';
+              ? t('✓ Email enabled.')
+              : t('✓ Email disabled.');
             emailPrefStatus.className = 'text-xs mt-1 text-green-600 dark:text-green-400';
           }
         } else {
@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
           status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         }
       }).catch(err => {
-        status.textContent = 'Error: ' + err.message;
+        status.textContent = t('Error: {message}').replace('{message}', err.message);
         status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
       });
     });
@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
           createKeyStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         }
       }).catch(err => {
-        createKeyStatus.textContent = 'Error: ' + err.message;
+        createKeyStatus.textContent = t('Error: {message}').replace('{message}', err.message);
         createKeyStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
       });
     });
@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           alert((data && data.error) || t('Setup failed.'));
         }
-      }).catch(e => alert('Error: ' + e.message));
+      }).catch(e => alert(t('Error: {message}').replace('{message}', e.message)));
     });
   }
 
@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
           status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         }
       }).catch(e => {
-        status.textContent = 'Error: ' + e.message;
+        status.textContent = t('Error: {message}').replace('{message}', e.message);
         status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
       });
     });
@@ -299,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ code: fd.get('code') }),
       }).then(data => {
         if (data && data.success) {
-          status.textContent = '2FA enabled.';
+          status.textContent = t('2FA enabled.');
           status.className = 'text-sm mt-2 text-green-600 dark:text-green-400';
           const box = document.getElementById('totp-recovery-box');
           const list = document.getElementById('totp-recovery-list');
@@ -317,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
           status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         }
       }).catch(e => {
-        status.textContent = 'Error: ' + e.message;
+        status.textContent = t('Error: {message}').replace('{message}', e.message);
         status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
       });
     });
@@ -354,7 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
           status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         }
       }).catch(e => {
-        status.textContent = 'Error: ' + e.message;
+        status.textContent = t('Error: {message}').replace('{message}', e.message);
         status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
       });
     });
@@ -414,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
           // (gives a deterministic name without scanning the DB).
           if (!nameInput.value) {
             const existing = document.querySelectorAll('#locations-tbody tr[data-loc-id]').length;
-            nameInput.value = `Location ${existing + 1}`;
+            nameInput.value = t('Location {n}').replace('{n}', existing + 1);
           }
           nameInput.focus();
           nameInput.select();
@@ -451,17 +451,17 @@ document.addEventListener('DOMContentLoaded', () => {
           locLatInput.value = lat;
           locLngInput.value = lng;
           if (locGeoStatus) {
-            locGeoStatus.textContent = `Got it — ${lat}, ${lng}.`;
+            locGeoStatus.textContent = t('Got it — {lat}, {lng}.').replace('{lat}', lat).replace('{lng}', lng);
             locGeoStatus.className = 'text-xs text-green-600 dark:text-green-400';
           }
         },
         (err) => {
           // 1=permission denied, 2=position unavailable, 3=timeout
           const reason = err.code === 1
-            ? 'Permission denied — type coordinates manually below.'
+            ? t('Permission denied — type coordinates manually below.')
             : err.code === 3
-              ? 'Timed out — try again or type coordinates manually.'
-              : 'Could not determine location — type coordinates manually.';
+              ? t('Timed out — try again or type coordinates manually.')
+              : t('Could not determine location — type coordinates manually.');
           if (locGeoStatus) {
             locGeoStatus.textContent = reason;
             locGeoStatus.className = 'text-xs text-red-600 dark:text-red-400';
@@ -505,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
           locStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         }
       }).catch(err => {
-        locStatus.textContent = 'Error: ' + err.message;
+        locStatus.textContent = t('Error: {message}').replace('{message}', err.message);
         locStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
       });
     });
@@ -523,9 +523,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const row = document.querySelector(`tr[data-loc-id="${id}"]`);
           if (row) row.remove();
         } else {
-          alert((data && data.error) || 'Delete failed.');
+          alert((data && data.error) || t('Delete failed.'));
         }
-      }).catch(err => alert('Error: ' + err.message));
+      }).catch(err => alert(t('Error: {message}').replace('{message}', err.message)));
     });
   });
 
@@ -546,9 +546,9 @@ document.addEventListener('DOMContentLoaded', () => {
           // fewer ways for the rendered state to drift from the server.
           window.location.reload();
         } else {
-          alert((data && data.error) || 'Update failed.');
+          alert((data && data.error) || t('Update failed.'));
         }
-      }).catch(err => alert('Error: ' + err.message));
+      }).catch(err => alert(t('Error: {message}').replace('{message}', err.message)));
     });
   });
 
@@ -584,7 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
           deleteStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         }
       }).catch(err => {
-        deleteStatus.textContent = 'Error: ' + err.message;
+        deleteStatus.textContent = t('Error: {message}').replace('{message}', err.message);
         deleteStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
       });
     });
@@ -621,7 +621,7 @@ function wireForm({ formId, statusId, url, okMsg, onSuccess }) {
         statusEl.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
       }
     }).catch(err => {
-      statusEl.textContent = 'Error: ' + err.message;
+      statusEl.textContent = t('Error: {message}').replace('{message}', err.message);
       statusEl.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
     });
   });
@@ -639,15 +639,15 @@ function revokeKey(keyId) {
         // Mark row as revoked: replace status cell + remove revoke button.
         const cells = row.querySelectorAll('td');
         if (cells.length >= 5) {
-          cells[4].innerHTML = '<span class="text-red-600 dark:text-red-400">revoked</span>';
+          cells[4].innerHTML = `<span class="text-red-600 dark:text-red-400">${t('revoked')}</span>`;
         }
         const btn = row.querySelector('button[data-revoke-id]');
         if (btn) btn.remove();
       }
     } else {
-      alert((data && data.error) || 'Revoke failed.');
+      alert((data && data.error) || t('Revoke failed.'));
     }
-  }).catch(err => alert('Error: ' + err.message));
+  }).catch(err => alert(t('Error: {message}').replace('{message}', err.message)));
 }
 
 function appendKeyRow(data) {
@@ -665,13 +665,13 @@ function appendKeyRow(data) {
   const tdName = document.createElement('td'); tdName.className = 'py-2 pr-2 font-medium'; tdName.textContent = data.name; tr.appendChild(tdName);
   const tdKey  = document.createElement('td'); tdKey.className  = 'py-2 pr-2 font-mono text-xs'; tdKey.textContent = masked; tr.appendChild(tdKey);
   const tdC    = document.createElement('td'); tdC.className    = 'py-2 pr-2 text-gray-500 dark:text-gray-400'; tdC.textContent = data.created_at.slice(0, 10); tr.appendChild(tdC);
-  const tdL    = document.createElement('td'); tdL.className    = 'py-2 pr-2 text-gray-500 dark:text-gray-400'; tdL.textContent = 'never'; tr.appendChild(tdL);
-  const tdS    = document.createElement('td'); tdS.className    = 'py-2 pr-2'; tdS.innerHTML = '<span class="text-green-600 dark:text-green-400">active</span>'; tr.appendChild(tdS);
+  const tdL    = document.createElement('td'); tdL.className    = 'py-2 pr-2 text-gray-500 dark:text-gray-400'; tdL.textContent = t('never'); tr.appendChild(tdL);
+  const tdS    = document.createElement('td'); tdS.className    = 'py-2 pr-2'; tdS.innerHTML = `<span class="text-green-600 dark:text-green-400">${t('active')}</span>`; tr.appendChild(tdS);
   const tdA    = document.createElement('td'); tdA.className    = 'py-2 pr-2 text-right';
   const btn = document.createElement('button');
   btn.dataset.revokeId = data.id;
   btn.className = 'text-red-600 hover:underline text-xs';
-  btn.textContent = 'Revoke';
+  btn.textContent = t('Revoke');
   btn.addEventListener('click', () => revokeKey(data.id));
   tdA.appendChild(btn);
   tr.appendChild(tdA);

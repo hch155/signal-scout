@@ -200,7 +200,7 @@
           var v = s.get(h);
           if (v > 0) tipLines.push(s.key + ': ' + fmt(v));
         });
-        tipLines.push('Total: ' + fmt(totalForRow));
+        tipLines.push(t('Total:') + ' ' + fmt(totalForRow));
       }
 
       // SVG elements don't fire mouseenter on transparent fills in
@@ -308,7 +308,7 @@
     var d = get(last) - get(first);
     var sign = d >= 0 ? '+' : '';
     readout.textContent = fmt(get(first)) + ' → ' + fmt(get(last)) + ' ' + label
-      + ' (' + sign + fmt(d) + ' from ' + first.month + ' to ' + last.month + ')';
+      + ' (' + sign + fmt(d) + ' ' + t('from') + ' ' + first.month + ' ' + t('to') + ' ' + last.month + ')';
   }
 
   function setActive(buttons, view) {

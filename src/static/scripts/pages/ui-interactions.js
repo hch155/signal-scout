@@ -403,7 +403,7 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
 
         let toggleBtn = L.DomUtil.create('button', 'map-control-btn', div);
         toggleBtn.id = 'toggleFrequencyRangeLegendBtn';
-        toggleBtn.title = 'Signal Range Legend';
+        toggleBtn.title = t('Signal Range Legend');
         toggleBtn.innerHTML = `
             <svg class="control-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4.5"></circle><circle cx="12" cy="12" r="1" fill="currentColor"></circle></svg>
             <span class="control-label">${t('Range')}</span>
@@ -891,8 +891,9 @@ function renderCoverageGaps(lat, lng) {
                     ? 'text-red-700 dark:text-red-300'
                     : 'text-yellow-700 dark:text-yellow-300';
             const summaryText = dead === 0
-                ? `Full coverage at this spot — all ${total} bands within reach.`
-                : `${dead} of ${total} band${total > 1 ? 's' : ''} dead at this spot. ${covered} covered.`;
+                ? t('Full coverage at this spot — all {n} bands within reach.').replace('{n}', total)
+                : t('{dead} of {total} band(s) dead at this spot. {covered} covered.')
+                    .replace('{dead}', dead).replace('{total}', total).replace('{covered}', covered);
 
             // PR #47.3: build the row DOM directly (was: template
             // string) so each band can carry a click handler that
@@ -920,8 +921,8 @@ function renderCoverageGaps(lat, lng) {
                 const dist = g.nearest_distance_km;
                 const thresh = g.threshold_km;
                 const labelText = ok
-                    ? `nearest ${dist} km (within ${thresh} km)`
-                    : `nearest ${dist} km (gap — threshold ${thresh} km)`;
+                    ? t('nearest {dist} km (within {thresh} km)').replace('{dist}', dist).replace('{thresh}', thresh)
+                    : t('nearest {dist} km (gap — threshold {thresh} km)').replace('{dist}', dist).replace('{thresh}', thresh);
 
                 const li = document.createElement('li');
 
@@ -1034,7 +1035,7 @@ function toggleBandHighlight(btnEl, gap, userLat, userLng) {
         latitude: tLat,
         longitude: tLng,
         distance: gap.nearest_distance_km,
-        service_provider: gap.nearest_service_provider || 'Unknown',
+        service_provider: gap.nearest_service_provider || t('Unknown'),
         basestation_id: gap.nearest_basestation_id || '',
         frequency_bands: Array.isArray(gap.nearest_frequency_bands)
             ? gap.nearest_frequency_bands
@@ -1098,7 +1099,7 @@ function toggleBandHighlight(btnEl, gap, userLat, userLng) {
         // direction; the sidebar card has a "Navigate" button that does
         // pan/zoom on demand if they want to actually go look.
         const dir = compassDir(bearingDeg(userLat, userLng, tLat, tLng));
-        showFarBandBanner(`Nearest ${gap.band} is ${gap.nearest_distance_km} km ${dir} — click "Navigate" in the sidebar to jump there.`);
+        showFarBandBanner(t('Nearest {band} is {dist} km {dir} — click "Navigate" in the sidebar to jump there.').replace('{band}', gap.band).replace('{dist}', gap.nearest_distance_km).replace('{dir}', dir));
     }
 }
 
@@ -1157,17 +1158,17 @@ function addBandHighlightSidebarCard(station, gap, userLat, userLng) {
     closeBtn.type = 'button';
     closeBtn.className = 'text-violet-700 dark:text-violet-200 opacity-70 hover:opacity-100 text-lg leading-none';
     closeBtn.textContent = '×';
-    closeBtn.setAttribute('aria-label', 'Clear band highlight');
+    closeBtn.setAttribute('aria-label', t('Clear band highlight'));
     closeBtn.addEventListener('click', clearBandHighlight);
     head.appendChild(title);
     head.appendChild(closeBtn);
     card.appendChild(head);
 
     const lines = [
-        ['Provider', station.service_provider || '—'],
-        ['BTS ID', station.basestation_id || '—'],
-        ['City', station.city || '—'],
-        ['Bands', (station.frequency_bands || []).join(', ') || '—'],
+        [t('Provider'), station.service_provider || '—'],
+        [t('BTS ID'), station.basestation_id || '—'],
+        [t('City'), station.city || '—'],
+        [t('Bands'), (station.frequency_bands || []).join(', ') || '—'],
     ];
     lines.forEach(([k, v]) => {
         const row = document.createElement('div');
@@ -1225,8 +1226,8 @@ function renderSaveSpotShortcut(lat, lng, nearestCity) {
     // station's city; fall back to coords. Both beat the date+time
     // string which told the user nothing about *where* the pin is.
     const defaultName = nearestCity
-        ? `Near ${nearestCity}`
-        : `Pin ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        ? t('Near {city}').replace('{city}', nearestCity)
+        : t('Pin {lat}, {lng}').replace('{lat}', lat.toFixed(4)).replace('{lng}', lng.toFixed(4));
 
     const cta = document.createElement('div');
     cta.id = 'save-spot-cta';
@@ -1244,7 +1245,7 @@ function renderSaveSpotShortcut(lat, lng, nearestCity) {
     nameInput.value = defaultName;
     nameInput.maxLength = 80;
     nameInput.className = 'flex-1 min-w-0 text-sm px-2 py-1.5 rounded border border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400';
-    nameInput.setAttribute('aria-label', 'Name for this saved spot');
+    nameInput.setAttribute('aria-label', t('Name for this saved spot'));
 
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -2156,7 +2157,7 @@ function showSuggestions(stations) {
 
         const cityEl = document.createElement('span');
         cityEl.className = 'text-xs text-gray-500 dark:text-gray-400';
-        cityEl.textContent = station.city || 'Unknown';
+        cityEl.textContent = station.city || t('Unknown');
 
         item.append(idEl, sep1, providerEl, sep2, cityEl);
 
