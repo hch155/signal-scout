@@ -560,5 +560,6 @@ window.CompassModule = {
     stop: stopCompass,
     addButton: addCompassButton,
     isSupported: isCompassSupported,
+    isMobile: detectMobileDevice,
     isActive: () => compassState.isActive
 };
