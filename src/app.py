@@ -169,9 +169,9 @@ with app.app_context():
         )
 ensure_user_api_columns(app, db)
 
-def _users_wal_pragma(dbapi_conn, _conn_record):
+def _users_db_pragmas(dbapi_conn, _conn_record):
     cur = dbapi_conn.cursor()
-    cur.execute("PRAGMA journal_mode=WAL")
+    cur.execute("PRAGMA journal_mode=DELETE")
     cur.execute("PRAGMA synchronous=NORMAL")
     cur.close()
 
@@ -180,7 +180,7 @@ with app.app_context():
     try:
         _users_engine = db.engines.get('users')
         if _users_engine is not None:
-            event.listen(_users_engine, "connect", _users_wal_pragma)
+            event.listen(_users_engine, "connect", _users_db_pragmas)
             _users_engine.dispose()
     except Exception:
         app.logger.exception("users.db WAL pragma wiring failed")

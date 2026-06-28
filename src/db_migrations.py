@@ -29,30 +29,33 @@ def upgrade_users_db(users_db_path: str) -> None:
     from alembic.util.exc import CommandError
     from sqlalchemy import create_engine, inspect
     from sqlalchemy.exc import OperationalError
+    import time
 
     root = _repo_root()
     cfg = Config(os.path.join(root, "alembic.ini"))
     cfg.set_main_option("script_location", os.path.join(root, "migrations"))
     cfg.set_main_option("sqlalchemy.url", f"sqlite:///{users_db_path}")
 
-    engine = create_engine(f"sqlite:///{users_db_path}")
-    try:
-        tables = set(inspect(engine).get_table_names())
-    except OperationalError as exc:
-        if "disk I/O error" not in str(exc):
-            raise
-        logger.warning("users.db SQLite I/O error (stale -wal/-shm from a crashed "
-                       "write) — clearing the sidecar files and retrying once")
-        engine.dispose()
-        for suffix in ("-wal", "-shm"):
-            try:
-                os.remove(users_db_path + suffix)
-            except FileNotFoundError:
-                pass
-        engine = create_engine(f"sqlite:///{users_db_path}")
-        tables = set(inspect(engine).get_table_names())
-    finally:
-        engine.dispose()
+    engine_url = f"sqlite:///{users_db_path}"
+    tables = None
+    for attempt in range(6):
+        engine = create_engine(engine_url)
+        try:
+            tables = set(inspect(engine).get_table_names())
+            break
+        except OperationalError as exc:
+            if "disk I/O error" not in str(exc) or attempt == 5:
+                raise
+            logger.warning("users.db SQLite I/O error (attempt %d/6) — clearing "
+                           "stale -wal/-shm and retrying", attempt + 1)
+            for suffix in ("-wal", "-shm"):
+                try:
+                    os.remove(users_db_path + suffix)
+                except FileNotFoundError:
+                    pass
+            time.sleep(1)
+        finally:
+            engine.dispose()
 
     if "alembic_version" not in tables and "user" in tables:
         logger.info("users.db pre-dates Alembic — stamping baseline %s",
