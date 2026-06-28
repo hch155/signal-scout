@@ -1160,6 +1160,16 @@ function buildBandHighlightPopup(station, gap) {
         </div>`;
 }
 
+function navButtonLabel() {
+    if (window.CompassModule
+        && typeof window.CompassModule.isMobile === 'function'
+        && window.CompassModule.isMobile()
+        && window.CompassModule.isSupported()) {
+        return t('Live navigation to station');
+    }
+    return t('Navigate to Station');
+}
+
 function startLiveCompassNav(station, userLat, userLng) {
     if (!window.CompassModule
         || typeof window.CompassModule.isMobile !== 'function'
@@ -1224,7 +1234,7 @@ function addBandHighlightSidebarCard(station, gap, userLat, userLng) {
     const navBtn = document.createElement('button');
     navBtn.type = 'button';
     navBtn.className = 'mt-2 w-full inline-flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700/50 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200 border border-gray-200 dark:border-gray-600 text-sm font-medium py-2 px-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
-    navBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg> ${t('Navigate to station')}`;
+    navBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg> ${navButtonLabel()}`;
     navBtn.addEventListener('click', () => {
         if (startLiveCompassNav(station, userLat, userLng)) return;
         const bounds = L.latLngBounds(
@@ -1768,7 +1778,7 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
         const compassBtn = document.createElement('button');
         compassBtn.type = 'button';
         compassBtn.className = 'compass-btn mt-2 w-full inline-flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700/50 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200 border border-gray-200 dark:border-gray-600 text-sm font-medium py-2 px-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
-        compassBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg> ${t('Navigate to Station')}`;
+        compassBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg> ${navButtonLabel()}`;
         compassBtn.addEventListener('click', function() {
             startLiveCompassNav(station, currentFilters.lat, currentFilters.lng);
             drawConnectionLine(station.latitude, station.longitude);
