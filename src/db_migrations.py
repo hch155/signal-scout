@@ -28,6 +28,7 @@ def upgrade_users_db(users_db_path: str) -> None:
     from alembic.config import Config
     from alembic.util.exc import CommandError
     from sqlalchemy import create_engine, inspect
+    from sqlalchemy.exc import OperationalError
 
     root = _repo_root()
     cfg = Config(os.path.join(root, "alembic.ini"))
@@ -36,6 +37,19 @@ def upgrade_users_db(users_db_path: str) -> None:
 
     engine = create_engine(f"sqlite:///{users_db_path}")
     try:
+        tables = set(inspect(engine).get_table_names())
+    except OperationalError as exc:
+        if "disk I/O error" not in str(exc):
+            raise
+        logger.warning("users.db SQLite I/O error (stale -wal/-shm from a crashed "
+                       "write) — clearing the sidecar files and retrying once")
+        engine.dispose()
+        for suffix in ("-wal", "-shm"):
+            try:
+                os.remove(users_db_path + suffix)
+            except FileNotFoundError:
+                pass
+        engine = create_engine(f"sqlite:///{users_db_path}")
         tables = set(inspect(engine).get_table_names())
     finally:
         engine.dispose()
