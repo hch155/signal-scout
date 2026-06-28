@@ -103,6 +103,16 @@ function moonPosition(date, lat, lng) {
     return celHorizontal(celSiderealTime(d, lw) - celRightAscension(l, b), phi, celDeclination(l, b));
 }
 
+const COMPASS_ACCURACY_POOR_DEG = 25;
+
+// Update the calibration hint
+function updateCalibrationHint(accuracy) {
+    const hint = document.getElementById('compass-calibration');
+    if (!hint) return;
+    const poor = accuracy < 0 || accuracy > COMPASS_ACCURACY_POOR_DEG;
+    hint.classList.toggle('hidden', !poor);
+}
+
 // Handle device orientation event
 function handleOrientation(event) {
     let heading = null;
@@ -110,6 +120,9 @@ function handleOrientation(event) {
     // iOS provides webkitCompassHeading (degrees from magnetic north, 0-360)
     if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
         heading = event.webkitCompassHeading;
+        if (typeof event.webkitCompassAccuracy === 'number') {
+            updateCalibrationHint(event.webkitCompassAccuracy);
+        }
     }
     // Android/others: use absolute orientation if available
     else if ((event.absolute === true || event.type === 'deviceorientationabsolute') && event.alpha !== null) {
@@ -557,7 +570,7 @@ function showCompassUI() {
         compassContainer.id = 'compass-container';
         compassContainer.className = 'fixed bottom-4 right-4 z-[1000] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-4 flex flex-col items-center border border-gray-200 dark:border-gray-700';
         compassContainer.innerHTML = `
-            <button id="compass-close" class="absolute top-2 right-3 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 text-2xl font-light">&times;</button>
+            <button id="compass-close" aria-label="${t('Close')}" class="absolute top-2 right-3 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 text-2xl font-light">&times;</button>
             <div class="text-sm font-semibold text-gray-700 dark:text-white mb-3 text-center max-w-[160px] truncate" id="compass-target-name"></div>
 
             <!-- Compass container -->
@@ -573,7 +586,7 @@ function showCompassUI() {
                 <!-- Rotating compass ring - contains BOTH cardinal directions AND station arrow -->
                 <div id="compass-ring" class="absolute inset-2 rounded-full">
                     <!-- Compass rose SVG with cardinal directions and station arrow -->
-                    <svg class="w-full h-full" viewBox="0 0 100 100">
+                    <svg class="w-full h-full" viewBox="0 0 100 100" aria-hidden="true">
                         <!-- Compass circle -->
                         <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" stroke-width="1" class="text-gray-300 dark:text-gray-600"/>
 
@@ -620,7 +633,7 @@ function showCompassUI() {
 
                     <!-- Station direction arrow (INSIDE the rotating ring) -->
                     <div id="compass-arrow" class="absolute inset-0 flex items-center justify-center transition-all duration-200">
-                        <svg width="100%" height="100%" viewBox="0 0 100 100" class="drop-shadow-lg">
+                        <svg width="100%" height="100%" viewBox="0 0 100 100" class="drop-shadow-lg" aria-hidden="true">
                             <!-- Arrow pointing to station (color changes on alignment) -->
                             <polygon id="compass-arrow-head" points="50,8 56,42 50,38 44,42" fill="#3b82f6" stroke="#1d4ed8" stroke-width="1"/>
                             <!-- Arrow tail (opposite direction, subtle) -->
@@ -631,10 +644,10 @@ function showCompassUI() {
                     </div>
 
                     <!-- Celestial markers (sun & moon) at their real azimuths -->
-                    <div id="compass-sun" class="hidden absolute inset-0 flex items-start justify-center transition-opacity duration-500 pointer-events-none">
+                    <div id="compass-sun" aria-hidden="true" class="hidden absolute inset-0 flex items-start justify-center transition-opacity duration-500 pointer-events-none">
                         <span class="text-sm leading-none mt-0.5" style="filter: drop-shadow(0 0 1.5px rgba(0,0,0,.5))">☀️</span>
                     </div>
-                    <div id="compass-moon" class="hidden absolute inset-0 flex items-start justify-center transition-opacity duration-500 pointer-events-none">
+                    <div id="compass-moon" aria-hidden="true" class="hidden absolute inset-0 flex items-start justify-center transition-opacity duration-500 pointer-events-none">
                         <span class="text-sm leading-none mt-0.5" style="filter: drop-shadow(0 0 1.5px rgba(0,0,0,.5))">🌙</span>
                     </div>
                 </div>
@@ -646,7 +659,10 @@ function showCompassUI() {
             </div>
 
             <!-- Direction instruction (mobile only) -->
-            <div id="compass-direction" class="compass-mobile-only mt-3 text-base font-semibold text-blue-600 dark:text-blue-400">${t('Rotate until arrow points up')}</div>
+            <div id="compass-direction" role="status" aria-live="polite" class="compass-mobile-only mt-3 text-base font-semibold text-blue-600 dark:text-blue-400">${t('Rotate until arrow points up')}</div>
+
+            <!-- Calibration hint (mobile only) -->
+            <div id="compass-calibration" role="status" aria-live="polite" class="hidden compass-mobile-only mt-2 px-2 py-1 rounded-md bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs text-center max-w-[170px]">${t('Wave your phone in a figure-8 to calibrate the compass')}</div>
 
             <!-- Desktop notice (shown when no orientation data) -->
             <div id="compass-desktop-notice" class="hidden mt-3 text-center">

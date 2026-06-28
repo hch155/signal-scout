@@ -421,7 +421,7 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
         );
         legendDiv.innerHTML = `
             <p class="text-xs font-semibold text-gray-600 dark:text-gray-300 px-1">${t('Signal strength by band')}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mb-1 px-1">📍 ${t('distance from the mast (km)')}</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-1 px-1">${t('distance from the mast (km)')}</p>
             <table class="frequency-table min-w-full divide-y divide-gray-200">
                 <thead class="text-gray-700 font-bold dark:text-white">
                     <tr>
@@ -1261,11 +1261,11 @@ function renderBestOperatorCTA(lat, lng) {
             if (!ops.length) return;
             const colors = { play: '#a78bfa', orange: '#fb923c', plus: '#22c55e', tmobile: '#f87171' };
             const top = ops[0];
-            let html = '<p class="text-xs font-bold text-blue-700 dark:text-blue-300 mb-1.5">📶 ' + t('Best operator here') + '</p>';
+            let html = '<p class="text-xs font-bold text-blue-700 dark:text-blue-300 mb-1.5">' + t('Best operator here') + '</p>';
             html += '<div class="flex items-center gap-2 flex-wrap">';
             html += '<span class="inline-block w-2.5 h-2.5 rounded-full flex-none" style="background-color:' + (colors[top.slug] || '#94a3b8') + '"></span>';
             html += '<span class="font-semibold text-gray-900 dark:text-white text-sm">' + escapeHtml(top.operator) + '</span>';
-            html += '<span class="text-xs text-gray-500 dark:text-gray-400">' + escapeHtml(top.signal_tier || '') + '</span>';
+            html += '<span class="text-xs text-gray-500 dark:text-gray-400">' + escapeHtml(t(top.signal_tier || '')) + '</span>';
             if (top.real_5g) {
                 html += '<span class="inline-flex items-center rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 font-semibold px-1.5 py-0.5 text-[10px]">' + t('Real 5G') + '</span>';
             }
@@ -1276,7 +1276,7 @@ function renderBestOperatorCTA(lat, lng) {
             if (ops.length > 1) {
                 html += '<div class="mt-1.5 flex flex-wrap gap-x-2 text-[11px] text-gray-500 dark:text-gray-400">';
                 for (let i = 1; i < ops.length; i++) {
-                    html += '<span>' + escapeHtml(ops[i].operator) + ' &middot; ' + escapeHtml(ops[i].signal_tier || '') + '</span>';
+                    html += '<span>' + escapeHtml(ops[i].operator) + ' &middot; ' + escapeHtml(t(ops[i].signal_tier || '')) + '</span>';
                 }
                 html += '</div>';
             }
