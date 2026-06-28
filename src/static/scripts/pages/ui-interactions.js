@@ -503,6 +503,7 @@ frequencyRangeLegend.addTo(mymap);
 let btsCountControl = L.control({position: 'bottomleft'});
 btsCountControl.onAdd = function(map) {
     let div = L.DomUtil.create('div', '');
+    div.id = 'btsCountBox';
     div.className = 'bg-white p-2 dark:mt-[-4.5rem] dark:md:mt-0 rounded shadow text-black dark:bg-gray-800 dark:hover:bg-gray-500 dark:text-white';
     div.innerHTML = `${t('BTS count:')} <span id="btsCounter">0</span>`;
     return div;
@@ -591,6 +592,8 @@ filterControl.addTo(mymap);
 document.getElementById('toggle-filters-btn').addEventListener('click', function() {
         let filterContainer = document.getElementById('filterContainer');
         filterContainer.classList.toggle('hidden');
+        let btsBox = document.getElementById('btsCountBox');
+        if (btsBox) btsBox.classList.toggle('hidden', !filterContainer.classList.contains('hidden'));
         });
 
 document.getElementById('clear-filters-btn').addEventListener('click', resetFiltersUI);

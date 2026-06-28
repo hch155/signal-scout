@@ -14,7 +14,7 @@ Usage:
   portainer_deploy.py gettag <stack_id>
   portainer_deploy.py <stack_id> <endpoint_id> <new_image_tag> [fallback_compose]
 """
-import json, os, re, sys, urllib.request, urllib.error
+import json, os, re, sys, urllib.request, urllib.error, urllib.parse
 
 URL = os.environ["PORTAINER_URL"].rstrip("/")
 TOKEN = os.environ["PORTAINER_API_TOKEN"]
@@ -76,3 +76,12 @@ status, res = call("PUT", f"/api/stacks/{STACK_ID}?endpointId={ENDPOINT_ID}", bo
     "prune": False,
 })
 print(f"stack {STACK_ID} -> {NEW_TAG}, HTTP {status}")
+
+# Old image tags pile up on the Docker host and filled the 16 GB LXC root,
+# crash-looping containers on "disk I/O error". Prune unused images after each
+# deploy; rollback stays safe since it re-pulls from Harbor (pullImage=True).
+_prune_q = urllib.parse.quote(json.dumps({"dangling": ["false"]}))
+_pstatus, _ = call("POST",
+                   f"/api/endpoints/{ENDPOINT_ID}/docker/images/prune?filters={_prune_q}",
+                   allow_fail=True)
+print(f"image prune HTTP {_pstatus}")
