@@ -30,11 +30,11 @@ MAX_DROP_PERCENT = 25.0
 WARN_DROP_PERCENT = 5.0
 
 
-def validate_downloads():
+def validate_downloads(data_dir=BASE_STATION_DATA_DIR):
     """Validate that all expected Excel files were downloaded."""
     errors = []
 
-    xlsx_files = glob.glob(os.path.join(BASE_STATION_DATA_DIR, '*.xlsx'))
+    xlsx_files = glob.glob(os.path.join(data_dir, '*.xlsx'))
     print(f'Found {len(xlsx_files)} Excel files')
 
     if len(xlsx_files) < len(EXPECTED_BANDS):
@@ -55,12 +55,12 @@ def validate_downloads():
     return errors
 
 
-def validate_database(previous_count):
+def validate_database(previous_count, db_path=DB_PATH):
     """Validate the rebuilt database."""
     errors = []
     warnings = []
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     # 1. Total record count

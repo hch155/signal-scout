@@ -2,13 +2,17 @@
 # Cron: 27th of each month at 19:15 UTC (~20:15 Warsaw)
 #
 # Replaces .github/workflows/monthly-db-update.yaml.disabled
-# Differences vs GH version:
-#   - runs on self-hosted runner with Python container from Harbor cache
+# Self-hosted runner notes:
+#   - runs in docker.io python:3.12-slim; only git/curl/ca-certificates are
+#     apt-added (the pinned numpy/pandas/SQLAlchemy ship manylinux wheels)
+#   - checkout is a hand-rolled, retryable git clone: actions/checkout aborts
+#     under act_runner with "user does not exist [uid: 0]" and can't be retried
 #   - issue creation via Forgejo REST API (no actions/github-script)
 #   - commit-back clones a fresh tree instead of pushing from the checkout:
 #     act_runner's container checkout leaves no usable .git in the workspace
 #     (git metadata stays in the host-side act cache), so `git push` from the
-#     workspace fails with "fatal: not in a git directory".
+#     workspace fails with "fatal: not in a git directory"
+#   - every network step is wrapped in a retry helper (flaky runner link)
 
 name: Monthly Database Update
 
@@ -26,20 +30,38 @@ jobs:
     runs-on: [self-hosted, signal-scout-runner]
     timeout-minutes: 30
     container:
-      image: docker.io/library/node:20-bookworm-slim
+      image: docker.io/library/python:3.12-slim-bookworm
     steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.FORGEJO_PUSH_TOKEN }}
-
-      - name: Install python (node base needs python via apt)
+      - name: Install system packages
         run: |
-          apt-get update -qq
-          apt-get install -y --no-install-recommends python3 python3-pip git curl build-essential libsqlite3-dev
+          cat > /usr/local/bin/retry <<'RETRY'
+          #!/bin/sh
+          max="$1"; label="$2"; shift 3
+          n=1; delay=5
+          until "$@"; do
+            if [ "$n" -ge "$max" ]; then
+              echo "::error::${label} failed after ${n} attempts" >&2
+              exit 1
+            fi
+            echo "::warning::${label} attempt ${n}/${max} failed; retrying in ${delay}s" >&2
+            sleep "$delay"; n=$((n + 1)); delay=$((delay * 2))
+          done
+          RETRY
+          chmod +x /usr/local/bin/retry
+          printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\n' > /etc/apt/apt.conf.d/80retries
+          retry 5 "apt-install" -- sh -c 'apt-get update -qq && apt-get install -y --no-install-recommends git curl ca-certificates'
+
+      - name: Checkout repository
+        env:
+          FORGEJO_PUSH_TOKEN: ${{ secrets.FORGEJO_PUSH_TOKEN }}
+        run: |
+          SERVER="${GITHUB_SERVER_URL#https://}"
+          retry 5 "checkout" -- git clone --depth 1 --branch "${GITHUB_REF_NAME:-main}" \
+            "https://hcylwik:${FORGEJO_PUSH_TOKEN}@${SERVER}/${GITHUB_REPOSITORY}.git" .
 
       - name: Install dependencies
         run: |
-          python3 -m pip install --break-system-packages --no-cache-dir -r requirements.txt openpyxl
+          retry 5 "pip-install" -- python3 -m pip install --no-cache-dir --retries 5 --timeout 60 -r requirements.txt openpyxl
 
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
@@ -60,7 +82,7 @@ jobs:
         run: rm -f base_station_data/*.xlsx
 
       - name: Download new UKE data
-        run: python3 scripts/download_uke_data.py
+        run: retry 5 "uke-download" -- python3 scripts/download_uke_data.py
 
       - name: Validate downloads
         run: python3 scripts/validate_db_update.py --step downloads
@@ -88,7 +110,7 @@ jobs:
           git config --global user.email "forgejo-actions[bot]@example.local"
           SERVER="${GITHUB_SERVER_URL#https://}"
           PUSH_DIR="$(mktemp -d)"
-          git clone --depth 1 --branch main \
+          retry 5 "push-clone" -- git clone --depth 1 --branch main \
             "https://hcylwik:${PUSH_TOKEN}@${SERVER}/${GITHUB_REPOSITORY}.git" "$PUSH_DIR"
           rm -f "$PUSH_DIR"/base_station_data/*.xlsx
           cp base_station_data/*.xlsx "$PUSH_DIR"/base_station_data/
@@ -101,7 +123,7 @@ jobs:
             exit 0
           fi
           git commit -m "chore: database update $(date +'%B %Y')"
-          git push origin HEAD:main
+          retry 5 "git-push" -- git push origin HEAD:main
 
       - name: Open failure issue on Forgejo
         if: failure()
@@ -110,8 +132,13 @@ jobs:
         run: |
           MONTH=$(date +'%B %Y')
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          curl -sf -X POST \
-            -H "Authorization: token ${FORGEJO_TOKEN}" \
-            -H "Content-Type: application/json" \
-            "${GITHUB_SERVER_URL}/api/v1/repos/${GITHUB_REPOSITORY}/issues" \
-            -d "{\"title\":\"Database Update Failed - ${MONTH}\",\"body\":\"Workflow run: ${RUN_URL}\\n\\nCheck runner logs.\",\"labels\":[\"automated\",\"database-update\"]}"
+          BODY=$(printf '{"title":"Database Update Failed - %s","body":"Workflow run: %s\\n\\nCheck runner logs.","labels":["automated","database-update"]}' "$MONTH" "$RUN_URL")
+          if ! retry 3 "open-issue" -- curl -fsS --max-time 30 \
+              -X POST \
+              -H "Authorization: token ${FORGEJO_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "${GITHUB_SERVER_URL}/api/v1/repos/${GITHUB_REPOSITORY}/issues" \
+              -d "$BODY"; then
+            echo "::error::failed to open Forgejo failure issue for ${MONTH}"
+            exit 1
+          fi
