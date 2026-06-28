@@ -1945,6 +1945,23 @@ def _resolve_address_coverage(query):
     }
 
 
+def _resolve_latlng_coverage(lat, lng):
+    if not _coords_in_bounds(lat, lng):
+        return {'status': 'outside_pl'}
+    verdict = signal_verdict(
+        find_nearest_stations(lat, lng, max_distance=_COVERAGE_RADIUS_KM)['stations']
+    )
+    return {
+        'status': 'ok',
+        'coverage': {
+            'signal_tier': verdict['signal_tier'],
+            'signal_score': verdict['signal_score'],
+            'real_5g': verdict['real_5g'],
+            'operators': verdict['operators'],
+        },
+    }
+
+
 @app.route('/coverage_by_address', methods=['GET'])
 @require_api_access(endpoint_label='coverage_by_address')
 @limiter.limit(tier_limit_string, key_func=tier_key_func)

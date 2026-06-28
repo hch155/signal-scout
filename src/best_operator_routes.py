@@ -70,6 +70,26 @@ def _attach_referral_paths(operators: list) -> None:
 def best_operator_page():
     query = (request.args.get("q", type=str, default="") or "").strip()
     wants_json = request.args.get("format") == "json"
+    lat = request.args.get("lat", type=float)
+    lng = request.args.get("lng", type=float)
+
+    if lat is not None and lng is not None:
+        try:
+            outcome = _app_module._resolve_latlng_coverage(lat, lng)
+        except Exception:
+            logger.exception("best_operator_page latlng resolve failed")
+            return jsonify({"status": "error", "operators": []}), 500
+        if outcome["status"] == "outside_pl":
+            return jsonify({"status": "outside_pl", "operators": []})
+        operators = rank_operators(outcome.get("coverage") or {})
+        _attach_referral_paths(operators)
+        return jsonify({
+            "status": "ok" if operators else "no_coverage",
+            "is_estimate": False,
+            "lang": _app_module.get_active_lang(),
+            "operators": [_serialize_operator(op) for op in operators],
+            "data_date": _app_module.get_data_date(_app_module.stations_db_path),
+        })
 
     if not query:
         if wants_json:

@@ -795,6 +795,7 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
             // rather than a default sidebar widget.
             renderCoverageGapsCTA(lat, lng);
             renderShareSpotCTA();
+            renderBestOperatorCTA(lat, lng);
             scrollToSidebar();
         } else {
             // Got a 200 with no stations payload — clear skeleton so the
@@ -1248,6 +1249,46 @@ function addBandHighlightSidebarCard(station, gap, userLat, userLng) {
 // later from /account). The default name uses the current date so
 // users get something sensible without typing — they can rename from
 // /account whenever.
+function renderBestOperatorCTA(lat, lng) {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    const prev = sidebar.querySelector('#best-operator-cta');
+    if (prev) prev.remove();
+    fetch('/best-operator?lat=' + lat + '&lng=' + lng + '&format=json', { headers: { 'X-Requested-With': 'fetch' } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            const ops = (data && data.operators) || [];
+            if (!ops.length) return;
+            const colors = { play: '#a78bfa', orange: '#fb923c', plus: '#22c55e', tmobile: '#f87171' };
+            const top = ops[0];
+            let html = '<p class="text-xs font-bold text-blue-700 dark:text-blue-300 mb-1.5">📶 ' + t('Best operator here') + '</p>';
+            html += '<div class="flex items-center gap-2 flex-wrap">';
+            html += '<span class="inline-block w-2.5 h-2.5 rounded-full flex-none" style="background-color:' + (colors[top.slug] || '#94a3b8') + '"></span>';
+            html += '<span class="font-semibold text-gray-900 dark:text-white text-sm">' + escapeHtml(top.operator) + '</span>';
+            html += '<span class="text-xs text-gray-500 dark:text-gray-400">' + escapeHtml(top.signal_tier || '') + '</span>';
+            if (top.real_5g) {
+                html += '<span class="inline-flex items-center rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 font-semibold px-1.5 py-0.5 text-[10px]">' + t('Real 5G') + '</span>';
+            }
+            if (top.referral_path) {
+                html += '<a href="' + escapeHtml(top.referral_path) + '" rel="nofollow sponsored noopener" class="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">' + t('See offer') + ' &rarr;</a>';
+            }
+            html += '</div>';
+            if (ops.length > 1) {
+                html += '<div class="mt-1.5 flex flex-wrap gap-x-2 text-[11px] text-gray-500 dark:text-gray-400">';
+                for (let i = 1; i < ops.length; i++) {
+                    html += '<span>' + escapeHtml(ops[i].operator) + ' &middot; ' + escapeHtml(ops[i].signal_tier || '') + '</span>';
+                }
+                html += '</div>';
+            }
+            const cta = document.createElement('div');
+            cta.id = 'best-operator-cta';
+            cta.className = 'col-span-full mb-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800';
+            cta.innerHTML = html;
+            sidebar.insertBefore(cta, sidebar.firstChild);
+        })
+        .catch(function () {});
+}
+
 function renderShareSpotCTA() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
