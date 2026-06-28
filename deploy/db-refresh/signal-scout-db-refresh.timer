@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the Signal-Scout UKE stations.db refresh monthly
+
+[Timer]
+OnCalendar=*-*-27 19:15:00
+Persistent=true
+RandomizedDelaySec=900
+
+[Install]
+WantedBy=timers.target
