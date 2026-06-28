@@ -160,7 +160,7 @@
                                        class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
                             </label>
                             <label class="block">
-                                <span class="text-sm text-gray-700 dark:text-gray-200">Current 6-digit code</span>
+                                <span class="text-sm text-gray-700 dark:text-gray-200">{{ _('Current 6-digit code') }}</span>
                                 <input type="text" name="code" required pattern="[0-9 ]{6,7}" maxlength="7"
                                        inputmode="numeric"
                                        class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
@@ -176,6 +176,7 @@
                            success, the SAME #totp-setup-box / #totp-verify-form is
                            reused — that's why those live below this branch too. #}
                         <form id="totp-regen-confirm-form" class="hidden space-y-3 mt-3 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 rounded">
+                            {% if has_password %}
                             <p class="text-xs text-gray-700 dark:text-gray-200">
                                 Confirm with your current password — we'll mint a new secret you can pair with your authenticator. The current code keeps working until the new one is verified.
                             </p>
@@ -185,6 +186,18 @@
                                 <input type="password" name="current_password" required
                                        class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
                             </label>
+                            {% else %}
+                            <p class="text-xs text-gray-700 dark:text-gray-200">
+                                {{ _("This account signs in with Google or GitHub and has no password. Confirm with your current 6-digit code — we'll mint a new secret you can pair with your authenticator. The current code keeps working until the new one is verified.") }}
+                            </p>
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                            <label class="block">
+                                <span class="text-sm text-gray-700 dark:text-gray-200">{{ _('Current 6-digit code') }}</span>
+                                <input type="text" name="code" required pattern="[0-9 ]{6,7}" maxlength="7"
+                                       inputmode="numeric"
+                                       class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
+                            </label>
+                            {% endif %}
                             <button type="submit"
                                     class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
                                 {{ _('Generate new secret') }}

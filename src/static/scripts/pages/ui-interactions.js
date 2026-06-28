@@ -3,6 +3,7 @@ updateDynamicContent()
 
 let mymap = L.map('mapid').setView([52.231, 21.004], 6); //  default location and zoom level
 mymap.zoomControl.setPosition('bottomleft');
+mymap.attributionControl.setPrefix('<a href="https://leafletjs.com" title="A JS library for interactive maps" aria-label="Leaflet">Leaflet</a>');
 
 // PR #48.9: switched off OSM standard tiles (tile.openstreetmap.org) —
 // missing white tiles started appearing for users in PL/border regions.
@@ -1224,6 +1225,7 @@ function addBandHighlightSidebarCard(station, gap, userLat, userLng) {
     navBtn.addEventListener('click', () => {
         if (startLiveCompassNav(station, userLat, userLng)) return;
         mymap.flyTo([station.latitude, station.longitude], 16);
+        scrollToMap();
         // Re-open the popup in case the user closed it.
         bandHighlightLayer.eachLayer(l => {
             if (l instanceof L.Marker) l.openPopup();
@@ -1255,6 +1257,7 @@ function renderBestOperatorCTA(lat, lng) {
         .then(function (data) {
             const ops = (data && data.operators) || [];
             if (!ops.length) return;
+            refreshVerdictOperators(ops);
             const colors = { play: '#a78bfa', orange: '#fb923c', plus: '#22c55e', tmobile: '#f87171' };
             const top = ops[0];
             let html = '<p class="text-xs font-bold text-blue-700 dark:text-blue-300 mb-1.5">' + t('Best operator here') + '</p>';
@@ -1419,6 +1422,12 @@ function scrollToSidebar() {
     setTimeout(function () {
         sidebar.scrollIntoView({ block: 'start' });
     }, 1500);
+}
+
+function scrollToMap() {
+    const mapBox = document.getElementById('map-container');
+    if (!mapBox || window.innerWidth < 768) return;
+    mapBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function hideSidebar() {
@@ -1602,7 +1611,7 @@ function createVerdictCard(stations) {
         if (name in byProvider) {
             return `<span class="op-chip"><span class="provider-dot ${cls}"></span>${escapeHtml(name)} · ${formatVerdictDistance(byProvider[name])}</span>`;
         }
-        return `<span class="op-chip text-gray-400 dark:text-gray-500">${escapeHtml(name)} · ${t('none in range')}</span>`;
+        return `<span class="op-chip text-gray-400 dark:text-gray-500">${escapeHtml(name)} · ${escapeHtml(t('not among nearest'))}</span>`;
     }).join('');
 
     const subline = `${t('Nearest mast:')} ${formatVerdictDistance(nearest.distance)} (${escapeHtml(provider)})${has5G ? ' · ' + escapeHtml(t('5G in range')) : ''}`;
@@ -1631,6 +1640,24 @@ function createVerdictCard(stations) {
         </div>
     `;
     return card;
+}
+
+function refreshVerdictOperators(operators) {
+    const card = document.getElementById('verdict-card');
+    if (!card || !Array.isArray(operators)) return;
+    const row = card.querySelector('.result-operators');
+    if (!row) return;
+    const bySlug = {};
+    operators.forEach(op => {
+        if (op && op.slug) bySlug[op.slug] = op;
+    });
+    row.innerHTML = VERDICT_PROVIDERS.map(([name, cls]) => {
+        const op = bySlug[cls];
+        if (op && typeof op.nearest_distance_km === 'number') {
+            return `<span class="op-chip"><span class="provider-dot ${cls}"></span>${escapeHtml(name)} · ${formatVerdictDistance(op.nearest_distance_km)}</span>`;
+        }
+        return `<span class="op-chip text-gray-400 dark:text-gray-500">${escapeHtml(name)} · ${escapeHtml(t('no mast within 5 km'))}</span>`;
+    }).join('');
 }
 
 function displayStations(data) {
@@ -1808,6 +1835,7 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
             drawConnectionLine(station.latitude, station.longitude);
             if (started) return;
             mymap.flyTo([station.latitude, station.longitude], 16);
+            scrollToMap();
         });
         linksDiv.appendChild(compassBtn);
     }

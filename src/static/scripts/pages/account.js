@@ -225,6 +225,13 @@ document.addEventListener('DOMContentLoaded', () => {
       qrHost.innerHTML = data.qr_svg;
       const svgEl = qrHost.querySelector('svg');
       if (svgEl) {
+        if (!svgEl.getAttribute('viewBox')) {
+          const nativeW = parseFloat(svgEl.getAttribute('width')) || 0;
+          const nativeH = parseFloat(svgEl.getAttribute('height')) || 0;
+          if (nativeW && nativeH) {
+            svgEl.setAttribute('viewBox', '0 0 ' + nativeW + ' ' + nativeH);
+          }
+        }
         svgEl.setAttribute('width', '220');
         svgEl.setAttribute('height', '220');
       }
@@ -265,10 +272,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const status = document.getElementById('totp-regen-status');
       status.textContent = t('Generating…');
       status.className = 'text-sm mt-2 text-gray-500';
+      const regenBody = {};
+      if (fd.get('current_password') !== null) regenBody.current_password = fd.get('current_password');
+      if (fd.get('code') !== null) regenBody.code = fd.get('code');
       globalFetch('/account/2fa/regenerate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
-        body: JSON.stringify({ current_password: fd.get('current_password') }),
+        body: JSON.stringify(regenBody),
       }).then(data => {
         if (showTotpSetupPayload(data)) {
           status.textContent = t('New secret ready. Verify below.');
