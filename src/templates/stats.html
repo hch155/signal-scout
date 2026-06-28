@@ -23,6 +23,16 @@
         <p class="hidden md:block text-lg text-gray-600 dark:text-gray-300">{{ _('Frequency band deployment and physical site counts across Polish mobile operators') }}</p>
     </section>
 
+    <div class="px-2 md:px-4 mb-4 max-w-5xl mx-auto">
+        <a href="/rollout" class="group flex items-center justify-between gap-3 bg-white dark:bg-gray-800 rounded-lg border-l-4 border-emerald-500 p-4 shadow-sm hover:shadow-md transition-shadow">
+            <div>
+                <p class="text-sm font-bold text-emerald-700 dark:text-emerald-400">📡 {{ _('Real-5G Rollout') }}</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{{ _('Track 3.5 GHz (n78) deployment by operator, month over month') }}</p>
+            </div>
+            <span class="text-emerald-600 dark:text-emerald-400 text-lg group-hover:translate-x-0.5 transition-transform" aria-hidden="true">&rarr;</span>
+        </a>
+    </div>
+
     {# ── Hero strip: at-a-glance totals ──────────────────────────── #}
     {# 2026-04-28: each tile shows MoM delta vs the previous snapshot
        (stats_history.jsonl) when one exists. Deltas use ▲/▼ glyphs +

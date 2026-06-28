@@ -154,6 +154,7 @@ TRANSLATIONS = {
     'Match the real sky to trust the arrow': 'Dopasuj realne niebo, by zaufać strzałce',
     'Hold your phone flat': 'Trzymaj telefon płasko',
     'Live navigation to station': 'Nawigacja na żywo do stacji',
+    'Track 3.5 GHz (n78) deployment by operator, month over month': 'Śledź wdrożenie 3,5 GHz (n78) per operator, miesiąc po miesiącu',
     'Excellent': 'Doskonała',
     'Good': 'Dobra',
     'Fair': 'Średnia',

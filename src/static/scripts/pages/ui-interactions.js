@@ -500,24 +500,6 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
 
 frequencyRangeLegend.addTo(mymap);
 
-let findTowersControl = L.control({position: 'topleft'});
-findTowersControl.onAdd = function(map) {
-    let div = L.DomUtil.create('div', 'gps-location-control find-towers-control');
-    div.innerHTML = `
-        <button id="findTowersNearMeBtn" title="${t('Find towers near me')}" class="map-control-btn">
-            <span class="control-icon">🗼</span>
-            <span class="control-label">${t('Find towers near me')}</span>
-        </button>
-    `;
-    L.DomEvent.disableClickPropagation(div);
-    L.DomEvent.on(div, 'click', function(e) {
-        L.DomEvent.stop(e);
-        requestAndSendGPSLocation();
-    });
-    return div;
-};
-findTowersControl.addTo(mymap);
-
 let btsCountControl = L.control({position: 'bottomleft'});
 btsCountControl.onAdd = function(map) {
     let div = L.DomUtil.create('div', '');
