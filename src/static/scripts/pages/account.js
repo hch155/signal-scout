@@ -2,7 +2,7 @@
 // Loaded only on the account page (script tag in account.html).
 
 document.addEventListener('DOMContentLoaded', () => {
-  initAccountSidebarHighlight();
+  initAccountTabs();
   // PR #48.3: email notifications toggle. Posts the new value to
   // /account/email_preference; status text gives instant feedback.
   // Failures revert the checkbox so the UI never lies about what's
@@ -678,54 +678,66 @@ function appendKeyRow(data) {
   tbody.appendChild(tr);
 }
 
-// Faza B sidebar UX: highlight the nav link whose section is currently
-// in view. IntersectionObserver fires on each section entering the
-// upper-half of the viewport; we tag the matching <a class="account-
-// nav-link"> with .is-active so CSS can style it. Also sets aria-current
-// for screen readers. No-op on browsers without IO (graceful fallback —
-// the nav still works, just without the active highlight).
-function initAccountSidebarHighlight() {
-  if (typeof IntersectionObserver === 'undefined') return;
-  const sections = document.querySelectorAll('.account-section');
-  const links = document.querySelectorAll('.account-nav-link');
-  if (!sections.length || !links.length) return;
+function initAccountTabs() {
+  const tabs = Array.from(document.querySelectorAll('.account-nav-link[data-account-tab]'));
+  const panels = Array.from(document.querySelectorAll('[data-account-panel]'));
+  if (!tabs.length || !panels.length) return;
 
-  const linkBySection = new Map();
-  links.forEach(a => {
-    const id = (a.getAttribute('href') || '').slice(1);
-    if (id) {
-      const list = linkBySection.get(id) || [];
-      list.push(a);
-      linkBySection.set(id, list);
-    }
+  const panelName = (p) => p.dataset.accountPanel;
+  const known = new Set(panels.map(panelName));
+
+  const sectionToPanel = new Map();
+  panels.forEach(p => {
+    sectionToPanel.set(panelName(p), panelName(p));
+    p.querySelectorAll('.account-section').forEach(sec => {
+      if (sec.id) sectionToPanel.set(sec.id, panelName(p));
+    });
   });
 
-  const setActive = (id) => {
-    links.forEach(a => {
-      const isMatch = a.getAttribute('href') === '#' + id;
-      a.classList.toggle('is-active', isMatch);
-      if (isMatch) {
-        a.setAttribute('aria-current', 'true');
-      } else {
-        a.removeAttribute('aria-current');
-      }
+  const panelForHash = (hash) => {
+    const id = (hash || '').replace(/^#/, '');
+    return sectionToPanel.has(id) ? sectionToPanel.get(id) : null;
+  };
+
+  const activate = (name) => {
+    if (!known.has(name)) return;
+    panels.forEach(p => { p.hidden = panelName(p) !== name; });
+    tabs.forEach(tab => {
+      const on = tab.dataset.accountTab === name;
+      tab.classList.toggle('is-active', on);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+      tab.tabIndex = on ? 0 : -1;
     });
   };
 
-  const io = new IntersectionObserver((entries) => {
-    // Pick the most-visible section in the active band.
-    const visible = entries
-      .filter(e => e.isIntersecting)
-      .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-    if (visible.length) {
-      setActive(visible[0].target.id);
-    }
-  }, {
-    // Trigger when the section's top crosses the upper third of the
-    // viewport — feels natural for sticky-sidebar reading flows.
-    rootMargin: '-30% 0px -55% 0px',
-    threshold: [0, 0.25, 0.5, 0.75, 1],
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', (e) => {
+      e.preventDefault();
+      activate(tab.dataset.accountTab);
+      if (history.replaceState) history.replaceState(null, '', tab.getAttribute('href'));
+    });
+    tab.addEventListener('keydown', (e) => {
+      let next = null;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = tabs[(i + 1) % tabs.length];
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = tabs[(i - 1 + tabs.length) % tabs.length];
+      else if (e.key === 'Home') next = tabs[0];
+      else if (e.key === 'End') next = tabs[tabs.length - 1];
+      if (!next) return;
+      e.preventDefault();
+      activate(next.dataset.accountTab);
+      next.focus();
+    });
   });
 
-  sections.forEach(s => io.observe(s));
+  document.querySelectorAll('a[href^="#"]:not([data-account-tab])').forEach(a => {
+    const name = panelForHash(a.getAttribute('href'));
+    if (!name) return;
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      activate(name);
+      if (history.replaceState) history.replaceState(null, '', a.getAttribute('href'));
+    });
+  });
+
+  activate(panelForHash(window.location.hash) || tabs[0].dataset.accountTab);
 }
