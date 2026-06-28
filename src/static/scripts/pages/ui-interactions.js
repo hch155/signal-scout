@@ -1415,12 +1415,14 @@ function renderSaveSpotShortcut(lat, lng, nearestCity) {
 }
 
 function scrollToSidebar() {
-    let sidebar = document.getElementById('sidebar');
-    if (sidebar && window.innerWidth < 768) {
-        setTimeout(function() {
-            sidebar.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 2000);
-    }
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar || window.innerWidth >= 768) return;
+    setTimeout(function () {
+        sidebar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 600);
+    setTimeout(function () {
+        sidebar.scrollIntoView({ block: 'start' });
+    }, 1500);
 }
 
 function hideSidebar() {
