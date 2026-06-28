@@ -582,6 +582,7 @@ TRANSLATIONS = {
     'Score': 'Wynik',
     'Real 5G': 'Prawdziwe 5G',
     'See offer': 'Zobacz ofertę',
+    'Show on map': 'Pokaż na mapie',
     'Best operator for this address': 'Najlepszy operator dla tego adresu',
     'Check': 'Sprawdź',
     'Enter an address to compare operators.': 'Wpisz adres, aby porównać operatorów.',

@@ -50,6 +50,7 @@ from oauth import init_oauth, login_with_provider, callback_for_provider
 from i18n import translate, js_translations, SUPPORTED_LANGS, DEFAULT_LANG
 from dotenv import load_dotenv
 from datetime import timedelta, datetime
+from urllib.parse import urlencode
 import hmac
 import markdown
 import os
@@ -731,10 +732,18 @@ def _set_language():
 @app.context_processor
 def _inject_i18n():
     lang = get_active_lang()
+
+    def lang_toggle_url(target):
+        args = request.args.to_dict()
+        args['lang'] = target
+        query = urlencode(args)
+        return f'{request.path}?{query}' if query else request.path
+
     return {
         '_': lambda text: translate(text, lang),
         'active_lang': lang,
         'ss_i18n': {'lang': lang, 'strings': js_translations(lang)},
+        'lang_toggle_url': lang_toggle_url,
     }
 
 

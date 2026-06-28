@@ -105,7 +105,7 @@
                   <a id="accountLink" href="/account" class="inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm" style="display:none;">{{ _('Account') }}</a>
                   <button id="logoutButton" class="inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm" style="display:none;">{{ _('Logout') }}</button>
                   <a id="langToggle"
-                     href="{{ request.path }}?lang={{ 'en' if active_lang == 'pl' else 'pl' }}"
+                     href="{{ lang_toggle_url('en' if active_lang == 'pl' else 'pl') }}"
                      aria-label="{{ _('Switch language') }}"
                      title="{{ _('Switch language') }}"
                      class="js-lang-toggle inline-flex items-center text-sm font-semibold text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">{{ 'EN' if active_lang == 'pl' else 'PL' }}</a>
@@ -143,7 +143,7 @@
               <a id="accountLinkMobile" href="/account" style="display:none;" class="block px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{{ _('Account') }}</a>
               <button id="logoutButtonMobile" type="button" style="display:none;" class="block w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{{ _('Logout') }}</button>
               <a id="langToggleMobile"
-                 href="{{ request.path }}?lang={{ 'en' if active_lang == 'pl' else 'pl' }}"
+                 href="{{ lang_toggle_url('en' if active_lang == 'pl' else 'pl') }}"
                  aria-label="{{ _('Switch language') }}"
                  class="js-lang-toggle block px-3 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{{ 'EN' if active_lang == 'pl' else 'PL' }}</a>
           </div>

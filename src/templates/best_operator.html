@@ -76,6 +76,15 @@
   <ul id="bo-results" class="mt-4 space-y-3 list-none p-0">
     {% if state == 'ok' %}
       {% for op in operators %}{{ operator_card(op) }}{% endfor %}
+      {% if match and match.latitude is not none and match.longitude is not none %}
+      <li class="pt-1">
+        <a href="/?lat={{ match.latitude }}&amp;lng={{ match.longitude }}"
+           class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-blue-600 dark:border-blue-400 px-3.5 py-2.5 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 transition-colors">
+          <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21s-7-5.686-7-11a7 7 0 1 1 14 0c0 5.314-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          {{ _('Show on map') }}
+        </a>
+      </li>
+      {% endif %}
     {% endif %}
   </ul>
 
