@@ -49,3 +49,6 @@ override.tf.json
 # macOS
 .DS_Store
 **/.DS_Store
+
+# Local-only docs (kept out of the repo + public mirror)
+README.full.md
