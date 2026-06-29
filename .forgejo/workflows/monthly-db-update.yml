@@ -1,7 +1,4 @@
-# Forgejo Actions: UKE data refresh — MANUAL trigger only (workflow_dispatch).
-# The scheduled monthly refresh moved to the NUC host (the LXC runner can't
-# reach bip.uke.gov.pl — connection times out); see deploy/db-refresh/. Kept
-# here as a manual fallback for when the runner is on a UKE-reachable network.
+# Forgejo Actions: monthly UKE data refresh on the self-hosted runner.
 #
 # Auth: uses the run's automatic token (github.token) exactly like ci-cd.yml's
 # actions/checkout. A user PAT (FORGEJO_PUSH_TOKEN) was 401'd by the runner's
@@ -12,6 +9,8 @@
 name: Monthly Database Update
 
 on:
+  schedule:
+    - cron: '0 4 27 * *'
   workflow_dispatch:
 
 permissions:
