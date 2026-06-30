@@ -1272,13 +1272,6 @@ function renderBestOperatorCTA(lat, lng) {
                 html += '<a href="' + escapeHtml(top.referral_path) + '" rel="nofollow sponsored noopener" class="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">' + t('See offer') + ' &rarr;</a>';
             }
             html += '</div>';
-            if (ops.length > 1) {
-                html += '<div class="mt-1.5 flex flex-wrap gap-x-2 text-[11px] text-gray-500 dark:text-gray-400">';
-                for (let i = 1; i < ops.length; i++) {
-                    html += '<span>' + escapeHtml(ops[i].operator) + ' &middot; ' + escapeHtml(t(ops[i].signal_tier || '')) + '</span>';
-                }
-                html += '</div>';
-            }
             const cta = document.createElement('div');
             cta.id = 'best-operator-cta';
             cta.className = 'col-span-full mb-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800';

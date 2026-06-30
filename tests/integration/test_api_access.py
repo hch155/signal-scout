@@ -85,6 +85,7 @@ def _register_user_and_get_key(client, csrf_token, email):
         # bypasses_referer test.
         with client.session_transaction() as sess:
             sess["user_id"] = user_id
+            sess["sv"] = 0
             sess["_csrf_token"] = csrf_token
         import json as _json
         rk = client.post("/account/keys",

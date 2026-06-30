@@ -114,6 +114,7 @@ def test_oauth_existing_password_account_returns_generic_error(client, app, monk
     monkeypatch.setattr(oauth_mod, "_provider_enabled", lambda name: True)
     monkeypatch.setattr(oauth_mod.oauth, "create_client", lambda name: _FakeClient())
     monkeypatch.setattr(oauth_mod, "_resolve_email", lambda *a, **k: email)
+    monkeypatch.setattr(oauth_mod, "_resolve_facebook_id", lambda *a, **k: "fb_enum_1")
     monkeypatch.setattr(oauth_mod, "_VERIFIED_EMAIL_PROVIDERS", {"google", "github"})
 
     r = client.get("/auth/facebook/callback", follow_redirects=False)
@@ -124,7 +125,7 @@ def test_oauth_existing_password_account_returns_generic_error(client, app, monk
 
 
 def test_oauth_verified_provider_links_to_existing_password_account(client, app, monkeypatch):
-    """A verified-email provider (Facebook) signing in onto an existing
+    """A verified-email provider (Google) signing in onto an existing
     password account links and logs the user in -- no provider_error."""
     import oauth as oauth_mod
     from database import db
@@ -149,7 +150,7 @@ def test_oauth_verified_provider_links_to_existing_password_account(client, app,
     monkeypatch.setattr(oauth_mod.oauth, "create_client", lambda name: _FakeClient())
     monkeypatch.setattr(oauth_mod, "_resolve_email", lambda *a, **k: email)
 
-    r = client.get("/auth/facebook/callback", follow_redirects=False)
+    r = client.get("/auth/google/callback", follow_redirects=False)
     assert r.status_code == 302
     assert "oauth_error" not in r.headers["Location"]
 
@@ -295,3 +296,53 @@ def test_delete_account_cascades_to_api_keys(authed_client, csrf_token, app):
         assert User.query.get(user_id) is None
         # The cascade — no orphan keys left behind.
         assert ApiKey.query.filter_by(user_id=user_id).count() == 0
+
+
+# ──────────────────────────────────────────────────────────────────────
+# M1 — session epoch: a credential change evicts other live sessions
+# ──────────────────────────────────────────────────────────────────────
+
+def test_session_evicted_after_token_version_bump(authed_client, app):
+    """A live session carries session['sv'] == user.session_token_version.
+    Bumping that column (as change_password/reset_password do) must evict
+    any session minted before the bump — global sign-out on credential
+    change despite stateless signed-cookie sessions."""
+    from database import db
+    from models import User
+
+    assert authed_client.get("/account").status_code == 200
+
+    with app.app_context():
+        user = User.query.first()
+        user.session_token_version = (user.session_token_version or 0) + 1
+        db.session.commit()
+
+    assert authed_client.get("/account").status_code == 401
+
+
+def test_password_change_bumps_version_and_keeps_current_session(authed_client, csrf_token, app):
+    """change_password increments session_token_version (evicting other
+    sessions) yet re-stamps the CURRENT session, so the user stays logged in
+    on the device they changed the password from."""
+    from models import User
+
+    with app.app_context():
+        before = User.query.first().session_token_version or 0
+
+    r = authed_client.post(
+        "/account/password",
+        data={
+            "_csrf_token": csrf_token,
+            "current_password": "Aa1!aaaaaa",
+            "new_password": "Zz9#zzzzzz",
+            "confirm_password": "Zz9#zzzzzz",
+        },
+        headers={"X-CSRF-Token": csrf_token},
+    )
+    assert r.status_code == 200, r.data
+
+    with app.app_context():
+        after = User.query.first().session_token_version or 0
+    assert after == before + 1
+
+    assert authed_client.get("/account").status_code == 200

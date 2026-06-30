@@ -17,6 +17,8 @@ KNOWN_PW = "Aa1!aaaaaa"
 def _enable_2fa(client, csrf_token, app):
     """Helper: walk through setup + verify so the user ends with totp_enabled."""
     setup = client.post("/account/2fa/setup",
+                        data=json.dumps({"current_password": KNOWN_PW}),
+                        content_type="application/json",
                         headers={"X-CSRF-Token": csrf_token})
     assert setup.status_code == 200, setup.data
     secret = setup.get_json()["secret"]
@@ -63,6 +65,8 @@ def test_setup_anonymous_401(client, csrf_token):
 
 def test_setup_returns_secret_and_uri(authed_client, csrf_token):
     r = authed_client.post("/account/2fa/setup",
+                           data=json.dumps({"current_password": KNOWN_PW}),
+                           content_type="application/json",
                            headers={"X-CSRF-Token": csrf_token})
     assert r.status_code == 200
     body = r.get_json()
@@ -73,6 +77,24 @@ def test_setup_returns_secret_and_uri(authed_client, csrf_token):
     # PR #25: setup also returns a server-rendered QR (SVG) so the user
     # doesn't have to type the secret manually.
     assert body.get("qr_svg", "").startswith("<svg")
+
+
+def test_setup_requires_password_step_up(authed_client, csrf_token):
+    """L2: enrolling 2FA requires the current password, so a hijacked
+    session can't enable its own authenticator and lock the owner out."""
+    r = authed_client.post("/account/2fa/setup",
+                           headers={"X-CSRF-Token": csrf_token})
+    assert r.status_code == 401
+    r = authed_client.post("/account/2fa/setup",
+                           data=json.dumps({"current_password": "WRONG-PW1!"}),
+                           content_type="application/json",
+                           headers={"X-CSRF-Token": csrf_token})
+    assert r.status_code == 401
+    r = authed_client.post("/account/2fa/setup",
+                           data=json.dumps({"current_password": KNOWN_PW}),
+                           content_type="application/json",
+                           headers={"X-CSRF-Token": csrf_token})
+    assert r.status_code == 200
 
 
 KNOWN_PW_REGEN = "Aa1!aaaaaa"
@@ -117,6 +139,8 @@ def test_regenerate_no_csrf_403(authed_client):
 
 def test_verify_with_wrong_code_fails(authed_client, csrf_token):
     authed_client.post("/account/2fa/setup",
+                       data=json.dumps({"current_password": KNOWN_PW}),
+                       content_type="application/json",
                        headers={"X-CSRF-Token": csrf_token})
     r = authed_client.post("/account/2fa/verify",
                            data=json.dumps({"code": "000000"}),

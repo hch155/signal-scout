@@ -50,7 +50,7 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-_VERIFIED_EMAIL_PROVIDERS = {'google', 'github', 'facebook'}
+_VERIFIED_EMAIL_PROVIDERS = {'google', 'github'}
 oauth = OAuth()
 
 
@@ -141,12 +141,51 @@ def callback_for_provider(provider: str):
         logger.exception("OAuth token exchange failed for %s", provider)
         return redirect(url_for('home') + '?oauth_error=token_exchange')
 
-    email = _resolve_email(provider, client, token)
-    if not email:
-        return redirect(url_for('home') + '?oauth_error=no_email')
+    # Linking flow: an authenticated user (proven by a password step-up at
+    # /account) is binding this provider identity to their existing account.
+    link_user_id = session.pop('oauth_link_user_id', None)
+    link_provider = session.pop('oauth_link_provider', None)
+    if (link_user_id is not None and link_provider == provider
+            and session.get('user_id') == link_user_id):
+        return _complete_facebook_link(provider, client, token, link_user_id)
 
     from models import User
     from database import db
+
+    # Facebook's email carries no verification signal, so it never auto-links
+    # by email. It signs in only an account that explicitly bound this FB id
+    # (from /account), or creates a brand-new account when the email is unseen.
+    if provider == 'facebook':
+        fb_id = _resolve_facebook_id(client, token)
+        if not fb_id:
+            return redirect(url_for('home') + '?oauth_error=no_email')
+        user = User.query.filter_by(facebook_user_id=fb_id).first()
+        if user is not None:
+            return _establish_session(user, provider)
+        email = _resolve_email('facebook', client, token)
+        if not email:
+            return redirect(url_for('home') + '?oauth_error=no_email')
+        if User.query.filter(db.func.lower(User.email) == email.lower()).first():
+            logger.warning(
+                "Facebook login refused: email already owned by another "
+                "account and this FB id is not linked")
+            return redirect(url_for('home') + '?oauth_error=provider_error')
+        user = User(
+            email=email,
+            password_hash='!OAUTH-' + secrets.token_urlsafe(32),
+            facebook_user_id=fb_id,
+            api_tier='free',
+            email_alerts_enabled=True,
+            registration_date=datetime.utcnow(),
+            email_verified_at=None,
+        )
+        db.session.add(user)
+        return _establish_session(user, provider)
+
+    # Google / GitHub: verified-email providers — the email is the identity.
+    email = _resolve_email(provider, client, token)
+    if not email:
+        return redirect(url_for('home') + '?oauth_error=no_email')
     user = User.query.filter(db.func.lower(User.email) == email.lower()).first()
     if user is None:
         user = User(
@@ -155,7 +194,10 @@ def callback_for_provider(provider: str):
             api_tier='free',
             email_alerts_enabled=True,
             registration_date=datetime.utcnow(),
-            email_verified_at=datetime.utcnow(),
+            email_verified_at=(
+                datetime.utcnow()
+                if provider in _VERIFIED_EMAIL_PROVIDERS else None
+            ),
         )
         db.session.add(user)
     else:
@@ -173,10 +215,17 @@ def callback_for_provider(provider: str):
                 '?oauth_error=provider_error'
             )
 
+    return _establish_session(user, provider)
+
+
+def _establish_session(user, provider: str):
+    """Finalize an OAuth sign-in: refresh login state, gate on 2FA, and either
+    park the user at the 2FA challenge or promote to a full session."""
+    from database import db
     user.last_login_date = datetime.utcnow()
     user.failed_login_attempts = 0
     user.locked_until = None
-    if user.email_verified_at is None:
+    if provider in _VERIFIED_EMAIL_PROVIDERS and user.email_verified_at is None:
         user.email_verified_at = datetime.utcnow()
     try:
         db.session.commit()
@@ -199,6 +248,7 @@ def callback_for_provider(provider: str):
     session.clear()
     session['_csrf_token'] = new_csrf
     session['user_id'] = user.id
+    session['sv'] = user.session_token_version or 0
 
     try:
         from observability import user_action_total
@@ -210,6 +260,43 @@ def callback_for_provider(provider: str):
         pass
 
     return redirect('/account')
+
+
+def _resolve_facebook_id(client, token) -> Optional[str]:
+    """Facebook's stable app-scoped account id. Bound to a user at link time so
+    Facebook sign-in matches by account, never by an unverifiable email."""
+    try:
+        resp = client.get('me?fields=id', token=token)
+        return (resp.json() or {}).get('id')
+    except Exception:
+        logger.exception("facebook /me id fetch failed")
+        return None
+
+
+def _complete_facebook_link(provider: str, client, token, link_user_id: int):
+    """Bind a Facebook identity to the already-authenticated user that started
+    the link from /account (proven there by a password step-up)."""
+    from models import User
+    from database import db
+    if provider != 'facebook':
+        return redirect('/account?link_error=unsupported')
+    user = db.session.get(User, link_user_id)
+    if user is None:
+        return redirect(url_for('home') + '?oauth_error=no_pending_link')
+    fb_id = _resolve_facebook_id(client, token)
+    if not fb_id:
+        return redirect('/account?link_error=facebook')
+    other = User.query.filter_by(facebook_user_id=fb_id).first()
+    if other is not None and other.id != user.id:
+        return redirect('/account?link_error=already_linked')
+    user.facebook_user_id = fb_id
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("facebook link commit failed for user_id=%s", link_user_id)
+        return redirect('/account?link_error=db')
+    return redirect('/account?linked=facebook')
 
 
 def _resolve_email(provider: str, client, token) -> Optional[str]:

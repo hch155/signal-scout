@@ -46,6 +46,8 @@ class User(db.Model):
     last_totp_code_at = db.Column(db.DateTime)
     email_alerts_enabled = db.Column(db.Boolean, default=True, nullable=False)
     email_verified_at = db.Column(db.DateTime)
+    facebook_user_id = db.Column(db.String(64), unique=True, index=True)
+    session_token_version = db.Column(db.Integer, default=0, nullable=False)
 
     @property
     def email_verified(self) -> bool:

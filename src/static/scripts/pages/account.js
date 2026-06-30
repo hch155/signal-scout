@@ -244,12 +244,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const totpSetupBtn = document.getElementById('totp-setup-btn');
   if (totpSetupBtn) {
     totpSetupBtn.addEventListener('click', () => {
+      const pwEl = document.getElementById('totp-setup-password');
+      const setupStatus = document.getElementById('totp-setup-status');
       globalFetch('/account/2fa/setup', {
         method: 'POST',
-        headers: { 'X-CSRF-Token': getCsrfToken() },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+        body: JSON.stringify(pwEl ? { current_password: pwEl.value } : {}),
       }).then(data => {
         if (showTotpSetupPayload(data)) {
           totpSetupBtn.disabled = true;
+          if (setupStatus) setupStatus.textContent = '';
+        } else if (setupStatus) {
+          setupStatus.textContent = (data && data.error) || t('Setup failed.');
+          setupStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         } else {
           alert((data && data.error) || t('Setup failed.'));
         }
@@ -368,6 +375,74 @@ document.addEventListener('DOMContentLoaded', () => {
         status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
       });
     });
+  }
+
+  // ── Facebook account linking (secure: password step-up) ──────────
+  const fbLinkForm = document.getElementById('fb-link-form');
+  if (fbLinkForm) {
+    fbLinkForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const fd = new FormData(fbLinkForm);
+      const status = document.getElementById('fb-link-status');
+      const body = {};
+      if (fd.get('current_password') !== null) body.current_password = fd.get('current_password');
+      status.textContent = t('Connecting…');
+      status.className = 'text-sm mt-2 text-gray-500';
+      globalFetch('/account/link/facebook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+        body: JSON.stringify(body),
+      }).then(data => {
+        if (data && data.authorize_url) {
+          window.location.assign(data.authorize_url);
+        } else {
+          status.textContent = (data && data.error) || t('Could not connect Facebook.');
+          status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+        }
+      }).catch(e => {
+        status.textContent = t('Error: {message}').replace('{message}', e.message);
+        status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+      });
+    });
+  }
+
+  const fbUnlinkShowBtn = document.getElementById('fb-unlink-show-btn');
+  const fbUnlinkForm = document.getElementById('fb-unlink-form');
+  if (fbUnlinkShowBtn && fbUnlinkForm) {
+    fbUnlinkShowBtn.addEventListener('click', () => {
+      fbUnlinkForm.classList.toggle('hidden');
+    });
+  }
+  if (fbUnlinkForm) {
+    fbUnlinkForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const fd = new FormData(fbUnlinkForm);
+      const status = document.getElementById('fb-unlink-status');
+      status.textContent = t('Disconnecting…');
+      status.className = 'text-sm mt-2 text-gray-500';
+      globalFetch('/account/unlink/facebook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+        body: JSON.stringify({ current_password: fd.get('current_password') }),
+      }).then(data => {
+        if (data && data.success) {
+          window.location.assign('/account');
+        } else {
+          status.textContent = (data && data.error) || t('Could not disconnect.');
+          status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+        }
+      }).catch(e => {
+        status.textContent = t('Error: {message}').replace('{message}', e.message);
+        status.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+      });
+    });
+  }
+
+  const fbParams = new URLSearchParams(window.location.search);
+  if (fbParams.get('linked') === 'facebook' && window.showToast) {
+    window.showToast(t('Facebook connected.'), 'success');
+  } else if (fbParams.get('link_error') && window.showToast) {
+    window.showToast(t('Could not connect Facebook. Please try again.'), 'error');
   }
 
   // ── Live password requirements on /account change-password ────────

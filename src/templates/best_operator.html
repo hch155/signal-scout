@@ -75,7 +75,6 @@
 
   <ul id="bo-results" class="mt-4 space-y-3 list-none p-0">
     {% if state == 'ok' %}
-      {% for op in operators %}{{ operator_card(op) }}{% endfor %}
       {% if match and match.latitude is not none and match.longitude is not none %}
       <li class="pt-1">
         <a href="/?lat={{ match.latitude }}&amp;lng={{ match.longitude }}"
@@ -85,6 +84,7 @@
         </a>
       </li>
       {% endif %}
+      {% for op in operators %}{{ operator_card(op) }}{% endfor %}
     {% endif %}
   </ul>
 

@@ -117,8 +117,8 @@
   function render(data, statusEl, resultsEl) {
     statusEl.textContent = statusFor(data);
     var ops = data.operators || [];
-    var html = ops.map(cardMarkup).join('');
-    if (data.status === 'ok') html += showOnMapMarkup(data.match);
+    var html = (data.status === 'ok' ? showOnMapMarkup(data.match) : '') +
+      ops.map(cardMarkup).join('');
     resultsEl.innerHTML = html;
   }
 

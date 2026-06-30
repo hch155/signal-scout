@@ -24,7 +24,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, jsonify, render_template, request, session, url_for
 
 from models import User, ApiKey, AuditEvent, UserLocation, UserStationSnapshot
 from kms import get_kms
@@ -477,6 +477,12 @@ def register_auth_routes(app, *, bcrypt, db, limiter, validate_csrf,
     auth_bp.add_url_rule("/account/2fa/regenerate", endpoint="totp_regenerate",
                          view_func=limiter.limit("5 per hour")(totp_regenerate),
                          methods=["POST"])
+    auth_bp.add_url_rule("/account/link/facebook", endpoint="link_facebook",
+                         view_func=limiter.limit("10 per hour")(start_facebook_link),
+                         methods=["POST"])
+    auth_bp.add_url_rule("/account/unlink/facebook", endpoint="unlink_facebook",
+                         view_func=limiter.limit("10 per hour")(unlink_facebook),
+                         methods=["POST"])
     auth_bp.add_url_rule("/account/snapshot", endpoint="take_snapshot",
                          view_func=limiter.limit("6 per hour")(take_snapshot),
                          methods=["POST"])
@@ -703,6 +709,7 @@ def login_user():
         session.clear()
         session['_csrf_token'] = new_csrf
         session['user_id'] = user.id
+        session['sv'] = user.session_token_version or 0
         _audit('login.success', user.id)
         try:
             _db().session.commit()
@@ -771,10 +778,12 @@ def account_page():
         "two_fa_on": bool(getattr(user, 'totp_enabled', False)),
         "alerts_on": bool(getattr(user, 'email_alerts_enabled', True)),
     }
+    from oauth import _provider_enabled
     return render_template('account.html', user=user,
                            api_keys=api_keys, audit_events=audit_events,
                            locations=locations, quick_stats=quick_stats,
-                           has_password=_has_usable_password(user))
+                           has_password=_has_usable_password(user),
+                           facebook_enabled=_provider_enabled('facebook'))
 
 
 def regenerate_api_key():
@@ -793,6 +802,77 @@ def regenerate_api_key():
     user.api_key_prefix = format_api_key_prefix(raw_key)
     _db().session.commit()
     return jsonify({"success": True, "api_key": raw_key}), 200
+
+
+# ── OAuth account linking (secure Facebook link) ───────────────────────────
+
+def start_facebook_link():
+    """Begin binding a Facebook account to the logged-in user. Requires the
+    current password (step-up) so a hijacked session can't attach an
+    attacker's Facebook account; then hands off to the Facebook OAuth flow."""
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='link_facebook').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    user, err = _current_user_or_401()
+    if err:
+        return err
+    from oauth import oauth as _oauth, _provider_enabled
+    if not _provider_enabled('facebook'):
+        return jsonify({'error': 'provider_not_configured'}), 404
+    if _has_usable_password(user):
+        if _is_locked(user):
+            return jsonify({
+                "error": "Account is temporarily locked due to too many failed attempts.",
+                "locked": True,
+                "locked_until": user.locked_until.isoformat() + 'Z',
+            }), 403
+        payload = request.get_json(silent=True) or request.form
+        if not _bcrypt().check_password_hash(
+                user.password_hash, payload.get('current_password') or ''):
+            _login_failures_total().inc()
+            _record_failed_password_attempt(user, endpoint='link_facebook')
+            return jsonify({'error': 'Current password is incorrect'}), 401
+    session['oauth_link_user_id'] = user.id
+    session['oauth_link_provider'] = 'facebook'
+    client = _oauth.create_client('facebook')
+    resp = client.authorize_redirect(url_for('oauth_facebook_callback', _external=True))
+    return jsonify({'authorize_url': resp.headers.get('Location')}), 200
+
+
+def unlink_facebook():
+    """Disconnect Facebook from the logged-in account. Requires a usable
+    password (so a sign-in method remains) + a password step-up + CSRF."""
+    if not _validate_csrf():
+        _csrf_failures_total().labels(endpoint='unlink_facebook').inc()
+        return jsonify({'error': 'Invalid request'}), 403
+    user, err = _current_user_or_401()
+    if err:
+        return err
+    if not getattr(user, 'facebook_user_id', None):
+        return jsonify({'error': 'Facebook is not linked'}), 400
+    if not _has_usable_password(user):
+        return jsonify({'error': 'Set a password before disconnecting your only sign-in method.'}), 400
+    if _is_locked(user):
+        return jsonify({
+            "error": "Account is temporarily locked due to too many failed attempts.",
+            "locked": True,
+            "locked_until": user.locked_until.isoformat() + 'Z',
+        }), 403
+    payload = request.get_json(silent=True) or request.form
+    if not _bcrypt().check_password_hash(
+            user.password_hash, payload.get('current_password') or ''):
+        _login_failures_total().inc()
+        _record_failed_password_attempt(user, endpoint='unlink_facebook')
+        return jsonify({'error': 'Current password is incorrect'}), 401
+    user.facebook_user_id = None
+    _audit('oauth.facebook_unlinked', user.id)
+    try:
+        _db().session.commit()
+    except Exception:
+        _db().session.rollback()
+        logger.exception("unlink_facebook commit failed for user_id=%s", user.id)
+        return jsonify({'error': 'Could not disconnect'}), 500
+    return jsonify({'success': True}), 200
 
 
 # ── PR #12: profile / change password / delete account ─────────────────────
@@ -873,12 +953,14 @@ def change_password():
 
     user.password_hash = _bcrypt().generate_password_hash(new).decode('utf-8')
     user.last_password_change = datetime.utcnow()
+    user.session_token_version = (user.session_token_version or 0) + 1
     _audit('password.changed', user.id)
     import secrets
     new_csrf = secrets.token_hex(32)
     session.clear()
     session['_csrf_token'] = new_csrf
     session['user_id'] = user.id
+    session['sv'] = user.session_token_version
     try:
         _db().session.commit()
     except Exception:
@@ -1100,6 +1182,7 @@ def reset_password():
 
     user.password_hash = _bcrypt().generate_password_hash(password).decode('utf-8')
     user.last_password_change = datetime.utcnow()
+    user.session_token_version = (user.session_token_version or 0) + 1
     user.failed_login_attempts = 0
     user.locked_until = None
     _audit('password.reset', user.id, {"via": "forgot_password"})
@@ -1331,6 +1414,23 @@ def totp_setup():
     if user.totp_enabled:
         return jsonify({'error': '2FA already enabled. Disable first to reconfigure.'}), 400
 
+    # L2 step-up: a hijacked session must not be able to enrol its own
+    # authenticator and lock the real owner out. OAuth-only accounts have no
+    # usable password, so the live session stays their proof of identity.
+    if _has_usable_password(user):
+        if _is_locked(user):
+            return jsonify({
+                "error": "Account is temporarily locked due to too many failed attempts.",
+                "locked": True,
+                "locked_until": user.locked_until.isoformat() + 'Z',
+            }), 403
+        payload = request.get_json(silent=True) or request.form
+        if not _bcrypt().check_password_hash(
+                user.password_hash, payload.get('current_password') or ''):
+            _login_failures_total().inc()
+            _record_failed_password_attempt(user, endpoint='totp_setup')
+            return jsonify({'error': 'Current password is incorrect'}), 401
+
     pyotp = _pyotp()
     secret = pyotp.random_base32()
     uri = pyotp.TOTP(secret).provisioning_uri(name=user.email, issuer_name=_ISSUER)
@@ -1531,6 +1631,7 @@ def login_totp():
     session.clear()
     session['_csrf_token'] = new_csrf
     session['user_id'] = user.id
+    session['sv'] = user.session_token_version or 0
     _audit('login.success',
            user.id,
            {'via': 'recovery_code'} if used_recovery else {'via': 'totp'})

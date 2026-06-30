@@ -207,6 +207,22 @@ def _make_session_permanent():
         return
     session.permanent = True
 
+
+@app.before_request
+def _enforce_session_epoch():
+    """Clear any session whose 'sv' predates a password change/reset."""
+    if (request.method == 'OPTIONS'
+            or request.path.startswith('/static/')
+            or request.path in _EDGE_CACHEABLE_API_PATHS):
+        return
+    uid = session.get('user_id')
+    if uid is None:
+        return
+    user = db.session.get(User, uid)
+    if user is None or session.get('sv') != (user.session_token_version or 0):
+        session.clear()
+
+
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
@@ -385,7 +401,7 @@ button:disabled{opacity:.6;cursor:not-allowed}
 <h1>Two-factor code required</h1>
 <p>You signed in with a provider. Enter the 6-digit code from your
 authenticator app to finish.</p>
-<form id="f" autocomplete="off">
+<form id="f" autocomplete="off" data-csrf=""" + ('"' + csrf + '"') + """>
 <input name="code" autofocus required pattern="[0-9 ]{6,12}" inputmode="numeric"
        placeholder="123456" autocomplete="one-time-code">
 <button type="submit" id="b">Verify and continue</button>
@@ -394,24 +410,7 @@ authenticator app to finish.</p>
 Or <a href="/?cancel=1">cancel sign-in</a>.</p>
 </form>
 </div>
-<script>
-const csrfToken = """ + ('"' + csrf + '"') + """;
-const f=document.getElementById('f'),b=document.getElementById('b'),e=document.getElementById('e');
-f.addEventListener('submit',async ev=>{
-  ev.preventDefault();
-  e.textContent='';b.disabled=true;b.textContent='Checking...';
-  const code=f.code.value.trim();
-  try{
-    const r=await fetch('/login/totp',{method:'POST',credentials:'same-origin',
-      headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-      body:JSON.stringify({code})});
-    const j=await r.json().catch(()=>({}));
-    if(r.ok && j.success){ window.location='/account'; return; }
-    e.textContent=j.error || j.message || 'Wrong code, try again.';
-  }catch(err){ e.textContent='Network error - try again.'; }
-  b.disabled=false;b.textContent='Verify and continue';
-});
-</script>
+<script src="/static/2fa-challenge.js"></script>
 </body></html>"""
     response = make_response(body)
     response.headers['Content-Type'] = 'text/html; charset=utf-8'
