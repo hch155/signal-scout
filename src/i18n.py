@@ -315,7 +315,7 @@ TRANSLATIONS = {
     'Login failed. Wrong email or password. Please try again.':
         'Logowanie nie powiodło się. Błędny e-mail lub hasło. Spróbuj ponownie.',
     'Thresholds: high-band ≤1.5 km · mid ≤2 km · low ≤5 km. Line-of-sight; real signal varies.':
-        'Progi: pasmo wysokie ≤1,5 km · średnie ≤2 km · niskie ≤5 km. Linia wzroku; rzeczywisty sygnał się różni.',
+        'Progi: pasmo wysokie ≤1,5 km · średnie ≤2 km · niskie ≤5 km. Bezpośrednia widoczność; rzeczywisty sygnał się różni.',
     'Tips temporarily unavailable. Please refresh the page.':
         'Porady chwilowo niedostępne. Odśwież stronę.',
     'Location permission was denied. Please enable it to use this feature.':
