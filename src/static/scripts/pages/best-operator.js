@@ -50,19 +50,19 @@
         esc(tr('Recommended')) + '</span>';
     }
     var explainer = scoreExplainer(op);
-    var scoreCls = 'ml-auto text-xs font-medium text-gray-500 dark:text-gray-400';
-    var scoreAttr = '';
-    if (explainer) {
-      scoreCls += ' cursor-help underline decoration-dotted decoration-gray-300 dark:decoration-gray-600 underline-offset-2';
-      scoreAttr = ' title="' + esc(explainer) + '"';
-    }
+    var scoreInner = esc(tr('Score')) + ' ' + esc(op.rank_score);
+    var scoreEl = explainer
+      ? '<button type="button" class="bo-score ml-auto text-xs font-medium text-gray-500 dark:text-gray-400 underline decoration-dotted decoration-gray-300 dark:decoration-gray-600 underline-offset-2 cursor-pointer rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300" aria-expanded="false">' + scoreInner + '</button>'
+      : '<span class="ml-auto text-xs font-medium text-gray-500 dark:text-gray-400">' + scoreInner + '</span>';
     html += '<div class="flex items-center gap-3">' +
       '<span class="inline-block w-3 h-3 rounded-full flex-none" style="background-color: ' +
       (DOT_COLORS[op.slug] || '#94a3b8') + '"></span>' +
       '<span class="font-semibold text-gray-900 dark:text-white">' + esc(op.operator) + '</span>' +
-      '<span class="' + scoreCls + '"' + scoreAttr + '>' +
-      esc(tr('Score')) + ' ' + esc(op.rank_score) + '</span>' +
+      scoreEl +
       '</div>';
+    if (explainer) {
+      html += '<p class="bo-score-info hidden mt-1 text-[11px] text-gray-500 dark:text-gray-400">' + esc(explainer) + '</p>';
+    }
     html += '<p class="mt-2 text-sm text-gray-700 dark:text-gray-200">' + esc(rationaleText(op)) + '</p>';
 
     html += '<div class="mt-2 flex flex-wrap items-center gap-2 text-xs">';
@@ -105,10 +105,21 @@
     }
   }
 
+  function showOnMapMarkup(match) {
+    if (!match || match.latitude == null || match.longitude == null) return '';
+    return '<li class="pt-1"><a href="/?lat=' + encodeURIComponent(match.latitude) +
+      '&lng=' + encodeURIComponent(match.longitude) +
+      '" class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-blue-600 dark:border-blue-400 px-3.5 py-2.5 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 transition-colors">' +
+      '<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21s-7-5.686-7-11a7 7 0 1 1 14 0c0 5.314-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg> ' +
+      esc(tr('Show on map')) + '</a></li>';
+  }
+
   function render(data, statusEl, resultsEl) {
     statusEl.textContent = statusFor(data);
     var ops = data.operators || [];
-    resultsEl.innerHTML = ops.map(cardMarkup).join('');
+    var html = ops.map(cardMarkup).join('');
+    if (data.status === 'ok') html += showOnMapMarkup(data.match);
+    resultsEl.innerHTML = html;
   }
 
   function skeletonCard() {
@@ -250,6 +261,18 @@
     var input = document.getElementById('bo-q');
     var statusEl = document.getElementById('bo-status');
     var resultsEl = document.getElementById('bo-results');
+
+    if (resultsEl) {
+      resultsEl.addEventListener('click', function (e) {
+        var btn = e.target.closest('.bo-score');
+        if (!btn) return;
+        var li = btn.closest('li');
+        var info = li && li.querySelector('.bo-score-info');
+        if (!info) return;
+        var nowHidden = info.classList.toggle('hidden');
+        btn.setAttribute('aria-expanded', nowHidden ? 'false' : 'true');
+      });
+    }
 
     setupAutocomplete(input);
 
