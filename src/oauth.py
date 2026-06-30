@@ -50,7 +50,7 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-_VERIFIED_EMAIL_PROVIDERS = {'google', 'github'}
+_VERIFIED_EMAIL_PROVIDERS = {'google', 'github', 'facebook'}
 oauth = OAuth()
 
 
