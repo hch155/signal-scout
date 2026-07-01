@@ -488,6 +488,7 @@ TRANSLATIONS = {
 
     # base.html — rate-limit modal / nav / footer (Jinja)
     'Primary': 'Nawigacja główna',
+    'Skip to content': 'Przejdź do treści',
     'Rate Limit Exceeded': 'Przekroczono limit zapytań',
     'Please wait a minute before making new requests.':
         'Odczekaj minutę przed wysłaniem kolejnych zapytań.',

@@ -1578,7 +1578,8 @@ function createSignalBars(signal) {
         const active = i <= signal.bars ? 'active' : '';
         barsHtml += `<div class="signal-bar ${active}"></div>`;
     }
-    return `<div class="signal-indicator signal-${signal.level}">${barsHtml}</div>`;
+    const label = signal.label || `${signal.bars}/4`;
+    return `<div class="signal-indicator signal-${signal.level}" role="img" aria-label="${escapeHtml(label)}">${barsHtml}</div>`;
 }
 
 // Show empty state when no stations found.
