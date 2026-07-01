@@ -52,6 +52,7 @@ from dotenv import load_dotenv
 from datetime import timedelta, datetime
 from urllib.parse import urlencode
 import hmac
+import uuid
 import markdown
 import os
 import random
@@ -124,7 +125,49 @@ class _StaticSkipSessionInterface(SecureCookieSessionInterface):
 
 app.session_interface = _StaticSkipSessionInterface()
 bcrypt = Bcrypt(app)
-logging.basicConfig(level=logging.INFO)
+class _JsonLogFormatter(logging.Formatter):
+    def format(self, record):
+        payload = {
+            'ts': self.formatTime(record, '%Y-%m-%dT%H:%M:%S'),
+            'level': record.levelname,
+            'logger': record.name,
+            'msg': record.getMessage(),
+        }
+        if has_request_context():
+            rid = getattr(g, 'request_id', None)
+            if rid:
+                payload['request_id'] = rid
+            payload['method'] = request.method
+            payload['path'] = request.path
+        if record.exc_info:
+            payload['exc'] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False)
+
+
+if os.getenv('LOG_JSON', '1') != '0':
+    _log_handler = logging.StreamHandler()
+    _log_handler.setFormatter(_JsonLogFormatter())
+    logging.getLogger().handlers[:] = [_log_handler]
+    logging.getLogger().setLevel(logging.INFO)
+else:
+    logging.basicConfig(level=logging.INFO)
+
+
+@app.before_request
+def _assign_request_id():
+    incoming = request.headers.get('X-Request-ID', '')[:64]
+    if incoming and all(c.isalnum() or c in '-_' for c in incoming):
+        g.request_id = incoming
+    else:
+        g.request_id = uuid.uuid4().hex[:16]
+
+
+@app.after_request
+def _echo_request_id(response):
+    rid = getattr(g, 'request_id', None)
+    if rid:
+        response.headers['X-Request-ID'] = rid
+    return response
 
 # Database configuration
 
@@ -455,7 +498,7 @@ EMBED_PERMISSIONS_POLICY = (
 
 @app.after_request
 def _record_user_agent_class(response):
-    if request.path in ('/metrics', '/healthz', '/status'):
+    if request.path in ('/metrics', '/healthz', '/readyz', '/status'):
         return response
     requests_by_user_agent_class_total.labels(
         ua_class=classify_user_agent(request.headers.get('User-Agent'))
@@ -529,7 +572,7 @@ def _ss_sid_set_and_bot_score(response):
 
 # ── PR #44: USE-method saturation + RED-method per-tier hooks ───────────────
 
-_INFRA_PATHS = ('/metrics', '/healthz', '/status')
+_INFRA_PATHS = ('/metrics', '/healthz', '/readyz', '/status')
 
 
 @app.before_request
@@ -2475,6 +2518,26 @@ def api_v1_healthz():
     """
     from flask import current_app
     return current_app.view_functions['healthz']()
+
+
+@app.route('/readyz', methods=['GET'])
+def readyz():
+    """Readiness probe — verifies both DB binds respond. Unlike /healthz
+    (liveness, no DB hit), a load balancer can use this to avoid routing to
+    an instance whose database is unreachable."""
+    checks = {}
+    ready = True
+    for label, model in (('stations_db', BaseStation), ('users_db', User)):
+        try:
+            model.query.limit(1).first()
+            checks[label] = 'ok'
+        except Exception:
+            logging.getLogger(__name__).exception('readyz: %s check failed', label)
+            checks[label] = 'error'
+            ready = False
+    resp = jsonify({'status': 'ready' if ready else 'not_ready', 'checks': checks})
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp, (200 if ready else 503)
 
 
 def api_v1_coverage_gaps():
