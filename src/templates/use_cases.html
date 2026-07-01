@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Use cases — Who uses Signal-Scout & how | Signal-Scout{% endblock %}
-{% block description %}Three real-world workflows for the Signal-Scout API: RF engineers planning drive-test campaigns, telco infrastructure teams tracking coverage gaps, property developers selecting buildings with strong cellular signal.{% endblock %}
+{% block title %}{{ _('Use cases — Who uses Signal-Scout & how | Signal-Scout') }}{% endblock %}
+{% block description %}{{ _('Three real-world workflows for the Signal-Scout API: RF engineers planning drive-test campaigns, telco infrastructure teams tracking coverage gaps, property developers selecting buildings with strong cellular signal.') }}{% endblock %}
 
 {% block content %}
 <section class="text-center text-[#333] dark:text-white px-4 pt-6 pb-3">
-    <h2 class="text-2xl md:text-3xl font-bold">Who actually uses this?</h2>
+    <h2 class="text-2xl md:text-3xl font-bold">{{ _('Who actually uses this?') }}</h2>
     <p class="mt-2 text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-        Three workflows where knowing the BTS within 1 km of a coordinate moves the needle.
+        {{ _('Three workflows where knowing the BTS within 1 km of a coordinate moves the needle.') }}
     </p>
 </section>
 
@@ -16,85 +16,62 @@
     {# ── Use case 1 ────────────────────────────────────────────── #}
     <article class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-6 md:p-8">
         <div class="flex items-baseline gap-3 flex-wrap mb-2">
-            <h3 class="text-xl font-bold text-gray-900 dark:text-white">RF engineer planning a drive-test campaign</h3>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{ _('RF engineer planning a drive-test campaign') }}</h3>
         </div>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            Persona: senior radio engineer at a Polish operator or independent network-quality consultancy.
+            {{ _('Persona: senior radio engineer at a Polish operator or independent network-quality consultancy.') }}
         </p>
         <p class="text-gray-700 dark:text-gray-200 mb-3">
-            <strong>Pain</strong>: Drive-test logs are expensive to capture (vehicle + tester + ScanScript license).
-            You only want to drive corridors where the BTS layout actually overlaps — wasting two days on a
-            stretch of highway with no nearby cells is a fired-from-the-account event.
+            {{ _('<strong>Pain</strong>: Drive-test logs are expensive to capture (vehicle + tester + ScanScript license). You only want to drive corridors where the BTS layout actually overlaps — wasting two days on a stretch of highway with no nearby cells is a fired-from-the-account event.')|safe }}
         </p>
         <p class="text-gray-700 dark:text-gray-200 mb-3">
-            <strong>How Signal-Scout helps</strong>: feed the route's GPS waypoints (one per km)
-            into <code>POST /stations</code> with <code>max_distance=2 km</code>; the response gives
-            you the operator + band mix expected at every point. Filter for the one you're auditing,
-            export to CSV, plan the actual drive-test only over corridors with ≥2 cells in range.
-            Result: <strong>30–40% fewer windshield-hours</strong> per campaign.
+            {{ _('<strong>How Signal-Scout helps</strong>: feed the route\'s GPS waypoints (one per km) into <code>POST /stations</code> with <code>max_distance=2 km</code>; the response gives you the operator + band mix expected at every point. Filter for the one you\'re auditing, export to CSV, plan the actual drive-test only over corridors with ≥2 cells in range. Result: <strong>30–40% fewer windshield-hours</strong> per campaign.')|safe }}
         </p>
         <div class="bg-gray-100 dark:bg-slate-900 rounded p-3 mt-3 text-xs font-mono text-gray-900 dark:text-gray-100 overflow-x-auto border border-gray-200 dark:border-gray-700">
             curl -H "X-API-Key: $SS_KEY" \<br>
             &nbsp;&nbsp;"https://signal-scout.com/stations?lat=52.23&lng=21.00&max_distance=2&service_provider=Plus"
         </div>
         <p class="mt-4 text-sm">
-            <strong>Plan match</strong>: <a href="/pricing#starter" class="text-blue-600 dark:text-blue-400 underline">Starter</a>
-            for solo consultants, <a href="/pricing#pro" class="text-blue-600 dark:text-blue-400 underline">Pro</a> for the team's
-            shared planning pipeline.
+            {{ _('<strong>Plan match</strong>: <a href="/pricing#starter" class="text-blue-600 dark:text-blue-400 underline">Starter</a> for solo consultants, <a href="/pricing#pro" class="text-blue-600 dark:text-blue-400 underline">Pro</a> for the team\'s shared planning pipeline.')|safe }}
         </p>
     </article>
 
     {# ── Use case 2 ────────────────────────────────────────────── #}
     <article class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-6 md:p-8">
         <div class="flex items-baseline gap-3 flex-wrap mb-2">
-            <h3 class="text-xl font-bold text-gray-900 dark:text-white">Telco infrastructure manager tracking coverage gaps</h3>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{ _('Telco infrastructure manager tracking coverage gaps') }}</h3>
         </div>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            Persona: head of access networks at a Tier-2 operator or MVNO with leased capacity.
+            {{ _('Persona: head of access networks at a Tier-2 operator or MVNO with leased capacity.') }}
         </p>
         <p class="text-gray-700 dark:text-gray-200 mb-3">
-            <strong>Pain</strong>: You sub-lease capacity from one of the big 4 PL operators.
-            When their parent rebalances cells (decommissioned 3G, new 5G site, refarmed band), your
-            customers in the affected postcodes start churning — and you find out from the support
-            queue, two months too late.
+            {{ _('<strong>Pain</strong>: You sub-lease capacity from one of the big 4 PL operators. When their parent rebalances cells (decommissioned 3G, new 5G site, refarmed band), your customers in the affected postcodes start churning — and you find out from the support queue, two months too late.')|safe }}
         </p>
         <p class="text-gray-700 dark:text-gray-200 mb-3">
-            <strong>How Signal-Scout helps</strong>: save your top 50 customer-density spots as alerting
-            locations. Every UKE refresh (~monthly) you get an email per spot where coverage materially
-            changed: a band gained, a band lost, the nearest BTS distance moved more than 1 km.
-            Combined with your churn data, you get <strong>2-month early warning</strong> on capacity
-            issues — enough lead time to negotiate a roaming clause or rebrand the affected SKU.
+            {{ _('<strong>How Signal-Scout helps</strong>: save your top 50 customer-density spots as alerting locations. Every UKE refresh (~monthly) you get an email per spot where coverage materially changed: a band gained, a band lost, the nearest BTS distance moved more than 1 km. Combined with your churn data, you get <strong>2-month early warning</strong> on capacity issues — enough lead time to negotiate a roaming clause or rebrand the affected SKU.')|safe }}
         </p>
         <div class="bg-gray-100 dark:bg-slate-900 rounded p-3 mt-3 text-xs font-mono text-gray-900 dark:text-gray-100 overflow-x-auto border border-gray-200 dark:border-gray-700">
             POST /account/locations<br>
             { "name": "Warsaw Mokotów cluster", "lat": 52.18, "lng": 21.02, "alerting_enabled": true }
         </div>
         <p class="mt-4 text-sm">
-            <strong>Plan match</strong>: <a href="/pricing#pro" class="text-blue-600 dark:text-blue-400 underline">Pro</a>
-            (50+ saved locations, webhooks for ingestion into your ops dashboard).
+            {{ _('<strong>Plan match</strong>: <a href="/pricing#pro" class="text-blue-600 dark:text-blue-400 underline">Pro</a> (50+ saved locations, webhooks for ingestion into your ops dashboard).')|safe }}
         </p>
     </article>
 
     {# ── Use case 3 ────────────────────────────────────────────── #}
     <article class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-6 md:p-8">
         <div class="flex items-baseline gap-3 flex-wrap mb-2">
-            <h3 class="text-xl font-bold text-gray-900 dark:text-white">Property developer scoring buildings on cellular quality</h3>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{ _('Property developer scoring buildings on cellular quality') }}</h3>
         </div>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            Persona: development director at a residential or office REIT, or a relocation consultancy
-            shortlisting offices for corporate clients.
+            {{ _('Persona: development director at a residential or office REIT, or a relocation consultancy shortlisting offices for corporate clients.') }}
         </p>
         <p class="text-gray-700 dark:text-gray-200 mb-3">
-            <strong>Pain</strong>: "Strong 5G coverage" is a real selling feature for premium offices
-            (think trader floors, indie podcast studios, telehealth clinics). But you don't want to install
-            DAS in every building — you need to know upfront which buildings already have a 5G3600 cell
-            within 500 m before signing a lease.
+            {{ _('<strong>Pain</strong>: "Strong 5G coverage" is a real selling feature for premium offices (think trader floors, indie podcast studios, telehealth clinics). But you don\'t want to install DAS in every building — you need to know upfront which buildings already have a 5G3600 cell within 500 m before signing a lease.')|safe }}
         </p>
         <p class="text-gray-700 dark:text-gray-200 mb-3">
-            <strong>How Signal-Scout helps</strong>: bulk-lookup the lat/lng of 200 candidate addresses
-            via <code>POST /stations</code> in a notebook; rank by closest 5G band distance, by operator
-            count (4 = best), by total bands within 500 m. Output a coverage score column in your
-            shortlist spreadsheet — <strong>cuts the building shortlist by 60% before site visits</strong>.
+            {{ _('<strong>How Signal-Scout helps</strong>: bulk-lookup the lat/lng of 200 candidate addresses via <code>POST /stations</code> in a notebook; rank by closest 5G band distance, by operator count (4 = best), by total bands within 500 m. Output a coverage score column in your shortlist spreadsheet — <strong>cuts the building shortlist by 60% before site visits</strong>.')|safe }}
         </p>
         <div class="bg-gray-100 dark:bg-slate-900 rounded p-3 mt-3 text-xs font-mono text-gray-900 dark:text-gray-100 overflow-x-auto border border-gray-200 dark:border-gray-700">
             <span class="text-gray-500 dark:text-gray-400"># Python — score 200 candidate addresses</span><br>
@@ -105,20 +82,17 @@
             &nbsp;&nbsp;score = sum("5G" in s["frequency_bands"][0] for s in r.json()["stations"])
         </div>
         <p class="mt-4 text-sm">
-            <strong>Plan match</strong>: <a href="/pricing#starter" class="text-blue-600 dark:text-blue-400 underline">Starter</a>
-            for one-off batches, <a href="/pricing#pro" class="text-blue-600 dark:text-blue-400 underline">Pro</a> for ongoing
-            portfolio scoring.
+            {{ _('<strong>Plan match</strong>: <a href="/pricing#starter" class="text-blue-600 dark:text-blue-400 underline">Starter</a> for one-off batches, <a href="/pricing#pro" class="text-blue-600 dark:text-blue-400 underline">Pro</a> for ongoing portfolio scoring.')|safe }}
         </p>
     </article>
 
     <div class="text-center pt-4">
-        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Different workflow?</h3>
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ _('Different workflow?') }}</h3>
         <p class="text-sm text-gray-600 dark:text-gray-300 mt-1 max-w-xl mx-auto">
-            We're happy to build a one-off integration if your use case maps cleanly to the API.
-            Tell us how you'd use the data — we'll come back within a working day.
+            {{ _('We\'re happy to build a one-off integration if your use case maps cleanly to the API. Tell us how you\'d use the data — we\'ll come back within a working day.') }}
         </p>
         <a href="/contact" class="mt-3 inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded transition-colors">
-            Contact us
+            {{ _('Contact us') }}
         </a>
     </div>
 </div>
