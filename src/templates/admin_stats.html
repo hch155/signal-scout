@@ -16,7 +16,7 @@
       <form method="get" action="/admin/stats" class="flex items-center gap-2">
         <label class="text-sm text-gray-600 dark:text-gray-300">Window:</label>
         <select name="days"
-                onchange="this.form.submit()"
+                data-submit-on-change
                 class="text-sm bg-white dark:bg-gray-800 dark:text-white border border-gray-300 dark:border-gray-600 rounded p-1">
           {% for d in [1, 7, 14, 30] %}
             <option value="{{ d }}" {% if d == data.window_days %}selected{% endif %}>{{ d }} day{% if d > 1 %}s{% endif %}</option>

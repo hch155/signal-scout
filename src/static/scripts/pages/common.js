@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initializePasswordToggles();
   showOAuthErrorIfPresent();
   fireAnalyticsPulse();
+  initializeAutoSubmitSelects();
 });
 
 // One-shot fire-and-forget GET to /api/v1/_pulse. The server uses the
@@ -131,6 +132,16 @@ function escapeHtml(value) {
     .replace(/\//g, '&#x2F;');
 }
 window.escapeHtml = escapeHtml;
+
+// CSP-safe replacement for inline `onchange="this.form.submit()"` (blocked by
+// script-src 'self'): auto-submit any <select data-submit-on-change> on change.
+function initializeAutoSubmitSelects() {
+  document.querySelectorAll('select[data-submit-on-change]').forEach(function (sel) {
+    sel.addEventListener('change', function () {
+      if (sel.form) sel.form.submit();
+    });
+  });
+}
 
 function initializeLogoutButton() {
   document.querySelectorAll('#logoutButton, #logoutButtonMobile').forEach(btn => {
