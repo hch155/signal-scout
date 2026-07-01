@@ -749,6 +749,7 @@ TRANSLATIONS = {
 }
 
 JS_STRING_KEYS = (
+    'Show on map',
     'Toggle Filters',
     'Filters',
     'Use My Location',

@@ -63,7 +63,7 @@
         {% for d in data.daily_trend %}
           {% set h = (100 * d.hits / max_day) if max_day > 0 else 0 %}
           <div class="flex-1 flex flex-col items-center justify-end" title="{{ d.day }}: {{ d.hits }} events">
-            <div class="w-full bg-blue-500 dark:bg-blue-600 rounded-t" style="height: {{ h }}%; min-height: 2px;"></div>
+            <div class="w-full bg-blue-500 dark:bg-blue-400 rounded-t" style="height: {{ h }}%; min-height: 4px;"></div>
             <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1">{{ d.day[5:] }}</p>
           </div>
         {% endfor %}

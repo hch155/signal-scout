@@ -13,7 +13,9 @@ from best_operator import (  # noqa: E402
 )
 
 
-def make_op(operator, tier, *, real_5g=False, techs=None, dist=1.0, bands=None):
+def make_op(operator, tier, *, real_5g=False, techs=None, dist=1.0, bands=None, real5g_km=None):
+    if real_5g and real5g_km is None:
+        real5g_km = dist  # default: the n78 mast IS the nearest mast
     return {
         "operator": operator,
         "service_provider": operator,
@@ -21,6 +23,7 @@ def make_op(operator, tier, *, real_5g=False, techs=None, dist=1.0, bands=None):
         "signal_tier": tier,
         "technologies": techs or {"5G": False, "LTE": True, "3G": False, "GSM": False},
         "real_5g": real_5g,
+        "real5g_km": real5g_km,
         "5g_bands_mhz": bands or [],
     }
 
@@ -91,6 +94,17 @@ def test_recommended_rationale_has_real_5g_phrases_in_both_languages():
     winner = rank_operators([a])[0]
     assert winner["rationale"]["en"] == "Best for you: nearest 5G mast + real 5G (3.5 GHz)"
     assert winner["rationale"]["pl"] == "Najlepszy dla Ciebie: najbliższy maszt 5G + prawdziwe 5G (3,5 GHz)"
+
+
+def test_recommended_rationale_names_distance_when_n78_not_nearest():
+    # Nearest Orange mast is LTE-only at 0.1 km; the real-5G (n78) mast is 2 km away.
+    # The copy must state the 3.5 GHz distance, not imply the nearest mast is n78.
+    a = make_op("Orange", "Excellent", real_5g=True, techs=_FULL, dist=0.1, real5g_km=2.0)
+    winner = rank_operators([a])[0]
+    assert winner["rationale"]["en"] == "Best for you: nearest mast + real 5G (3.5 GHz) 2.0 km away"
+    assert winner["rationale"]["pl"] == "Najlepszy dla Ciebie: najbliższy maszt + prawdziwe 5G (3,5 GHz) 2.0 km stąd"
+    assert "nearest 5G mast" not in winner["rationale"]["en"]
+    assert "najbliższy maszt 5G" not in winner["rationale"]["pl"]
 
 
 def test_non_recommended_rationale_uses_tier_and_localized_labels():

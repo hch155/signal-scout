@@ -43,8 +43,13 @@
       html += '<span class="text-gray-500 dark:text-gray-400">' + esc(tr('Nearest mast:')) + ' ' + esc(dist) + '</span>';
     }
     if (op.real_5g) {
+      var r5gLabel = tr('Real 5G');
+      if (typeof op.real5g_km === 'number' && typeof op.nearest_distance_km === 'number'
+          && op.real5g_km > op.nearest_distance_km) {
+        r5gLabel += ' · ' + formatDistance(op.real5g_km);
+      }
       html += '<span class="inline-flex items-center rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 font-semibold px-2 py-0.5">' +
-        esc(tr('Real 5G')) + '</span>';
+        esc(r5gLabel) + '</span>';
     }
     var techs = op.technologies || {};
     TECHS.forEach(function (tech) {

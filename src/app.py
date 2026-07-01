@@ -1670,8 +1670,32 @@ def submit_location():
             return jsonify({'error': 'Missing coordinates'}), 400
         user_lat = float(data['lat'])
         user_lng = float(data['lng'])
+        in_pl = _coords_in_bounds(user_lat, user_lng)
 
-        if not _coords_in_bounds(user_lat, user_lng):
+        # Pseudonymised usage event — recorded for BOTH in- and out-of-PL
+        # clicks so the /admin/stats OUT-OF-PL counter works. It used to be
+        # dead: in_pl was hardcoded True and out-of-PL clicks returned early,
+        # before this insert ever ran.
+        try:
+            from models import SubmitLocationEvent as _SLE
+            from hashlib import sha256 as _sha256
+            _sess_id = request.cookies.get('session', '')
+            _sess_hash = _sha256((_sess_id or '').encode('utf-8')).hexdigest() if _sess_id else None
+            db.session.add(_SLE(
+                session_hash=_sess_hash,
+                user_id=session.get('user_id'),
+                lat_bucket=round(user_lat, 2),
+                lng_bucket=round(user_lng, 2),
+                in_pl=in_pl,
+                browser_class=classify_user_agent(request.headers.get('User-Agent')),
+                api_tier=getattr(g, 'api_tier', None),
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            app.logger.exception("Could not record submit_location event")
+
+        if not in_pl:
             return jsonify({
                 'outside_pl': True,
                 'message': (
@@ -1727,25 +1751,6 @@ def submit_location():
         except Exception:
             pass
         nearest_stations = find_nearest_stations(user_lat, user_lng, limit=limit, max_distance=max_distance)
-
-        try:
-            from models import SubmitLocationEvent as _SLE
-            from hashlib import sha256 as _sha256
-            sess_id = request.cookies.get('session', '')
-            sess_hash = _sha256((sess_id or '').encode('utf-8')).hexdigest() if sess_id else None
-            db.session.add(_SLE(
-                session_hash=sess_hash,
-                user_id=session.get('user_id'),
-                lat_bucket=round(user_lat, 2),
-                lng_bucket=round(user_lng, 2),
-                in_pl=True,
-                browser_class=classify_user_agent(request.headers.get('User-Agent')),
-                api_tier=getattr(g, 'api_tier', None),
-            ))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            app.logger.exception("Could not record submit_location event")
 
         if nearest_stations is None or not nearest_stations.get('stations'):
             empty_result_total.inc()

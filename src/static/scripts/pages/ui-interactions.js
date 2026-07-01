@@ -1278,7 +1278,12 @@ function injectBestOperatorIntoVerdict(top) {
     html += '<span class="text-xs text-gray-500 dark:text-gray-400">' + escapeHtml(t(top.signal_tier || '')) + '</span>';
     html += '</span>';
     if (top.real_5g) {
-        html += '<span class="inline-flex items-center rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 font-semibold px-1.5 py-0.5 text-[10px]">' + t('Real 5G') + '</span>';
+        var r5gLbl = t('Real 5G');
+        if (typeof top.real5g_km === 'number' && typeof top.nearest_distance_km === 'number'
+            && top.real5g_km > top.nearest_distance_km) {
+            r5gLbl += ' · ' + formatVerdictDistance(top.real5g_km);
+        }
+        html += '<span class="inline-flex items-center rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 font-semibold px-1.5 py-0.5 text-[10px]">' + escapeHtml(r5gLbl) + '</span>';
     }
     if (top.referral_path) {
         html += '<a href="' + escapeHtml(top.referral_path) + '" rel="nofollow sponsored noopener" class="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">' + t('See offer') + ' &rarr;</a>';

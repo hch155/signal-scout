@@ -52,6 +52,7 @@ def _serialize_operator(op: dict) -> dict:
         "signal_tier": op.get("signal_tier"),
         "nearest_distance_km": op.get("nearest_distance_km"),
         "real_5g": op.get("real_5g"),
+        "real5g_km": op.get("real5g_km"),
         "technologies": op.get("technologies"),
         "5g_bands_mhz": op.get("5g_bands_mhz"),
         "rank_score": op.get("rank_score"),

@@ -144,6 +144,7 @@ def signal_verdict(stations, band='low'):
                 'nearest_distance_km': None,
                 'technologies': {'5G': False, 'LTE': False, '3G': False, 'GSM': False},
                 'mhz_5g': set(),
+                'real5g_km': None,
             }
         if isinstance(distance, (int, float)) and (
             entry['nearest_distance_km'] is None or distance < entry['nearest_distance_km']
@@ -156,18 +157,24 @@ def signal_verdict(stations, band='low'):
             mhz = parse_5g_mhz(label)
             if mhz is not None:
                 entry['mhz_5g'].add(mhz)
+                if mhz >= REAL_5G_MIN_MHZ and isinstance(distance, (int, float)) and (
+                    entry['real5g_km'] is None or distance < entry['real5g_km']
+                ):
+                    entry['real5g_km'] = distance
 
     operators = []
     for entry in by_provider.values():
         op_distance = entry['nearest_distance_km']
         mhz_list = sorted(entry['mhz_5g'], reverse=True)
+        real5g_km = entry['real5g_km']
         operators.append({
             'operator': PROVIDER_SHORT.get(entry['service_provider'], entry['service_provider']),
             'service_provider': entry['service_provider'],
             'nearest_distance_km': round(op_distance, 2) if op_distance is not None else None,
             'signal_tier': _tier_for_distance(op_distance, thresholds) if op_distance is not None else None,
             'technologies': entry['technologies'],
-            'real_5g': any(m >= REAL_5G_MIN_MHZ for m in mhz_list),
+            'real_5g': real5g_km is not None,
+            'real5g_km': round(real5g_km, 2) if real5g_km is not None else None,
             '5g_bands_mhz': mhz_list,
         })
     operators.sort(key=lambda o: (o['nearest_distance_km'] is None, o['nearest_distance_km'] or 0.0))

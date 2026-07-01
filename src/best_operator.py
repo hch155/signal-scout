@@ -121,9 +121,21 @@ def _distance_key(op):
     return dist if isinstance(dist, (int, float)) else float('inf')
 
 
+def _fmt_km(km):
+    return f'{round(km * 1000)} m' if km < 1 else f'{km:.1f} km'
+
+
 def _fiveg_phrase(op):
     techs = op.get('technologies') or {}
     if op.get('real_5g'):
+        r_km = op.get('real5g_km')
+        n_km = op.get('nearest_distance_km')
+        # When the 3.5 GHz mast is NOT the nearest one, name its distance so the
+        # badge/copy can't be misread as "the nearest mast is real 5G".
+        if (isinstance(r_km, (int, float)) and isinstance(n_km, (int, float))
+                and r_km > n_km):
+            km = _fmt_km(r_km)
+            return (f'real 5G (3.5 GHz) {km} away', f'prawdziwe 5G (3,5 GHz) {km} stąd')
         return ('real 5G (3.5 GHz)', 'prawdziwe 5G (3,5 GHz)')
     if techs.get('5G'):
         return ('5G coverage', 'zasięg 5G')
@@ -139,10 +151,16 @@ def build_rationale(op, recommended):
     fg_en, fg_pl = _fiveg_phrase(op)
     techs = op.get('technologies') or {}
     if recommended:
-        if op.get('real_5g'):
+        r_km = op.get('real5g_km')
+        n_km = op.get('nearest_distance_km')
+        n78_is_nearest = (
+            isinstance(r_km, (int, float)) and isinstance(n_km, (int, float))
+            and r_km <= n_km
+        )
+        if op.get('real_5g') and n78_is_nearest:
             core_en = f'nearest 5G mast + {fg_en}'
             core_pl = f'najbliższy maszt 5G + {fg_pl}'
-        elif techs.get('5G'):
+        elif op.get('real_5g') or techs.get('5G'):
             core_en = f'nearest mast + {fg_en}'
             core_pl = f'najbliższy maszt + {fg_pl}'
         else:
