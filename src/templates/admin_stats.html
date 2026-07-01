@@ -177,7 +177,7 @@
       <table class="w-full text-sm">
         <thead>
           <tr class="text-left text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700">
-            <th class="py-2 pr-2">Email</th>
+            <th class="py-2 pr-2">User</th>
             <th class="py-2 pr-2 text-right">Saved</th>
             <th class="py-2 pr-2 text-right">Alerting</th>
           </tr>
@@ -185,7 +185,7 @@
         <tbody>
           {% for s in data.saved_locations.top_savers %}
           <tr class="border-t border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100">
-            <td class="py-2 pr-2 font-mono text-xs">{{ s.email }}</td>
+            <td class="py-2 pr-2 font-mono text-xs">{{ s.user }}</td>
             <td class="py-2 pr-2 text-right">{{ "{:,}".format(s.saved) }}</td>
             <td class="py-2 pr-2 text-right">{{ "{:,}".format(s.alerting) }}</td>
           </tr>

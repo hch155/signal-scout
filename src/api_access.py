@@ -92,10 +92,9 @@ def record_honeypot_hit(basestation_id: str, endpoint: str) -> None:
     scraper that they triggered a tripwire."""
     honeypot_hit_total.labels(endpoint=endpoint).inc()
     logger.warning(
-        "Honeypot BTS hit: id=%s endpoint=%s referer=%s ua=%s",
+        "Honeypot BTS hit: id=%s endpoint=%s ua=%s",
         basestation_id,
         endpoint,
-        (request.headers.get('Referer') or '')[:200],
         (request.headers.get('User-Agent') or '')[:200],
     )
 

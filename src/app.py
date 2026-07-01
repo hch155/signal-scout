@@ -59,6 +59,7 @@ import random
 import re
 import logging
 import secrets
+import threading
 import time
 import json
 
@@ -227,6 +228,7 @@ def _users_db_pragmas(dbapi_conn, _conn_record):
     cur = dbapi_conn.cursor()
     cur.execute("PRAGMA journal_mode=DELETE")
     cur.execute("PRAGMA synchronous=NORMAL")
+    cur.execute("PRAGMA foreign_keys=ON")
     cur.close()
 
 
@@ -322,9 +324,9 @@ try:
             from models import SubmitLocationEvent as _SLE
             with app.app_context():
                 cutoff = datetime.utcnow() - timedelta(days=1)
-                n = (db.session.query(_f.count(_f.distinct(_SLE.user_id)))
+                n = (db.session.query(_f.count(_f.distinct(_SLE.session_hash)))
                      .filter(_SLE.created_at >= cutoff)
-                     .filter(_SLE.user_id.isnot(None)).scalar()) or 0
+                     .filter(_SLE.session_hash.isnot(None)).scalar()) or 0
                 return float(n)
         except Exception:
             return 0.0
@@ -384,6 +386,41 @@ except Exception:
 
 init_api_docs(app)
 init_oauth(app)
+
+
+def _retention_sweep() -> None:
+    from api_access import (
+        purge_email_events_older_than_90_days,
+        purge_submit_location_events_older_than_30_days,
+    )
+    with app.app_context():
+        try:
+            engine = db.engines.get('users')
+            n1 = purge_submit_location_events_older_than_30_days(engine)
+            n2 = purge_email_events_older_than_90_days(engine)
+            if n1 or n2:
+                app.logger.info(
+                    "Scheduled retention sweep: %d submit events, %d email events",
+                    n1, n2)
+        except Exception:
+            app.logger.exception("scheduled retention sweep failed")
+
+
+def _start_retention_scheduler() -> None:
+    interval = int(os.getenv("RETENTION_SWEEP_SECONDS", str(6 * 3600)))
+    if interval <= 0:
+        return
+
+    def _loop() -> None:
+        while True:
+            time.sleep(interval)
+            _retention_sweep()
+
+    threading.Thread(target=_loop, name="retention-sweep", daemon=True).start()
+
+
+if os.getenv("RUN_RETENTION_SCHEDULER", "1") != "0":
+    _start_retention_scheduler()
 
 
 @app.route('/auth/google/login')
@@ -1338,11 +1375,10 @@ def sendgrid_event_webhook():
             raise ValueError("payload not a JSON list/object")
     except Exception:
         app.logger.exception(
-            "[sendgrid-webhook] bad payload — ct=%s ce=%s len=%d head=%r",
+            "[sendgrid-webhook] bad payload — ct=%s ce=%s len=%d",
             request.content_type,
             request.headers.get('Content-Encoding', ''),
             len(body or b''),
-            (body or b'')[:200],
         )
         return jsonify({"error": "bad_payload"}), 400
 
@@ -1494,7 +1530,7 @@ def admin_stats():
     total = base_q.count()
     in_pl_count = base_q.filter(_SLE.in_pl.is_(True)).count()
     out_pl_count = total - in_pl_count
-    logged_in_count = base_q.filter(_SLE.user_id.isnot(None)).count()
+    logged_in_count = base_q.filter(_SLE.logged_in.is_(True)).count()
     anon_count = total - logged_in_count
 
     top_spots = (
@@ -1503,6 +1539,7 @@ def admin_stats():
             _f.count('*').label('hits'),
         )
         .filter(_SLE.created_at >= cutoff)
+        .filter(_SLE.lat_bucket.isnot(None))
         .group_by(_SLE.lat_bucket, _SLE.lng_bucket)
         .order_by(_f.count('*').desc())
         .limit(10)
@@ -1553,18 +1590,18 @@ def admin_stats():
     from sqlalchemy import case as _case
     top_savers_rows = (
         db.session.query(
-            _U2.email,
+            _U2.id,
             _f.count(_UL.id).label('n'),
             _f.sum(_case((_UL.alerting_enabled.is_(True), 1), else_=0)).label('alerting'),
         )
         .join(_UL, _UL.user_id == _U2.id)
-        .group_by(_U2.id, _U2.email)
+        .group_by(_U2.id)
         .order_by(_f.count(_UL.id).desc())
         .limit(10).all()
     )
     top_savers = [
-        {"email": e, "saved": int(n), "alerting": int(a or 0)}
-        for (e, n, a) in top_savers_rows
+        {"user": f"#{uid}", "saved": int(n), "alerting": int(a or 0)}
+        for (uid, n, a) in top_savers_rows
     ]
 
     payload = {
@@ -1682,20 +1719,25 @@ def submit_location():
         user_lng = float(data['lng'])
         in_pl = _coords_in_bounds(user_lat, user_lng)
 
-        # Pseudonymised usage event — recorded for BOTH in- and out-of-PL
-        # clicks so the /admin/stats OUT-OF-PL counter works. It used to be
-        # dead: in_pl was hardcoded True and out-of-PL clicks returned early,
-        # before this insert ever ran.
+        # Pseudonymous usage event (salted per-session token, no account
+        # link) recorded for BOTH in- and out-of-PL clicks so the
+        # /admin/stats OUT-OF-PL counter works. Coordinates are kept only for
+        # in-PL clicks; out-of-PL rows carry just the boolean.
         try:
             from models import SubmitLocationEvent as _SLE
             from hashlib import sha256 as _sha256
-            _sess_id = request.cookies.get('session', '')
-            _sess_hash = _sha256((_sess_id or '').encode('utf-8')).hexdigest() if _sess_id else None
+            _an_sid = session.get('an_sid')
+            if not _an_sid:
+                _an_sid = secrets.token_hex(16)
+                session['an_sid'] = _an_sid
+            _salt = app.secret_key if isinstance(app.secret_key, bytes) \
+                else (app.secret_key or '').encode('utf-8')
+            _sess_hash = _sha256(_salt + _an_sid.encode('utf-8')).hexdigest()
             db.session.add(_SLE(
                 session_hash=_sess_hash,
-                user_id=session.get('user_id'),
-                lat_bucket=round(user_lat, 2),
-                lng_bucket=round(user_lng, 2),
+                logged_in=bool(session.get('user_id')),
+                lat_bucket=(round(user_lat, 2) if in_pl else None),
+                lng_bucket=(round(user_lng, 2) if in_pl else None),
                 in_pl=in_pl,
                 browser_class=classify_user_agent(request.headers.get('User-Agent')),
                 api_tier=getattr(g, 'api_tier', None),

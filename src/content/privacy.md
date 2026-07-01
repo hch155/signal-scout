@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 10 June 2026_
+_Last updated: 1 July 2026_
 
 This privacy notice explains what personal data Signal-Scout collects, how it is used, and the rights you have over it. It is written to satisfy the GDPR's transparency obligations (Art. 13 / 14). It is **not** legal advice; if you intend to rely on Signal-Scout for sensitive operations or to integrate it into a regulated workflow, get your own counsel to review.
 
@@ -46,7 +46,7 @@ A saved location is a coordinate *you* chose to monitor. Depending on what you p
 ### When you use the map
 
 - The **coordinates you click** are stored in your session for the duration of the visit so the sidebar can show "stations near your spot".
-- We write a **pseudonymised event** for each click — timestamp, coordinates rounded to ~1 km grid, a one-way `sha256(session_id)` pseudonym, browser class (`browser_chrome` / `mobile` / etc., not the full UA string), API tier. We never record your raw IP or the precise coordinates. Used in aggregate to understand which areas of Poland the app is being used in (top spots, browser breakdown, in-PL vs out-of-PL). Retention: **30 days, deleted automatically on every server boot**. Legal basis: legitimate interest (Art. 6(1)(f)).
+- We write a **pseudonymised event** for each click: a timestamp, a salted one-way session pseudonym (derived from a random per-session token — not reversible to you and **not** linked to your account), a plain yes/no flag for whether you were signed in (**no** account identifier is stored), the browser class (`browser_chrome` / `mobile` / etc., not the full UA string), the API tier, and — **only for clicks inside Poland** — the coordinates rounded to a ~1 km grid. Clicks outside Poland store just the in/out-of-Poland flag, with **no coordinate at all**. We never record your raw IP or the precise coordinates. Used only in aggregate to understand which areas of Poland the app is used in (top spots, distinct-session count, browser breakdown, in-PL vs out-of-PL). Retention: **30 days**, deleted automatically by a recurring background sweep and again on every server boot. Legal basis: legitimate interest (Art. 6(1)(f)); we have carried out and documented a balancing test (legitimate-interest assessment), available on request.
 
 ### Anti-abuse measures
 
@@ -90,8 +90,8 @@ We do **not** carry out automated decision-making that produces legal or similar
 | Audit log | Lifetime of the account, then cascaded on deletion |
 | Edge access logs (reverse proxy) | ~30 days, log-rotated |
 | Application access logs | Rotated by size (max ~30 MB retained) |
-| Pseudonymised map-click events | 30 days (purged on server boot + scheduled sweep) |
-| Email delivery events | 90 days (purged on server boot + scheduled sweep) |
+| Pseudonymised map-click events | 30 days (recurring background sweep, and on server boot) |
+| Email delivery events | 90 days (recurring background sweep, and on server boot) |
 | Email suppression list | Until you ask us to remove the entry |
 | Session cookie | Up to 7 days / until logout |
 | `ss_sid` cookie | 30 days |
@@ -127,7 +127,7 @@ Under the GDPR you have the right to:
 
 - **Access** the personal data we hold about you. For account-derived data this is visible directly on `/account`. For anything else, email us.
 - **Rectify** inaccurate data — change your company name directly on `/account`; to correct your email address, email us (we verify it's you and update it manually).
-- **Erase** your data ("right to be forgotten") — `/account` has a "Delete account" action that immediately and irreversibly wipes your active account data: your email, password hash, audit log, saved locations, snapshots, API keys and email delivery events (cascade delete). Three things outlive the deletion: full IPs in the edge proxy's access logs (rotated out within ~30 days), truncated IPs and masked email addresses (`h***@example.com`) in retained app logs, and — if your address ever hard-bounced or reported us as spam — the suppression-list entry, which we keep so we never email that address again (you can ask us to remove it). We keep disaster-recovery backups of the account database on our own infrastructure (EU, same physical custody as the live database), retained for **14 days** — a deleted account can therefore persist in backups for up to 14 days before it is gone everywhere. We keep these backups on the basis of our legitimate interest (Art. 6(1)(f)) in being able to recover the service after a failure, since selectively editing an encrypted point-in-time backup to remove one account is not technically practical. Backups are used only for disaster recovery, never restored selectively to "un-delete" data.
+- **Erase** your data ("right to be forgotten") — `/account` has a "Delete account" action that immediately and irreversibly wipes your active account data: your email, password hash, audit log, saved locations, snapshots, API keys and email delivery events (cascade delete). Our pseudonymised map-click events carry no account identifier, so there is nothing in them to tie back to you — they are not part of your account and expire within 30 days regardless. Three things outlive the deletion: full IPs in the edge proxy's access logs (rotated out within ~30 days), truncated IPs and masked email addresses (`h***@example.com`) in retained app logs, and — if your address ever hard-bounced or reported us as spam — the suppression-list entry, which we keep so we never email that address again (you can ask us to remove it). We keep disaster-recovery backups of the account database on our own infrastructure (EU, same physical custody as the live database), retained for **14 days** — a deleted account can therefore persist in backups for up to 14 days before it is gone everywhere. We keep these backups on the basis of our legitimate interest (Art. 6(1)(f)) in being able to recover the service after a failure, since selectively editing an encrypted point-in-time backup to remove one account is not technically practical. Backups are used only for disaster recovery, never restored selectively to "un-delete" data.
 - **Restrict** processing or **object** to it on legitimate-interest grounds — email us.
 - **Portability** — export of saved locations / snapshots is available on request.
 - **Lodge a complaint** with the Polish supervisory authority (Urząd Ochrony Danych Osobowych, https://uodo.gov.pl).

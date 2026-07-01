@@ -89,6 +89,35 @@ def test_submit_location_boundary_coords(csrf_client, csrf_token, lat, lng, insi
         assert body.get("outside_pl") is True
 
 
+def _latest_event(app):
+    from models import SubmitLocationEvent
+    with app.app_context():
+        return (SubmitLocationEvent.query
+                .order_by(SubmitLocationEvent.id.desc()).first())
+
+
+def test_submit_location_records_pseudonymous_event(app, csrf_client, csrf_token):
+    _post_json(csrf_client, "/submit_location",
+               {"lat": WARSAW[0], "lng": WARSAW[1]}, csrf_token)
+    ev = _latest_event(app)
+    assert ev is not None
+    assert ev.in_pl is True
+    assert ev.lat_bucket == round(WARSAW[0], 2)
+    assert ev.lng_bucket == round(WARSAW[1], 2)
+    assert ev.logged_in is False
+    assert ev.session_hash          # salted per-session pseudonym present
+    assert not hasattr(ev, "user_id")   # no account link on the event
+
+
+def test_submit_location_out_of_pl_stores_no_coords(app, csrf_client, csrf_token):
+    _post_json(csrf_client, "/submit_location", {"lat": 0.0, "lng": 0.0}, csrf_token)
+    ev = _latest_event(app)
+    assert ev is not None
+    assert ev.in_pl is False
+    assert ev.lat_bucket is None
+    assert ev.lng_bucket is None
+
+
 # ── /stations ────────────────────────────────────────────────────────────────
 
 def test_stations_no_session_no_query(client):
