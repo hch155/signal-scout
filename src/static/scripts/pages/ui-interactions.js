@@ -1329,13 +1329,23 @@ function renderActionRow(lat, lng, nearestCity) {
         gapsBtn.textContent = t('Coverage gaps');
         gapsBtn.addEventListener('click', function () { gapsBtn.remove(); renderCoverageGaps(lat, lng); });
         row.appendChild(gapsBtn);
+    } else {
+        const signInCta = document.createElement('button');
+        signInCta.type = 'button';
+        signInCta.className = 'inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-1.5 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
+        signInCta.textContent = t('Sign in to save & analyse');
+        signInCta.addEventListener('click', function () {
+            const trigger = document.getElementById('signInBtn') || document.getElementById('signInBtnMobile');
+            if (trigger) trigger.click();
+        });
+        row.appendChild(signInCta);
     }
 
     const shareBtn = document.createElement('button');
     shareBtn.type = 'button';
     shareBtn.title = t('Share this spot');
     shareBtn.setAttribute('aria-label', t('Share this spot'));
-    shareBtn.className = 'inline-flex items-center justify-center w-9 h-9 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 transition-colors';
+    shareBtn.className = 'inline-flex items-center justify-center p-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 transition-colors';
     shareBtn.innerHTML = '<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg>';
     shareBtn.addEventListener('click', function () { shareThisSpot(lat, lng, shareBtn); });
     row.appendChild(shareBtn);
