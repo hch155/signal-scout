@@ -1661,7 +1661,6 @@ function createVerdictCard(stations) {
             <div class="result-stats">
                 <div class="rstat"><span class="rstat-value">${Number(total)}</span><span class="rstat-label">${stationsNoun(total)}</span></div>
                 <div class="rstat"><span class="rstat-value">${escapeHtml(avgDistance)}</span><span class="rstat-label">${t('Avg Dist')}</span></div>
-                <div class="rstat"><span class="rstat-value">${nearest.distance.toFixed(2)}</span><span class="rstat-label">${t('Nearest')}</span></div>
             </div>
         </div>
         <div class="result-legend">

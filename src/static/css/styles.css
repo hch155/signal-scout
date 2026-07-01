@@ -669,7 +669,7 @@ th[onclick]:hover {
 .verdict-glyph .signal-bar:nth-child(4) { height: 25px; }
 
 .verdict-headline {
-  @apply font-bold text-base md:text-lg text-gray-900 dark:text-white leading-tight;
+  @apply font-bold text-xl md:text-2xl text-gray-900 dark:text-white leading-tight;
 }
 
 .verdict-subline {
@@ -685,7 +685,7 @@ th[onclick]:hover {
 }
 
 .rstat-value {
-  @apply text-lg md:text-2xl font-bold text-blue-600 dark:text-blue-400 leading-none;
+  @apply text-base md:text-lg font-bold text-blue-600 dark:text-blue-400 leading-none;
 }
 
 .rstat-label {

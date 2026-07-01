@@ -19,25 +19,6 @@
     return r[lang()] || r.en || '';
   }
 
-  function scoreExplainer(op) {
-    var parts = [];
-    if (op.signal_tier) {
-      parts.push(tr('Signal quality') + ': ' + tr(op.signal_tier));
-    }
-    if (op.real_5g) {
-      parts.push(tr('Real 5G'));
-    }
-    var techs = op.technologies || {};
-    var present = [];
-    TECHS.forEach(function (tech) {
-      if (techs[tech]) present.push(tech);
-    });
-    if (present.length) {
-      parts.push(present.join(', '));
-    }
-    return parts.join(' · ');
-  }
-
   function cardMarkup(op) {
     var recommended = !!op.recommended;
     var cls = recommended
@@ -49,20 +30,11 @@
       html += '<span class="absolute -top-2 left-4 inline-flex items-center rounded-full bg-blue-600 text-white text-[11px] font-semibold px-2 py-0.5">' +
         esc(tr('Recommended')) + '</span>';
     }
-    var explainer = scoreExplainer(op);
-    var scoreInner = esc(tr('Score')) + ' ' + esc(op.rank_score);
-    var scoreEl = explainer
-      ? '<button type="button" class="bo-score ml-auto text-xs font-medium text-gray-500 dark:text-gray-400 underline decoration-dotted decoration-gray-300 dark:decoration-gray-600 underline-offset-2 cursor-pointer rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300" aria-expanded="false">' + scoreInner + '</button>'
-      : '<span class="ml-auto text-xs font-medium text-gray-500 dark:text-gray-400">' + scoreInner + '</span>';
     html += '<div class="flex items-center gap-3">' +
       '<span class="inline-block w-3 h-3 rounded-full flex-none" style="background-color: ' +
       (DOT_COLORS[op.slug] || '#94a3b8') + '"></span>' +
       '<span class="font-semibold text-gray-900 dark:text-white">' + esc(op.operator) + '</span>' +
-      scoreEl +
       '</div>';
-    if (explainer) {
-      html += '<p class="bo-score-info hidden mt-1 text-[11px] text-gray-500 dark:text-gray-400">' + esc(explainer) + '</p>';
-    }
     html += '<p class="mt-2 text-sm text-gray-700 dark:text-gray-200">' + esc(rationaleText(op)) + '</p>';
 
     html += '<div class="mt-2 flex flex-wrap items-center gap-2 text-xs">';
@@ -261,18 +233,6 @@
     var input = document.getElementById('bo-q');
     var statusEl = document.getElementById('bo-status');
     var resultsEl = document.getElementById('bo-results');
-
-    if (resultsEl) {
-      resultsEl.addEventListener('click', function (e) {
-        var btn = e.target.closest('.bo-score');
-        if (!btn) return;
-        var li = btn.closest('li');
-        var info = li && li.querySelector('.bo-score-info');
-        if (!info) return;
-        var nowHidden = info.classList.toggle('hidden');
-        btn.setAttribute('aria-expanded', nowHidden ? 'false' : 'true');
-      });
-    }
 
     setupAutocomplete(input);
 
