@@ -476,6 +476,15 @@ th[onclick]:hover {
   color: #22c55e;
 }
 
+.tier-text-excellent { color: #15803d; }
+.tier-text-good { color: #a16207; }
+.tier-text-fair { color: #c2410c; }
+.tier-text-poor { color: #b91c1c; }
+.dark .tier-text-excellent { color: #4ade80; }
+.dark .tier-text-good { color: #facc15; }
+.dark .tier-text-fair { color: #fb923c; }
+.dark .tier-text-poor { color: #f87171; }
+
 /* Loading skeleton with shimmer.
    Cards used to slam in at full opacity on first paint, which read as a
    layout flash on slow connections. They now fade in over 250ms via

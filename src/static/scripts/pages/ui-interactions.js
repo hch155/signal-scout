@@ -195,6 +195,7 @@ const frequencyRanges = {
 // Favicon-matched signal tiers (same palette as the verdict card, legend
 // and signal bars): Excellent / Good / Fair / Poor.
 const frequencyRangecolors = ['#16A34A', '#FACC15', '#F97316', '#DC2626'];
+const frequencyTierTextClasses = ['tier-text-excellent', 'tier-text-good', 'tier-text-fair', 'tier-text-poor'];
 
 window.onload = hideSidebar; // Hide the sidebar initially
 
@@ -1934,7 +1935,7 @@ function createSidebarContent(station, index) {
         // actual signal: a far low-band can be "good" while a high-band at the
         // same spot is "poor". This is data, not decoration.
         const chips = bands.map(b =>
-            `<span class="band-chip" style="color:${getFrequencyColorForDistance(b, station.distance)}">${escapeHtml(b)}</span>`
+            `<span class="band-chip ${getFrequencyTextClassForDistance(b, station.distance)}">${escapeHtml(b)}</span>`
         ).join('');
         return `<div class="band-row"><span class="gen-tag">${gen}</span><span class="band-chips">${chips}</span></div>`;
     }
@@ -2496,8 +2497,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
-function getFrequencyColorForDistance(band, distanceKm) {
-    let distanceMeters = distanceKm * 1000;
+function getFrequencyTierIndex(band, distanceKm) {
+    const distanceMeters = distanceKm * 1000;
     let bandKey;
     if (['5G3600', 'LTE2600', '5G2600'].includes(band)) {
         bandKey = 'high';
@@ -2508,17 +2509,21 @@ function getFrequencyColorForDistance(band, distanceKm) {
         bandKey = 'low';
     }
 
-    // Get the corresponding distance thresholds for this bandKey
     const thresholds = frequencyRanges[bandKey];
-
-    // Determine the color based on where the distance falls within the thresholds
     for (let idx = 0; idx < thresholds.length; idx++) {
         if (distanceMeters <= thresholds[idx]) {
-            return frequencyRangecolors[idx];
+            return idx;
         }
     }
-    
-    return 'red'; // If distance exceeds all thresholds, default to red
+    return thresholds.length - 1;
+}
+
+function getFrequencyColorForDistance(band, distanceKm) {
+    return frequencyRangecolors[getFrequencyTierIndex(band, distanceKm)];
+}
+
+function getFrequencyTextClassForDistance(band, distanceKm) {
+    return frequencyTierTextClasses[getFrequencyTierIndex(band, distanceKm)];
 }
 
 function applyFrequencyColorsToTooltipContent(content, distance) {
@@ -2537,9 +2542,8 @@ function applyFrequencyColorsToTooltipContent(content, distance) {
             // Split the bands into array
             const bandsList = bandsMatch[1].split(',').map(band => band.trim());
             const coloredBandsHtml = bandsList.map(band => {
-                const colorClass = getFrequencyColorForDistance(band, distance);
-
-                return `<span class="text-${colorClass}-600">${band}</span>`;
+                const cls = getFrequencyTextClassForDistance(band, distance);
+                return `<span class="${cls}">${escapeHtml(band)}</span>`;
             }).join(', ');
 
             content = content.replace(bandsMatch[0], `<b>${t('Frequency Bands:')}</b> ${coloredBandsHtml}`);
