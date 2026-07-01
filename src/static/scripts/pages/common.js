@@ -554,6 +554,7 @@ function passwordVisibilityToggle(passwordInputId, confirmPasswordInputId, toggl
 
 function handleSignInSubmit(e) {
   e.preventDefault();
+  resetErrorMessages();
   const formData = new FormData(e.target);
   submitForm('/login', formData);
 }
@@ -579,7 +580,7 @@ function submitForm(url, formData) {
           }
       } else {
         if (url === '/login')
-          showToast(data.errorMessage || t('Login failed. Wrong email or password. Please try again.'), 'error');
+          showError('signInError', data.errorMessage || t('Login failed. Wrong email or password. Please try again.'));
       }
   })
   .catch(error => {
