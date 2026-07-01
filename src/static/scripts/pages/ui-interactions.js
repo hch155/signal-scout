@@ -419,7 +419,7 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
         const legendInitiallyHidden = true;
         let legendDiv = L.DomUtil.create(
             'div',
-            'frequency-range-container bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white accent-blue-500 dark:accent-gray-400'
+            'frequency-range-container bg-white p-1 rounded shadow text-black dark:bg-gray-800 dark:text-white accent-blue-500 dark:accent-gray-400'
             + (legendInitiallyHidden ? ' hidden' : ''),
             div,
         );
@@ -523,7 +523,7 @@ filterControl.onAdd = function(map) {
         <span class="filter-btn-label">${t('Filters')}</span>
         </button>
 
-        <div id="filterContainer" class="bg-white p-1 rounded shadow text-black dark:bg-black dark:text-white w-76 accent-blue-500 dark:accent-gray-400 hidden">
+        <div id="filterContainer" class="bg-white p-1 rounded shadow text-black dark:bg-gray-800 dark:text-white w-76 accent-blue-500 dark:accent-gray-400 hidden">
             <div class="static-content">
                 <div class="my-2">
                     <p class="text-gray-700 font-bold dark:text-white">${t('Service Provider:')}</p>
@@ -556,7 +556,7 @@ filterControl.onAdd = function(map) {
                 </div>
 
                 <div class="flex gap-2 mt-2">
-                    <button id="apply-filters" class="apply-filters-btn flex-1 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 rounded">
+                    <button id="apply-filters" class="apply-filters-btn flex-1 text-white bg-blue-600 dark:bg-gray-700 hover:bg-blue-700 dark:hover:bg-gray-500 rounded">
                         ${t('Apply Filters')}
                     </button>
                     <button id="clear-filters-btn" class="px-3 text-gray-700 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:text-white dark:hover:bg-gray-500 rounded">
@@ -566,16 +566,16 @@ filterControl.onAdd = function(map) {
 
                 <div class="slider-container my-2">
                     <div class="flex justify-between items-center">
-                        <button id="showNearestBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 rounded">${t('Show Nearest BTS')}</button>
+                        <button id="showNearestBtn" class="mt-2 w-48 text-white bg-blue-600 dark:bg-gray-700 hover:bg-blue-700 dark:hover:bg-gray-500 rounded">${t('Show Nearest BTS')}</button>
                     </div>
-                    <input type="number" id="nearestBtsRange" min="1" max="10" placeholder="" class="w-[4.25rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
+                    <input type="number" id="nearestBtsRange" min="1" max="10" placeholder="" class="w-[4.25rem] mt-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-500">
                 </div>
 
                 <div class="slider-container my-2">
                     <div class="flex justify-between items-center">
-                        <button id="showWithinDistanceBtn" class="mt-2 w-48 text-white bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 rounded">${t('Show BTS Within Distance')}</button>
+                        <button id="showWithinDistanceBtn" class="mt-2 w-48 text-white bg-blue-600 dark:bg-gray-700 hover:bg-blue-700 dark:hover:bg-gray-500 rounded">${t('Show BTS Within Distance')}</button>
                     </div>
-                    <input type="number" id="withinDistanceRange" min="0.5" max="10" step="0.5" placeholder="" class="w-[4.25rem] mt-1 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
+                    <input type="number" id="withinDistanceRange" min="0.5" max="10" step="0.5" placeholder="" class="w-[4.25rem] mt-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-500">
                 </div>
 
                 <div id="dynamicContent">
@@ -2134,31 +2134,31 @@ function updateDynamicContent() {
         if (isLoggedIn) {
             dynamicContent.innerHTML = `
                 <div id="latLngContainer" class="flex flex-col space-y-0.5">
-                <button id="submitCoords" class="mt-2 w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded">${t('Search')}</button>
+                <button id="submitCoords" class="mt-2 w-48 bg-blue-600 dark:bg-gray-700 hover:bg-blue-700 dark:hover:bg-gray-500 text-white rounded">${t('Search')}</button>
                     <div class="flex space-x-2">
-                    <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5.5rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="48" max="58" step="0.1">
-                    <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5.5rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500" min="13.5" max="24.5" step="0.1">
+                    <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5.5rem] mt-0.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-500" min="48" max="58" step="0.1">
+                    <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5.5rem] mt-0.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-500" min="13.5" max="24.5" step="0.1">
                     </div>
                 </div>
                 <div id="searchByBtsContainer" class="mt-4 flex flex-col space-y-0.5">
-                    <button id="submitfilteredstation" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded">${t('Search')}</button>
+                    <button id="submitfilteredstation" class="w-48 bg-blue-600 dark:bg-gray-700 hover:bg-blue-700 dark:hover:bg-gray-500 text-white rounded">${t('Search')}</button>
                     <div class="flex space-x-2">
-                        <input type="text" id="baseStationIdInput" placeholder="${t('Enter Base Station ID')}" class="w-[8rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500">
+                        <input type="text" id="baseStationIdInput" placeholder="${t('Enter Base Station ID')}" class="w-[8rem] mt-0.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-500">
                     </div>
                 </div>`;
         } else {
             dynamicContent.innerHTML = `
                 <div id="latLngContainer" class="opacity-50 cursor-not-allowed flex flex-col space-y-0.5 title="${t('Log in to use this feature.')}">
-                    <button id="submitCoords" class="mt-2 w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="${t('Log in to use this feature.')}">${t('Search')}</button>
+                    <button id="submitCoords" class="mt-2 w-48 bg-blue-600 dark:bg-gray-700 hover:bg-blue-700 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="${t('Log in to use this feature.')}">${t('Search')}</button>
                     <div class="flex space-x-2">
-                        <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5.5rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" min="48" max="58" step="0.1" disabled title="${t('Log in to use this feature.')}">
-                        <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5.5rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" min="13.5" max="24.5" step="0.1" disabled title="${t('Log in to use this feature.')}">
+                        <input type="number" id="latitudeInput" placeholder="52.230 (°N)" class="w-[5.5rem] mt-0.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" min="48" max="58" step="0.1" disabled title="${t('Log in to use this feature.')}">
+                        <input type="number" id="longitudeInput" placeholder="21.003 (°E)" class="w-[5.5rem] mt-0.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" min="13.5" max="24.5" step="0.1" disabled title="${t('Log in to use this feature.')}">
                     </div>
                 </div>
                 <div id="searchByBtsContainer" class="mt-4 opacity-50 cursor-not-allowed flex flex-col space-y-0.5 title="${t('Log in to use this feature.')}">
-                    <button id="submitfilteredstation" class="w-48 bg-blue-300 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="${t('Log in to use this feature.')}">${t('Search')}</button>
+                    <button id="submitfilteredstation" class="w-48 bg-blue-600 dark:bg-gray-700 hover:bg-blue-700 dark:hover:bg-gray-500 text-white rounded cursor-not-allowed" disabled title="${t('Log in to use this feature.')}">${t('Search')}</button>
                     <div class="flex space-x-2">
-                        <input type="text" id="baseStationIdInput" placeholder="${t('Enter Base Station ID')}" class="w-[8rem] mt-0.5 bg-blue-100 hover:bg-blue-300 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" disabled title="${t('Log in to use this feature.')}">
+                        <input type="text" id="baseStationIdInput" placeholder="${t('Enter Base Station ID')}" class="w-[8rem] mt-0.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-500 cursor-not-allowed" disabled title="${t('Log in to use this feature.')}">
                     </div>
                 </div>`;
         }
