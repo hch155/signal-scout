@@ -843,7 +843,7 @@ function renderCoverageGapsCTA(lat, lng) {
 
     const cta = document.createElement('div');
     cta.id = 'coverage-gaps-cta';
-    cta.className = 'col-span-full mb-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3';
+    cta.className = 'col-span-full mb-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-gray-300 dark:border-gray-700 flex items-center justify-between gap-3';
 
     const label = document.createElement('div');
     label.className = 'text-xs text-gray-700 dark:text-gray-300';
@@ -878,7 +878,7 @@ function renderCoverageGaps(lat, lng) {
 
     const widget = document.createElement('div');
     widget.id = 'coverage-gaps-widget';
-    widget.className = 'col-span-full mb-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm';
+    widget.className = 'col-span-full mb-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 shadow-sm';
     widget.innerHTML = `<div class="text-xs text-gray-500 dark:text-gray-400">${t('Checking coverage at this spot…')}</div>`;
     sidebar.insertBefore(widget, sidebar.firstChild);
 
@@ -1290,7 +1290,7 @@ function renderShareSpotCTA() {
 
     const cta = document.createElement('div');
     cta.id = 'share-spot-cta';
-    cta.className = 'col-span-full mb-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 flex items-center gap-2';
+    cta.className = 'col-span-full mb-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-gray-300 dark:border-gray-700 flex items-center gap-2';
 
     const confirm = document.createElement('span');
     confirm.className = 'text-xs text-green-600 dark:text-green-400 font-medium';
@@ -1804,7 +1804,7 @@ function addStationInfoToSidebar(station, index, sidebarContent) {
 
     // Add links container
     const linksDiv = document.createElement('div');
-    linksDiv.className = 'mt-2 pt-2 border-t border-gray-200 dark:border-gray-700';
+    linksDiv.className = 'mt-2 pt-2 border-t border-gray-300 dark:border-gray-700';
 
     let googleMapsLink = document.createElement('a');
     googleMapsLink.href = `https://www.google.com/maps/search/?api=1&query=${station.latitude},${station.longitude}`;

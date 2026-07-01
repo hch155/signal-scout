@@ -28,19 +28,19 @@
            account.js intercepts the click and switches tabs. #}
         <div class="mb-4">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <a href="#locations" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
+                <a href="#locations" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
                     <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ _('Saved spots') }}</p>
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ quick_stats.saved_locations }}</p>
                 </a>
-                <a href="#api-access" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
+                <a href="#api-access" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
                     <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ _('API keys') }}</p>
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ quick_stats.active_keys }}</p>
                 </a>
-                <a href="#two-factor" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
+                <a href="#two-factor" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
                     <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">2FA</p>
                     <p class="text-2xl font-bold {% if quick_stats.two_fa_on %}text-green-600 dark:text-green-400{% else %}text-gray-400{% endif %}">{% if quick_stats.two_fa_on %}{{ _('On') }}{% else %}{{ _('Off') }}{% endif %}</p>
                 </a>
-                <a href="#notifications" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
+                <a href="#notifications" class="block bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 p-3 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition">
                     <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ _('Alerts') }}</p>
                     <p class="text-2xl font-bold {% if quick_stats.alerts_on %}text-green-600 dark:text-green-400{% else %}text-gray-400{% endif %}">{% if quick_stats.alerts_on %}{{ _('On') }}{% else %}{{ _('Off') }}{% endif %}</p>
                 </a>
@@ -51,7 +51,7 @@
            order == deep-link order. Each tab keeps .account-nav-link +
            an href to its primary section so deep links still resolve. #}
         <nav role="tablist" aria-label="{{ _('Account sections') }}"
-             class="flex gap-1 overflow-x-auto whitespace-nowrap border-b border-gray-200 dark:border-gray-700 mb-6 -mx-2 px-2 md:mx-0 md:px-0">
+             class="flex gap-1 overflow-x-auto whitespace-nowrap border-b border-gray-300 dark:border-gray-700 mb-6 -mx-2 px-2 md:mx-0 md:px-0">
             <a role="tab" id="tab-account" data-account-tab="account" aria-controls="panel-account" href="#profile"
                class="account-nav-link shrink-0 px-3 md:px-4 py-2 text-sm font-medium rounded-t-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">{{ _('Account') }}</a>
             <a role="tab" id="tab-security" data-account-tab="security" aria-controls="panel-security" href="#two-factor"
@@ -73,7 +73,7 @@
 
                 {# ── Profile (simplified in PR #19). Canonical email lives
                    here — single source of truth across the page. #}
-                <div id="profile" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
+                <div id="profile" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-300 dark:border-gray-700 p-4 md:p-6 space-y-3">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                         {{ _('Profile') }}
                     </h3>
@@ -102,7 +102,7 @@
                 </div>
 
                 {# ── PR #48.3: Email notifications toggle ────────────────── #}
-                <div id="notifications" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
+                <div id="notifications" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-300 dark:border-gray-700 p-4 md:p-6 space-y-3">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ _('Email notifications') }}</h3>
                     <p class="text-sm text-gray-700 dark:text-gray-300">
                         {{ _('Signal-Scout sends transactional + security email (password change, 2FA changes, recovery code use, saved-location alerts when configured). Turn off here or via the unsubscribe link in any email.') }}
@@ -127,7 +127,7 @@
             <div id="panel-security" role="tabpanel" aria-labelledby="tab-security" data-account-panel="security" hidden class="space-y-6">
 
                 {# ── 2FA TOTP (rebuilt PR #25) ────────────────────────────── #}
-                <div id="two-factor" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
+                <div id="two-factor" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-300 dark:border-gray-700 p-4 md:p-6 space-y-3">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                         {{ _('Two-factor authentication (TOTP)') }}
                     </h3>
@@ -267,7 +267,7 @@
 
                 {# ── Connected sign-in (secure Facebook link) ─────────────── #}
                 {% if facebook_enabled %}
-                <div id="connected" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
+                <div id="connected" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-300 dark:border-gray-700 p-4 md:p-6 space-y-3">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                         {{ _('Connected sign-in') }}
                     </h3>
@@ -322,7 +322,7 @@
                 {% endif %}
 
                 {# ── Change password ──────────────────────────────────────── #}
-                <div id="password" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
+                <div id="password" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-300 dark:border-gray-700 p-4 md:p-6 space-y-3">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                         {{ _('Change password') }}
                     </h3>
@@ -370,7 +370,7 @@
 
                 {# ── Identity: tier + how to authenticate. Email is NOT
                    reprinted here — it lives once in the Account tab. #}
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-300 dark:border-gray-700 p-4 md:p-6 space-y-3">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ _('Identity') }}</h3>
                     <div>
                         <p class="text-sm text-gray-600 dark:text-gray-300">{{ _('Tier') }}</p>
@@ -390,7 +390,7 @@
                 </div>
 
                 {# ── Named API keys (PR #14) — primary surface ───────────── #}
-                <div id="api-keys" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
+                <div id="api-keys" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-300 dark:border-gray-700 p-4 md:p-6 space-y-3">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                         {{ _('API keys') }}
                     </h3>
@@ -415,7 +415,7 @@
                         </thead>
                         <tbody id="api-keys-tbody" class="dark:text-white">
                             {% for k in api_keys %}
-                            <tr data-key-id="{{ k.id }}" class="border-t border-gray-200 dark:border-gray-700">
+                            <tr data-key-id="{{ k.id }}" class="border-t border-gray-300 dark:border-gray-700">
                                 <td class="py-2 px-2 font-medium">{{ k.name }}</td>
                                 {# PR #47: prefer the stored key_prefix (set
                                    at creation or backfilled at boot). The
@@ -447,7 +447,7 @@
                     </table>
                     </div>
 
-                    <form id="create-key-form" class="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <form id="create-key-form" class="space-y-2 pt-2 border-t border-gray-300 dark:border-gray-700">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <label class="block">
                             <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Name (e.g. "iOS app", "monitoring script")') }}</span>
@@ -470,7 +470,7 @@
 
                 {# ── Legacy single key (PR #47): demoted into a disclosure so
                    it stops competing with named keys. Every hook is kept. #}
-                <details class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6" id="api-access">
+                <details class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-300 dark:border-gray-700 p-4 md:p-6" id="api-access">
                     <summary class="cursor-pointer text-sm font-semibold text-gray-700 dark:text-gray-200">
                         {{ _('Legacy default key (advanced)') }}
                     </summary>
@@ -492,7 +492,7 @@
                             </div>
                         </div>
 
-                        <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
+                        <div class="border-t border-gray-300 dark:border-gray-700 pt-4">
                             <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">
                                 {{ _('Lost your key, or rotating it after a leak?') }}
                             </p>
@@ -528,7 +528,7 @@
             <div id="panel-locations" role="tabpanel" aria-labelledby="tab-locations" data-account-panel="locations" hidden class="space-y-6">
 
                 {# ── Saved locations (PR #30) ─────────────────────────────── #}
-                <div id="locations" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
+                <div id="locations" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-300 dark:border-gray-700 p-4 md:p-6 space-y-3">
                     <div class="flex items-center justify-between">
                         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                             {{ _('Saved locations') }}
@@ -557,7 +557,7 @@
                         </thead>
                         <tbody id="locations-tbody" class="dark:text-white">
                             {% for loc in locations %}
-                            <tr data-loc-id="{{ loc.id }}" class="border-t border-gray-200 dark:border-gray-700">
+                            <tr data-loc-id="{{ loc.id }}" class="border-t border-gray-300 dark:border-gray-700">
                                 <td class="py-2 pr-2 font-medium">
                                     {{ loc.name }}
                                     {% if loc.description %}
@@ -589,7 +589,7 @@
                     </table>
                     </div>
 
-                    <form id="create-location-form" class="hidden space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <form id="create-location-form" class="hidden space-y-2 pt-2 border-t border-gray-300 dark:border-gray-700">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <label class="block">
                             <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Name') }}</span>
@@ -661,7 +661,7 @@
             <div id="panel-activity" role="tabpanel" aria-labelledby="tab-activity" data-account-panel="activity" hidden class="space-y-6">
 
                 {# ── Recent activity (PR #15) ─────────────────────────────── #}
-                <div id="activity" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-3">
+                <div id="activity" class="account-section scroll-mt-16 md:scroll-mt-24 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-black/30 border border-gray-300 dark:border-gray-700 p-4 md:p-6 space-y-3">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                         {{ _('Recent activity') }}
                     </h3>
@@ -683,7 +683,7 @@
                         </thead>
                         <tbody class="dark:text-white">
                             {% for e in audit_events %}
-                            <tr class="border-t border-gray-200 dark:border-gray-700">
+                            <tr class="border-t border-gray-300 dark:border-gray-700">
                                 <td class="py-2 px-2 text-gray-600 dark:text-gray-300 whitespace-nowrap">{{ e.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                                 <td class="py-2 px-2 font-mono text-xs">{{ e.event_type }}</td>
                                 <td class="py-2 px-2 font-mono text-xs">{{ e.ip_address or '-' }}</td>

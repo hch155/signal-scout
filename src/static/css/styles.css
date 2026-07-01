@@ -477,7 +477,6 @@ th[onclick]:hover {
 
 .text-green-600 {
   color: #22c55e;
-  text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
 }
 
 /* Loading skeleton with shimmer.

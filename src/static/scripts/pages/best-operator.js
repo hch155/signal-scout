@@ -42,7 +42,7 @@
     var recommended = !!op.recommended;
     var cls = recommended
       ? 'border-blue-500 ring-2 ring-blue-500/40 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
-      : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800';
+      : 'border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800';
     var html = '<li class="bo-card relative rounded-xl border p-4 transition-colors ' + cls +
       '" data-slug="' + esc(op.slug) + '">';
     if (recommended) {
@@ -123,7 +123,7 @@
   }
 
   function skeletonCard() {
-    return '<li class="relative rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 animate-pulse" aria-hidden="true">' +
+    return '<li class="relative rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 animate-pulse" aria-hidden="true">' +
       '<div class="flex items-center gap-3">' +
       '<span class="inline-block w-3 h-3 rounded-full flex-none bg-gray-200 dark:bg-gray-700"></span>' +
       '<span class="h-4 w-28 rounded bg-gray-200 dark:bg-gray-700"></span>' +

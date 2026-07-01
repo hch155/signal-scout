@@ -41,8 +41,8 @@ _UTM = {
 
 _DEFAULT_REFERRAL_LINKS = {
     'orange': {'url': 'https://www.orange.pl/sklep/oferta-internetowa', 'subid': 'ss-orange'},
-    'play': {'url': 'https://www.play.pl/internet-domowy', 'subid': 'ss-play'},
-    'plus': {'url': 'https://www.plus.pl/internet-domowy', 'subid': 'ss-plus'},
+    'play': {'url': 'https://www.play.pl', 'subid': 'ss-play'},
+    'plus': {'url': 'https://www.plus.pl', 'subid': 'ss-plus'},
     'tmobile': {'url': 'https://www.t-mobile.pl/c/internet-mobilny', 'subid': 'ss-tmobile'},
 }
 
