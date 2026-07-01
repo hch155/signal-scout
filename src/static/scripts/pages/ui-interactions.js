@@ -1335,7 +1335,7 @@ function renderActionRow(lat, lng, nearestCity) {
     shareBtn.type = 'button';
     shareBtn.title = t('Share this spot');
     shareBtn.setAttribute('aria-label', t('Share this spot'));
-    shareBtn.className = 'ml-auto inline-flex items-center justify-center w-9 h-9 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 transition-colors';
+    shareBtn.className = 'inline-flex items-center justify-center w-9 h-9 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 transition-colors';
     shareBtn.innerHTML = '<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg>';
     shareBtn.addEventListener('click', function () { shareThisSpot(lat, lng, shareBtn); });
     row.appendChild(shareBtn);
