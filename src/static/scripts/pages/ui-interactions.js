@@ -1177,16 +1177,16 @@ function addBandHighlightSidebarCard(station, gap, userLat, userLng) {
 
     const card = document.createElement('div');
     card.id = 'band-highlight-card';
-    card.className = 'col-span-full mb-3 p-3 rounded-lg bg-violet-50 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-800';
+    card.className = 'col-span-full mb-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 border-l-4 border-l-violet-400 dark:border-l-violet-500 shadow-sm';
 
     const head = document.createElement('div');
     head.className = 'flex items-center justify-between gap-2 mb-2';
     const title = document.createElement('div');
-    title.className = 'text-sm font-semibold text-violet-900 dark:text-violet-100';
+    title.className = 'text-sm font-semibold text-violet-700 dark:text-violet-300';
     title.textContent = `${t('Nearest')} ${gap.band} · ${gap.nearest_distance_km} km`;
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
-    closeBtn.className = 'text-violet-700 dark:text-violet-200 opacity-70 hover:opacity-100 text-lg leading-none';
+    closeBtn.className = 'text-gray-500 dark:text-gray-400 opacity-70 hover:opacity-100 text-lg leading-none';
     closeBtn.textContent = '×';
     closeBtn.setAttribute('aria-label', t('Clear band highlight'));
     closeBtn.addEventListener('click', clearBandHighlight);
