@@ -789,13 +789,7 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
             // produced — the user can identify the saved location at a
             // glance from /account.
             const nearestCity = (data.stations[0] && data.stations[0].city) || null;
-            renderSaveSpotShortcut(lat, lng, nearestCity);
-            // PR #47.1: dead-areas detection is opt-in via a small CTA
-            // button (logged-in users only). Auto-rendering distracted
-            // from the core station list, so it's now an extra feature
-            // rather than a default sidebar widget.
-            renderCoverageGapsCTA(lat, lng);
-            renderShareSpotCTA();
+            renderActionRow(lat, lng, nearestCity);
             renderBestOperatorCTA(lat, lng);
             scrollToSidebar();
         } else {
@@ -880,7 +874,8 @@ function renderCoverageGaps(lat, lng) {
     widget.id = 'coverage-gaps-widget';
     widget.className = 'col-span-full mb-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 shadow-sm';
     widget.innerHTML = `<div class="text-xs text-gray-500 dark:text-gray-400">${t('Checking coverage at this spot…')}</div>`;
-    sidebar.insertBefore(widget, sidebar.firstChild);
+    const gapsAnchor = sidebar.querySelector('#location-action-row') || sidebar.querySelector('#verdict-card');
+    if (gapsAnchor) { sidebar.insertBefore(widget, gapsAnchor.nextSibling); } else { sidebar.insertBefore(widget, sidebar.firstChild); }
 
     globalFetch(`/coverage_gaps?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`)
         .then(data => {
@@ -1250,113 +1245,146 @@ function addBandHighlightSidebarCard(station, gap, userLat, userLng) {
 function renderBestOperatorCTA(lat, lng) {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
-    const prev = sidebar.querySelector('#best-operator-cta');
-    if (prev) prev.remove();
     fetch('/best-operator?lat=' + lat + '&lng=' + lng + '&format=json', { headers: { 'X-Requested-With': 'fetch' } })
         .then(function (r) { return r.json(); })
         .then(function (data) {
             const ops = (data && data.operators) || [];
             if (!ops.length) return;
             refreshVerdictOperators(ops);
-            const colors = { play: '#a78bfa', orange: '#fb923c', plus: '#22c55e', tmobile: '#f87171' };
-            const top = ops[0];
-            let html = '<p class="text-xs font-bold text-blue-700 dark:text-blue-300 mb-1.5">' + t('Best operator here') + '</p>';
-            html += '<div class="flex items-center gap-2 flex-wrap">';
-            html += '<span class="inline-block w-2.5 h-2.5 rounded-full flex-none" style="background-color:' + (colors[top.slug] || '#94a3b8') + '"></span>';
-            html += '<span class="font-semibold text-gray-900 dark:text-white text-sm">' + escapeHtml(top.operator) + '</span>';
-            html += '<span class="text-xs text-gray-500 dark:text-gray-400">' + escapeHtml(t(top.signal_tier || '')) + '</span>';
-            if (top.real_5g) {
-                html += '<span class="inline-flex items-center rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 font-semibold px-1.5 py-0.5 text-[10px]">' + t('Real 5G') + '</span>';
-            }
-            if (top.referral_path) {
-                html += '<a href="' + escapeHtml(top.referral_path) + '" rel="nofollow sponsored noopener" class="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">' + t('See offer') + ' &rarr;</a>';
-            }
-            html += '</div>';
-            const cta = document.createElement('div');
-            cta.id = 'best-operator-cta';
-            cta.className = 'col-span-full mb-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800';
-            cta.innerHTML = html;
-            sidebar.insertBefore(cta, sidebar.firstChild);
+            injectBestOperatorIntoVerdict(ops[0]);
         })
         .catch(function () {});
 }
 
-function renderShareSpotCTA() {
-    const sidebar = document.getElementById('sidebar');
-    if (!sidebar) return;
-    if (currentFilters.lat == null || currentFilters.lng == null) return;
-    const existing = sidebar.querySelector('#share-spot-cta');
-    if (existing) existing.remove();
-
-    const cta = document.createElement('div');
-    cta.id = 'share-spot-cta';
-    cta.className = 'col-span-full mb-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-gray-300 dark:border-gray-700 flex items-center gap-2';
-
-    const confirm = document.createElement('span');
-    confirm.className = 'text-xs text-green-600 dark:text-green-400 font-medium';
-    confirm.setAttribute('aria-live', 'polite');
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'shrink-0 inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-1.5 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
-    btn.textContent = t('Share this spot');
-
-    btn.addEventListener('click', () => {
-        const url = location.origin + '/?lat=' + currentFilters.lat + '&lng=' + currentFilters.lng;
-        if (navigator.share) {
-            navigator.share({ title: t('Signal coverage at this spot'), url: url }).catch(() => {});
-        } else {
-            copyToClipboard(url, btn);
-            confirm.textContent = t('Link copied');
-            setTimeout(() => { confirm.textContent = ''; }, 1500);
-        }
-    });
-
-    cta.appendChild(btn);
-    cta.appendChild(confirm);
-    sidebar.insertBefore(cta, sidebar.firstChild);
+// The recommendation lives inside the verdict card (the answer) rather than as
+// its own band — de-duplicates "who's best" and avoids an async layout shift.
+function injectBestOperatorIntoVerdict(top) {
+    const card = document.getElementById('verdict-card');
+    if (!card || !top) return;
+    const legend = card.querySelector('.result-legend');
+    if (!legend) return;
+    const prev = card.querySelector('#verdict-best-operator');
+    if (prev) prev.remove();
+    const colors = { play: '#a78bfa', orange: '#fb923c', plus: '#22c55e', tmobile: '#f87171' };
+    const row = document.createElement('div');
+    row.id = 'verdict-best-operator';
+    row.className = 'flex items-center flex-wrap gap-x-2 gap-y-1 mt-2 text-sm';
+    let html = '<span class="inline-flex items-center gap-1.5">';
+    html += '<span class="inline-block w-2.5 h-2.5 rounded-full flex-none" style="background-color:' + (colors[top.slug] || '#94a3b8') + '"></span>';
+    html += '<span class="font-semibold text-gray-900 dark:text-white">' + escapeHtml(top.operator) + '</span>';
+    html += '<span class="text-xs text-gray-500 dark:text-gray-400">' + escapeHtml(t(top.signal_tier || '')) + '</span>';
+    html += '</span>';
+    if (top.real_5g) {
+        html += '<span class="inline-flex items-center rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 font-semibold px-1.5 py-0.5 text-[10px]">' + t('Real 5G') + '</span>';
+    }
+    if (top.referral_path) {
+        html += '<a href="' + escapeHtml(top.referral_path) + '" rel="nofollow sponsored noopener" class="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">' + t('See offer') + ' &rarr;</a>';
+    }
+    row.innerHTML = html;
+    const operators = legend.querySelector('.result-operators');
+    if (operators) {
+        legend.insertBefore(row, operators.nextSibling);
+    } else {
+        legend.insertBefore(row, legend.firstChild);
+    }
 }
 
-function renderSaveSpotShortcut(lat, lng, nearestCity) {
-    if (!window._isLoggedIn) return;
+function insertAfterVerdict(el) {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
-    // Don't double-stack if user clicked twice in a row.
-    const existing = sidebar.querySelector('#save-spot-cta');
+    const verdict = sidebar.querySelector('#verdict-card');
+    if (verdict && verdict.parentNode === sidebar) {
+        sidebar.insertBefore(el, verdict.nextSibling);
+    } else {
+        sidebar.insertBefore(el, sidebar.firstChild);
+    }
+}
+
+// One compact action strip below the verdict (the answer), replacing the
+// former stack of full-width Save / Coverage / Share bands.
+function renderActionRow(lat, lng, nearestCity) {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    const existing = sidebar.querySelector('#location-action-row');
     if (existing) existing.remove();
 
-    // PR #47.2: build a recognisable default name. Prefer the nearest
-    // station's city; fall back to coords. Both beat the date+time
-    // string which told the user nothing about *where* the pin is.
+    const row = document.createElement('div');
+    row.id = 'location-action-row';
+    row.className = 'col-span-full mb-3 flex flex-wrap items-center gap-2';
+
+    if (window._isLoggedIn) {
+        const saveWrap = document.createElement('div');
+        saveWrap.className = 'flex flex-wrap items-center gap-2';
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-1.5 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
+        saveBtn.textContent = t('Save this spot');
+        saveBtn.addEventListener('click', function () { expandSaveForm(saveWrap, saveBtn, lat, lng, nearestCity); });
+        saveWrap.appendChild(saveBtn);
+        row.appendChild(saveWrap);
+
+        const gapsBtn = document.createElement('button');
+        gapsBtn.type = 'button';
+        gapsBtn.className = 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm font-medium py-1.5 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 transition-colors';
+        gapsBtn.textContent = t('Coverage gaps');
+        gapsBtn.addEventListener('click', function () { gapsBtn.remove(); renderCoverageGaps(lat, lng); });
+        row.appendChild(gapsBtn);
+    }
+
+    const shareBtn = document.createElement('button');
+    shareBtn.type = 'button';
+    shareBtn.title = t('Share this spot');
+    shareBtn.setAttribute('aria-label', t('Share this spot'));
+    shareBtn.className = 'ml-auto inline-flex items-center justify-center w-9 h-9 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 transition-colors';
+    shareBtn.innerHTML = '<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg>';
+    shareBtn.addEventListener('click', function () { shareThisSpot(lat, lng, shareBtn); });
+    row.appendChild(shareBtn);
+
+    insertAfterVerdict(row);
+}
+
+function shareThisSpot(lat, lng, btn) {
+    const url = location.origin + '/?lat=' + lat + '&lng=' + lng;
+    if (navigator.share) {
+        navigator.share({ title: t('Signal coverage at this spot'), url: url }).catch(function () {});
+        return;
+    }
+    copyToClipboard(url, btn);
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
+    btn.title = t('Link copied');
+    setTimeout(function () { btn.innerHTML = orig; btn.title = t('Share this spot'); }, 1500);
+}
+
+// Progressive disclosure: the name field + Save appear only once the user
+// commits to saving, so the default action strip stays compact.
+function expandSaveForm(saveWrap, saveBtn, lat, lng, nearestCity) {
+    saveBtn.remove();
     const defaultName = nearestCity
         ? t('Near {city}').replace('{city}', nearestCity)
         : t('Pin {lat}, {lng}').replace('{lat}', lat.toFixed(4)).replace('{lng}', lng.toFixed(4));
-
-    const cta = document.createElement('div');
-    cta.id = 'save-spot-cta';
-    cta.className = 'col-span-full mb-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 flex flex-col gap-2';
-
-    const label = document.createElement('div');
-    label.className = 'text-sm text-gray-800 dark:text-gray-100';
-    label.textContent = t('Save this spot — we\'ll email you after our monthly UKE data refresh if coverage here changes.');
-
-    const row = document.createElement('div');
-    row.className = 'flex items-center gap-2';
 
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
     nameInput.value = defaultName;
     nameInput.maxLength = 80;
-    nameInput.className = 'flex-1 min-w-0 text-sm px-2 py-1.5 rounded border border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400';
+    nameInput.className = 'w-44 text-sm px-2 py-1.5 rounded border border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400';
     nameInput.setAttribute('aria-label', t('Name for this saved spot'));
 
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-1.5 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors';
+    btn.className = 'shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-1.5 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 transition-colors';
     btn.textContent = t('Save');
 
-    row.appendChild(nameInput);
-    row.appendChild(btn);
+    const status = document.createElement('span');
+    status.className = 'basis-full text-xs text-gray-600 dark:text-gray-300';
+    status.setAttribute('aria-live', 'polite');
+
+    saveWrap.appendChild(nameInput);
+    saveWrap.appendChild(btn);
+    saveWrap.appendChild(status);
+    nameInput.focus();
+    nameInput.select();
 
     btn.addEventListener('click', () => {
         const chosenName = (nameInput.value || '').trim() || defaultName;
@@ -1378,32 +1406,31 @@ function renderSaveSpotShortcut(lat, lng, nearestCity) {
             }),
         }).then(resp => {
             if (resp && resp.success) {
-                cta.classList.remove('bg-blue-50', 'dark:bg-blue-900/30', 'border-blue-200', 'dark:border-blue-800');
-                cta.classList.add('bg-green-50', 'dark:bg-green-900/30', 'border-green-200', 'dark:border-green-800');
-                label.textContent = `${t('Saved as')} "${chosenName}". ${t('Rename or edit alerts in')} `;
+                nameInput.remove();
+                btn.remove();
+                status.className = 'basis-full text-xs text-green-600 dark:text-green-400 font-medium';
+                status.textContent = `${t('Saved as')} "${chosenName}". ${t('Rename or edit alerts in')} `;
                 const acctLink = document.createElement('a');
                 acctLink.href = '/account';
                 acctLink.textContent = t('your account');
                 acctLink.className = 'underline hover:no-underline font-medium';
-                label.appendChild(acctLink);
-                label.appendChild(document.createTextNode('.'));
-                row.remove();
+                status.appendChild(acctLink);
+                status.appendChild(document.createTextNode('.'));
             } else {
                 btn.disabled = false;
                 nameInput.disabled = false;
                 btn.textContent = t('Save');
-                label.textContent = (resp && resp.error) || t('Save failed — try again from /account.');
+                status.className = 'basis-full text-xs text-red-600 dark:text-red-400';
+                status.textContent = (resp && resp.error) || t('Save failed — try again from /account.');
             }
         }).catch(() => {
             btn.disabled = false;
             nameInput.disabled = false;
             btn.textContent = t('Save');
-            label.textContent = t('Save failed — check your session, then try again.');
+            status.className = 'basis-full text-xs text-red-600 dark:text-red-400';
+            status.textContent = t('Save failed — check your session, then try again.');
         });
     });
-    cta.appendChild(label);
-    cta.appendChild(row);
-    sidebar.insertBefore(cta, sidebar.firstChild);
 }
 
 function scrollToSidebar() {
