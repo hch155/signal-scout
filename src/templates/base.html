@@ -82,39 +82,38 @@
       {% endif %}
 
       {# ── Header ──────────────────────────────────────────────────────── #}
-      <header class="relative flex items-center justify-between gap-x-6 px-6 py-3 md:py-6">
+      <header class="sticky top-0 z-40 flex items-center justify-between gap-x-6 px-6 py-3 md:py-4 bg-white/75 dark:bg-gray-900/75 backdrop-blur-md border-b border-gray-200/70 dark:border-gray-800/80">
 
-          <nav class="flex items-center gap-x-4 md:gap-x-6 text-black dark:text-white" aria-label="{{ _('Primary') }}">
-              <a href="/" class="inline-flex items-center text-lg font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">
-                <img src="{{ url_for('static', filename='favicon.ico') }}" alt="" aria-hidden="true" class="w-6 h-6 mb-1 mr-2">
+          <nav class="flex items-center gap-x-1 lg:gap-x-2 text-gray-700 dark:text-gray-200" aria-label="{{ _('Primary') }}">
+              <a href="/" class="inline-flex items-center gap-x-2 mr-2 text-xl font-semibold tracking-tight text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-md">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 text-blue-600 dark:text-blue-400"><rect x="2" y="14" width="4" height="8" rx="1"></rect><rect x="9" y="9" width="4" height="13" rx="1"></rect><rect x="16" y="3" width="4" height="19" rx="1"></rect></svg>
                 Signal-Scout
               </a>
-              <a href="/data" class="hidden md:inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">{{ _('Data') }}</a>
-              <a href="/stats" class="hidden md:inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">{{ _('Statistics') }}</a>
-              <a href="/tips" class="hidden md:inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">{{ _('Tips') }}</a>
-              <a href="/best-operator" class="hidden md:inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">{{ _('Best operator') }}</a>
-              {% if marketing_enabled %}
-              <a href="/demo" class="hidden md:inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">{{ _('Demo') }}</a>
-              <a href="/use-cases" class="hidden md:inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">{{ _('Use cases') }}</a>
-              <a href="/pricing" class="hidden md:inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">{{ _('Pricing') }}</a>
-              {% endif %}
+              {% set _nav = [('/data', _('Data')), ('/stats', _('Statistics')), ('/tips', _('Tips')), ('/best-operator', _('Best operator'))] %}
+              {% if marketing_enabled %}{% set _nav = _nav + [('/demo', _('Demo')), ('/use-cases', _('Use cases')), ('/pricing', _('Pricing'))] %}{% endif %}
+              {% for _href, _label in _nav %}
+              <a href="{{ _href }}"{% if request.path == _href %} aria-current="page"{% endif %}
+                 class="hidden lg:inline-flex items-center px-2.5 py-1.5 rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 {{ 'text-blue-600 dark:text-blue-400 font-semibold bg-blue-50 dark:bg-blue-900/30' if request.path == _href else 'text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-black/5 dark:hover:bg-white/5' }}">{{ _label }}</a>
+              {% endfor %}
           </nav>
 
-          <div class="flex items-center gap-x-4 md:gap-x-5">
-              <div id="desktopAuth" class="hidden md:flex items-center gap-x-4 md:gap-x-5">
-                  <button id="signInBtn" class="inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">{{ _('Sign in') }}</button>
-                  <a id="accountLink" href="/account" class="inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm" style="display:none;">{{ _('Account') }}</a>
-                  <button id="logoutButton" class="inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm" style="display:none;">{{ _('Logout') }}</button>
+          <div class="flex items-center gap-x-2 lg:gap-x-3">
+              <div id="desktopAuth" class="hidden lg:flex items-center gap-x-3">
+                  <button id="signInBtn" class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900">{{ _('Sign in') }}</button>
+                  <a id="accountLink" href="/account" class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900" style="display:none;">{{ _('Account') }}</a>
+                  <button id="logoutButton" class="inline-flex items-center text-sm text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-md px-1.5 py-1" style="display:none;">{{ _('Logout') }}</button>
+                  <span class="w-px h-5 bg-gray-300/70 dark:bg-gray-700" aria-hidden="true"></span>
                   <a id="langToggle"
                      href="{{ lang_toggle_url('en' if active_lang == 'pl' else 'pl') }}"
-                     aria-label="{{ _('Switch language') }}"
-                     title="{{ _('Switch language') }}"
-                     class="js-lang-toggle inline-flex items-center text-sm font-semibold text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">{{ 'EN' if active_lang == 'pl' else 'PL' }}</a>
+                     aria-label="{{ _('Switch to English') if active_lang == 'pl' else _('Switch to Polish') }}"
+                     title="{{ _('Switch to English') if active_lang == 'pl' else _('Switch to Polish') }}"
+                     hreflang="{{ 'en' if active_lang == 'pl' else 'pl' }}"
+                     class="js-lang-toggle inline-flex items-center justify-center w-9 h-9 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-black/5 dark:hover:bg-white/10 hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{{ 'EN' if active_lang == 'pl' else 'PL' }}</a>
               </div>
               <button id="themeToggle" type="button"
                       aria-label="{{ _('Toggle dark theme') }}"
                       title="{{ _('Toggle dark theme') }}"
-                      class="inline-flex items-center text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-sm">
+                      class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-black/5 dark:hover:bg-white/10 hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900">
                   {# Inline SVGs inherit currentColor → adapt to theme with no JS src-swap / no <img> load (which broke in Safari). Light shows sunset (→go dark), dark shows sunrise (→go light). #}
                   <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="block dark:hidden w-6 h-6" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a5 5 0 0 0-10 0"></path><line x1="12" y1="9" x2="12" y2="2"></line><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"></line><line x1="1" y1="18" x2="3" y2="18"></line><line x1="21" y1="18" x2="23" y2="18"></line><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"></line><line x1="23" y1="22" x2="1" y2="22"></line><polyline points="16 5 12 9 8 5"></polyline></svg>
                   <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="hidden dark:block w-6 h-6" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a5 5 0 0 0-10 0"></path><line x1="12" y1="2" x2="12" y2="9"></line><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"></line><line x1="1" y1="18" x2="3" y2="18"></line><line x1="21" y1="18" x2="23" y2="18"></line><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"></line><line x1="23" y1="22" x2="1" y2="22"></line><polyline points="8 6 12 2 16 6"></polyline></svg>
@@ -123,22 +122,17 @@
                       aria-label="{{ _('Menu') }}"
                       aria-expanded="false"
                       aria-controls="mobileNav"
-                      class="md:hidden inline-flex items-center justify-center w-10 h-10 -mr-1.5 text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-md">
+                      class="lg:hidden inline-flex items-center justify-center w-11 h-11 -mr-1.5 text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-md">
                   <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="w-6 h-6" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
               </button>
           </div>
 
           {# Mobile nav sheet #}
-          <div id="mobileNav" class="md:hidden hidden absolute top-full left-0 right-0 z-[2000] mx-4 -mt-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl dark:shadow-black/50 p-2 text-black dark:text-white">
-              <a href="/data" class="block px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{{ _('Data') }}</a>
-              <a href="/stats" class="block px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{{ _('Statistics') }}</a>
-              <a href="/tips" class="block px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{{ _('Tips') }}</a>
-              <a href="/best-operator" class="block px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{{ _('Best operator') }}</a>
-              {% if marketing_enabled %}
-              <a href="/demo" class="block px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{{ _('Demo') }}</a>
-              <a href="/use-cases" class="block px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{{ _('Use cases') }}</a>
-              <a href="/pricing" class="block px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{{ _('Pricing') }}</a>
-              {% endif %}
+          <div id="mobileNav" class="lg:hidden hidden absolute top-full left-0 right-0 z-[2000] mx-4 -mt-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl dark:shadow-black/50 p-2 text-black dark:text-white">
+              {% for _href, _label in _nav %}
+              <a href="{{ _href }}"{% if request.path == _href %} aria-current="page"{% endif %}
+                 class="block px-3 py-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 {{ 'text-blue-600 dark:text-blue-400 font-semibold bg-blue-50 dark:bg-blue-900/30' if request.path == _href else 'hover:bg-gray-100 dark:hover:bg-gray-800' }}">{{ _label }}</a>
+              {% endfor %}
               <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
               <button id="signInBtnMobile" type="button" class="block w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{{ _('Sign in') }}</button>
               <a id="accountLinkMobile" href="/account" style="display:none;" class="block px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{{ _('Account') }}</a>

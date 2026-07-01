@@ -253,9 +253,11 @@ function initializeThemeToggle() {
     const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const isDarkModePreferred = storedTheme === 'dark' || (!storedTheme && prefersDarkMode);
     document.documentElement.classList.toggle('dark', isDarkModePreferred);
+    btnThemeToggler.setAttribute('aria-pressed', String(isDarkModePreferred));
 
     btnThemeToggler.addEventListener('click', () => {
         const isDarkModeNow = document.documentElement.classList.toggle('dark');
+        btnThemeToggler.setAttribute('aria-pressed', String(isDarkModeNow));
         localStorage.setItem('theme', isDarkModeNow ? 'dark' : 'light');
         window.dispatchEvent(new CustomEvent('themeChanged', { detail: { isDarkMode: isDarkModeNow } }));
     });

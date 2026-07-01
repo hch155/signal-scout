@@ -16,6 +16,8 @@ TRANSLATIONS = {
     'Logout': 'Wyloguj się',
     'Toggle dark theme': 'Przełącz ciemny motyw',
     'Switch language': 'Zmień język',
+    'Switch to English': 'Przełącz na angielski',
+    'Switch to Polish': 'Przełącz na polski',
     'Menu': 'Menu',
     'Close': 'Zamknij',
     'Privacy': 'Prywatność',
