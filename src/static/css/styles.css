@@ -460,19 +460,16 @@ th[onclick]:hover {
   color: #fff !important;
 }
 
-.text-yellow-600 { 
-  color: #ffeb3b; 
-  text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
+.text-yellow-600 {
+  color: #a16207;
 }
 
-.text-orange-600 { 
-  color: #ff8c00; 
-  text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
+.text-orange-600 {
+  color: #c2410c;
 }
 
-.text-red-600 { 
-  color: #d32f2f; 
-  text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
+.text-red-600 {
+  color: #b91c1c;
 }
 
 .text-green-600 {

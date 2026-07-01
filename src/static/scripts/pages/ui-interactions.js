@@ -2356,21 +2356,26 @@ new MutationObserver(function(mutations, observer) {
     }
 }).observe(document.getElementById('dynamicContent'), { childList: true });
 
+const RING_MAX_ZOOM = 14;
+
 function addRing(lat, lng, radius, color) {
     L.circle([lat, lng], {
         color: color,
         fillColor: color,
-        fillOpacity: 0, 
-        radius: radius
+        fillOpacity: 0,
+        weight: 2,
+        opacity: mymap.getZoom() > RING_MAX_ZOOM ? 0 : 0.9,
+        radius: radius,
+        _distanceRing: true
     }).addTo(mymap);
 }
 
 function addRingsForLocation(lat, lng) {
     const distanceRadius = frequencyRanges[currentBand];
-    addRing(lat, lng, distanceRadius[0], 'green'); // Excellent
-    addRing(lat, lng, distanceRadius[1], 'yellow'); // Good
-    addRing(lat, lng, distanceRadius[2], 'orange'); // Fair
-    addRing(lat, lng, distanceRadius[3], 'red'); // Poor
+    addRing(lat, lng, distanceRadius[0], frequencyRangecolors[0]); // Excellent
+    addRing(lat, lng, distanceRadius[1], frequencyRangecolors[1]); // Good
+    addRing(lat, lng, distanceRadius[2], frequencyRangecolors[2]); // Fair
+    addRing(lat, lng, distanceRadius[3], frequencyRangecolors[3]); // Poor
 }
 
 function clearRings() {
@@ -2380,6 +2385,18 @@ function clearRings() {
         }
     });
 }
+
+// #63: at high zoom (e.g. after Navigate-to-Station) the distance rings blow
+// up into thick bands; fade them out past RING_MAX_ZOOM, restore on zoom-out.
+function updateDistanceRingVisibility() {
+    const op = mymap.getZoom() > RING_MAX_ZOOM ? 0 : 0.9;
+    mymap.eachLayer(function (layer) {
+        if (layer instanceof L.Circle && layer.options && layer.options._distanceRing) {
+            layer.setStyle({ opacity: op });
+        }
+    });
+}
+mymap.on('zoomend', updateDistanceRingVisibility);
 
 function changeFrequency(band) {
     const columnClass = `column-${band}`;
