@@ -445,8 +445,8 @@ button:disabled{opacity:.6;cursor:not-allowed}
 <p>You signed in with a provider. Enter the 6-digit code from your
 authenticator app to finish.</p>
 <form id="f" autocomplete="off" data-csrf=""" + ('"' + csrf + '"') + """>
-<input name="code" autofocus required pattern="[0-9 ]{6,12}" inputmode="numeric"
-       placeholder="123456" autocomplete="one-time-code">
+<input name="code" autofocus required pattern="[0-9A-Za-z -]{6,20}" maxlength="20"
+       placeholder="6-digit code or recovery code" autocomplete="one-time-code">
 <button type="submit" id="b">Verify and continue</button>
 <div class="err" id="e"></div>
 <p class="note">Lost the device? Use a recovery code in the same field.

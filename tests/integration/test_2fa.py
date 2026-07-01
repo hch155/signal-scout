@@ -317,3 +317,36 @@ def test_2fa_enable_disable_writes_audit(authed_client, csrf_token, app):
                        headers={"X-CSRF-Token": csrf_token})
     with app.app_context():
         assert AuditEvent.query.filter_by(event_type='2fa.disabled').count() == 1
+
+
+def test_oauth_only_user_can_disable_2fa_without_password(client, csrf_token, app):
+    """OAuth-only accounts (no usable password) must be able to disable 2FA
+    with just their code — the form + backend used to require a password they
+    don't have, stranding them in always-on 2FA."""
+    import secrets as _secrets
+    from database import db
+    from auth_routes import _wrap_totp_secret
+
+    secret = pyotp.random_base32()
+    with app.app_context():
+        u = User(email=f"oauth2fa-{_secrets.token_hex(3)}@example.com",
+                 password_hash="!OAUTH-" + "x" * 20, api_tier="free",
+                 email_alerts_enabled=True,
+                 totp_enabled=True, totp_secret_enc=_wrap_totp_secret(secret))
+        db.session.add(u)
+        db.session.commit()
+        uid = u.id
+
+    with client.session_transaction() as s:
+        s["user_id"] = uid
+        s["sv"] = 0
+        s["_csrf_token"] = csrf_token
+
+    # No password sent — just the current code.
+    r = client.post("/account/2fa/disable",
+                    data=json.dumps({"code": pyotp.TOTP(secret).now()}),
+                    content_type="application/json",
+                    headers={"X-CSRF-Token": csrf_token})
+    assert r.status_code == 200, r.data
+    with app.app_context():
+        assert User.query.get(uid).totp_enabled is False

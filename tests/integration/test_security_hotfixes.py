@@ -81,6 +81,9 @@ def test_oauth_2fa_challenge_with_pending_session_renders_form(client, csrf_toke
     assert r.status_code == 200
     assert b"Two-factor code required" in r.data
     assert csrf_token.encode() in r.data  # server templates the token in
+    # The field must accept a recovery code (letters + dash), not just digits.
+    assert b"recovery code" in r.data
+    assert b'pattern="[0-9 ]{6,12}"' not in r.data
 
 
 # ──────────────────────────────────────────────────────────────────────

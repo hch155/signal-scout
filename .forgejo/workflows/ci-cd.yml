@@ -213,13 +213,18 @@ jobs:
     steps:
       - name: scan pushed staging image
         run: |
-          trivy image \
-            --severity CRITICAL \
-            --exit-code 1 \
-            --ignore-unfixed \
-            --scanners vuln \
-            --timeout 15m \
-            "${{ needs.build.outputs.image_ref }}"
+          for i in 1 2 3; do
+            trivy image \
+              --severity CRITICAL \
+              --exit-code 1 \
+              --ignore-unfixed \
+              --scanners vuln \
+              --timeout 15m \
+              "${{ needs.build.outputs.image_ref }}" && break
+            echo "trivy scan attempt $i failed (flaky Harbor pull / truncated layer?), retry in $((i*15))s"
+            sleep $((i*15))
+            [ "$i" = 3 ] && exit 1
+          done
 
   promote:
     name: promote staging digest -> prod tag (no rebuild)

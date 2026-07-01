@@ -1516,10 +1516,11 @@ def totp_disable():
     password = payload.get('current_password') or ''
     code = (payload.get('code') or '').strip().replace(' ', '')
 
-    if not _bcrypt().check_password_hash(user.password_hash, password):
-        _login_failures_total().inc()
-        _record_failed_password_attempt(user, endpoint='totp_disable')
-        return jsonify({'error': 'Current password is incorrect'}), 401
+    if _has_usable_password(user):
+        if not _bcrypt().check_password_hash(user.password_hash, password):
+            _login_failures_total().inc()
+            _record_failed_password_attempt(user, endpoint='totp_disable')
+            return jsonify({'error': 'Current password is incorrect'}), 401
     if not _verify_totp_with_replay_protection(user, code):
         return jsonify({'error': 'Invalid 2FA code'}), 401
 

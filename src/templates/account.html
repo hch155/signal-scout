@@ -150,6 +150,7 @@
 
                         {# Disable confirmation form, hidden by default #}
                         <form id="totp-disable-form" class="hidden space-y-3 mt-3 p-3 bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded">
+                            {% if has_password %}
                             <p class="text-xs text-red-700 dark:text-red-200">
                                 Re-confirm to disable. Account will only be protected by your password.
                             </p>
@@ -159,6 +160,12 @@
                                 <input type="password" name="current_password" required
                                        class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
                             </label>
+                            {% else %}
+                            <p class="text-xs text-red-700 dark:text-red-200">
+                                {{ _('Confirm with your current 6-digit code to disable. Your account will then be protected by your provider login only.') }}
+                            </p>
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                            {% endif %}
                             <label class="block">
                                 <span class="text-sm text-gray-700 dark:text-gray-200">{{ _('Current 6-digit code') }}</span>
                                 <input type="text" name="code" required pattern="[0-9 ]{6,7}" maxlength="7"

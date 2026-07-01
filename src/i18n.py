@@ -112,6 +112,7 @@ TRANSLATIONS = {
     'Regenerate': 'Wygeneruj ponownie',
     'Disable 2FA': 'Wyłącz 2FA',
     'Confirm disable': 'Potwierdź wyłączenie',
+    'Confirm with your current 6-digit code to disable. Your account will then be protected by your provider login only.': 'Potwierdź obecnym 6-cyfrowym kodem, aby wyłączyć. Konto będzie wtedy chronione tylko logowaniem przez dostawcę.',
     'Generate new secret': 'Wygeneruj nowy sekret',
     'Set up 2FA': 'Skonfiguruj 2FA',
     'Verify and enable': 'Zweryfikuj i włącz',
