@@ -305,12 +305,12 @@ addressSearch.onAdd = function(map) {
     div.innerHTML = `
         <div class="ss-search-box">
             <svg class="ss-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input type="text" id="addressSearchInput" autocomplete="off" placeholder="${t('Search address or place')}">
+            <input type="text" id="addressSearchInput" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="address-suggestions" aria-label="${t('Search address or place')}" placeholder="${t('Search address or place')}">
             <button id="useMyLocationBtn" type="button" class="ss-locate-btn" title="${t('Use My Location')}" aria-label="${t('Use My Location')}">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"></path></svg>
             </button>
         </div>
-        <div id="address-suggestions" class="ss-suggestions" style="display:none;"></div>
+        <div id="address-suggestions" class="ss-suggestions" role="listbox" aria-label="${t('Search address or place')}" style="display:none;"></div>
     `;
     L.DomEvent.disableClickPropagation(div);
     L.DomEvent.disableScrollPropagation(div);
@@ -331,7 +331,7 @@ addressSearch.addTo(mymap);
     if (!input || !box) return;
     let timer = null;
     let current = [];
-    const hide = () => { box.style.display = 'none'; box.innerHTML = ''; current = []; };
+    const hide = () => { box.style.display = 'none'; box.innerHTML = ''; current = []; input.setAttribute('aria-expanded', 'false'); };
 
     function select(r) {
         if (!r) return;
@@ -361,6 +361,7 @@ addressSearch.addTo(mymap);
                     current.forEach(r => {
                         const item = document.createElement('div');
                         item.className = 'ss-suggestion';
+                        item.setAttribute('role', 'option');
                         item.textContent = r.display;
                         // mousedown, not click: fires before the input blurs and
                         // stops the mouseup from reaching the map as a click.
@@ -372,6 +373,7 @@ addressSearch.addTo(mymap);
                         box.appendChild(item);
                     });
                     box.style.display = 'block';
+                    input.setAttribute('aria-expanded', 'true');
                 })
                 .catch(() => hide());
         }, 350);

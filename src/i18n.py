@@ -489,6 +489,7 @@ TRANSLATIONS = {
     # base.html — rate-limit modal / nav / footer (Jinja)
     'Primary': 'Nawigacja główna',
     'Skip to content': 'Przejdź do treści',
+    'Cellular base-station coverage map of Poland': 'Mapa zasięgu stacji bazowych w Polsce',
     'Rate Limit Exceeded': 'Przekroczono limit zapytań',
     'Please wait a minute before making new requests.':
         'Odczekaj minutę przed wysłaniem kolejnych zapytań.',
