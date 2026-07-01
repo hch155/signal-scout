@@ -2021,6 +2021,9 @@ function fetchStations() {
         if (currentFilters.lat && currentFilters.lng) {
             clearRings();
             addRingsForLocation(currentFilters.lat, currentFilters.lng);
+            const nearestCity = (data.stations && data.stations[0] && data.stations[0].city) || null;
+            renderActionRow(currentFilters.lat, currentFilters.lng, nearestCity);
+            renderBestOperatorCTA(currentFilters.lat, currentFilters.lng);
         }
         scrollToSidebar();
     })
