@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Contact — Signal-Scout sales{% endblock %}
-{% block description %}Get in touch about Signal-Scout API access, pricing, custom integrations, or enterprise deployment.{% endblock %}
+{% block title %}{{ _('Contact — Signal-Scout sales') }}{% endblock %}
+{% block description %}{{ _('Get in touch about Signal-Scout API access, pricing, custom integrations, or enterprise deployment.') }}{% endblock %}
 
 {% block content %}
 <section class="text-center text-[#333] dark:text-white px-4 pt-6 pb-3">
     <h2 class="text-2xl md:text-3xl font-bold">{{ _("Let's talk") }}</h2>
     <p class="mt-2 text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-        Sales, custom integrations, dedicated deployment — pick the channel that fits.
+        {{ _('Sales, custom integrations, dedicated deployment — pick the channel that fits.') }}
     </p>
 </section>
 
@@ -16,7 +16,7 @@
     {% if prefilled_plan %}
     <div class="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 rounded p-4 mb-6">
         <p class="text-sm text-gray-900 dark:text-white">
-            You're inquiring about the <strong>{{ prefilled_plan|title }}</strong> plan. We'll mention it in our reply.
+            {{ _('You are inquiring about the %(plan)s plan. We will mention it in our reply.') % {'plan': prefilled_plan|title} }}
         </p>
     </div>
     {% endif %}
@@ -24,16 +24,16 @@
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-6 md:p-8 space-y-5">
 
         <div>
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white">Email</h3>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ _('Email') }}</h3>
             <p class="mt-1 text-sm text-gray-700 dark:text-gray-200">
-                Best for everything — pricing questions, custom asks, partnership ideas.
+                {{ _('Best for everything — pricing questions, custom asks, partnership ideas.') }}
             </p>
             <a href="mailto:hcylwik@gmail.com?subject=Signal-Scout%20{% if prefilled_plan %}{{ prefilled_plan }}%20plan%20{% endif %}inquiry"
                class="mt-2 inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded transition-colors">
                 hcylwik@gmail.com
             </a>
             <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Average response time: <strong>1 working day</strong> (Polish hours, UTC+1/+2).
+                {{ _('Average response time:') }} <strong>{{ _('1 working day') }}</strong> {{ _('(Polish hours, UTC+1/+2).') }}
             </p>
         </div>
 
@@ -42,7 +42,7 @@
         <div>
             <h3 class="text-lg font-bold text-gray-900 dark:text-white">LinkedIn</h3>
             <p class="mt-1 text-sm text-gray-700 dark:text-gray-200">
-                For an intro or a quick "is this a fit?" message.
+                {{ _('For an intro or a quick "is this a fit?" message.') }}
             </p>
             <a href="https://www.linkedin.com/in/hubertcylwik/"
                target="_blank" rel="noopener"
@@ -56,7 +56,7 @@
         <div>
             <h3 class="text-lg font-bold text-gray-900 dark:text-white">GitHub</h3>
             <p class="mt-1 text-sm text-gray-700 dark:text-gray-200">
-                Bug? Feature request? Open an issue.
+                {{ _('Bug? Feature request? Open an issue.') }}
             </p>
             <a href="https://github.com/hch155/signal-scout/issues"
                target="_blank" rel="noopener"
@@ -68,9 +68,8 @@
         <hr class="border-gray-200 dark:border-gray-700">
 
         <div class="text-xs text-gray-500 dark:text-gray-400">
-            Signal-Scout is built and operated by Hubert Cylwik (sole proprietor, Poland).
-            EU GDPR data controller. For data deletion / privacy-related inquiries see the
-            <a href="/privacy" class="underline">Privacy Policy</a>.
+            {{ _('Signal-Scout is built and operated by Hubert Cylwik (sole proprietor, Poland). EU GDPR data controller. For data deletion / privacy-related inquiries see the') }}
+            <a href="/privacy" class="underline">{{ _('Privacy Policy') }}</a>.
         </div>
     </div>
 </div>
