@@ -82,11 +82,11 @@
       {% endif %}
 
       {# ── Header ──────────────────────────────────────────────────────── #}
-      <header class="sticky top-0 z-40 flex items-center justify-between gap-x-6 px-6 py-3 md:py-4 bg-white/75 dark:bg-gray-900/75 backdrop-blur-md border-b border-gray-200/70 dark:border-gray-800/80">
+      <header class="relative flex items-center justify-between gap-x-6 px-6 py-3 md:py-4 bg-white/75 dark:bg-gray-900/75 backdrop-blur-md border-b border-gray-200/70 dark:border-gray-800/80">
 
           <nav class="flex items-center gap-x-1 lg:gap-x-2 text-gray-700 dark:text-gray-200" aria-label="{{ _('Primary') }}">
               <a href="/" class="inline-flex items-center gap-x-2 mr-2 text-xl font-semibold tracking-tight text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 rounded-md">
-                <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 text-blue-600 dark:text-blue-400"><rect x="2" y="14" width="4" height="8" rx="1"></rect><rect x="9" y="9" width="4" height="13" rx="1"></rect><rect x="16" y="3" width="4" height="19" rx="1"></rect></svg>
+                <svg aria-hidden="true" viewBox="0 0 24 24" class="w-6 h-6"><rect x="2" y="15" width="3.2" height="7" rx="1" fill="#DC2626"></rect><rect x="7.6" y="11" width="3.2" height="11" rx="1" fill="#F97316"></rect><rect x="13.2" y="7" width="3.2" height="15" rx="1" fill="#FACC15"></rect><rect x="18.8" y="3" width="3.2" height="19" rx="1" fill="#16A34A"></rect></svg>
                 Signal-Scout
               </a>
               {% set _nav = [('/data', _('Data')), ('/stats', _('Statistics')), ('/tips', _('Tips')), ('/best-operator', _('Best operator'))] %}
