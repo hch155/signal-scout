@@ -158,7 +158,7 @@
                             <label class="block">
                                 <span class="text-sm text-gray-700 dark:text-gray-200">{{ _('Current password') }}</span>
                                 <input type="password" name="current_password" required
-                                       class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
+                                       class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </label>
                             {% else %}
                             <p class="text-xs text-red-700 dark:text-red-200">
@@ -170,7 +170,7 @@
                                 <span class="text-sm text-gray-700 dark:text-gray-200">{{ _('Current 6-digit code') }}</span>
                                 <input type="text" name="code" required pattern="[0-9 ]{6,7}" maxlength="7"
                                        inputmode="numeric"
-                                       class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
+                                       class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </label>
                             <button type="submit"
                                     class="bg-red-500 hover:bg-red-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
@@ -191,7 +191,7 @@
                             <label class="block">
                                 <span class="text-sm text-gray-700 dark:text-gray-200">{{ _('Current password') }}</span>
                                 <input type="password" name="current_password" required
-                                       class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
+                                       class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </label>
                             {% else %}
                             <p class="text-xs text-gray-700 dark:text-gray-200">
@@ -202,7 +202,7 @@
                                 <span class="text-sm text-gray-700 dark:text-gray-200">{{ _('Current 6-digit code') }}</span>
                                 <input type="text" name="code" required pattern="[0-9 ]{6,7}" maxlength="7"
                                        inputmode="numeric"
-                                       class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
+                                       class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </label>
                             {% endif %}
                             <button type="submit"
@@ -219,7 +219,7 @@
                         <label class="block max-w-xs">
                             <span class="text-sm text-gray-700 dark:text-gray-200">{{ _('Confirm your current password to start') }}</span>
                             <input type="password" id="totp-setup-password" autocomplete="current-password"
-                                   class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
+                                   class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </label>
                         {% endif %}
                         <button id="totp-setup-btn"
@@ -254,7 +254,7 @@
                                 <span class="text-sm text-gray-700 dark:text-gray-100">{{ _('Enter the 6-digit code shown in your app') }}</span>
                                 <input type="text" name="code" required pattern="[0-9 ]{6,7}" maxlength="7"
                                        inputmode="numeric"
-                                       class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
+                                       class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </label>
                             <button type="submit"
                                     class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
@@ -292,7 +292,7 @@
                             <label class="block">
                                 <span class="text-sm text-gray-700 dark:text-gray-200">{{ _('Current password') }}</span>
                                 <input type="password" name="current_password" required autocomplete="current-password"
-                                       class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
+                                       class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </label>
                             <button type="submit"
                                     class="bg-gray-600 hover:bg-gray-800 text-white text-sm font-bold py-2 px-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors">
@@ -315,7 +315,7 @@
                             <label class="block max-w-xs">
                                 <span class="text-sm text-gray-700 dark:text-gray-200">{{ _('Confirm your current password') }}</span>
                                 <input type="password" name="current_password" required autocomplete="current-password"
-                                       class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded">
+                                       class="w-full mt-1 p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </label>
                             {% endif %}
                             <button type="submit"
