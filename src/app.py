@@ -211,6 +211,16 @@ with app.app_context():
         logging.getLogger(__name__).exception(
             "stats snapshot backfill failed"
         )
+    from real5g_rollout import backfill_real5g_from_jsonl  # noqa: E402
+    try:
+        backfill_real5g_from_jsonl(
+            users_db_path,
+            os.path.join(basedir, 'instance', 'real5g_rollout_history.jsonl'),
+        )
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "real5g snapshot backfill failed"
+        )
 ensure_user_api_columns(app, db)
 
 def _users_db_pragmas(dbapi_conn, _conn_record):

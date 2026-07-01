@@ -105,3 +105,32 @@ def test_rollout_render_writes_snapshot_and_shows_delta(app, client):
         keys = [row['snapshot_key'] for row in read_real5g_history(None)]
     assert '2000-01-01' in keys
     assert len(keys) >= 2
+
+
+def test_backfill_from_jsonl_imports_only_missing_keys(app, tmp_path):
+    import json
+    from real5g_rollout import (
+        backfill_real5g_from_jsonl, maybe_write_real5g_snapshot, RealFiveGSnapshot,
+    )
+    rows = [
+        {'snapshot_key': '2099-01-25', 'recorded_at': '2099-01-25T20:00:00Z',
+         'by_operator': {'Orange': 10}, 'by_voivodeship': {}, 'total_sites': 10},
+        {'snapshot_key': '2099-02-25', 'recorded_at': '2099-02-25T20:00:00Z',
+         'by_operator': {'Orange': 12}, 'by_voivodeship': {}, 'total_sites': 12},
+        {'snapshot_key': '2099-03-25', 'recorded_at': '2099-03-25T20:00:00Z',
+         'by_operator': {'Orange': 15}, 'by_voivodeship': {}, 'total_sites': 15},
+    ]
+    jsonl = tmp_path / 'real5g_rollout_history.jsonl'
+    jsonl.write_text('\n'.join(json.dumps(r) for r in rows) + '\n')
+
+    with app.app_context():
+        # One key already present (like prod's live snapshots) — must be skipped.
+        maybe_write_real5g_snapshot(
+            None, '2099-02-25',
+            {'by_operator': {'Orange': 12}, 'by_voivodeship': {}, 'total_sites': 12},
+        )
+        assert backfill_real5g_from_jsonl(None, str(jsonl)) == 2
+        keys = {r.snapshot_key for r in RealFiveGSnapshot.query.all()}
+        assert {'2099-01-25', '2099-02-25', '2099-03-25'} <= keys
+        # Idempotent: re-running imports nothing.
+        assert backfill_real5g_from_jsonl(None, str(jsonl)) == 0

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import sqlite3
 from datetime import datetime
@@ -222,6 +223,66 @@ def maybe_write_real5g_snapshot(users_db_path: Optional[str], data_date: str,
         return False
     logger.info("Recorded real5g rollout snapshot for %s", data_date)
     return True
+
+
+def backfill_real5g_from_jsonl(users_db_path: Optional[str],
+                               baked_jsonl_path: str) -> int:
+    """Load baked JSONL rollout snapshots (git-history replay output) for any
+    snapshot_key not already stored, so /rollout shows the full trend on a fresh
+    deploy where the git history isn't available. Idempotent — already-present
+    keys are skipped (prod already holds the 1-2 live snapshots). Returns rows
+    imported."""
+    existing = {
+        k for (k,) in RealFiveGSnapshot.query.with_entities(
+            RealFiveGSnapshot.snapshot_key).all()
+    }
+    sources = []
+    if baked_jsonl_path:
+        sources.append(baked_jsonl_path)
+    if users_db_path:
+        live = os.path.join(os.path.dirname(users_db_path),
+                            'real5g_rollout_history.jsonl')
+        if live not in sources:
+            sources.append(live)
+    seen: set = set()
+    imported = 0
+    for src in sources:
+        if not os.path.exists(src):
+            continue
+        try:
+            with open(src, encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except json.JSONDecodeError:
+                        logger.warning("skipping corrupt real5g JSONL line in %s", src)
+                        continue
+                    key = row.get('snapshot_key')
+                    if not key or key in seen or key in existing:
+                        continue
+                    seen.add(key)
+                    payload = {field: row.get(field, 0 if field == 'total_sites' else {})
+                               for field in _REAL5G_FIELDS}
+                    db.session.add(RealFiveGSnapshot(
+                        snapshot_key=key,
+                        recorded_at=row.get('recorded_at'),
+                        payload=json.dumps(payload),
+                    ))
+                    imported += 1
+        except OSError:
+            logger.exception("failed to read real5g JSONL %s", src)
+    if imported:
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            logger.exception("real5g jsonl backfill commit failed")
+            return 0
+    logger.info("Backfilled %d real5g rollout snapshots from JSONL", imported)
+    return imported
 
 
 class RealFiveGSnapshot(db.Model):
