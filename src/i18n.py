@@ -496,7 +496,7 @@ TRANSLATIONS = {
     'Please wait a minute before making new requests.':
         'Odczekaj minutę przed wysłaniem kolejnych zapytań.',
     'Retry in {n} seconds.': 'Ponów próbę za {n} s.',
-    '↑ Top': '↑ Góra',
+    '↑ Top': '↑ Do góry',
     'Build {version} — click to view this commit on GitHub':
         'Kompilacja {version} — kliknij, aby zobaczyć ten commit na GitHubie',
 
