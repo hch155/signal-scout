@@ -61,7 +61,10 @@ def test_snapshot_happy_path(authed_client, csrf_token, app):
 
 # ── Saved-location persisted via /submit_location for logged-in user ──────
 
-def test_submit_location_persists_to_user_when_logged_in(authed_client, csrf_token, app):
+def test_submit_location_does_not_persist_to_user(authed_client, csrf_token, app):
+    """Privacy: /privacy documents clicked coordinates as session-only, so
+    a logged-in map click must NOT write user.last_location_* (the old
+    behavior silently kept precise coords on the account until deletion)."""
     r = authed_client.post("/submit_location",
                            data=json.dumps({"lat": 52.2297, "lng": 21.0122, "limit": 3}),
                            content_type="application/json",
@@ -69,8 +72,8 @@ def test_submit_location_persists_to_user_when_logged_in(authed_client, csrf_tok
     assert r.status_code == 200, r.data
     with app.app_context():
         u = User.query.first()
-        assert u.last_location_lat == pytest.approx(52.2297, rel=1e-3)
-        assert u.last_location_lng == pytest.approx(21.0122, rel=1e-3)
+        assert u.last_location_lat is None
+        assert u.last_location_lng is None
 
 
 # ── /account/changes page ─────────────────────────────────────────────────

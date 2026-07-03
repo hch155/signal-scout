@@ -650,6 +650,18 @@ def ensure_user_api_columns(app, db) -> None:
         if purged:
             logger.info("Nulled %d legacy plaintext API key values", purged)
 
+        # Clear legacy per-click location persistence: /privacy documents
+        # clicked coordinates as session-only, and the write site is gone.
+        with engine.begin() as conn:
+            cleared = conn.execute(text(
+                "UPDATE user SET last_location_lat = NULL, "
+                "last_location_lng = NULL "
+                "WHERE last_location_lat IS NOT NULL "
+                "   OR last_location_lng IS NOT NULL"
+            )).rowcount or 0
+        if cleared:
+            logger.info("Cleared stored last_location for %d users", cleared)
+
 
 def generate_api_key() -> str:
     """Used by the registration flow + /account regenerate."""

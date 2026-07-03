@@ -1781,16 +1781,6 @@ def submit_location():
             })
 
         session['user_location'] = {'lat': user_lat, 'lng': user_lng}
-        if 'user_id' in session:
-            try:
-                user = db.session.get(User, session['user_id'])
-                if user is not None:
-                    user.last_location_lat = user_lat
-                    user.last_location_lng = user_lng
-                    db.session.commit()
-            except Exception:
-                db.session.rollback()
-                app.logger.exception("Could not persist user location")
         limit = data.get('limit', 9)
         max_distance = data.get('max_distance', None)
         try:
