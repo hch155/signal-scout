@@ -248,3 +248,69 @@ def test_referer_blocked_counter_increments(raw_client, monkeypatch):
     ).get_data(as_text=True)
     assert "signal_scout_api_referer_blocked_total" in metrics
     assert 'endpoint="stations"' in metrics
+
+
+def test_boot_migration_nulls_legacy_plaintext_keys(app):
+    """Legacy rows carrying a plaintext api_key must come out of the boot
+    migration hash-only: hash + prefix backfilled, plaintext nulled, and
+    the key still authenticating via the hash path."""
+    from database import db
+    from models import User, ApiKey
+    from api_access import (
+        ensure_user_api_columns, hash_api_key, _resolve_api_key,
+    )
+
+    raw = "legacy-plaintext-key-abc123"
+    with app.app_context():
+        user = User(email="legacy-key@example.com", password_hash="x",
+                    api_key=raw, api_tier="free")
+        db.session.add(user)
+        db.session.commit()
+        uid = user.id
+
+    ensure_user_api_columns(app, db)
+
+    with app.app_context():
+        user = db.session.get(User, uid)
+        assert user.api_key is None
+        assert user.api_key_hash == hash_api_key(raw)
+        assert user.api_key_prefix
+        mirrored = ApiKey.query.filter_by(user_id=uid).all()
+        assert mirrored, "legacy key was not mirrored into ApiKey"
+        assert all(k.key is None for k in mirrored)
+        assert any(k.key_hash == hash_api_key(raw) for k in mirrored)
+
+    with app.test_request_context(headers={"X-API-Key": raw}):
+        resolved = _resolve_api_key()
+        assert resolved is not None and resolved.id == uid
+
+    with app.app_context():
+        ApiKey.query.filter_by(user_id=uid).delete(synchronize_session=False)
+        db.session.delete(db.session.get(User, uid))
+        db.session.commit()
+
+
+def test_boot_migration_does_not_mint_plaintext_keys(app):
+    """A user without any key must stay keyless after boot — no plaintext
+    backfill (the old behavior minted a live plaintext credential for
+    every such row on every boot)."""
+    from database import db
+    from models import User
+    from api_access import ensure_user_api_columns
+
+    with app.app_context():
+        user = User(email="keyless@example.com", password_hash="x",
+                    api_key=None, api_tier=None)
+        db.session.add(user)
+        db.session.commit()
+        uid = user.id
+
+    ensure_user_api_columns(app, db)
+
+    with app.app_context():
+        user = db.session.get(User, uid)
+        assert user.api_key is None
+        assert user.api_key_hash is None
+        assert user.api_tier == "free"
+        db.session.delete(user)
+        db.session.commit()

@@ -248,14 +248,11 @@ def _resolve_api_key() -> User | None:
        lookup against the hashed column. Hot path; new keys live here.
        Bumps last_used_at on the ApiKey row so the /account UI can show
        freshness and the user can spot stale keys to revoke.
-    2. ApiKey table by legacy plaintext `key` — back-compat for rows
-       minted before PR #47 that haven't been backfilled yet (the boot
-       migration covers them, but we keep the lookup for the rare
-       race window — and for any pre-PR-#47 row whose plaintext is
-       still in flight from a long-running client).
-    3. User.api_key_hash — same hash lookup against the legacy
+    2. User.api_key_hash — same hash lookup against the legacy
        single-key-per-user column.
-    4. User.api_key — final legacy plaintext fallback.
+
+    Plaintext lookups were removed with the boot migration that nulls
+    the legacy plaintext columns — every stored key is hash-only now.
     """
     raw = request.headers.get('X-API-Key', '').strip()
     if not raw or len(raw) > 128:
@@ -264,9 +261,6 @@ def _resolve_api_key() -> User | None:
     raw_hash = hash_api_key(raw)
 
     ak = ApiKey.query.filter_by(key_hash=raw_hash, revoked_at=None).first()
-    # 2. Legacy plaintext fallback against ApiKey table.
-    if ak is None:
-        ak = ApiKey.query.filter_by(key=raw, revoked_at=None).first()
     if ak is not None:
         ak.last_used_at = datetime.utcnow()
         ak.total_calls = (ak.total_calls or 0) + 1
@@ -276,10 +270,7 @@ def _resolve_api_key() -> User | None:
             db.session.rollback()
         return ak.user
 
-    u = User.query.filter_by(api_key_hash=raw_hash).first()
-    if u is not None:
-        return u
-    return User.query.filter_by(api_key=raw).first()
+    return User.query.filter_by(api_key_hash=raw_hash).first()
 
 
 # ── The decorator ──────────────────────────────────────────────────────────
@@ -550,15 +541,14 @@ def ensure_user_api_columns(app, db) -> None:
                 if _legacy in existing:
                     conn.execute(text(f"ALTER TABLE user DROP COLUMN {_legacy}"))
 
-        # Backfill api_key for any rows that lack one.
-        users_without_key = User.query.filter(
-            (User.api_key.is_(None)) | (User.api_key == '')
+        # Default any tier-less rows; keys are minted hash-only at
+        # registration / from /account — never backfilled in plaintext.
+        users_without_tier = User.query.filter(
+            (User.api_tier.is_(None)) | (User.api_tier == '')
         ).all()
-        for u in users_without_key:
-            u.api_key = secrets.token_urlsafe(32)
-            if not u.api_tier:
-                u.api_tier = 'free'
-        if users_without_key:
+        for u in users_without_tier:
+            u.api_tier = 'free'
+        if users_without_tier:
             db.session.commit()
 
         db.create_all(bind_key='users')  # creates ApiKey/AuditEvent if missing; noop otherwise
@@ -645,6 +635,20 @@ def ensure_user_api_columns(app, db) -> None:
             k.key_prefix = format_api_key_prefix(k.key)
         if users_to_backfill or keys_to_backfill:
             db.session.commit()
+
+        # Null the legacy plaintext columns once the hash is in place —
+        # the stored value stays a live credential otherwise.
+        with engine.begin() as conn:
+            purged = conn.execute(text(
+                "UPDATE user SET api_key = NULL "
+                "WHERE api_key IS NOT NULL AND api_key_hash IS NOT NULL"
+            )).rowcount or 0
+            purged += conn.execute(text(
+                "UPDATE api_key SET key = NULL "
+                "WHERE key IS NOT NULL AND key_hash IS NOT NULL"
+            )).rowcount or 0
+        if purged:
+            logger.info("Nulled %d legacy plaintext API key values", purged)
 
 
 def generate_api_key() -> str:
