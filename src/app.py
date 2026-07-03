@@ -2443,19 +2443,22 @@ def api_v1_get_stations():
         description: Repeat to filter by 5G/LTE/UMTS/GSM bands (e.g. LTE1800, 5G2100).
     responses:
       200:
-        description: Stations within bounds, sorted by distance ascending.
+        description: |
+          Stations within bounds, sorted by distance ascending.
+          Out-of-bounds coords return 200 with `outside_pl: true` and an
+          empty stations list (not 400).
         content:
           application/json:
             schema: {$ref: '#/components/schemas/StationsResponse'}
       400:
-        description: Invalid parameters (out-of-bounds coords, limit > 10, etc.).
+        description: Invalid parameters (limit > 10, bad max_distance, no coords and no saved location, etc.).
         content:
           application/json:
             schema: {$ref: '#/components/schemas/Error'}
       403:
         description: No API key and no same-origin Referer.
       429:
-        description: Tier rate limit exceeded.
+        description: Rate limit exceeded (30 per minute per IP).
     """
     return get_stations()
 
@@ -2551,12 +2554,15 @@ def api_v1_submit_location():
         description: From the `<meta name="csrf-token">` tag on /. Required for POST.
     responses:
       200:
-        description: Nearest stations, plus the location is saved on the session.
+        description: |
+          Nearest stations, plus the location is saved on the session.
+          Out-of-bounds coords return 200 with `outside_pl: true` and an
+          empty stations list (not 400).
         content:
           application/json:
             schema: {$ref: '#/components/schemas/StationsResponse'}
       400:
-        description: Out-of-bounds coords or missing lat/lng.
+        description: Missing lat/lng or non-numeric coordinates.
       403:
         description: Missing or wrong X-CSRF-Token.
       429:
@@ -2679,7 +2685,7 @@ def api_v1_coverage_gaps():
       403:
         description: No API key and no same-origin Referer.
       429:
-        description: Tier rate limit exceeded.
+        description: Rate limit exceeded (30 per minute per IP).
     """
     return coverage_gaps()
 
@@ -2745,7 +2751,7 @@ def api_v1_coverage_by_address():
           application/json:
             schema: {$ref: '#/components/schemas/Error'}
       429:
-        description: Tier rate limit exceeded (30 per minute).
+        description: Tier rate limit exceeded (10/min anonymous, 60/min free, 300/min pro, 3000/min enterprise).
     """
     return coverage_by_address()
 
@@ -2797,7 +2803,7 @@ def api_v1_coverage_by_address_batch():
       403:
         description: No API key and no same-origin Referer.
       429:
-        description: Tier rate limit exceeded (10 per minute).
+        description: Tier rate limit exceeded (10/min anonymous, 60/min free, 300/min pro, 3000/min enterprise).
     """
     return coverage_by_address_batch()
 
@@ -2865,7 +2871,7 @@ def api_v1_coverage_card():
           text/html:
             schema: {type: string}
       429:
-        description: Tier rate limit exceeded (30 per minute).
+        description: Tier rate limit exceeded (10/min anonymous, 60/min free, 300/min pro, 3000/min enterprise).
     """
     return coverage_card()
 
