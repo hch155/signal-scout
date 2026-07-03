@@ -333,6 +333,16 @@ TRANSLATIONS = {
     'band entries': 'wpisy pasmowe',
 
     # JS — alerts / toasts / status
+    'Invalid email or password.': 'Nieprawidłowy e-mail lub hasło.',
+    'Account is temporarily locked due to too many failed attempts.':
+        'Konto jest tymczasowo zablokowane z powodu zbyt wielu nieudanych prób logowania.',
+    'Invalid email address.': 'Nieprawidłowy adres e-mail.',
+    'Please use a non-disposable email address.':
+        'Użyj adresu e-mail, który nie jest jednorazowy.',
+    'Password does not meet criteria.': 'Hasło nie spełnia wymagań.',
+    'Account created — check your inbox to verify your email, then sign in.':
+        'Konto utworzone — sprawdź skrzynkę, aby zweryfikować e-mail, a następnie zaloguj się.',
+    'Something went wrong. Please try again.': 'Coś poszło nie tak. Spróbuj ponownie.',
     'Login failed. Wrong email or password. Please try again.':
         'Logowanie nie powiodło się. Błędny e-mail lub hasło. Spróbuj ponownie.',
     'Thresholds: high-band ≤1.5 km · mid ≤2 km · low ≤5 km. Line-of-sight; real signal varies.':
@@ -586,6 +596,10 @@ TRANSLATIONS = {
     'Permanently delete your account and API key. This cannot be undone.':
         'Trwale usuń konto i klucz API. Tej operacji nie można cofnąć.',
     'Confirm with your password': 'Potwierdź hasłem',
+    'Confirm with your 2FA code': 'Potwierdź kodem 2FA',
+    'Invalid 2FA code': 'Nieprawidłowy kod 2FA',
+    'Current password is incorrect': 'Nieprawidłowe bieżące hasło',
+    'Delete failed.': 'Usuwanie nie powiodło się.',
     'Type DELETE to confirm': 'Wpisz DELETE, aby potwierdzić',
 
     # account_changes / account_location_changes / unsubscribe / embed / contact (Jinja)
@@ -863,6 +877,16 @@ JS_STRING_KEYS = (
     'total band entries (all generations)',
     'band entries',
     'Login failed. Wrong email or password. Please try again.',
+    'Invalid email or password.',
+    'Account is temporarily locked due to too many failed attempts.',
+    'Invalid email address.',
+    'Please use a non-disposable email address.',
+    'Password does not meet criteria.',
+    'Account created — check your inbox to verify your email, then sign in.',
+    'Something went wrong. Please try again.',
+    'Invalid 2FA code',
+    'Current password is incorrect',
+    'Delete failed.',
     'Thresholds: high-band ≤1.5 km · mid ≤2 km · low ≤5 km. Line-of-sight; real signal varies.',
     'Tips temporarily unavailable. Please refresh the page.',
     'Location permission was denied. Please enable it to use this feature.',

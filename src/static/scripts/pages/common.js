@@ -573,10 +573,31 @@ function handleSignInSubmit(e) {
 }
 
 function submitForm(url, formData) {
-  globalFetch(url, { method: 'POST', body: formData })
-  .then(data => {
+  fetch(url, { method: 'POST', body: formData })
+  .then(response => {
+      if (response.status === 429) {
+          handleErrors(response);
+          return null;
+      }
+      const ct = response.headers.get('Content-Type') || '';
+      const parse = ct.includes('application/json')
+          ? response.json().catch(() => ({}))
+          : response.text().then(txt => ({ message: txt }));
+      return parse.then(data => ({ ok: response.ok, data: data || {} }));
+  })
+  .then(result => {
+      if (!result) return; // 429 already handled by the rate-limit modal
+      const { ok, data } = result;
 
-      if (data.success) {
+      // Email+password account with 2FA on: the server accepted the password
+      // but needs the TOTP step. Carry the rotated CSRF token to the challenge.
+      if (data.totp_required) {
+          applyRotatedCsrfToken(data.csrf_token);
+          window.location = '/auth/2fa_challenge';
+          return;
+      }
+
+      if (ok && data.success) {
           applyRotatedCsrfToken(data.csrf_token);
           clearLoginForm();
           adjustUIForLoggedOutState();
@@ -588,12 +609,22 @@ function submitForm(url, formData) {
               showToast(t('Logged in'), 'success');
           }
           if (url === '/register') {
-            showToast(t('User registered'), 'success');
-            resetPasswordCriteriaIndicators();
+              resetPasswordCriteriaIndicators();
+              _setAuthTab('signin');
+              showToast(t('Account created — check your inbox to verify your email, then sign in.'), 'success');
           }
-      } else {
-        if (url === '/login')
-          showError('signInError', data.errorMessage || t('Login failed. Wrong email or password. Please try again.'));
+          return;
+      }
+
+      // Failure — surface the server's own reason instead of a generic message.
+      const rawMsg = data.message || data.error
+          || 'Something went wrong. Please try again.';
+      const msg = t(rawMsg);
+      if (url === '/login') {
+          showError('signInError', msg);
+      } else if (url === '/register') {
+          const field = /password/i.test(rawMsg) ? 'passwordError' : 'emailError';
+          showError(field, msg);
       }
   })
   .catch(error => {

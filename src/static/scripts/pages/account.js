@@ -651,20 +651,25 @@ document.addEventListener('DOMContentLoaded', () => {
       deleteStatus.textContent = t('Deleting…');
       deleteStatus.className = 'text-sm mt-2 text-gray-500';
 
-      globalFetch('/account/delete', {
+      // Direct fetch (not globalFetch) so the server's error message on a
+      // 4xx (wrong password / 2FA code) reaches the user instead of a bare
+      // "HTTP error" from the thrown status.
+      fetch('/account/delete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRF-Token': getCsrfToken(),
         },
         body: JSON.stringify(body),
-      }).then(data => {
-        if (data && data.success) {
+      }).then(response => response.json().catch(() => ({})).then(data => ({
+        ok: response.ok, data,
+      }))).then(({ ok, data }) => {
+        if (ok && data && data.success) {
           // Account is gone. Bounce to home with replace() so /account is
           // not reachable via Back-button (would 401 anyway).
           window.location.replace('/');
         } else {
-          const err = (data && data.error) || t('Delete failed.');
+          const err = t((data && (data.error || data.message)) || 'Delete failed.');
           deleteStatus.textContent = err;
           deleteStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
         }

@@ -720,11 +720,20 @@
                     <form id="delete-form" class="space-y-3">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
+                        {% if has_password %}
                         <label class="block">
                             <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Confirm with your password') }}</span>
                             <input type="password" name="current_password" required autocomplete="current-password"
                                    class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-red-500">
                         </label>
+                        {% elif user.totp_enabled %}
+                        <label class="block">
+                            <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Confirm with your 2FA code') }}</span>
+                            <input type="text" name="totp_code" required autocomplete="one-time-code"
+                                   inputmode="numeric" pattern="[0-9]*" maxlength="6"
+                                   class="w-full mt-1 p-2 bg-gray-50 dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-red-500">
+                        </label>
+                        {% endif %}
 
                         <label class="block">
                             <span class="text-sm text-gray-600 dark:text-gray-300">{{ _('Type DELETE to confirm') }}</span>

@@ -1224,13 +1224,25 @@ def delete_account():
     payload = request.get_json(silent=True) or request.form
     confirm_password = payload.get('current_password') or ''
     confirm_phrase = (payload.get('confirm_phrase') or '').strip()
+    totp_code = (payload.get('totp_code') or '').strip()
 
-    if not _bcrypt().check_password_hash(user.password_hash, confirm_password):
-        _login_failures_total().inc()
-        _record_failed_password_attempt(user, endpoint='delete_account')
-        return jsonify({'error': 'Current password is incorrect'}), 401
     if confirm_phrase != 'DELETE':
         return jsonify({'error': "Type DELETE to confirm"}), 400
+
+    if _has_usable_password(user):
+        if not _bcrypt().check_password_hash(user.password_hash, confirm_password):
+            _login_failures_total().inc()
+            _record_failed_password_attempt(user, endpoint='delete_account')
+            return jsonify({'error': 'Current password is incorrect'}), 401
+    elif user.totp_enabled:
+        # OAuth-only account with 2FA: step up with a TOTP code (no password
+        # exists to check against the synthetic '!OAUTH-' hash).
+        if not _verify_totp_with_replay_protection(user, totp_code):
+            _login_failures_total().inc()
+            _record_failed_password_attempt(user, endpoint='delete_account')
+            return jsonify({'error': 'Invalid 2FA code'}), 401
+    # OAuth-only account without 2FA: the typed DELETE on an authenticated
+    # session is the confirmation — there is no second factor to require.
 
     user_id = user.id
     try:

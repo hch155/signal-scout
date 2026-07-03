@@ -528,10 +528,10 @@ filterControl.onAdd = function(map) {
                 <div class="my-2">
                     <p class="text-gray-700 font-bold dark:text-white">${t('Service Provider:')}</p>
                     <div class="flex flex-wrap label-container gap-1">    
-                        <label><input type="checkbox" name="service_provider" value="P4 Sp. z o.o.'"> Play</label>
+                        <label><input type="checkbox" name="service_provider" value="P4 sp. z o.o."> Play</label>
                         <label><input type="checkbox" name="service_provider" value="Orange Polska S.A."> Orange</label>
                         <label><input type="checkbox" name="service_provider" value="T-Mobile Polska S.A."> T-Mobile</label>
-                        <label><input type="checkbox" name="service_provider" value="POLKOMTEL Sp. z o.o."> Plus</label>
+                        <label><input type="checkbox" name="service_provider" value="Polkomtel sp. z o.o."> Plus</label>
                     </div>
                 </div>
 
