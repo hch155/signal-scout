@@ -80,3 +80,44 @@ def test_search_stations_returns_honeypot_row_when_prefix_matches(
         "honeypot row didn't surface in /search_stations — "
         "L-NEW-4 regressed (env-list-only honeypots are bypassable)"
     )
+
+
+def test_nearest_stations_and_gaps_exclude_honeypots(app, monkeypatch):
+    """Honeypots must surface in /search_stations (the tripwire) but
+    never in nearest-station results or coverage-gap verdicts — a fake
+    mast would corrupt the coverage data served to users and the B2B
+    address API."""
+    from database import db
+    from models import BaseStation
+    from api_access import seed_honeypot_rows, HONEYPOT_PROVIDER_MARKER
+    from queries import find_nearest_stations, find_coverage_gaps
+
+    monkeypatch.setenv("HONEYPOT_BTS_IDS", "HPNEAR1")
+    seed_honeypot_rows(app, db)
+
+    with app.app_context():
+        hp = BaseStation.query.filter_by(basestation_id="HPNEAR1").first()
+        assert hp is not None
+        near = find_nearest_stations(hp.latitude, hp.longitude, limit=10)
+        providers = {s["service_provider"] for s in near["stations"]}
+        assert HONEYPOT_PROVIDER_MARKER not in providers
+
+        gaps = find_coverage_gaps(hp.latitude, hp.longitude)
+        flat = str(gaps)
+        assert HONEYPOT_PROVIDER_MARKER not in flat
+        assert "HPNEAR1" not in flat
+
+
+def test_search_stations_limit_is_clamped(client, app):
+    """limit=-1 used to reach SQLite as LIMIT -1 (= unlimited) and dump
+    every row matching a 2-char prefix — full-dataset scrape."""
+    for bad in ("-1", "0", "100000"):
+        r = client.get(
+            f"/search_stations?q=T1&limit={bad}",
+            headers={"Referer": "http://localhost/"},
+        )
+        assert r.status_code == 200
+        body = r.get_json() or {}
+        assert len(body.get("stations", [])) <= 10, (
+            f"limit={bad} returned more than the 10-row cap"
+        )

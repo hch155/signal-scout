@@ -297,6 +297,16 @@ assert_production_storage(
 PL_LAT_MIN, PL_LAT_MAX = 48.95, 55.55
 PL_LNG_MIN, PL_LNG_MAX = 13.95, 24.25
 
+_KNOWN_PROVIDERS = frozenset((
+    'P4 sp. z o.o.', 'Orange Polska S.A.',
+    'T-Mobile Polska S.A.', 'Polkomtel sp. z o.o.',
+))
+_KNOWN_BANDS = frozenset((
+    '5G700', '5G1800', '5G2100', '5G3600',
+    'LTE700', 'LTE800', 'LTE900', 'LTE1800', 'LTE2100', 'LTE2600',
+    'UMTS900', 'UMTS2100', 'GSM900', 'GSM1800',
+))
+
 
 def _coords_in_bounds(lat: float, lng: float) -> bool:
     return PL_LAT_MIN <= lat <= PL_LAT_MAX and PL_LNG_MIN <= lng <= PL_LNG_MAX
@@ -1858,9 +1868,13 @@ def get_stations():
         cleaned_service_providers = [provider.rstrip("'") for provider in raw_service_providers]
 
         for provider in cleaned_service_providers:
-            provider_filter_used_total.labels(provider=provider).inc()
+            provider_filter_used_total.labels(
+                provider=provider if provider in _KNOWN_PROVIDERS else 'other'
+            ).inc()
         for band in frequency_bands:
-            band_filter_used_total.labels(band=band).inc()
+            band_filter_used_total.labels(
+                band=band if band in _KNOWN_BANDS else 'other'
+            ).inc()
 
         station_search_total.labels(endpoint='stations').inc()
         result = find_nearest_stations(user_lat, user_lng, max_distance=max_distance, limit=limit, service_providers=cleaned_service_providers, frequency_bands=frequency_bands)
@@ -1932,7 +1946,7 @@ def search_stations():
     if query and is_honeypot(query):
         record_honeypot_hit(query, endpoint='search_stations')
         return jsonify({"stations": []})
-    limit = request.args.get('limit', type=int, default=5)
+    limit = max(1, min(request.args.get('limit', type=int, default=5), 10))
 
     if not query or len(query) < 2 or len(query) > 7:
         return jsonify({"stations": []})
@@ -2492,7 +2506,7 @@ def api_v1_search_stations():
         example: T10
       - in: query
         name: limit
-        schema: {type: integer, default: 5}
+        schema: {type: integer, default: 5, minimum: 1, maximum: 10}
     responses:
       200:
         description: Matching stations (may be empty list).

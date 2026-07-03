@@ -167,6 +167,8 @@ def find_coverage_gaps(user_lat: float, user_lng: float) -> dict:
             BaseStation.location,
         ).filter(
             BaseStation.latitude_segment.in_(segments)
+        ).filter(
+            BaseStation.service_provider != '__HONEYPOT__'
         ).all()
     except Exception as e:
         logger.error(f"Error in find_coverage_gaps query: {e}")
@@ -221,6 +223,7 @@ def find_coverage_gaps(user_lat: float, user_lng: float) -> dict:
     return {"gaps": gaps, "summary": summary}
 
 def find_nearest_stations(user_lat, user_lng, limit=None, max_distance=None, service_providers=[], frequency_bands=[]):
+    HONEYPOT_MARKER = '__HONEYPOT__'
     user_segment = get_latitude_segment(user_lat)
     adjacent_segments = [user_segment - 1, user_segment, user_segment + 1]
 
@@ -235,6 +238,8 @@ def find_nearest_stations(user_lat, user_lng, limit=None, max_distance=None, ser
             func.group_concat(BaseStation.frequency_band.distinct())
         ).filter(
             BaseStation.latitude_segment.in_(adjacent_segments)
+        ).filter(
+            BaseStation.service_provider != HONEYPOT_MARKER
         )
 
         if service_providers:
