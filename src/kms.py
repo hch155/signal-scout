@@ -83,6 +83,49 @@ class NoopKms(KmsBackend):
         return bytes(ciphertext)
 
 
+class FernetKms(KmsBackend):
+    """Local AES-based encryption (Fernet) with a key derived from the
+    explicitly-configured SECRET_KEY via HKDF-SHA256. The default real
+    backend on self-hosted prod, where no Google KMS keyring exists: a
+    stolen users.db alone no longer yields TOTP secrets — the attacker
+    also needs the SECRET_KEY from the stack env.
+
+    decrypt() falls back to returning the input unchanged when the bytes
+    are not a Fernet token, so rows wrapped by the earlier NoopKms
+    (base64 of the raw secret) keep reading transparently until the boot
+    re-wrap upgrades them."""
+
+    name = "fernet"
+
+    def __init__(self, secret: str) -> None:
+        import base64
+        from cryptography.fernet import Fernet
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+        hkdf = HKDF(algorithm=hashes.SHA256(), length=32,
+                    salt=b"signal-scout-kms-v1", info=b"totp-wrap")
+        key = base64.urlsafe_b64encode(hkdf.derive(secret.encode('utf-8')))
+        self._fernet = Fernet(key)
+
+    @property
+    def is_active(self) -> bool:
+        return True
+
+    def encrypt(self, plaintext: bytes) -> bytes:
+        if not isinstance(plaintext, (bytes, bytearray)):
+            raise TypeError("KMS encrypt expects bytes")
+        return self._fernet.encrypt(bytes(plaintext))
+
+    def decrypt(self, ciphertext: bytes) -> bytes:
+        if not isinstance(ciphertext, (bytes, bytearray)):
+            raise TypeError("KMS decrypt expects bytes")
+        from cryptography.fernet import InvalidToken
+        try:
+            return self._fernet.decrypt(bytes(ciphertext))
+        except InvalidToken:
+            return bytes(ciphertext)
+
+
 class GoogleKmsBackend(KmsBackend):
     """Calls Google Cloud KMS. Constructed lazily — instantiating the
     client requires google-auth credentials and a network round-trip, so
@@ -120,8 +163,13 @@ _BACKEND: Optional[KmsBackend] = None
 
 
 def get_kms() -> KmsBackend:
-    """Process-singleton. First call binds the backend based on the
-    GCP_KMS_KEY_NAME env (read via config.settings)."""
+    """Process-singleton. First call binds the backend: Google KMS when
+    GCP_KMS_KEY_NAME is set, else Fernet keyed off an explicitly
+    configured SECRET_KEY, else Noop. The SECRET_KEY check reads the
+    env directly rather than settings.secret_key on purpose — settings
+    falls back to a random per-boot value, and deriving a Fernet key
+    from that would make every wrapped row undecryptable after a
+    restart."""
     global _BACKEND
     if _BACKEND is not None:
         return _BACKEND
@@ -137,9 +185,16 @@ def get_kms() -> KmsBackend:
                 "failed — refusing to fall back to NoopKms in prod."
             )
             raise
+        return _BACKEND
+    import os
+    explicit_secret = (os.getenv("SECRET_KEY") or "").strip()
+    if explicit_secret:
+        _BACKEND = FernetKms(explicit_secret)
+        logger.info("KMS active: backend=fernet (derived from SECRET_KEY)")
     else:
         _BACKEND = NoopKms()
-        logger.info("KMS inactive: backend=noop (set GCP_KMS_KEY_NAME to enable)")
+        logger.info("KMS inactive: backend=noop (set GCP_KMS_KEY_NAME "
+                    "or SECRET_KEY to enable)")
     return _BACKEND
 
 

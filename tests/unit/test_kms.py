@@ -20,12 +20,20 @@ import pytest
 @pytest.fixture(autouse=True)
 def _isolate_kms_module(monkeypatch):
     """Each test in this file reloads `config` and `kms` to swap the
-    GCP_KMS_KEY_NAME env. After the test runs, reload them back with
-    the env un-set so the next test (in any other file) sees the
-    original NoopKms backend rather than a sticky GoogleKmsBackend
-    attempt that fails the lazy import."""
+    GCP_KMS_KEY_NAME / SECRET_KEY envs. After the test runs, restore the
+    session's original SECRET_KEY BEFORE reloading config — monkeypatch
+    only undoes env changes after this teardown, and reloading config
+    while SECRET_KEY is deleted would mint a random per-reload secret
+    that breaks signature round-trips (unsubscribe tokens) in every
+    later test whose signer captured the original settings object."""
+    import os
+    orig_secret = os.environ.get("SECRET_KEY")
     yield
     monkeypatch.delenv("GCP_KMS_KEY_NAME", raising=False)
+    if orig_secret is None:
+        monkeypatch.delenv("SECRET_KEY", raising=False)
+    else:
+        monkeypatch.setenv("SECRET_KEY", orig_secret)
     import config
     importlib.reload(config)
     import kms as kms_mod
@@ -36,12 +44,17 @@ def _isolate_kms_module(monkeypatch):
     auth_routes.get_kms = kms_mod.get_kms
 
 
-def _reset(monkeypatch, env_value: str | None):
-    """Reset config + KMS singletons so tests can swap GCP_KMS_KEY_NAME."""
+def _reset(monkeypatch, env_value: str | None, secret_key: str | None = None):
+    """Reset config + KMS singletons so tests can swap GCP_KMS_KEY_NAME
+    and SECRET_KEY (which selects the FernetKms backend when set)."""
     if env_value is None:
         monkeypatch.delenv("GCP_KMS_KEY_NAME", raising=False)
     else:
         monkeypatch.setenv("GCP_KMS_KEY_NAME", env_value)
+    if secret_key is None:
+        monkeypatch.delenv("SECRET_KEY", raising=False)
+    else:
+        monkeypatch.setenv("SECRET_KEY", secret_key)
     import config
     importlib.reload(config)
     import kms as kms_mod
@@ -108,3 +121,33 @@ def test_get_kms_with_env_attempts_gcp_init(monkeypatch):
     )
     with pytest.raises(Exception):
         kms_mod.get_kms()
+
+
+def test_fernet_backend_selected_when_secret_key_set(monkeypatch):
+    kms_mod = _reset(monkeypatch, None, secret_key="s" * 64)
+    backend = kms_mod.get_kms()
+    assert backend.name == "fernet"
+    assert backend.is_active is True
+
+    plaintext = b"JBSWY3DPEHPK3PXP"
+    ct = backend.encrypt(plaintext)
+    assert ct != plaintext
+    assert backend.decrypt(ct) == plaintext
+
+
+def test_fernet_decrypt_passthrough_for_legacy_noop_bytes(monkeypatch):
+    """Rows wrapped by the earlier NoopKms hold the raw secret bytes.
+    FernetKms.decrypt must hand those back unchanged so legacy 2FA
+    users keep logging in until the boot re-wrap upgrades the row."""
+    kms_mod = _reset(monkeypatch, None, secret_key="s" * 64)
+    backend = kms_mod.get_kms()
+    legacy = b"JBSWY3DPEHPK3PXP"
+    assert backend.decrypt(legacy) == legacy
+
+
+def test_fernet_keys_differ_per_secret(monkeypatch):
+    kms_mod = _reset(monkeypatch, None, secret_key="a" * 64)
+    ct = kms_mod.get_kms().encrypt(b"topsecret")
+    kms_mod = _reset(monkeypatch, None, secret_key="b" * 64)
+    other = kms_mod.get_kms()
+    assert other.decrypt(ct) == ct  # wrong key -> passthrough, not plaintext

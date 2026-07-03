@@ -231,6 +231,49 @@ def _unwrap_totp_secret(user) -> str | None:
     return user.totp_secret or None
 
 
+def rewrap_totp_secrets(app_, db_) -> int:
+    """Boot migration: re-encrypt TOTP secrets under the active backend.
+
+    Upgrades two legacy shapes in place: rows still carrying the
+    plaintext `totp_secret` column, and `totp_secret_enc` values wrapped
+    by the earlier NoopKms (base64 of the raw secret — detectable because
+    the decoded ciphertext equals the plaintext). Already-encrypted rows
+    are left untouched. No-op when only NoopKms is available. Idempotent."""
+    import base64
+    if not get_kms().is_active:
+        return 0
+    rewrapped = 0
+    with app_.app_context():
+        users = User.query.filter(
+            (User.totp_secret.isnot(None)) | (User.totp_secret_enc.isnot(None))
+        ).all()
+        for u in users:
+            plain = _unwrap_totp_secret(u)
+            if not plain:
+                continue
+            noop_wrapped = False
+            if u.totp_secret_enc:
+                try:
+                    noop_wrapped = (base64.b64decode(u.totp_secret_enc)
+                                    == plain.encode('utf-8'))
+                except Exception:
+                    noop_wrapped = False
+            if u.totp_secret is not None or noop_wrapped or not u.totp_secret_enc:
+                u.totp_secret_enc = _wrap_totp_secret(plain)
+                u.totp_secret = None
+                rewrapped += 1
+        if rewrapped:
+            try:
+                db_.session.commit()
+                logger.info("Re-wrapped %d TOTP secrets under backend=%s",
+                            rewrapped, get_kms().name)
+            except Exception:
+                db_.session.rollback()
+                logger.exception("TOTP re-wrap commit failed")
+                return 0
+    return rewrapped
+
+
 # ── PR #15: audit log ──────────────────────────────────────────────────────
 
 def _redact_ip(s: str) -> str:

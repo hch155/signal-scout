@@ -223,6 +223,11 @@ with app.app_context():
             "real5g snapshot backfill failed"
         )
 ensure_user_api_columns(app, db)
+try:
+    from auth_routes import rewrap_totp_secrets
+    rewrap_totp_secrets(app, db)
+except Exception:
+    logging.getLogger(__name__).exception("TOTP re-wrap failed")
 
 def _users_db_pragmas(dbapi_conn, _conn_record):
     cur = dbapi_conn.cursor()
