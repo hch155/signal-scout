@@ -1,0 +1,7 @@
+# Trivy ignore list — per-CVE suppressions for the image scan.
+# Rules: one CVE id per line, ALWAYS with a trailing comment stating WHY and an
+# expiry date. Review on every dependency bump. Empty = nothing suppressed
+# (HIGH+CRITICAL with an available fix will block the build — that's intended).
+#
+# Format:
+#   CVE-2025-XXXXX  # reason; re-check after <date>

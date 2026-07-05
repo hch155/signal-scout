@@ -21,7 +21,9 @@
 # VERSION SCHEME:
 #   push main  -> YYYY.MM.DD-<sha7>-staging  (staging image)
 #              -> YYYY.MM.DD-<sha7>           (prod image -- re-tagged, same digest)
-#   tag v*     -> git tag value (e.g. v2026.05.15)  (explicit immutable release)
+#   tag v*     -> git tag value (e.g. v2026.05.15) — builds + scans a release
+#                 image ONLY; does NOT auto-deploy (promote + deploy gate on
+#                 refs/heads/main). Deploy a tag by moving main, not by tagging.
 #
 # PROMOTION MODEL:
 #   No rebuild. After image-scan passes, runner pulls staging digest, re-tags
@@ -29,10 +31,20 @@
 #   staging ran. Zero network transfer for the layers (Harbor dedupes by digest).
 #
 # ROLLBACK:
-#   On prod smoke failure the runner SSHs in, restores IMAGE_TAG from
-#   .env.bak (written before every deploy), and does compose up.
+#   deploy-prod captures the current prod tag first (fail-closed — aborts if it
+#   can't read it). If the new image's smoke (version + readyz + OAuth 302)
+#   never converges, it re-deploys the captured tag via Portainer with
+#   pullImage=false — the locally-cached last-good image, so rollback works
+#   even when Harbor is down (the prune keeps tagged images).
 
 name: CI/CD signal-scout
+
+# Serialize per ref so a push and the monthly cron can't race two deploys onto
+# the same Portainer stack out of order. Queue (don't cancel) — a deploy in
+# flight must finish, not be interrupted mid-PUT.
+concurrency:
+  group: cicd-${{ github.ref }}
+  cancel-in-progress: false
 
 on:
   push:
@@ -61,6 +73,7 @@ jobs:
   lint:
     name: lint (ruff + bandit + pip-audit)
     runs-on: [self-hosted, signal-scout-runner]
+    timeout-minutes: 25
     container:
       image: docker.io/library/node:20-bookworm-slim
     steps:
@@ -87,6 +100,7 @@ jobs:
     name: test (pytest >=75% coverage)
     needs: lint
     runs-on: [self-hosted, signal-scout-runner]
+    timeout-minutes: 25
     container:
       image: docker.io/library/node:20-bookworm-slim
     steps:
@@ -116,6 +130,7 @@ jobs:
     name: trivy fs scan
     needs: lint
     runs-on: [self-hosted, signal-scout-runner]
+    timeout-minutes: 25
     container:
       image: docker.io/library/node:20-bookworm-slim
     steps:
@@ -138,6 +153,7 @@ jobs:
     # Re-tighten by adding 'security-fs-scan' to needs[] once trivy CI/local mismatch resolved.
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: [self-hosted, signal-scout-runner]
+    timeout-minutes: 25
     outputs:
       staging_tag: ${{ steps.ver.outputs.staging_tag }}
       prod_tag:    ${{ steps.ver.outputs.prod_tag }}
@@ -151,9 +167,12 @@ jobs:
         run: docker info
 
       - name: harbor login
+        env:
+          HARBOR_USER:     ${{ secrets.HARBOR_USER }}
+          HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
         run: |
           for i in 1 2 3; do
-            echo "${{ secrets.HARBOR_PASSWORD }}" | docker login ${{ env.HARBOR_REGISTRY }} -u "${{ secrets.HARBOR_USER }}" --password-stdin && break
+            printf '%s' "$HARBOR_PASSWORD" | docker login "$HARBOR_REGISTRY" -u "$HARBOR_USER" --password-stdin && break
             echo "harbor login attempt $i failed (WiFi?), retry in $((i*10))s"; sleep $((i*10)); [ "$i" = 3 ] && exit 1
           done
 
@@ -205,6 +224,7 @@ jobs:
     name: trivy image scan (post-build, Harbor pull)
     needs: build
     runs-on: [self-hosted, signal-scout-runner]
+    timeout-minutes: 25
     container:
       image: docker.io/aquasec/trivy:latest
     env:
@@ -215,10 +235,11 @@ jobs:
         run: |
           for i in 1 2 3; do
             trivy image \
-              --severity CRITICAL \
+              --severity HIGH,CRITICAL \
               --exit-code 1 \
               --ignore-unfixed \
-              --scanners vuln \
+              --ignorefile .trivyignore \
+              --scanners vuln,secret \
               --timeout 15m \
               "${{ needs.build.outputs.image_ref }}" && break
             echo "trivy scan attempt $i failed (flaky Harbor pull / truncated layer?), retry in $((i*15))s"
@@ -231,12 +252,16 @@ jobs:
     needs: [build, image-scan]
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && github.ref == 'refs/heads/main'
     runs-on: [self-hosted, signal-scout-runner]
+    timeout-minutes: 25
     # Uses runner's local Docker daemon — same as build job
     steps:
       - name: harbor login
+        env:
+          HARBOR_USER:     ${{ secrets.HARBOR_USER }}
+          HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
         run: |
           for i in 1 2 3; do
-            echo "${{ secrets.HARBOR_PASSWORD }}" | docker login ${{ env.HARBOR_REGISTRY }} -u "${{ secrets.HARBOR_USER }}" --password-stdin && break
+            printf '%s' "$HARBOR_PASSWORD" | docker login "$HARBOR_REGISTRY" -u "$HARBOR_USER" --password-stdin && break
             echo "harbor login attempt $i failed (WiFi?), retry in $((i*10))s"; sleep $((i*10)); [ "$i" = 3 ] && exit 1
           done
       - name: re-tag staging -> prod (same digest)
@@ -259,11 +284,14 @@ jobs:
     # deploys staging from the staging tag without minting a prod tag.
     # deploy-prod still requires promote, which only runs on main — so the
     # staging branch can never reach production.
-    needs: [build]
+    # image-scan IS required: public staging must be gated by the same
+    # vulnerability scan as prod.
+    needs: [build, image-scan]
     if: |
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
     runs-on: [self-hosted, signal-scout-runner]
+    timeout-minutes: 25
     environment:
       name: staging
       url: https://staging.signal-scout.com
@@ -279,25 +307,39 @@ jobs:
             python3 scripts/portainer_deploy.py 29 21 "$STAGING_TAG" deploy/signal-scout-staging.compose.yml && break
             echo "deploy attempt $i failed (WiFi/timeout?), retry in $((i*15))s"; sleep $((i*15)); [ "$i" = 5 ] && exit 1
           done
-      - name: smoke staging (2-minute /healthz window)
+      - name: smoke staging (version + readyz, 3 consecutive, 2-min window)
+        env:
+          EXPECT_TAG: ${{ needs.build.outputs.staging_tag }}
         run: |
+          base=https://staging.signal-scout.com
+          streak=0
           for i in $(seq 1 24); do
-            if curl -sf -m 5 https://staging.signal-scout.com/api/v1/healthz; then
-              echo "staging healthy ($i)"; exit 0
+            ver=$(curl -sf -m 5 "$base/api/v1/healthz" | sed -n 's/.*"version"[ ]*:[ ]*"\([^"]*\)".*/\1/p')
+            ready=$(curl -s -m 5 -o /dev/null -w '%{http_code}' "$base/readyz")
+            if [ "$ver" = "$EXPECT_TAG" ] && [ "$ready" = "200" ]; then
+              streak=$((streak+1)); echo "ok $i (streak $streak): version=$ver readyz=$ready"
+              [ "$streak" -ge 3 ] && { echo "staging healthy"; exit 0; }
+            else
+              streak=0; echo "not-ready $i: version=$ver (want $EXPECT_TAG) readyz=$ready"
             fi
             sleep 5
           done
-          exit 1
+          echo "staging failed to converge on version=$EXPECT_TAG + readyz=200"; exit 1
 
   deploy-prod:
     name: deploy production
     needs: [build, promote, deploy-staging]
+    # Load-bearing: prod requires main + a genuinely-passed staging smoke.
+    # No `|| skipped` — on main deploy-staging always runs, so a skip means a
+    # config mistake, and prod must not proceed without staging validation.
     if: |
       always() &&
+      github.ref == 'refs/heads/main' &&
       needs.build.result == 'success' &&
       needs.promote.result == 'success' &&
-      (needs.deploy-staging.result == 'success' || needs.deploy-staging.result == 'skipped')
+      needs.deploy-staging.result == 'success'
     runs-on: [self-hosted, signal-scout-runner]
+    timeout-minutes: 25
     environment:
       name: production
       url: https://signal-scout.com
@@ -309,7 +351,13 @@ jobs:
           PORTAINER_URL:       http://INFRA_VM_IP:9000
           PORTAINER_API_TOKEN: ${{ secrets.PORTAINER_API_TOKEN }}
         run: |
-          echo "tag=$(python3 scripts/portainer_deploy.py gettag 28)" >> "$GITHUB_OUTPUT"
+          # Fail-closed: gettag now exits non-zero if it cannot read the stack,
+          # so a flaky Portainer read aborts the deploy instead of proceeding
+          # with an empty (rollback-disarming) tag.
+          tag=$(python3 scripts/portainer_deploy.py gettag 28) || {
+            echo "cannot resolve current prod tag — refusing to deploy without a rollback target"; exit 1; }
+          echo "resolved rollback target: $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - name: deploy prod via Portainer standard stack
         env:
           PORTAINER_URL:       http://INFRA_VM_IP:9000
@@ -320,23 +368,39 @@ jobs:
             python3 scripts/portainer_deploy.py 28 21 "$PROD_TAG" deploy/signal-scout-prod.compose.yml && break
             echo "deploy attempt $i failed (WiFi/timeout?), retry in $((i*15))s"; sleep $((i*15)); [ "$i" = 5 ] && exit 1
           done
-      - name: smoke prod (4-minute /healthz window)
+      - name: smoke prod (version + readyz + OAuth, 3 consecutive, 4-min window)
         id: smoke_prod
+        env:
+          EXPECT_TAG: ${{ needs.build.outputs.prod_tag }}
         run: |
+          base=https://signal-scout.com
+          streak=0
           for i in $(seq 1 48); do
-            if curl -sf -m 5 https://signal-scout.com/api/v1/healthz; then
-              echo "prod healthy ($i)"; exit 0
+            ver=$(curl -sf -m 5 "$base/api/v1/healthz" | sed -n 's/.*"version"[ ]*:[ ]*"\([^"]*\)".*/\1/p')
+            ready=$(curl -s -m 5 -o /dev/null -w '%{http_code}' "$base/readyz")
+            # OAuth readiness: /auth/google/login must 302 to Google. This is the
+            # exact check that /healthz cannot make — it stays 200 with OAuth dead.
+            oauth=$(curl -s -m 5 -o /dev/null -w '%{redirect_url}' "$base/auth/google/login")
+            if [ "$ver" = "$EXPECT_TAG" ] && [ "$ready" = "200" ] && echo "$oauth" | grep -q 'accounts.google.com'; then
+              streak=$((streak+1)); echo "ok $i (streak $streak): version=$ver readyz=$ready oauth=up"
+              [ "$streak" -ge 3 ] && { echo "prod healthy"; exit 0; }
+            else
+              streak=0; echo "not-ready $i: version=$ver (want $EXPECT_TAG) readyz=$ready oauth=$oauth"
             fi
             sleep 5
           done
-          exit 1
-      - name: auto-rollback on prod smoke failure
+          echo "prod failed to converge (version/readyz/OAuth) — triggering rollback"; exit 1
+      - name: auto-rollback on prod smoke failure (Harbor-independent)
         if: failure() && steps.smoke_prod.outcome == 'failure' && steps.prev.outputs.tag != ''
         env:
           PORTAINER_URL:       http://INFRA_VM_IP:9000
           PORTAINER_API_TOKEN: ${{ secrets.PORTAINER_API_TOKEN }}
+          # pullImage=false: roll back using the locally-cached previous image
+          # so rollback works even when Harbor is down (the prune now keeps
+          # tagged images, so the last-good image is still present locally).
+          PORTAINER_PULL:      "false"
         run: |
-          echo "rolling back prod to ${{ steps.prev.outputs.tag }}"
+          echo "rolling back prod to ${{ steps.prev.outputs.tag }} (local image, no Harbor pull)"
           for i in 1 2 3; do
             python3 scripts/portainer_deploy.py 28 21 "${{ steps.prev.outputs.tag }}" deploy/signal-scout-prod.compose.yml && break
             echo "rollback attempt $i failed, retry in $((i*10))s"; sleep $((i*10)); [ "$i" = 3 ] && exit 1
@@ -365,3 +429,26 @@ jobs:
             set -euo pipefail
             docker exec signal-scout-prod python -m run_coverage_sweep --verbose
           REMOTE
+
+  notify-failure:
+    name: open a Forgejo issue on pipeline failure
+    # Fires when any job that actually RAN fails. Note: this cannot fire if the
+    # run never started (the push->no-run breakage) or the runner itself is
+    # offline — that gap is covered by the out-of-band heartbeat canary
+    # (scripts/prod_canary.sh), which lives outside this pipeline entirely.
+    needs: [lint, test, security-fs-scan, build, image-scan, promote, deploy-staging, deploy-prod, coverage-sweep]
+    if: failure()
+    runs-on: [self-hosted, signal-scout-runner]
+    timeout-minutes: 5
+    steps:
+      - name: open failure issue on Forgejo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          BODY=$(printf '{"title":"CI/CD failed on %s (%s)","body":"Run: %s\\n\\nA pipeline job failed. If it failed after deploy-prod, an automatic rollback to the previous image should have run — verify prod. Check runner logs.","labels":["automated","ci-cd"]}' "${GITHUB_REF_NAME}" "${GITHUB_SHA:0:7}" "$RUN_URL")
+          curl -fsS --max-time 30 -X POST \
+            -H "Authorization: token ${GH_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "${GITHUB_SERVER_URL}/api/v1/repos/${GITHUB_REPOSITORY}/issues" \
+            -d "$BODY" || echo "::warning::could not open failure issue"

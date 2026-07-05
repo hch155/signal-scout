@@ -1,0 +1,14 @@
+[Unit]
+Description=signal-scout prod heartbeat canary (out-of-band readyz/version/OAuth check)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Set your alert channel + (optional) forge API for no-deploy detection:
+Environment=ALERT_WEBHOOK=
+Environment=FORGE_API=
+Environment=FORGE_TOKEN=
+Environment=FORGE_REPO=hcylwik/signal-scout
+Environment=MAX_STALE_HOURS=6
+ExecStart=/opt/prod-canary/prod_canary.sh

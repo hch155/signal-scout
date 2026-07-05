@@ -33,6 +33,19 @@ services:
     environment:
       RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-redis://redis:6379/0}
       APP_VERSION: "dev"
+      # Secrets resolve from the Portainer stack Env array (preserved verbatim
+      # across every deploy by portainer_deploy.py). Kept here as explicit refs
+      # so this compose is a FAITHFUL fallback — it can never silently drop
+      # OAuth the way an env_file-only compose did in the 2026-07-04 incident.
+      SECRET_KEY: ${SECRET_KEY}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      METRICS_BEARER_TOKEN: ${METRICS_BEARER_TOKEN}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET}
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET}
+      FACEBOOK_OAUTH_CLIENT_ID: ${FACEBOOK_OAUTH_CLIENT_ID:-}
+      FACEBOOK_OAUTH_CLIENT_SECRET: ${FACEBOOK_OAUTH_CLIENT_SECRET:-}
     depends_on:
       redis:
         condition: service_healthy
