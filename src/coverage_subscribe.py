@@ -88,6 +88,50 @@ def subscribe_address(user, query: str) -> dict:
     return {'status': 'ok', 'created': True, 'location': loc, 'match': match}
 
 
+def subscribe_coords(user, lat: float, lng: float, name: str) -> dict:
+    """Upsert an alerting-enabled UserLocation from raw coordinates (a GPS fix
+    or a manual map pin) rather than a geocoded address. `name` is the label
+    the frontend already shows for that point (nearest city); we fall back to
+    the coordinates. Mirrors subscribe_address's upsert-by-(user_id, name) and
+    limit handling, minus the geocode — the caller already has the position.
+
+      {'status': 'ok', 'created': bool, 'location': UserLocation}
+      {'status': 'outside_pl'}
+      {'status': 'limit_reached', 'limit': int}
+    """
+    from app import _coords_in_bounds
+
+    if not _coords_in_bounds(lat, lng):
+        return {'status': 'outside_pl'}
+
+    name = (name or '').strip()[:_LOC_NAME_MAX] or f"{lat:.4f}, {lng:.4f}"
+
+    existing = (UserLocation.query
+                .filter_by(user_id=user.id, name=name)
+                .first())
+    if existing is not None:
+        existing.lat = lat
+        existing.lng = lng
+        existing.alerting_enabled = True
+        db.session.commit()
+        return {'status': 'ok', 'created': False, 'location': existing}
+
+    if UserLocation.query.filter_by(user_id=user.id).count() >= _MAX_LOCATIONS_PER_USER:
+        return {'status': 'limit_reached', 'limit': _MAX_LOCATIONS_PER_USER}
+
+    loc = UserLocation(
+        user_id=user.id,
+        name=name,
+        lat=lat,
+        lng=lng,
+        radius_km=_LOC_RADIUS_DEFAULT_KM,
+        alerting_enabled=True,
+    )
+    db.session.add(loc)
+    db.session.commit()
+    return {'status': 'ok', 'created': True, 'location': loc}
+
+
 def _covered_real5g_bands(snapshot: Optional[dict]) -> set:
     """Set of covered band codes in `snapshot` whose 5G frequency is at or
     above REAL_5G_MIN_MHZ. `snapshot` is a coverage_alerts._coverage_to_dict

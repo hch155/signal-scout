@@ -726,6 +726,7 @@ TRANSLATIONS = {
     'Sign in to get coverage alerts for this address.': 'Zaloguj się, aby otrzymywać alerty o zasięgu dla tego adresu.',
     "Subscribed — we'll email you when coverage here changes.": 'Subskrybujesz — wyślemy Ci e-mail, gdy zasięg się tu zmieni.',
     'Already watching this address — alerts are on.': 'Ten adres jest już obserwowany — alerty są włączone.',
+    'this location': 'to miejsce',
 
     # embed_builder.html
     'Coverage widget builder': 'Kreator widżetu zasięgu',
@@ -1010,6 +1011,7 @@ JS_STRING_KEYS = (
     'Sign in to get coverage alerts for this address.',
     "Subscribed — we'll email you when coverage here changes.",
     'Already watching this address — alerts are on.',
+    'this location',
     'Running…',
     'Please enter an address.',
     'Address is outside Poland.',

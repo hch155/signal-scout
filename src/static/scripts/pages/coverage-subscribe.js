@@ -1,36 +1,44 @@
 // map.html — coverage-alert subscription CTA.
 //
-// Surfaces a "Subscribe to coverage changes at this address" CTA in the
-// sidebar after an address search. Logged-in users POST /coverage/subscribe
-// straight away; anonymous users get the sign-in modal and the subscribe
-// is replayed once they're in (userLoggedIn event from common.js). The CTA
-// markup lives in templates/_subscribe_cta.html as an inert <template>.
+// Surfaces a "Subscribe to coverage changes at this location" CTA in the
+// sidebar after ANY location resolves — an address search, a GPS fix, or a
+// manual map pin. ui-interactions.js publishes the current target on
+// window.SS_SubscribeTarget: an address search carries {addressQuery} (the
+// backend geocodes it); a GPS/manual point carries {lat, lng, name} (the
+// nearest-city label). Logged-in users POST /coverage/subscribe straight
+// away; anonymous users get the sign-in modal and the subscribe is replayed
+// once they're in (userLoggedIn event from common.js). The CTA markup lives
+// in templates/_subscribe_cta.html as an inert <template>.
 (function () {
   function getTemplate() {
     return document.getElementById('coverageSubscribeCtaTemplate');
   }
 
-  // The address the sidebar result currently describes. Set on an address
-  // search (suggestion pick / Enter), cleared on a raw map click so a
-  // coordinate click never offers an address subscription.
-  let currentAddress = '';
-
-  document.addEventListener('mousedown', function (e) {
-    const item = e.target.closest && e.target.closest('.ss-suggestion');
-    if (item) currentAddress = (item.textContent || '').trim();
-  }, true);
-
-  document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Enter') return;
-    const input = e.target;
-    if (input && input.id === 'addressSearchInput') {
-      currentAddress = (input.value || '').trim();
+  // The target the sidebar result currently describes. Published by
+  // ui-interactions.js on every resolved location; null while loading or on
+  // an empty/failed resolution. Either {addressQuery} or {lat, lng, name}.
+  function readTarget() {
+    const target = window.SS_SubscribeTarget;
+    if (!target) return null;
+    if (typeof target.addressQuery === 'string') {
+      const q = target.addressQuery.trim();
+      return q.length >= 3 ? { addressQuery: q } : null;
     }
-  }, true);
+    if (typeof target.lat === 'number' && typeof target.lng === 'number') {
+      return { lat: target.lat, lng: target.lng, name: (target.name || '').trim() };
+    }
+    return null;
+  }
 
-  document.addEventListener('click', function (e) {
-    if (e.target.closest && e.target.closest('#mapid')) currentAddress = '';
-  }, true);
+  function targetLabel(target) {
+    if (target.addressQuery) return target.addressQuery;
+    return target.name || t('this location');
+  }
+
+  function requestBody(target) {
+    if (target.addressQuery) return { query: target.addressQuery };
+    return { lat: target.lat, lng: target.lng, name: target.name };
+  }
 
   function ensureLoginState() {
     if (typeof window._isLoggedIn === 'boolean') {
@@ -76,8 +84,8 @@
     return t('Could not subscribe — try again.');
   }
 
-  function doSubscribe(query, cta) {
-    if (!query) return Promise.resolve();
+  function doSubscribe(target, cta) {
+    if (!target) return Promise.resolve();
     const btn = cta && cta.querySelector('#coverage-subscribe-btn');
     const original = btn ? btn.textContent : '';
     if (btn) { btn.disabled = true; btn.textContent = t('Subscribing…'); }
@@ -88,7 +96,7 @@
         'Content-Type': 'application/json',
         'X-CSRF-Token': getCsrfToken(),
       },
-      body: JSON.stringify({ query: query }),
+      body: JSON.stringify(requestBody(target)),
     })
       .then(function (r) {
         return r.json()
@@ -98,7 +106,7 @@
       .then(function (res) {
         if (res.status === 401) {
           window._isLoggedIn = false;
-          pendingQuery = query;
+          pendingTarget = target;
           if (btn) { btn.disabled = false; btn.textContent = original; }
           setStatus(cta, t('Sign in to get coverage alerts for this address.'));
           openSignInModal();
@@ -119,36 +127,36 @@
       });
   }
 
-  let pendingQuery = '';
+  let pendingTarget = null;
 
   window.addEventListener('userLoggedIn', function () {
-    if (!pendingQuery) return;
-    const q = pendingQuery;
-    pendingQuery = '';
+    if (!pendingTarget) return;
+    const target = pendingTarget;
+    pendingTarget = null;
     window._isLoggedIn = true;
-    doSubscribe(q, document.getElementById('coverage-subscribe-cta'));
+    doSubscribe(target, document.getElementById('coverage-subscribe-cta'));
   });
 
-  function onSubscribeClick(query, cta) {
+  function onSubscribeClick(target, cta) {
     ensureLoginState().then(function (loggedIn) {
-      if (loggedIn) { doSubscribe(query, cta); return; }
-      pendingQuery = query;
+      if (loggedIn) { doSubscribe(target, cta); return; }
+      pendingTarget = target;
       setStatus(cta, t('Sign in to get coverage alerts for this address.'));
       openSignInModal();
     });
   }
 
-  function insertCta(sidebar, query) {
+  function insertCta(sidebar, target) {
     const tpl = getTemplate();
     if (!tpl || !('content' in tpl)) return;
     if (sidebar.querySelector('#coverage-subscribe-cta')) return;
 
     const node = tpl.content.firstElementChild.cloneNode(true);
     const addr = node.querySelector('[data-subscribe-address]');
-    if (addr) addr.textContent = query;
+    if (addr) addr.textContent = targetLabel(target);
     const btn = node.querySelector('#coverage-subscribe-btn');
     if (btn) {
-      btn.addEventListener('click', function () { onSubscribeClick(query, node); });
+      btn.addEventListener('click', function () { onSubscribeClick(target, node); });
     }
     sidebar.insertBefore(node, sidebar.firstChild);
   }
@@ -158,17 +166,18 @@
     if (!sidebar || !getTemplate()) return;
 
     const observer = new MutationObserver(function () {
-      const query = currentAddress;
-      if (!query || query.length < 3) return;
+      const target = readTarget();
+      if (!target) return;
       if (!sidebar.children.length) return;
-      insertCta(sidebar, query);
+      insertCta(sidebar, target);
     });
     observer.observe(sidebar, { childList: true });
   });
 
   window.SS_CoverageSubscribe = {
     subscribe: function (query) {
-      onSubscribeClick(query, document.getElementById('coverage-subscribe-cta'));
+      onSubscribeClick({ addressQuery: query },
+        document.getElementById('coverage-subscribe-cta'));
     },
   };
 })();

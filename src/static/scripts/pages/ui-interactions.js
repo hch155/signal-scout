@@ -345,6 +345,7 @@ addressSearch.addTo(mymap);
         currentFilters.lat = r.lat;
         currentFilters.lng = r.lng;
         isFirstClick = false;
+        _pendingSubscribeAddress = r.display;
         sendLocation(r.lat, r.lng);
     }
 
@@ -696,7 +697,15 @@ function clearBTSCount(count) {
     btsCounter.textContent = 0;
 }
 
+// The address label of a pending address-search resolution, consumed by the
+// next sendLocation so coverage-subscribe.js can offer an address (vs
+// coordinate) subscription. A GPS fix or a manual map pin leaves it null.
+let _pendingSubscribeAddress = null;
+
 function sendLocation(lat, lng, limit = 9, max_distance = null) {
+    const subscribeAddress = _pendingSubscribeAddress;
+    _pendingSubscribeAddress = null;
+    window.SS_SubscribeTarget = null;
     currentFilters.lat = lat;
     currentFilters.lng = lng;
     currentFilters.limit = limit;
@@ -792,6 +801,12 @@ function sendLocation(lat, lng, limit = 9, max_distance = null) {
             // produced — the user can identify the saved location at a
             // glance from /account.
             const nearestCity = (data.stations[0] && data.stations[0].city) || null;
+            // Coverage-subscribe target: an address search subscribes by its
+            // typed label (backend geocodes it); a GPS fix or manual pin
+            // subscribes by these coordinates, labelled with the nearest city.
+            window.SS_SubscribeTarget = subscribeAddress
+                ? { addressQuery: subscribeAddress }
+                : { lat: lat, lng: lng, name: nearestCity };
             renderActionRow(lat, lng, nearestCity);
             renderBestOperatorCTA(lat, lng);
             scrollToSidebar();

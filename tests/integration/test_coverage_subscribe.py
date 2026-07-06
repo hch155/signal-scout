@@ -174,6 +174,109 @@ def test_subscribe_address_outside_pl(app, monkeypatch):
         assert UserLocation.query.filter_by(user_id=user.id).count() == 0
 
 
+# ── View: coordinate subscribe (GPS fix / manual map pin) ────────────────
+
+WARSAW = (52.2297, 21.0122)
+
+
+def _call_coords(app, lat, lng, name="Warszawa", *, user_id=None, csrf=True):
+    """Invoke the view with a lat/lng/name payload (GPS / manual pin)."""
+    from flask import session
+    from coverage_subscribe_routes import coverage_subscribe
+    headers = {"X-CSRF-Token": CSRF} if csrf else {}
+    with app.test_request_context("/coverage/subscribe", method="POST",
+                                  json={"lat": lat, "lng": lng, "name": name},
+                                  headers=headers):
+        session["_csrf_token"] = CSRF
+        if user_id is not None:
+            session["user_id"] = user_id
+        resp, status = coverage_subscribe()
+        return status, resp.get_json()
+
+
+def test_subscribe_coords_view_creates_alerting_location(app):
+    with app.app_context():
+        user = _make_user(app)
+        status, body = _call_coords(app, *WARSAW, user_id=user.id)
+        assert status == 200, body
+        assert body["success"] is True
+        assert body["created"] is True
+        assert body["location"]["name"] == "Warszawa"
+        assert body["location"]["alerting_enabled"] is True
+        rows = UserLocation.query.filter_by(user_id=user.id).all()
+        assert len(rows) == 1
+        assert rows[0].lat == pytest.approx(WARSAW[0])
+        assert rows[0].alerting_enabled is True
+
+
+def test_subscribe_coords_view_invalid_coords_returns_400(app):
+    with app.app_context():
+        user = _make_user(app)
+        status, body = _call_coords(app, "not-a-number", 21.0, user_id=user.id)
+        assert status == 400
+        assert body["error"] == "invalid_input"
+
+
+def test_subscribe_coords_view_outside_pl_returns_400(app):
+    with app.app_context():
+        user = _make_user(app)
+        status, body = _call_coords(app, 48.0, 2.0, user_id=user.id)  # Paris
+        assert status == 400
+        assert body["error"] == "outside_pl"
+
+
+def test_subscribe_coords_view_anon_returns_401(app):
+    with app.app_context():
+        status, _ = _call_coords(app, *WARSAW, user_id=None)
+        assert status == 401
+
+
+# ── Helper: subscribe_coords ─────────────────────────────────────────────
+
+def test_subscribe_coords_creates_and_then_upserts(app):
+    from coverage_subscribe import subscribe_coords
+    with app.app_context():
+        user = _make_user(app)
+        created = subscribe_coords(user, WARSAW[0], WARSAW[1], "Dom")
+        assert created["status"] == "ok"
+        assert created["created"] is True
+        assert created["location"].name == "Dom"
+        assert created["location"].alerting_enabled is True
+
+        again = subscribe_coords(user, WARSAW[0] + 0.001, WARSAW[1], "Dom")
+        assert again["created"] is False
+        assert UserLocation.query.filter_by(user_id=user.id).count() == 1
+
+
+def test_subscribe_coords_outside_pl(app):
+    from coverage_subscribe import subscribe_coords
+    with app.app_context():
+        user = _make_user(app)
+        out = subscribe_coords(user, 48.0, 2.0, "Paris")
+        assert out == {"status": "outside_pl"}
+        assert UserLocation.query.filter_by(user_id=user.id).count() == 0
+
+
+def test_subscribe_coords_name_falls_back_to_coordinates(app):
+    from coverage_subscribe import subscribe_coords
+    with app.app_context():
+        user = _make_user(app)
+        out = subscribe_coords(user, WARSAW[0], WARSAW[1], "")
+        assert out["status"] == "ok"
+        assert out["location"].name == f"{WARSAW[0]:.4f}, {WARSAW[1]:.4f}"
+
+
+def test_subscribe_coords_respects_location_limit(app, monkeypatch):
+    from coverage_subscribe import subscribe_coords
+    monkeypatch.setattr("coverage_subscribe._MAX_LOCATIONS_PER_USER", 1)
+    with app.app_context():
+        user = _make_user(app)
+        assert subscribe_coords(user, WARSAW[0], WARSAW[1], "A")["created"] is True
+        limited = subscribe_coords(user, WARSAW[0], WARSAW[1], "B")
+        assert limited["status"] == "limit_reached"
+        assert UserLocation.query.filter_by(user_id=user.id).count() == 1
+
+
 # ── real5g_delta classifier ──────────────────────────────────────────────
 
 def _snap(*bands):

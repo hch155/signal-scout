@@ -13,7 +13,7 @@ from flask import Blueprint, jsonify, request, session
 
 from database import db
 from models import User
-from coverage_subscribe import subscribe_address
+from coverage_subscribe import subscribe_address, subscribe_coords
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +49,26 @@ def coverage_subscribe():
         return jsonify({'error': 'Authentication required'}), 401
 
     payload = request.get_json(silent=True) or request.form
-    query = (payload.get('query') or '').strip()
-    if len(query) > _QUERY_MAX_LEN or sum(ch.isalpha() for ch in query) < _QUERY_MIN_ALPHA:
-        return jsonify({'error': 'invalid_input'}), 400
+    lat_raw, lng_raw = payload.get('lat'), payload.get('lng')
+    use_coords = lat_raw not in (None, '') and lng_raw not in (None, '')
+
+    # A GPS fix or a manual map pin subscribes by coordinates (labelled with
+    # the nearest-city name the frontend already shows); an address search
+    # still subscribes by its geocoded query.
+    if use_coords:
+        try:
+            lat, lng = float(lat_raw), float(lng_raw)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'invalid_input'}), 400
+        name = (payload.get('name') or '').strip()
+    else:
+        query = (payload.get('query') or '').strip()
+        if len(query) > _QUERY_MAX_LEN or sum(ch.isalpha() for ch in query) < _QUERY_MIN_ALPHA:
+            return jsonify({'error': 'invalid_input'}), 400
 
     try:
-        result = subscribe_address(user, query)
+        result = (subscribe_coords(user, lat, lng, name) if use_coords
+                  else subscribe_address(user, query))
     except Exception:
         logger.exception("coverage_subscribe failed for user_id=%s", user.id)
         db.session.rollback()
