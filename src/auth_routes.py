@@ -345,8 +345,10 @@ def _audit(event_type: str, user_id: int, meta: dict | None = None) -> None:
     the rest of audit logging — a chain-stamp failure must not break
     the business action."""
     try:
-        raw_ip = (request.headers.get('X-Forwarded-For')
-                  or request.remote_addr or '')
+        # Use remote_addr (ProxyFix x_for=1 sets it to the real client from the
+        # rightmost XFF appended by our NPM edge). Reading the raw X-Forwarded-For
+        # leftmost let a client spoof the audit-trail source IP.
+        raw_ip = request.remote_addr or ''
         ip = _redact_ip(raw_ip)[:64]
         ua = (request.headers.get('User-Agent') or '')[:256]
         meta_json_str = json.dumps(meta) if meta else None

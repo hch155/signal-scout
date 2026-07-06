@@ -210,9 +210,9 @@ def unsubscribe_url(user) -> str:
     spec-compliant link prefetcher (Outlook, Gmail's "Show images")
     can't accidentally opt the user out on a GET.
     """
-    from itsdangerous import URLSafeSerializer
+    from itsdangerous import URLSafeTimedSerializer
     from flask import url_for
-    serializer = URLSafeSerializer(settings.secret_key, salt='email-unsubscribe')
+    serializer = URLSafeTimedSerializer(settings.secret_key, salt='email-unsubscribe')
     token = serializer.dumps(int(user.id))
     return url_for('unsubscribe_email', token=token, _external=True)
 

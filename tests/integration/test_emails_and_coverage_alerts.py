@@ -58,7 +58,7 @@ def test_greeting_name_strips_local_part():
 def test_unsubscribe_url_signs_user_id(app):
     """Token round-trips back to the user.id via the same serializer."""
     from emails import unsubscribe_url
-    from itsdangerous import URLSafeSerializer
+    from itsdangerous import URLSafeTimedSerializer
     from config import settings
 
     class _U:
@@ -67,8 +67,8 @@ def test_unsubscribe_url_signs_user_id(app):
         url = unsubscribe_url(_U())
     assert "/unsubscribe/" in url
     token = url.rsplit("/", 1)[1]
-    serializer = URLSafeSerializer(settings.secret_key, salt="email-unsubscribe")
-    assert int(serializer.loads(token)) == 42
+    serializer = URLSafeTimedSerializer(settings.secret_key, salt="email-unsubscribe")
+    assert int(serializer.loads(token, max_age=365 * 24 * 3600)) == 42
 
 
 def test_coverage_alert_subject_with_gained_band():

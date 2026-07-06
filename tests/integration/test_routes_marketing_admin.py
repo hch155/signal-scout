@@ -328,7 +328,7 @@ def test_coverage_gaps_out_of_bounds_returns_200_with_flag(client):
 def test_unsubscribe_full_flow_disables_alerts(authed_client):
     """Generate a real signed token via the same serializer the email
     sender uses, hit the GET + POST, confirm the User row flips."""
-    from itsdangerous import URLSafeSerializer
+    from itsdangerous import URLSafeTimedSerializer
     from config import settings
     from models import User
     from database import db
@@ -337,7 +337,7 @@ def test_unsubscribe_full_flow_disables_alerts(authed_client):
         user = User.query.filter_by(email_alerts_enabled=True).first()
         assert user is not None, "authed_client fixture should give us one user"
 
-        serializer = URLSafeSerializer(settings.secret_key, salt="email-unsubscribe")
+        serializer = URLSafeTimedSerializer(settings.secret_key, salt="email-unsubscribe")
         token = serializer.dumps(user.id)
 
         # GET — preview page with the user's email visible.

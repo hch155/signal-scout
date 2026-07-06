@@ -445,6 +445,7 @@ def oauth_google_login():
 
 
 @app.route('/auth/google/callback')
+@limiter.limit("20 per minute")
 def oauth_google_callback():
     return callback_for_provider('google')
 
@@ -456,6 +457,7 @@ def oauth_github_login():
 
 
 @app.route('/auth/github/callback')
+@limiter.limit("20 per minute")
 def oauth_github_callback():
     return callback_for_provider('github')
 
@@ -467,6 +469,7 @@ def oauth_facebook_login():
 
 
 @app.route('/auth/facebook/callback')
+@limiter.limit("20 per minute")
 def oauth_facebook_callback():
     return callback_for_provider('facebook')
 
@@ -1147,11 +1150,13 @@ Art. 13 disclosure.</p>
     return response
 
 def _decode_unsubscribe_token(token: str):
-    from itsdangerous import URLSafeSerializer, BadSignature
-    serializer = URLSafeSerializer(settings.secret_key, salt='email-unsubscribe')
+    from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+    serializer = URLSafeTimedSerializer(settings.secret_key, salt='email-unsubscribe')
     try:
-        return int(serializer.loads(token))
-    except (BadSignature, ValueError, TypeError):
+        # 1-year validity — people unsubscribe from old emails, but an
+        # indefinitely-valid signed token is needless standing risk.
+        return int(serializer.loads(token, max_age=365 * 24 * 3600))
+    except (BadSignature, SignatureExpired, ValueError, TypeError):
         return None
 
 
@@ -2134,6 +2139,14 @@ def coverage_by_address():
 @require_api_access(endpoint_label='coverage_by_address_batch')
 @limiter.limit(tier_limit_string, key_func=tier_key_func)
 def coverage_by_address_batch():
+    # The batch endpoint is the B2B differentiator — require a real API key
+    # (free tier or above). Anonymous browser-origin callers (a forged Referer
+    # is enough to reach the 'anonymous' tier) must not get 100-address batches.
+    if getattr(g, 'api_tier', 'anonymous') == 'anonymous':
+        return jsonify({
+            'error': 'api_key_required',
+            'message': 'The batch endpoint requires an API key. Send it in the X-API-Key header.',
+        }), 403
     body = request.get_json(silent=True) or {}
     addresses = body.get('addresses')
     if not isinstance(addresses, list):
@@ -2801,9 +2814,12 @@ def api_v1_coverage_by_address_batch():
           application/json:
             schema: {$ref: '#/components/schemas/Error'}
       403:
-        description: No API key and no same-origin Referer.
+        description: >-
+          API key required (`api_key_required`). Unlike the single-address
+          endpoint, batch does not accept anonymous same-origin browser traffic —
+          send a key in the X-API-Key header.
       429:
-        description: Tier rate limit exceeded (10/min anonymous, 60/min free, 300/min pro, 3000/min enterprise).
+        description: Tier rate limit exceeded (60/min free, 300/min pro, 3000/min enterprise).
     """
     return coverage_by_address_batch()
 

@@ -5,6 +5,26 @@ pytestmark = pytest.mark.integration
 GET_URL = "/api/v1/coverage_by_address"
 BATCH_URL = "/api/v1/coverage_by_address/batch"
 
+@pytest.fixture
+def api_key(app):
+    """A minted free-tier API key header — the batch endpoint now requires one."""
+    from database import db
+    from models import User, ApiKey
+    from api_access import hash_api_key
+    raw = "batch-test-key-abc123"
+    with app.app_context():
+        u = User(email="batch-tester@example.com", password_hash="x",
+                 api_key_hash=hash_api_key(raw), api_tier="free")
+        db.session.add(u); db.session.commit()
+        uid = u.id
+    yield {"X-API-Key": raw}
+    with app.app_context():
+        ApiKey.query.filter_by(user_id=uid).delete(synchronize_session=False)
+        u = db.session.get(User, uid)
+        if u:
+            db.session.delete(u); db.session.commit()
+
+
 
 def test_known_address_returns_full_coverage_payload(client):
     r = client.get(GET_URL, query_string={"q": "Marszałkowska Warszawa"})
@@ -93,12 +113,12 @@ def test_outside_pl_returns_200_with_null_coverage(client, monkeypatch):
     assert body["match"]["display"] == "Somewhere, Sweden"
 
 
-def test_batch_mixes_per_item_status_and_echoes_id(client):
+def test_batch_mixes_per_item_status_and_echoes_id(client, api_key):
     payload = {"addresses": [
         {"id": "good", "q": "Marszałkowska Warszawa"},
         {"id": "bad", "q": "Qwerty Asdfgh"},
     ]}
-    r = client.post(BATCH_URL, json=payload)
+    r = client.post(BATCH_URL, headers=api_key, json=payload)
     assert r.status_code == 200
     body = r.get_json()
     assert body["count"] == 2
@@ -146,8 +166,8 @@ def test_overlong_query_returns_400(client):
     assert r.get_json()["error"] == "invalid_input"
 
 
-def test_batch_coerces_and_caps_id(client):
-    r = client.post(BATCH_URL, json={"addresses": [
+def test_batch_coerces_and_caps_id(client, api_key):
+    r = client.post(BATCH_URL, headers=api_key, json={"addresses": [
         {"id": 12345, "q": "Qwerty Asdfgh"},
         {"id": "x" * 300, "q": "Qwerty Asdfgh"},
     ]})
@@ -157,14 +177,14 @@ def test_batch_coerces_and_caps_id(client):
     assert len(rows[1]["id"]) == 128
 
 
-def test_batch_internal_error_maps_to_error_status(client, monkeypatch):
+def test_batch_internal_error_maps_to_error_status(client, monkeypatch, api_key):
     import app as app_module
 
     def _boom(_query):
         raise RuntimeError("resolver down")
 
     monkeypatch.setattr(app_module, "_resolve_address_coverage", _boom)
-    r = client.post(BATCH_URL, json={"addresses": [{"id": "x", "q": "Marszałkowska Warszawa"}]})
+    r = client.post(BATCH_URL, headers=api_key, json={"addresses": [{"id": "x", "q": "Marszałkowska Warszawa"}]})
     assert r.status_code == 200
     row = r.get_json()["results"][0]
     assert row["id"] == "x"
@@ -179,8 +199,8 @@ def test_too_few_letters_returns_400(client):
         assert r.get_json()["error"] == "invalid_input"
 
 
-def test_batch_ambiguous_status_for_conflicting_and_too_short(client):
-    r = client.post(BATCH_URL, json={"addresses": [
+def test_batch_ambiguous_status_for_conflicting_and_too_short(client, api_key):
+    r = client.post(BATCH_URL, headers=api_key, json={"addresses": [
         {"id": "conflict", "q": "Marszałkowska Warszawa", "city": "Warszawa"},
         {"id": "short", "q": "12"},
     ]})
@@ -192,7 +212,7 @@ def test_batch_ambiguous_status_for_conflicting_and_too_short(client):
     assert "coverage" not in by_id["short"]
 
 
-def test_batch_good_outside_pl_and_no_match(client, monkeypatch):
+def test_batch_good_outside_pl_and_no_match(client, monkeypatch, api_key):
     import app as app_module
     real_search = app_module.search_addresses
 
@@ -202,7 +222,7 @@ def test_batch_good_outside_pl_and_no_match(client, monkeypatch):
         return real_search(query, db_path, *args, **kwargs)
 
     monkeypatch.setattr(app_module, "search_addresses", fake_search)
-    r = client.post(BATCH_URL, json={"addresses": [
+    r = client.post(BATCH_URL, headers=api_key, json={"addresses": [
         {"id": "good", "q": "Marszałkowska Warszawa"},
         {"id": "out", "q": "Somewhere Sweden"},
         {"id": "bad", "q": "Qwerty Asdfgh"},
@@ -221,8 +241,8 @@ def test_batch_good_outside_pl_and_no_match(client, monkeypatch):
     assert "coverage" not in by_id["bad"]
 
 
-def test_batch_envelope_includes_data_date(client):
-    r = client.post(BATCH_URL, json={"addresses": [{"id": "a", "q": "Marszałkowska Warszawa"}]})
+def test_batch_envelope_includes_data_date(client, api_key):
+    r = client.post(BATCH_URL, headers=api_key, json={"addresses": [{"id": "a", "q": "Marszałkowska Warszawa"}]})
     assert r.status_code == 200
     assert r.get_json()["data_date"]
 
@@ -254,3 +274,12 @@ def test_trailing_house_number_is_low_confidence(client):
     assert match["geocode_precision"] == "street_centroid"
     assert match["confidence"] == "low"
     assert body["is_estimate"] is True
+
+
+def test_batch_requires_api_key(client):
+    """Anonymous/browser-origin callers (a forged Referer reaches the
+    'anonymous' tier) must NOT get 100-address batches — the B2B batch
+    endpoint requires a real API key."""
+    r = client.post(BATCH_URL, json={"addresses": [{"id": "x", "q": "Marszałkowska Warszawa"}]})
+    assert r.status_code == 403
+    assert (r.get_json() or {}).get("error") == "api_key_required"

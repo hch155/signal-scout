@@ -46,7 +46,21 @@ def test_is_production_case_insensitive(reload_config, env_value):
 def test_non_production_envs(reload_config, env_value):
     cfg = reload_config(env_value)
     assert cfg.settings.is_production is False
-    assert cfg.settings.cookie_secure is False
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("env_value", ["development", "dev", "local", "testing", "test"])
+def test_cookie_insecure_only_for_explicit_dev_envs(reload_config, env_value):
+    # Secure cookies OFF only for explicit local/dev/test (HTTP localhost).
+    assert reload_config(env_value).settings.cookie_secure is False
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("env_value", ["staging", "prod", ""])
+def test_cookie_secure_by_default_for_non_dev_envs(reload_config, env_value):
+    # Any non-dev env (incl. staging, an unset env, or a typo'd "prod") gets
+    # Secure cookies — no cleartext session cookie on a misconfigured env string.
+    assert reload_config(env_value).settings.cookie_secure is True
 
 
 @pytest.mark.unit

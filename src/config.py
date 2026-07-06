@@ -102,7 +102,12 @@ class Config:
 
     @property
     def cookie_secure(self) -> bool:
-        return self.is_production
+        # Secure by default — only OFF for an explicit local/dev/test env (HTTP
+        # localhost). Keying this off `is_production` (env == "PRODUCTION"
+        # exactly) meant any other string ("prod", "staging", unset) silently
+        # shipped a cleartext session cookie.
+        return self.env.strip().lower() not in (
+            "development", "dev", "local", "localhost", "testing", "test")
 
     @property
     def static_max_age(self) -> int:
