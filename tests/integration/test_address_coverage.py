@@ -15,14 +15,16 @@ def api_key(app):
     with app.app_context():
         u = User(email="batch-tester@example.com", password_hash="x",
                  api_key_hash=hash_api_key(raw), api_tier="free")
-        db.session.add(u); db.session.commit()
+        db.session.add(u)
+        db.session.commit()
         uid = u.id
     yield {"X-API-Key": raw}
     with app.app_context():
         ApiKey.query.filter_by(user_id=uid).delete(synchronize_session=False)
         u = db.session.get(User, uid)
         if u:
-            db.session.delete(u); db.session.commit()
+            db.session.delete(u)
+            db.session.commit()
 
 
 

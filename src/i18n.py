@@ -599,7 +599,6 @@ TRANSLATIONS = {
     'Confirm with your 2FA code': 'Potwierdź kodem 2FA',
     'Invalid 2FA code': 'Nieprawidłowy kod 2FA',
     'Current password is incorrect': 'Nieprawidłowe bieżące hasło',
-    'Delete failed.': 'Usuwanie nie powiodło się.',
     'Type DELETE to confirm': 'Wpisz DELETE, aby potwierdzić',
 
     # account_changes / account_location_changes / unsubscribe / embed / contact (Jinja)
@@ -929,7 +928,6 @@ JS_STRING_KEYS = (
     'Save failed.',
     'Failed.',
     'Failed to regenerate. Try again.',
-    'Delete failed.',
     'Disable failed.',
     'Regenerate failed.',
     'Verify failed.',
