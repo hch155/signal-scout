@@ -103,16 +103,6 @@ function moonPosition(date, lat, lng) {
     return celHorizontal(celSiderealTime(d, lw) - celRightAscension(l, b), phi, celDeclination(l, b));
 }
 
-const COMPASS_ACCURACY_POOR_DEG = 25;
-
-// Update the calibration hint
-function updateCalibrationHint(accuracy) {
-    const hint = document.getElementById('compass-calibration');
-    if (!hint) return;
-    const poor = accuracy < 0 || accuracy > COMPASS_ACCURACY_POOR_DEG;
-    hint.classList.toggle('hidden', !poor);
-}
-
 // Handle device orientation event
 function handleOrientation(event) {
     let heading = null;
@@ -120,9 +110,6 @@ function handleOrientation(event) {
     // iOS provides webkitCompassHeading (degrees from magnetic north, 0-360)
     if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
         heading = event.webkitCompassHeading;
-        if (typeof event.webkitCompassAccuracy === 'number') {
-            updateCalibrationHint(event.webkitCompassAccuracy);
-        }
     }
     // Android/others: use absolute orientation if available
     else if ((event.absolute === true || event.type === 'deviceorientationabsolute') && event.alpha !== null) {
@@ -660,9 +647,6 @@ function showCompassUI() {
 
             <!-- Direction instruction (mobile only) -->
             <div id="compass-direction" role="status" aria-live="polite" class="compass-mobile-only mt-3 text-base font-semibold text-blue-600 dark:text-blue-400">${t('Rotate until arrow points up')}</div>
-
-            <!-- Calibration hint (mobile only) -->
-            <div id="compass-calibration" role="status" aria-live="polite" class="hidden compass-mobile-only mt-2 px-2 py-1 rounded-md bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs text-center max-w-[170px]">${t('Wave your phone in a figure-8 to calibrate the compass')}</div>
 
             <!-- Desktop notice (shown when no orientation data) -->
             <div id="compass-desktop-notice" class="hidden mt-3 text-center">

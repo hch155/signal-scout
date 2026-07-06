@@ -179,7 +179,6 @@ TRANSLATIONS = {
     'Signal coverage at this spot': 'Zasięg sygnału w tym miejscu',
     'Match the real sky to trust the arrow': 'Dopasuj realne niebo, by zaufać strzałce',
     'Hold your phone flat': 'Trzymaj telefon płasko',
-    'Wave your phone in a figure-8 to calibrate the compass': 'Poruszaj telefonem w kształcie ósemki, aby skalibrować kompas',
     'Live navigation to station': 'Nawigacja na żywo do stacji',
     'Track 3.5 GHz (n78) deployment by operator, month over month': 'Śledź wdrożenie 3,5 GHz (n78) per operator, miesiąc po miesiącu',
     'Best operator here': 'Najlepszy operator tutaj',
@@ -366,7 +365,7 @@ TRANSLATIONS = {
     'Base Station ID is required':
         'ID stacji bazowej jest wymagane',
     'Please submit your location before changing the frequency.':
-        'Zatwierdź swoją lokalizację przed zmianą częstotliwości.',
+        'Najpierw wskaż lokalizację na mapie.',
     'An unknown location error occurred.':
         'Wystąpił nieznany błąd lokalizacji.',
     'Saved as': 'Zapisano jako',
@@ -411,7 +410,7 @@ TRANSLATIONS = {
     'New secret ready. Verify below.': 'Nowy sekret gotowy. Zweryfikuj poniżej.',
 
     # compass.js — relative direction / legend / desktop notice / toasts (JS)
-    'ALIGNED': 'NA CELU',
+    'ALIGNED': 'WYCELOWANO',
     'Almost there...': 'Już prawie...',
     'Station is to your right': 'Stacja jest lekko po prawej',
     'Station is on your right': 'Stacja jest po Twojej prawej',
@@ -803,7 +802,6 @@ JS_STRING_KEYS = (
     'Signal coverage at this spot',
     'Match the real sky to trust the arrow',
     'Hold your phone flat',
-    'Wave your phone in a figure-8 to calibrate the compass',
     'Close',
     'Live navigation to station',
     'Best operator here',

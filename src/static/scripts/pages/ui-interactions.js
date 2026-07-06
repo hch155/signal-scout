@@ -504,7 +504,7 @@ let frequencyRangeLegend = L.control({position: 'topleft'});
 
 frequencyRangeLegend.addTo(mymap);
 
-let btsCountControl = L.control({position: 'bottomleft'});
+let btsCountControl = L.control({position: 'bottomright'});
 btsCountControl.onAdd = function(map) {
     let div = L.DomUtil.create('div', '');
     div.id = 'btsCountBox';
