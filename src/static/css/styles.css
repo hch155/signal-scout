@@ -702,7 +702,7 @@ th[onclick]:hover {
 }
 
 .result-legend {
-  @apply mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 flex items-center justify-between gap-3 flex-wrap;
+  @apply mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 flex flex-col items-stretch justify-start gap-2;
 }
 
 .result-operators {

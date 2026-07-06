@@ -46,4 +46,4 @@ CMD ["gunicorn", \
      "--bind=0.0.0.0:8080", \
      "--access-logfile=-", \
      "--config=/usr/src/app/gunicorn_conf.py", \
-     "src.app:app"]
+     "app:app"]

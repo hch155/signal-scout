@@ -231,6 +231,13 @@ jobs:
       TRIVY_USERNAME: ${{ secrets.HARBOR_USER }}
       TRIVY_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
     steps:
+      - name: fetch .trivyignore (this job pulls the image, it has no checkout)
+        run: |
+          wget -q --header="Authorization: token ${FORGEJO_TOKEN}" \
+            -O .trivyignore \
+            "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/raw/branch/${GITHUB_REF_NAME}/.trivyignore" \
+            2>/dev/null \
+            || echo "# .trivyignore unavailable in image-scan job (fetch failed)" > .trivyignore
       - name: scan pushed staging image
         run: |
           for i in 1 2 3; do

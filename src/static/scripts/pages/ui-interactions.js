@@ -1271,7 +1271,7 @@ function injectBestOperatorIntoVerdict(top) {
     const colors = { play: '#a78bfa', orange: '#fb923c', plus: '#22c55e', tmobile: '#f87171' };
     const row = document.createElement('div');
     row.id = 'verdict-best-operator';
-    row.className = 'flex items-center flex-wrap gap-x-2 gap-y-1 mt-2 text-sm';
+    row.className = 'flex items-center flex-wrap gap-x-2 gap-y-1 text-sm';
     let html = '<span class="inline-flex items-center gap-1.5">';
     html += '<span class="inline-block w-2.5 h-2.5 rounded-full flex-none" style="background-color:' + (colors[top.slug] || '#94a3b8') + '"></span>';
     html += '<span class="font-semibold text-gray-900 dark:text-white">' + escapeHtml(top.operator) + '</span>';
@@ -1283,7 +1283,7 @@ function injectBestOperatorIntoVerdict(top) {
             && top.real5g_km > top.nearest_distance_km) {
             r5gLbl += ' · ' + formatVerdictDistance(top.real5g_km);
         }
-        html += '<span class="inline-flex items-center rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 font-semibold px-1.5 py-0.5 text-[10px]">' + escapeHtml(r5gLbl) + '</span>';
+        html += '<span class="inline-flex items-center rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 font-semibold px-1.5 py-0.5 text-xs">' + escapeHtml(r5gLbl) + '</span>';
     }
     if (top.referral_path) {
         html += '<a href="' + escapeHtml(top.referral_path) + '" rel="nofollow sponsored noopener" class="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">' + t('See offer') + ' &rarr;</a>';
