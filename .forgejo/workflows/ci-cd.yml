@@ -318,10 +318,11 @@ jobs:
         env:
           EXPECT_TAG: ${{ needs.build.outputs.staging_tag }}
         run: |
+          set +e
           base=https://staging.signal-scout.com
           streak=0
           for i in $(seq 1 24); do
-            ver=$(curl -sf -m 5 "$base/api/v1/healthz" | sed -n 's/.*"version"[ ]*:[ ]*"\([^"]*\)".*/\1/p')
+            ver=$(curl -s -m 5 "$base/api/v1/healthz" | sed -n 's/.*"version"[ ]*:[ ]*"\([^"]*\)".*/\1/p')
             ready=$(curl -s -m 5 -o /dev/null -w '%{http_code}' "$base/readyz")
             if [ "$ver" = "$EXPECT_TAG" ] && [ "$ready" = "200" ]; then
               streak=$((streak+1)); echo "ok $i (streak $streak): version=$ver readyz=$ready"
@@ -380,10 +381,11 @@ jobs:
         env:
           EXPECT_TAG: ${{ needs.build.outputs.prod_tag }}
         run: |
+          set +e
           base=https://signal-scout.com
           streak=0
           for i in $(seq 1 48); do
-            ver=$(curl -sf -m 5 "$base/api/v1/healthz" | sed -n 's/.*"version"[ ]*:[ ]*"\([^"]*\)".*/\1/p')
+            ver=$(curl -s -m 5 "$base/api/v1/healthz" | sed -n 's/.*"version"[ ]*:[ ]*"\([^"]*\)".*/\1/p')
             ready=$(curl -s -m 5 -o /dev/null -w '%{http_code}' "$base/readyz")
             # OAuth readiness: /auth/google/login must 302 to Google. This is the
             # exact check that /healthz cannot make — it stays 200 with OAuth dead.
