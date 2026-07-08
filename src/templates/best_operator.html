@@ -51,7 +51,7 @@
   <form id="bo-form" method="GET" action="/best-operator" class="flex gap-2" role="search">
     <div class="relative flex-grow">
       <input id="bo-q" type="search" name="q" value="{{ query | default('', true) }}"
-             placeholder="{{ _('Search address or place') }}" autocomplete="off"
+             placeholder="{{ _('Search address (street, city)') }}" autocomplete="off"
              maxlength="120" minlength="3" required
              role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="bo-suggestions"
              class="w-full p-2.5 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
