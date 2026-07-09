@@ -135,5 +135,4 @@ source under the same license.
 
 ## Contact
 
-Hubert Cylwik · [signal-scout.com](https://signal-scout.com) ·
-[LinkedIn](https://www.linkedin.com/in/hcylwik/) · hcylwik@gmail.com
+Hubert Cylwik · [signal-scout.com](https://signal-scout.com) · hcylwik@gmail.com
