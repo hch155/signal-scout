@@ -1,3 +1,6 @@
+# PARKED: an AWS ECS/ECR deploy path, evaluated during the multi-cloud
+# phase and not adopted (self-hosted + Cloud Run won on cost/control).
+# Kept for reference; no trigger wired.
 name: Deploy to Amazon ECS
 
 on:

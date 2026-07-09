@@ -1,3 +1,5 @@
+# PARKED: an Azure deploy path, evaluated during the multi-cloud phase
+# and not adopted. Kept for reference; no trigger wired.
 name: Azure cd
 
 on:

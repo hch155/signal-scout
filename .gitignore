@@ -1,54 +1,38 @@
-# Python
+tools/
+flask_session/
 __pycache__/
-venv/
-.coverage
-htmlcov/
-
-# Secrets / env
 .env
-ops/.env
 *.crt
 *.key
 *.pem
 certs/
-
-# User data — never commit (bcrypt hashes, API keys, TOTP secrets)
-src/instance/users.db
-src/instance/users.db-shm
-src/instance/users.db-wal
-src/instance/stations.db.bak
-.perf_users.db
-
-# PRG address-point source for the geocoder ETL (~20GB unpacked, never commit)
-address_data/
-
-# Runtime / build artifacts
-flask_session/
-tools/
+venv/
 src/static/dist/pages/*.map
-tests/fixtures/snapshots/
+src/instance/stations.db.bak
+performance_scripts/
 
-# Logs
-*.log
-crash.log
-
-# Terraform (defensive — tfstate/tfvars hold secrets in plaintext)
 **/.terraform/*
+
 *.tfstate
 *.tfstate.*
+terraform.tfstate*
+
+crash.log
+*.log
+
 *.tfvars
 *.tfvars.json
+
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
-
-# Tooling
+.coverage
+htmlcov/
+ops/.env
 .claude/
+tests/fixtures/snapshots/
 
-# macOS
-.DS_Store
-**/.DS_Store
-
-# Local-only docs (kept out of the repo + public mirror)
-README.full.md
+src/instance/users.db
+src/instance/users.db-shm
+src/instance/users.db-wal

@@ -92,7 +92,7 @@ Benchmark runs are committed under `tests/results/`.
   event webhook.
 - **Observability** — `prometheus-client` in multiprocess mode covering the
   four golden signals + SLO error budgets; `/metrics` behind bearer auth.
-- **Delivery** — 11-job Forgejo pipeline: lint (ruff/bandit/pip-audit) → tests
+- **Delivery** — 10-job Forgejo pipeline: lint (ruff/bandit/pip-audit) → tests
   (75% gate) → Trivy fs+image scan → build/push → digest promotion → deploy
   staging then prod, each with a version-asserting smoke gate and a
   Harbor-independent rollback.
