@@ -15,7 +15,7 @@ map-click lookups return in <20 ms p95 off one indexed SQL query, shipped by a
 | Delivery    | 10-job Forgejo pipeline → Harbor → Portainer · self-hosted (Hetzner edge + Tailscale) |
 | Tests       | 69 test files · 666 collected · 75% coverage gate in CI            |
 
-![Signal-Scout — click anywhere on the map to see the base stations in range, colour-coded by operator](assets/hero-map.jpg)
+![Signal-Scout — click anywhere on the map to see the base stations in range, colour-coded by operator](assets/coverage-map.jpg)
 
 ## What it does
 
@@ -30,7 +30,7 @@ map-click lookups return in <20 ms p95 off one indexed SQL query, shipped by a
   month-over-month deltas across the monthly snapshots.
 
 <p align="center">
-  <img src="assets/mobile-compass.png" width="300" alt="Mobile live-navigation compass tracking a selected base station — bearing and distance update from your live GPS position">
+  <img src="assets/compass.png" width="300" alt="Mobile live-navigation compass tracking a selected base station — bearing and distance update from your live GPS position">
 </p>
 
 <p align="center"><em>Pick any station and start live navigation — a compass tracks its bearing and distance from your live GPS position.</em></p>
