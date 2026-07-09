@@ -40,14 +40,17 @@ map-click lookups return in <20 ms p95 off one indexed SQL query, shipped by a
 ```mermaid
 flowchart TB
     U["Browser / API client"] -->|HTTPS| E["Edge proxy · TLS"]
-    E -->|"encrypted tunnel"| G["gunicorn · 2 workers"]
+    E -->|"Tailscale · WireGuard"| G["gunicorn · 2 workers"]
     G --> F["Flask app"]
     F --> S[("stations.db<br/>read-only")]
     F --> D[("users.db<br/>read-write")]
     F --> R[("Redis<br/>rate limits")]
+    M["monthly UKE refresh"] -.-> S
     subgraph Delivery
       direction LR
-      C["Forgejo Actions"] -->|"build · scan"| H["Harbor"] -->|deploy| P["Portainer"]
+      Dev["git push"] --> C["Forgejo Actions"]
+      C -->|"build · scan"| H["Harbor"]
+      H -->|"deploy · smoke-gated"| P["Portainer"]
     end
     P -.->|recreates| G
 ```
