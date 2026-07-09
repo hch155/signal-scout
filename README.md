@@ -15,6 +15,8 @@ map-click lookups return in <20 ms p95 off one indexed SQL query, shipped by a
 | Delivery    | 10-job Forgejo pipeline → Harbor → Portainer · self-hosted (Hetzner edge + Tailscale) |
 | Tests       | 69 test files · 666 collected · 75% coverage gate in CI            |
 
+![Signal-Scout — click the map, get every base station in range by operator, band and distance, with a modelled signal tier](assets/hero-map.jpg)
+
 ## What it does
 
 - **Click anywhere in Poland** → the base stations within range, grouped by
@@ -26,6 +28,12 @@ map-click lookups return in <20 ms p95 off one indexed SQL query, shipped by a
   changes at an address (address search, GPS, or a map pin).
 - **Public `/stats`** — operator share by generation, the 5G site race, and
   month-over-month deltas across the monthly snapshots.
+
+<p align="center">
+  <img src="assets/mobile-compass.png" width="300" alt="Mobile compass view pointing to the nearest base station, showing bearing, distance and the bands it carries">
+</p>
+
+<p align="center"><em>On a phone, a compass points you to the nearest mast — bearing, distance, and the bands it carries.</em></p>
 
 ## Architecture
 
