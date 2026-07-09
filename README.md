@@ -30,10 +30,10 @@ map-click lookups return in <20 ms p95 off one indexed SQL query, shipped by a
   month-over-month deltas across the monthly snapshots.
 
 <p align="center">
-  <img src="assets/mobile-compass.png" width="300" alt="Mobile compass view pointing to the nearest base station, showing bearing, distance and the bands it carries">
+  <img src="assets/mobile-compass.png" width="300" alt="Mobile live-navigation compass tracking a selected base station — bearing and distance update from your live GPS position">
 </p>
 
-<p align="center"><em>On a phone, a compass points you to the nearest mast — bearing, distance, and the bands it carries.</em></p>
+<p align="center"><em>Pick any station and start live navigation — a compass tracks its bearing and distance from your live GPS position.</em></p>
 
 ## Architecture
 
