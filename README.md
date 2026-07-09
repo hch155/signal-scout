@@ -38,18 +38,18 @@ map-click lookups return in <20 ms p95 off one indexed SQL query, shipped by a
 ## Architecture
 
 ```mermaid
-flowchart LR
-    U[Browser / API client] -->|HTTPS| E[Edge proxy · TLS]
-    E -->|encrypted tunnel| G[gunicorn · 2 workers]
-    G --> F[Flask app]
-    F --> S[(stations.db · read-only)]
-    F --> Us[(users.db · read-write)]
-    F --> R[(Redis · rate limits)]
+flowchart TB
+    U["Browser / API client"] -->|HTTPS| E["Edge proxy · TLS"]
+    E -->|"encrypted tunnel"| G["gunicorn · 2 workers"]
+    G --> F["Flask app"]
+    F --> S[("stations.db<br/>read-only")]
+    F --> D[("users.db<br/>read-write")]
+    F --> R[("Redis<br/>rate limits")]
     subgraph Delivery
-      C[Forgejo Actions] -->|build · scan · promote| H[Harbor registry]
-      H -->|deploy staging then prod| P[Portainer]
+      direction LR
+      C["Forgejo Actions"] -->|"build · scan"| H["Harbor"] -->|deploy| P["Portainer"]
     end
-    P -.recreates.-> G
+    P -.->|recreates| G
 ```
 
 Two SQLite databases: `stations.db` is baked read-only into the image and rebuilt
