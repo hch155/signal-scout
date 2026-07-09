@@ -117,6 +117,14 @@ def _score(op):
 
 
 def _distance_key(op):
+    # Tiebreak among equally-scored operators by the distance of their best
+    # *relevant* mast: for a real-5G operator that's its 3.5 GHz reach, so an
+    # operator with true 5G nearer wins over one whose only-closer mast is
+    # low-band coverage. Otherwise fall back to the nearest mast of any band.
+    if op.get('real_5g'):
+        r_km = op.get('real5g_km')
+        if isinstance(r_km, (int, float)):
+            return r_km
     dist = op.get('nearest_distance_km')
     return dist if isinstance(dist, (int, float)) else float('inf')
 

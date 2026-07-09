@@ -67,6 +67,22 @@ def test_tie_break_prefers_nearer_mast():
     assert ranked[0]["operator"] == "Play"
 
 
+def test_tie_break_prefers_nearer_real_5g_over_closer_lowband_mast():
+    # Both Excellent + real 5G + full tech -> identical score, so the tiebreak
+    # decides. It must prefer the operator whose 3.5 GHz mast is nearer, even
+    # when the other has a closer low-band mast. The Bialystok case: Orange's
+    # nearest mast is 190 m but only carries 5G2100 (its real 5G is 670 m
+    # away); Play carries 5G3600 at 430 m, so Play is the better real-5G bet.
+    orange = make_op("Orange", "Excellent", real_5g=True, techs=_FULL,
+                     dist=0.19, real5g_km=0.67)
+    play = make_op("Play", "Excellent", real_5g=True, techs=_FULL,
+                   dist=0.43, real5g_km=0.43)
+    ranked = rank_operators([orange, play])
+    assert ranked[0]["rank_score"] == ranked[1]["rank_score"]
+    assert ranked[0]["operator"] == "Play"
+    assert ranked[0]["recommended"] is True
+
+
 def test_empty_inputs_return_empty_list():
     assert rank_operators({"operators": []}) == []
     assert rank_operators({}) == []
