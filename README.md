@@ -15,7 +15,7 @@ map-click lookups return in <20 ms p95 off one indexed SQL query, shipped by a
 | Delivery    | 10-job Forgejo pipeline → Harbor → Portainer · self-hosted (Hetzner edge + Tailscale) |
 | Tests       | 69 test files · 666 collected · 75% coverage gate in CI            |
 
-![Signal-Scout — click anywhere on the map to see the base stations in range, colour-coded by operator](assets/coverage-map.jpg)
+![Signal-Scout — click anywhere in Poland and see the base stations in range colour-coded by operator, with a verdict on the strongest network and its real-5G reach](assets/coverage-map.jpg)
 
 ## What it does
 
