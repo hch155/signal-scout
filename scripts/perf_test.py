@@ -4,6 +4,7 @@ Performance test for Signal Scout API endpoints.
 Hits random endpoints 100x, collects min/max/avg/median response times.
 """
 
+import re as _re
 import requests
 import time
 import random
@@ -54,7 +55,6 @@ session.headers.update({"Referer": BASE_URL + "/"})
 
 # Fetch CSRF token from the home page meta tag once. POST /submit_location
 # requires it (added in PR #1) — otherwise every POST measurement is 403.
-import re as _re
 _csrf_token = None
 
 
@@ -70,7 +70,6 @@ def _ensure_csrf_token():
 
 def random_submit_location():
     lat, lng = random.choice(LOCATIONS)
-    # Add small jitter
     lat += random.uniform(-0.05, 0.05)
     lng += random.uniform(-0.05, 0.05)
     limit = random.choice([3, 6, 9])
@@ -88,7 +87,6 @@ def random_get_stations():
     lat += random.uniform(-0.05, 0.05)
     lng += random.uniform(-0.05, 0.05)
     params = {"lat": lat, "lng": lng, "limit": random.choice([3, 6, 9])}
-    # Randomly add filters
     if random.random() > 0.5:
         params["service_provider"] = random.choice(PROVIDERS)
     if random.random() > 0.5:

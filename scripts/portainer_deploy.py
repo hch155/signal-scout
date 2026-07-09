@@ -26,7 +26,14 @@ Usage:
   portainer_deploy.py gettag <stack_id>
   portainer_deploy.py <stack_id> <endpoint_id> <new_image_tag> [fallback_compose]
 """
-import json, os, re, sys, time, urllib.request, urllib.error, urllib.parse
+import json
+import os
+import re
+import sys
+import time
+import urllib.request
+import urllib.error
+import urllib.parse
 
 URL = os.environ["PORTAINER_URL"].rstrip("/")
 TOKEN = os.environ["PORTAINER_API_TOKEN"]

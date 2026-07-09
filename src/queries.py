@@ -323,7 +323,6 @@ def get_band_stats():
         .all()
     )
 
-    # Organize data
     providers = set()
     bands_data = {}
     for provider, band, count in band_counts_query:

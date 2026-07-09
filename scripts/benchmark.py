@@ -123,9 +123,9 @@ def main():
     after_total = after_css_total + after_js_total
     print("=" * 65)
     print(f"  Total served assets:  {fmt(before_total)} -> {fmt(after_total)} ({pct(before_total, after_total)})")
-    print(f"  CSS files served:     2 -> 1 (-1 HTTP request)")
+    print("  CSS files served:     2 -> 1 (-1 HTTP request)")
     print(f"  Build tooling:        {fmt(before_tool)} -> {fmt(after_tool)} ({pct(before_tool, after_tool)})")
-    print(f"  Node.js required:     Yes -> No")
+    print("  Node.js required:     Yes -> No")
     print("=" * 65)
 
 

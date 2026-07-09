@@ -20,7 +20,8 @@ self-hosted CI/CD pipeline (Forgejo Actions → Harbor → Portainer), ~€7/mon
 ## Performance
 
 The hot path (`GET /stations`) was rebuilt from Python-side row grouping to a
-single SQL `GROUP_CONCAT` query plus a composite index — p95 **186 ms → 48 ms**
+single SQL `GROUP_CONCAT` query plus a composite index — p95 **98 ms → 20 ms**,
+with the 100-request mixed-endpoint benchmark falling **185.6 ms → 48.0 ms (−74%)**
 on the 188k-row production dataset. Benchmarks are committed under `tests/results/`.
 
 ## Quick start
