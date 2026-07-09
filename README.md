@@ -57,9 +57,9 @@ flowchart LR
 
 Two SQLite binds: `stations.db` is baked read-only into the image and rebuilt
 monthly from UKE; `users.db` is a read-write persistent volume holding
-accounts, saved locations and (Fernet-wrapped) 2FA seeds. See
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full data-flow, failure
-modes and cost breakdown.
+accounts, saved locations and (Fernet-wrapped) 2FA seeds. The edge node holds
+the public certificate; the app host has no inbound public exposure and is
+reachable only across the mesh tunnel.
 
 ## Performance
 
@@ -78,8 +78,7 @@ sort.
 A key move before the SQL rewrite: **latitude segmentation** — a
 `latitude_segment = floor((lat − 49.0) / 0.1)` indexed column narrows each
 query to three adjacent 11 km bands (~0.3% of the table) before haversine runs.
-Full methodology, A/B tables and honest null results in
-[`docs/case-study-performance.md`](docs/case-study-performance.md).
+Benchmark runs are committed under `tests/results/`.
 
 ## Engineering highlights
 
@@ -125,6 +124,12 @@ The built `stations.db` ships in the repo, so a fresh clone runs with real data.
 - **Coverage is modelled, not measured.** Signal tiers derive from transmitter
   location and RF path-loss, not field measurements — an estimate, not a
   guarantee. Poland only, limited to operators/bands in the UKE registry.
+
+## License
+
+Licensed under the [GNU AGPL-3.0](LICENSE) © 2026 Hubert Cylwik. Network use is
+distribution: if you run a modified version as a service, you must offer its
+source under the same license.
 
 ## Contact
 
