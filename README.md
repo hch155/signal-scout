@@ -15,7 +15,7 @@ map-click lookups return in <20 ms p95 off one indexed SQL query, shipped by a
 | Delivery    | 10-job Forgejo pipeline → Harbor → Portainer · self-hosted (Hetzner edge + Tailscale) |
 | Tests       | 69 test files · 666 collected · 75% coverage gate in CI            |
 
-![Signal-Scout — click the map, get every base station in range by operator, band and distance, with a modelled signal tier](assets/hero-map.jpg)
+![Signal-Scout — search an address or click the map, get every base station in range by operator and distance, with a modelled signal tier and Real-5G reach](assets/hero-map.jpg)
 
 ## What it does
 
@@ -52,7 +52,7 @@ flowchart LR
     P -.recreates.-> G
 ```
 
-Two SQLite binds: `stations.db` is baked read-only into the image and rebuilt
+Two SQLite databases: `stations.db` is baked read-only into the image and rebuilt
 monthly from UKE; `users.db` is a read-write persistent volume holding
 accounts, saved locations and (Fernet-wrapped) 2FA seeds. The edge node holds
 the public certificate; the app host has no inbound public exposure and is
