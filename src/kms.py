@@ -1,38 +1,32 @@
-"""KMS envelope encryption for at-rest secrets.
+"""Envelope encryption for at-rest secrets (TOTP 2FA seeds).
 
-Threat model: SQLite users.db lives on a GCS bucket mounted via gcsfuse.
-A bucket compromise (stolen GCP credentials, leaked backup, misconfigured
-IAM) would otherwise hand the attacker every TOTP secret in plaintext —
-they could log in as any 2FA-enabled user without the user's authenticator
-ever seeing it. KMS pushes the wrapping key into a managed HSM that the
-app can ask to encrypt/decrypt but never gets a copy of, so a stolen
-database alone is useless.
+Threat model: the SQLite users.db lives on a persistent volume. A stolen
+copy — a leaked backup, host compromise, a snapshot pulled off disk —
+would otherwise hand the attacker every TOTP secret in plaintext, letting
+them log in as any 2FA-enabled user without ever touching the user's
+authenticator. Wrapping the seeds means a stolen database alone is useless:
+the wrapping key is never stored beside the data.
 
 Design:
 - `KmsBackend` is the small surface (`encrypt(bytes) -> bytes`,
-  `decrypt(bytes) -> bytes`). Two concrete impls:
-  - `NoopKms`: passthrough. Default in dev/tests where setting up a real
-    KMS keyring is friction. Same byte in, same byte out.
-  - `GoogleKmsBackend`: calls `google-cloud-kms` against the key named in
-    `GCP_KMS_KEY_NAME`. Lazy-imports the client so dev installs without
-    google-cloud-kms still boot.
-- `get_kms()` is the per-process singleton — first call binds the backend
-  based on env, subsequent calls return the same instance. Backend choice
-  is fixed at import time on purpose: switching mid-flight would mean
-  half the rows in one format and half in another with no way to tell.
+  `decrypt(bytes) -> bytes`). Three concrete impls:
+  - `NoopKms`: passthrough. Dev/tests, where standing up real key material
+    is pure friction. Same byte in, same byte out.
+  - `FernetKms`: the default real backend. AES via Fernet, key derived from
+    the explicitly-configured SECRET_KEY through HKDF-SHA256 — no external
+    dependency, wrapping key kept out of the DB.
+  - `GoogleKmsBackend`: optional HSM path for a Cloud-KMS deployment; calls
+    `google-cloud-kms` against `GCP_KMS_KEY_NAME`, lazy-imported so installs
+    without the client still boot.
+- `get_kms()` is the per-process singleton: first call binds the backend
+  from env (Google KMS if `GCP_KMS_KEY_NAME` is set, else Fernet if a
+  SECRET_KEY is explicitly configured, else Noop), later calls return it.
+  Backend choice is fixed at import time on purpose — switching mid-flight
+  would leave half the rows in one format and half in another with no way
+  to tell them apart.
 
-Activation in prod:
-1. `gcloud kms keyrings create signal-scout --location=europe-central2`
-2. `gcloud kms keys create totp-wrap --keyring=signal-scout
-   --location=europe-central2 --purpose=encryption`
-3. Grant the Cloud Run runtime SA `roles/cloudkms.cryptoKeyEncrypterDecrypter`
-   on that key.
-4. Set `GCP_KMS_KEY_NAME=projects/.../keyRings/signal-scout/cryptoKeys/totp-wrap`
-   in the cd.yaml env block. Next deploy flips the backend.
-
-No new TOTP secret is written in plaintext after activation. Existing rows
-keep their plaintext `User.totp_secret` until the next regenerate; the
-read path falls back through it transparently.
+Existing plaintext `User.totp_secret` rows are read transparently and only
+wrapped on the next regenerate, so enabling a backend needs no migration.
 """
 
 from __future__ import annotations

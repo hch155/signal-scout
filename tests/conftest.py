@@ -46,7 +46,7 @@ def _stations_db_path(_session_tmpdir: str) -> str:
 
 @pytest.fixture(scope="session")
 def _addresses_db_path(_session_tmpdir: str) -> str:
-    """Build a tiny FTS5 address DB matching scripts/addresses_database_setup.py.
+    """Build a tiny FTS5 address DB matching the production addresses schema.
     norm carries the voivodeship so it can narrow searches; duplicate displays
     are voivodeship-suffixed (as the ETL bakes them)."""
     # display, norm, lat, lng
