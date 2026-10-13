@@ -40,7 +40,7 @@ six==1.17.0
 SQLAlchemy==2.0.50
 typing_extensions==4.15.0
 tzdata==2026.2
-Werkzeug==3.1.8
+Werkzeug==3.1.9
 wrapt==2.2.1
 Authlib==1.7.2
 alembic==1.18.4
